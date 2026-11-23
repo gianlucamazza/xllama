@@ -16,7 +16,11 @@ The checkout includes all default-branch source, tests, CI, raw evidence and the
 pinned submodule. Remote branches at discovery: main, the C4 prefill experiment,
 FloppyLM training and the decision-model spike. The latter two are unrelated to
 this GPU program and were not integrated. Current open work is #313, #374,
-#395, upstream overlays #84/#85/#86 and architecture watches #273/#274/#275.
+#395, upstream overlays #84/#85/#86 and architecture watch #273 (MoE).
+[#274](https://github.com/gianlucamazza/xllama/issues/274) BitNet and
+[#275](https://github.com/gianlucamazza/xllama/issues/275) SSM/RWKV + mm
+closed completed: gates documented in [model-matrix.md](../model-matrix.md)
+§I2 / §I3; latest scan found no candidate.
 The GitHub API returned no native milestones. This execution can create issues
 and PRs but has no milestone-creation connector or authenticated CLI; the browser
 fallback also failed before opening the milestone page. The stages below are

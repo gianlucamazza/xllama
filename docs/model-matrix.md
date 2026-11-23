@@ -13,7 +13,7 @@ ids, templates, licenses, and campaign notes** — not runtime contracts.
 | Catalogue data                                                 | [`../uwp/models/manifest.json`](../uwp/models/manifest.json) |
 | Tok/s tables                                                   | [benchmarks.md](./benchmarks.md) only                        |
 
-Last updated: **2026-10-25**. `qwen25-coder-3b` is withdrawn from the
+Last updated: **2026-11-23**. `qwen25-coder-3b` is withdrawn from the
 downloadable catalogue
 ([Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE));
 receipts stay below, labelled as a non-commercial research-licence measurement.
@@ -23,7 +23,7 @@ is `lfm25-1.2b-instruct` (D3). Newest prior entries: D3 — `qwen25-coder-3b` an
 (`2026-09-30-catalogue-gates`): §A1 `phi4-mini` T3 PASS (#268), LFM2.5 QAD
 Q4_0 PASS for `lfm25-350m` / `lfm25-1.2b-instruct` (#270); §F MiniCPM5-1B (#267) and Gemma-3-1B (#269)
 rejected — measured; §I arch-watch reopen gates
-(#273 MoE, #274 BitNet, #275 SSM/RWKV + mm), then §F MiniCPM5 renderer shipped / T3 not booked (2026-08-10), WS-E
+(#273 MoE, #274 BitNet, #275 SSM/RWKV + mm; #274 and #275 later closed, see §I), then §F MiniCPM5 renderer shipped / T3 not booked (2026-08-10), WS-E
 closed (no consumer); then §A1 `lfm25-230m` shipped as the floor tier and
 `gemma3-270m`'s H9 measured (2026-08-10), §A3 H2 MoE FAIL (2026-07-30), §D
 per-arch `can_shift` (2026-07-29), §A2 phase14 (2026-07-27).
@@ -301,17 +301,19 @@ under the 3584 MiB host gate are catalogued. These host figures are not Series S
 measurements. Series S protocol and maximum-input memory validation passed on
 2026-09-28; the source/package-bound outcomes live in
 [`2026-09-28-console-api-validation.json`](../bench/results/2026-09-28-console-api-validation.json).
-BGE-M3 and Nomic each pass 17 contract requests on the main MSVC package.
-The maximum BGE input is bounded by the API logical batch, not its larger
-catalogue context; see [API limits](api-endpoint.md#embeddings-apiembed-apiembeddings-v1embeddings).
-Dedicated embedding throughput and retrieval-quality benchmarks remain open.
+BGE-M3 (`embed-bge-m3`) and Nomic Embed Text v2 MoE (`embed-nomic-v2-moe`)
+passed the Series S contract check only; throughput and retrieval quality are
+not yet measured. Each still passes 17 contract requests on the main MSVC
+package. The maximum BGE input is bounded by the API logical batch, not its
+larger catalogue context; see
+[API limits](api-endpoint.md#embeddings-apiembed-apiembeddings-v1embeddings).
 Process high-water marks do not establish a separate Nomic peak-memory bound.
 
-| Model                   | Catalogue            | Arch           | Quant  | Pooling | n_ctx | Width | License    | Host peak RSS | Status                                                     |
-| ----------------------- | -------------------- | -------------- | ------ | ------- | ----: | ----: | ---------- | ------------: | ---------------------------------------------------------- |
-| BGE-M3                  | `embed-bge-m3`       | bert           | Q8_0   | CLS     |  8192 |  1024 | MIT        |       746 MiB | **host + Series S contract PASS**                          |
-| Nomic Embed Text v2 MoE | `embed-nomic-v2-moe` | nomic-bert-moe | Q8_0   | mean    |   512 |   768 | Apache-2.0 |       632 MiB | **host + Series S contract PASS** · task prefixes required |
-| Qwen3-Embedding-4B      | —                    | qwen3          | Q4_K_M | last    |  2048 |  2560 | Apache-2.0 |      4411 MiB | **not catalogued** · exceeds 3584 MiB host gate            |
+| Model                   | Catalogue            | Arch           | Quant  | Pooling | n_ctx | Width | License    | Host peak RSS | Status                                                                                                                              |
+| ----------------------- | -------------------- | -------------- | ------ | ------- | ----: | ----: | ---------- | ------------: | ----------------------------------------------------------------------------------------------------------------------------------- |
+| BGE-M3                  | `embed-bge-m3`       | bert           | Q8_0   | CLS     |  8192 |  1024 | MIT        |       746 MiB | **host + Series S contract PASS** · contract check only; throughput and retrieval quality not yet measured                          |
+| Nomic Embed Text v2 MoE | `embed-nomic-v2-moe` | nomic-bert-moe | Q8_0   | mean    |   512 |   768 | Apache-2.0 |       632 MiB | **host + Series S contract PASS** · contract check only; throughput and retrieval quality not yet measured · task prefixes required |
+| Qwen3-Embedding-4B      | —                    | qwen3          | Q4_K_M | last    |  2048 |  2560 | Apache-2.0 |      4411 MiB | **not catalogued** · exceeds 3584 MiB host gate                                                                                     |
 
 Model SHA-256 pins: BGE-M3 `950f4a8e5e19477a6d3c26d2f162233c20002c601f75e4b002e3239997821167`, Nomic `36c5817bc25f379e62021f49efde05b10ed3b0c93ab8059c43173a7a5de73565`. Qwen candidate pin (not catalogued): `2b0cf8f17b4c723c27303015383c27ec4bf2d8314bb677d05e920dd70bb0f16b`.
 
@@ -332,14 +334,20 @@ Model SHA-256 pins: BGE-M3 `950f4a8e5e19477a6d3c26d2f162233c20002c601f75e4b002e3
    shipped (`lfm25-230m`, §A1) and everything else rejected, deferred or blocked;
    the verdicts are in §F. Of the 2026-07-27 seeds, LFM2.5-230M shipped and the
    rest were not displaced. WS-E (embeddings) now has a named LAN API consumer;
-   BGE-M3 and Nomic v2 MoE pass host screening and Series S contract validation
-   (see §G); dedicated throughput/retrieval-quality measurements remain open. WS-F (ASR): microphone capture PASS on Series S 2026-09-30 (#241). No ASR model is catalogued yet.
+   BGE-M3 (`embed-bge-m3`) and Nomic Embed Text v2 MoE (`embed-nomic-v2-moe`)
+   pass host screening and the Series S contract check only (see §G);
+   throughput and retrieval quality are not yet measured. WS-F (ASR): microphone capture PASS on Series S 2026-09-30 (#241). No ASR model is catalogued yet.
 7. ~~**W3 gpubw** (#211)~~ — **closed PASS** Series S **119.07 GB/s** STREAM;
    H6 eng **#228** (`docs/phase15-re-opt.md`).
 8. ~~**MiniCPM5-1B Series S T3**~~ — **closed** 2026-09-30: reject — measured
    (H9 3/8), see §F (#267).
-9. **Arch-watch** — desk-only reopen gates in [§I](#i-arch-watch) (#273 MoE,
-   #274 BitNet, #275 SSM/RWKV + mm). Not a catalogue seed.
+9. **Arch-watch** — desk-only reopen gates in [§I](#i-arch-watch).
+   [#273](https://github.com/gianlucamazza/xllama/issues/273) MoE remains open.
+   [#274](https://github.com/gianlucamazza/xllama/issues/274) BitNet and
+   [#275](https://github.com/gianlucamazza/xllama/issues/275) SSM/RWKV + mm
+   are closed (completed): the gates are documented in §I2 / §I3 and the latest
+   scan found no candidate; reopen if a qualifying model appears. Not a
+   catalogue seed.
 
 ---
 
@@ -352,10 +360,14 @@ candidate that appears still follows the ladder in
 [architecture.md](./architecture.md) (host smoke, then console bench, then
 manifest). No new catalogue id without a Series S PASS.
 
-Tracking: [#273](https://github.com/gianlucamazza/xllama/issues/273) MoE,
-[#274](https://github.com/gianlucamazza/xllama/issues/274) BitNet 1.58,
+Tracking: [#273](https://github.com/gianlucamazza/xllama/issues/273) MoE
+(open). [#274](https://github.com/gianlucamazza/xllama/issues/274) BitNet 1.58
+closed completed: the reopen gate is documented in §I2 and the latest scan
+found no candidate; reopen if a qualifying model appears.
 [#275](https://github.com/gianlucamazza/xllama/issues/275) SSM/RWKV + small
-multimodal. Verdicts: [phase7-hypotheses.md](./phase7-hypotheses.md) H2 / H5.
+multimodal closed completed: the gate is documented in §I3 and the latest scan
+found no candidate to pursue; reopen if a qualifying model appears.
+Verdicts: [phase7-hypotheses.md](./phase7-hypotheses.md) H2 / H5.
 
 ### I1. MoE (post H2 FAIL)
 
@@ -404,7 +416,9 @@ None of this enters a product tier while the rate is below the dense peer.
 
 Closed: H5 **NO-GO** on absence of artefact, not on measured merit (2026-08-10,
 Phase 15 M8). The pin already carries `bitnet`. No downloadable sub-4B weights
-trained at ≤2 bits. Gate: #274.
+trained at ≤2 bits. Gate:
+[#274](https://github.com/gianlucamazza/xllama/issues/274) (closed completed:
+documented here; latest scan found no candidate).
 
 **Do not reopen unless all hold:**
 
@@ -432,7 +446,9 @@ Track non-Transformer / hybrid and small multimodal options that might fit
 Series S without repeating closed kills. **Do not reopen unless** the arch is
 on the UWP llama.cpp pin, a GGUF exists, and the Series S envelope holds.
 Diffusion **text** and custom runtimes stay out (WS-D closed; image SD-Turbo
-remains product). Gate: #275.
+remains product). Gate:
+[#275](https://github.com/gianlucamazza/xllama/issues/275) (closed completed:
+documented here; latest scan found no candidate to pursue).
 
 | Class                      | Interest            | Do not reopen unless                                                                 |
 | -------------------------- | ------------------- | ------------------------------------------------------------------------------------ |
@@ -465,4 +481,4 @@ FAIL (opt-in only).
 - Selection / add-your-own → [model-selection.md](./model-selection.md)
 - Phase 7 research → [phase7-hypotheses.md](./phase7-hypotheses.md)
 - Runtime structure → [architecture.md](./architecture.md)
-- Arch-watch issues → #273 · #274 · #275
+- Arch-watch issues → [#273](https://github.com/gianlucamazza/xllama/issues/273) (open) · [#274](https://github.com/gianlucamazza/xllama/issues/274) (closed) · [#275](https://github.com/gianlucamazza/xllama/issues/275) (closed)
