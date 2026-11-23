@@ -233,6 +233,10 @@ device conflict (`887A0036`, `uwp-constraints.md §7`) applies only to ORT
 **GenAI** chat DML, not to this pipeline. Press **Cancel** during generation to
 abort between UNet steps.
 
+An operator can select the LCM scheduler by writing `1` to
+`LocalState\diffuse-lcm.txt`. Absent, image generation keeps the Euler schedule
+SD-Turbo was validated with.
+
 The `sd-turbo-fp16` model (2.4 GB: text encoder, UNet, VAE decoder + CLIP
 tokenizer) is **downloaded automatically on the first Generate** from the
 model catalogue (the Developer Mode disk budget is 90 GB after raising it via Dev

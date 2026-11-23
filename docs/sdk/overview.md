@@ -1,12 +1,12 @@
-# xllama SDK
+# xllama core library
 
-xllama is an SDK for running large language models and diffusion models on Xbox Series S consoles, Linux, and Windows. Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester. It provides a unified C++ interface for inference, training, and preference capture across backends.
+The xllama core is a C++ library for running large language models and diffusion models on Xbox Series S consoles, Linux, and Windows. Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester. It provides a unified C++ interface for inference, training, and preference capture across backends.
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                    xllama SDK                        │
+│                    xllama core                       │
 │                                                      │
 │  SessionHub ── Session ── Backend (ORT / llama.cpp)  │
 │       │              │                               │

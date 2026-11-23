@@ -3,13 +3,30 @@
 What xllama is for, and what it does not claim. Structure lives in
 [architecture.md](architecture.md); numbers in [benchmarks.md](benchmarks.md);
 Release status in [release-readiness.md](release-readiness.md); LAN protocol in
-[api-endpoint.md](api-endpoint.md).
+[api-endpoint.md](api-endpoint.md). Reuse of the inference core in a game is
+[reuse-in-a-game.md](reuse-in-a-game.md).
 
 ## Thesis
 
-xllama is a **local inference stack** for Xbox Series S and Series X consoles.
-Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester. The intended uses
-are **games** (NPC dialogue, agents) and **on-console AI assistants**.
+xllama is a local inference stack that runs on Xbox Series X|S consoles in
+Developer Mode. Supported on Series S and Series X. The project measures on
+Series S; the Series X runs come from an independent tester. It has four
+parts, described in [architecture.md](architecture.md): the C++ core library,
+the LAN server, the Developer Mode app, and the research report.
+
+The direction is game prototypes (character dialogue, agents) and on-console
+assistants, in Developer Mode.
+
+Two roles:
+
+1. **In-house inference on the console.** Chat, LAN API generation, and image
+   generation run on the console. Fine-tuning is experimental: host PEFT runs
+   on a workstation, and the in-app training flow is not walked end to end on
+   a console.
+2. **MIT-licensed inference code** a studio could reuse in its own published
+   game. xllama is MIT-licensed, so a studio could reuse its inference code in
+   its own game. That path isn't built or tested: today xllama runs on the
+   console as a Developer Mode app.
 
 The gamepad chat UI is a **demo / showcase shell** so the stack can be
 exercised without a game runtime. It is not the product thesis.
@@ -21,9 +38,11 @@ exercised without a game runtime. It is not the product thesis.
   (`SessionHub` — never 2× model in RAM).
 - Opt-in OpenAI-compatible **LAN endpoint** — the current integration probe
   for a PC or tool on the same network. Default OFF. Developer Mode / LAN research
-  only. Not a game SDK and not a public inbound service.
+  only. Not a public inbound service.
 - Headless benches (tok/s, memory, disk, GPU probes).
-- SD-Turbo diffusion and on-device / host training lanes.
+- SD-Turbo diffusion on the console. Experimental training lanes: on-device
+  last-block fine-tune and host PEFT on a workstation; the in-app flow is not
+  walked end to end on a console.
 
 ## Series X
 
@@ -54,22 +73,29 @@ What that covers and what it does not:
 - **Game designation (their observation).** The tester reported that, after
   the app was set as a Game, LFM2.5-350M averaged about 95.7 tok/s over the
   LAN API end to end (ten 1024-token generations). Before that change, their
-  batches averaged about 35.4 to 38.8 tok/s. On-screen timing of one short
-  31-token run was about 103 tok/s. Those are different measures from the
-  project's Series S benches; they are not compared here.
-- **App designation.** With the App designation the app runs at full speed
-  for about ten seconds after launch and then at about 40 % of the Game
-  speed: the system caps an App's CPU. The remedy is the Game designation,
-  which the sideload guide asks for
-  ([#457](https://github.com/gianlucamazza/xllama/issues/457)).
+  batches averaged about 35.4 to 38.8 tok/s. Those are different measures from
+  the project's Series S benches; they are not compared here.
+- **App designation (independent tester, Series X).** They reported that with
+  the App designation the app runs at full speed for about ten seconds after
+  launch and then at about 40 % of the Game speed (their figure): the system
+  caps an App's CPU. The remedy is the Game designation, which the sideload
+  guide asks for
+  ([#457](https://github.com/gianlucamazza/xllama/issues/457)). Series S App
+  versus Game measurements are in [release-readiness.md](release-readiness.md)
+  §6 and `bench/results/store-app-vs-game-2026-11-18.csv`. Those Series S
+  figures are not compared with the Series X observation above.
 
 ## Honest limits
 
 - **Developer Mode only.** Sideloaded onto a console in Developer Mode.
 - **Not Microsoft-affiliated.** Independent research. Microsoft-published
   runtimes (UWP, DirectML, ORT) are used as any third party would.
-- **Not an Xbox / GDK game SDK.** No AAA drop-in plugin, no ID@Xbox, no
-  published engine integration. Do not claim otherwise.
+- **Not a Microsoft game-runtime integration.** xllama is MIT-licensed, so a
+  studio could reuse its inference code in its own game. That path isn't
+  built or tested: today xllama runs on the console as a Developer Mode app.
+  Nobody has built the core with Microsoft's GDK or run it inside a published
+  game. There is no packaged library and no engine integration. No ID@Xbox. Do
+  not claim otherwise.
 - **LAN is a probe, not a product contract.** Unauthenticated,
   foreground-only, single-slot. See [api-endpoint.md](api-endpoint.md).
 - **Numbers are measured.** Published tok/s come from `bench/results/` via
@@ -78,5 +104,7 @@ What that covers and what it does not:
 
 ## Direction
 
-Prove local inference on the console toward game-runtime and assistant use.
+Prove local inference on the console as an in-house inference device.
 The next integration surface is the LAN endpoint, not a richer chat app.
+Reuse of the MIT-licensed inference core in a published game is a path a
+studio could take; it is not built or tested here.
