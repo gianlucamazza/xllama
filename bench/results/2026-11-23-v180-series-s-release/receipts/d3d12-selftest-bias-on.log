@@ -1,0 +1,26 @@
+Uploading d3d12be.flag → LocalState\\d3d12be.flag ...
+Done.
+GianlucaMazza.xllama_1.8.0.1721_x64__pj67f1fcj4n14 is not running.
+Started GianlucaMazza.xllama_1.8.0.1721_x64__pj67f1fcj4n14.
+Waiting for d3d12be-result.csv.done (timeout 600s) ...
+Fetched d3d12be-result.csv.done -> <tmp>/done
+Fetched d3d12be-result.csv -> <tmp>/r.csv
+Wrote <run>/out/bias/selftest-on.csv
+type,n,k,ncols,rel_err,gpu_ms,packed_gbs,ok,d3d12_ran,host,date,error
+add_f32,129,0,2,0,0.0029,0.00,1,1,xbox-series-s,2026-11-23T20:59:50Z,-
+q4_0,8192,2048,1,2.38e-07,0.0748,126.19,1,1,xbox-series-s,2026-11-23T20:59:50Z,-
+q4_0,2048,8192,1,2.57e-07,0.0871,108.30,1,1,xbox-series-s,2026-11-23T20:59:50Z,-
+q4_k,11008,2048,1,2.05e-07,0.0801,158.28,1,1,xbox-series-s,2026-11-23T20:59:50Z,-
+q4_k,2048,11008,1,2.85e-07,0.0853,148.68,1,1,xbox-series-s,2026-11-23T20:59:50Z,-
+q6_k,2048,11008,1,2.84e-07,0.1555,118.92,1,1,xbox-series-s,2026-11-23T20:59:50Z,-
+q6_k,65536,1024,1,1.79e-07,0.4009,137.32,1,1,xbox-series-s,2026-11-23T20:59:50Z,-
+q4_0,1024,1024,7,1.36e-07,0.0218,27.04,1,1,xbox-series-s,2026-11-23T20:59:50Z,-
+q4_k,1024,1024,7,2.15e-07,0.0245,24.03,1,1,xbox-series-s,2026-11-23T20:59:50Z,-
+q6_k,1024,1024,7,1.75e-07,0.0351,24.51,1,1,xbox-series-s,2026-11-23T20:59:50Z,-
+q4_0,1024,1024,512,1.87e-07,1.0094,0.58,1,1,xbox-series-s,2026-11-23T20:59:50Z,-
+q4_k,1024,1024,512,2.23e-07,1.5504,0.38,1,1,xbox-series-s,2026-11-23T20:59:50Z,-
+q6_k,1024,1024,512,1.87e-07,1.9054,0.45,1,1,xbox-series-s,2026-11-23T20:59:50Z,-
+get_rows_q6_k,151936,2048,6,0,0.0033,0.00,1,1,xbox-series-s,2026-11-23T20:59:50Z,-
+get_rows_q6_k,65536,1024,6,0,0.0038,0.00,1,1,xbox-series-s,2026-11-23T20:59:50Z,-
+--- selftest gate: 15/15 cases correct; 0 decode case(s) under 100 GB/s ---
+GATE=PASS
