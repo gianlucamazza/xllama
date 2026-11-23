@@ -57,6 +57,11 @@ void run_d3d12_selftest();
 // catalogue entry through resolve_gguf_gpu_layers (routing_policy.h, D3).
 int gguf_gpu_layers_knob();
 
+// Operator opt-out for hybrid prefix snapshots (GUI and LAN API): the value
+// in LocalState\hybrid-prefix-snapshots.txt, or kPrefixSnapshotsKnobAbsent
+// when there is no file. 0 disables snapshots; absent / non-zero keeps them.
+int hybrid_prefix_snapshots_knob();
+
 // Heap-ceiling probe. Triggered by LocalFolder\ramceil.flag; writes
 // ramceil-result.csv (+ .done marker holding the stop reason) to LocalState.
 // Measures how much heap the process can actually commit under GameOS — the

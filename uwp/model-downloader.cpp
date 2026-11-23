@@ -14,6 +14,7 @@
     #include "xllama/model_file_plan.h"
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
+    #include "xllama/prefix_snapshot.h"
     #include "xllama/session_spec.h"
     #include "xllama/withdrawn_models.h"
 
@@ -962,8 +963,10 @@ SessionParams CatalogueSessionParams(const std::string& model) {
         c.lora = wstring_to_utf8(entry->lora);
         c.lora_scale = static_cast<float>(entry->lora_scale);
     }
-    return resolve_session_params(model, c, resolve_model_path(model),
-                                  bridge::gguf_gpu_layers_knob());
+    SessionParams sp =
+        resolve_session_params(model, c, resolve_model_path(model), bridge::gguf_gpu_layers_knob());
+    sp.prefix_snapshots = prefix_snapshots_enabled(bridge::hybrid_prefix_snapshots_knob());
+    return sp;
 }
 
 std::vector<ManifestEntry> LoadModelManifest(ManifestTrust* trust, bool include_local_override) {

@@ -11,9 +11,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   KV prefix and fall back to a full prefill when a hybrid cache (LFM2) refuses
   a tail rewind. After each successful prefill the session now keeps an
   in-memory prefix state (logits + memory) for hybrid/recurrent models, and
-  restores it when the next full prompt is not a pure extension, so API and
-  multi-turn turns re-prefill only the suffix. Non-hybrid #170a rewind is
-  unchanged. See [session.md](docs/sdk/session.md) and
+  restores it when the next full prompt is a strict extension of that saved
+  prefix, so API and multi-turn turns re-prefill only the suffix. An exact
+  regenerate Clears and re-prefills so greedy output matches a cold run.
+  `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. Non-hybrid #170a
+  rewind is unchanged. Idea from bjoern2088, rebuilt in-tree. See
+  [session.md](docs/sdk/session.md) and
   [architecture.md](docs/architecture.md#kv-cache-reuse-both-backends).
 
 ## [1.8.0]

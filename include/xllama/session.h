@@ -58,6 +58,12 @@ struct SessionParams {
     // ORT sessions ignore this field. Hybrid caches that refuse tail rewind
     // disable speculation at runtime for that generation (no KV corruption).
     bool prompt_lookup = false;
+
+    // Hybrid/recurrent GGUF sessions keep an in-memory post-prefill prefix
+    // snapshot (prefix_snapshot.h) so a later full prompt can restore that
+    // prefix instead of prefilling from scratch. Default on; set false (or
+    // LocalState\hybrid-prefix-snapshots.txt = 0) to opt out.
+    bool prefix_snapshots = true;
 };
 
 struct GenerateParams {
@@ -111,8 +117,11 @@ struct GenerateParams {
     // failing, so long chats stay in the reuse regime past the token budget.
     // Hybrid caches (LFM2) cannot always rewind a divergent tail; LlamaSession
     // then restores an in-memory post-prefill prefix snapshot when the new
-    // prompt is not a pure extension, so API/multi-turn turns re-prefill only
-    // the suffix (prefix_snapshot.h). Non-hybrid #170a rewind is unchanged.
+    // prompt is a strict extension of that saved prefix, so API/multi-turn
+    // turns re-prefill only the suffix (prefix_snapshot.h). An exact
+    // regenerate Clears and re-prefills so logits match a cold run. Set
+    // SessionParams::prefix_snapshots false to opt out. Non-hybrid #170a
+    // rewind is unchanged.
     bool reuse_kv = false;
     bool reset_kv = false;
 

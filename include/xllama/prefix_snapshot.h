@@ -27,10 +27,21 @@ enum class PrefixSnapshotAction {
 struct PrefixSnapshotPlan {
     PrefixSnapshotAction action = PrefixSnapshotAction::Clear;
     // Tokens already in cache after applying action. Prefill prompt[kv_keep:].
-    // RestoreSnapshot may set this equal to prompt_n (logits came with the
-    // snapshot, so a regenerate need not decode a dummy token).
+    // RestoreSnapshot keeps kv_keep < prompt_n so the last token always
+    // prefills and reseeds logits (#170a). An exact regenerate (snapshot
+    // covers the whole prompt) cannot drop that last hybrid cell after a
+    // full-state restore, so the planner Clears instead of restoring.
     size_t kv_keep = 0;
 };
+
+// LocalState\hybrid-prefix-snapshots.txt: absent (-1) or any non-zero → on
+// (the default). 0 opts out; hybrid sessions then full-re-prefill when
+// seq_rm refuses, matching pre-snapshot behaviour.
+inline constexpr int kPrefixSnapshotsKnobAbsent = -1;
+
+inline bool prefix_snapshots_enabled(int knob) {
+    return knob != 0;
+}
 
 // Shared leading tokens, capped at prompt.size()-1 so a rewind path always
 // prefills at least the last token (its logits seed the first sample).
@@ -80,8 +91,11 @@ inline PrefixSnapshotPlan plan_prefix_snapshot(size_t common, size_t resident_n,
 
     // Hybrid (or empty resident after a failed rewind): restore the saved
     // post-prefill prefix instead of prefilling from scratch. Snapshot tokens
-    // are the last prefilled prompt, not the generated tail.
-    if (snapshot_n > 0 && snapshot_is_prefix) {
+    // are the last prefilled prompt, not the generated tail. Only restore when
+    // the new prompt is strictly longer — then the suffix prefills and seeds
+    // logits. An exact regenerate would skip that seed (llama_state logits
+    // are not bit-identical to a fresh hybrid prefill).
+    if (snapshot_n > 0 && snapshot_is_prefix && snapshot_n < prompt_n) {
         plan.action = PrefixSnapshotAction::RestoreSnapshot;
         plan.kv_keep = snapshot_n;
         return plan;

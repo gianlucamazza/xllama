@@ -61,6 +61,10 @@ TEST_CASE("same_load: an adapter, context or GPU split is a different model in R
     other.n_threads = 6; // a tuning knob, not the load
     other.n_batch = 256;
     CHECK(same_load(base, other));
+    CHECK(base.prefix_snapshots);
+    auto no_snap = base;
+    no_snap.prefix_snapshots = false;
+    CHECK_FALSE(same_load(base, no_snap));
     for (int field = 0; field < 5; ++field) {
         auto changed = base;
         switch (field) {

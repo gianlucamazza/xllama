@@ -11,7 +11,7 @@ All forks keep the MIT licence.
 | Fork                                               | Taken                                                                                   | Not taken                                            |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | [SamirCharleston](#samircharleston-vision-spike)   | llama.cpp warnings on every load (credited in the commit)                               | batch cap, repack opt-out, mmap revival, vision code |
-| [bjoern2088](#bjoern2088-xbox-one-x)               | —                                                                                       | Xbox One X port                                      |
+| [bjoern2088](#bjoern2088-xbox-one-x)               | hybrid-cache prefix snapshots (rebuilt in-tree, 2026-11-23)                             | Xbox One X port                                      |
 | [http-hadi](#http-hadi-d3d12f)                     | evidence for [#273], [#274], [#275] and the [#313] design                               | the vendored D3D12F backend                          |
 | miguelenes                                         | already in `main` (#261, `4100bc2`)                                                     | —                                                    |
 | nyzxor, hjotha, mr-wfj                             | —                                                                                       | no commits ahead                                     |
@@ -19,7 +19,6 @@ All forks keep the MIT licence.
 | [Chorss](#november-21-contributor-updates)         | opt-in F32 bias ADD on D3D12 ([#504](https://github.com/gianlucamazza/xllama/pull/504)) | —                                                    |
 | [vetax-by](#vetax-by-demand-loaded-moe-experts)    | a data point for [#273] and the SSD assessment                                          | the expert-loading runtime and its llama.cpp patches |
 | [EgbertJiang](#egbertjiang-xbox-one-s)             | Gemma 4 chat template (rebuilt in-tree, credited)                                       | Xbox One S port, `/chat` page, second model root     |
-| [xdrury-du](#2026-11-23-hybrid-prefix-snapshots)   | hybrid-cache prefix snapshots (rebuilt in-tree, 2026-11-23)                             | —                                                    |
 
 ## November 21 contributor updates
 
@@ -47,8 +46,9 @@ All forks keep the MIT licence.
 
 ## 2026-11-23: hybrid prefix snapshots
 
-- **xdrury-du.** Hybrid-cache prefix snapshots for LFM2 API prefill reuse
-  (rebuilt in-tree, 2026-11-23).
+- **bjoern2088.** Hybrid-cache prefix snapshots for LFM2 API prefill reuse
+  (rebuilt in-tree, 2026-11-23). xdrury-du's `xllama-xbox-one` is a One X CPU
+  experiment, not this work.
 
 ## SamirCharleston: vision-spike
 

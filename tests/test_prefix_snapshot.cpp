@@ -74,7 +74,7 @@ TEST_CASE("prefix snapshot: non-hybrid KV reuse still rewinds the tail") {
     CHECK(plan.kv_keep == common);
 }
 
-TEST_CASE("prefix snapshot: hybrid regenerate restores the exact prompt") {
+TEST_CASE("prefix snapshot: hybrid regenerate clears so the last token reseeds") {
     const std::vector<int32_t> resident{1, 2, 3, 4, 5};
     const std::vector<int32_t> prompt{1, 2, 3};
     const std::vector<int32_t> snapshot{1, 2, 3};
@@ -83,8 +83,16 @@ TEST_CASE("prefix snapshot: hybrid regenerate restores the exact prompt") {
     CHECK(tokens_are_prefix(snapshot, prompt));
     const auto plan = plan_prefix_snapshot(common, resident.size(), prompt.size(), snapshot.size(),
                                            true, /*can_rewind=*/false);
-    CHECK(plan.action == PrefixSnapshotAction::RestoreSnapshot);
-    CHECK(plan.kv_keep == prompt.size()); // n_p_eval == 0; logits came with the blob
+    // Restoring the full prompt would skip the last-token logit seed; hybrid
+    // cannot drop that last cell after a full-state restore.
+    CHECK(plan.action == PrefixSnapshotAction::Clear);
+    CHECK(plan.kv_keep == 0);
+}
+
+TEST_CASE("prefix snapshot: opt-out knob") {
+    CHECK(prefix_snapshots_enabled(kPrefixSnapshotsKnobAbsent));
+    CHECK(prefix_snapshots_enabled(1));
+    CHECK_FALSE(prefix_snapshots_enabled(0));
 }
 
 TEST_CASE("prefix snapshot: empty snapshot is not a prefix") {

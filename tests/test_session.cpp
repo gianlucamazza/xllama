@@ -182,8 +182,8 @@ TEST_CASE("Session: KV prefix reuse collapses a repeated prefill (opt-in: XLLAMA
     // Regenerate: identical prompt on the same session. Two legal regimes:
     // pure-attention caches rewind and re-prefill exactly 1 token (the logits
     // source); hybrid caches (LFM2) cannot erase a partial tail — seq_rm
-    // returns false — so the session restores the post-prefill prefix snapshot
-    // (n_p_eval may be 0) instead of a full clear + re-prefill.
+    // returns false — so the session Clears and re-prefills the whole prompt
+    // (a full-state snapshot restore would skip the last-token logit seed).
     // Byte-identical output is the correctness bar in both regimes.
     const auto r_regen = sess->generate(mkgp(prompt));
     REQUIRE(r_regen.success);
@@ -532,11 +532,14 @@ TEST_CASE(
     CHECK(r_ext.n_p_eval < r_ext.n_prompt);
     CHECK(r_ext.n_prompt == sess->count_tokens(ext));
 
-    // Unrelated prompt: snapshot is not a prefix → full prefill.
+    // Unrelated user text. Hybrid cannot rewind, so this is a full prefill
+    // (n_p_eval == n_prompt). Attention-only models share the ChatML wrapper
+    // with `first` and rewind that prefix (n_p_eval < n_prompt, at least 1).
     const std::string other = "<|im_start|>user\nSay hi.<|im_end|>\n<|im_start|>assistant\n";
     const auto r_other = sess->generate(mkgp(other));
     REQUIRE_MESSAGE(r_other.success, r_other.error_msg);
-    CHECK(r_other.n_p_eval == r_other.n_prompt);
+    CHECK(r_other.n_p_eval >= 1);
+    CHECK(r_other.n_p_eval <= r_other.n_prompt);
 }
 
 // Snapshot restoration is not a promise that a hybrid recurrent state can

@@ -484,9 +484,10 @@ class LlamaSession final : public Session {
     std::vector<uint8_t> m_prefix_blob;
     bool m_needs_prefix_snapshot = false;
 
-    bool m_kv_q8 = false;         // #171: q8_0 KV + forced flash attention
-    bool m_prompt_lookup = false; // #210: draft-free speculative decoding
-    int m_gpu_layers = 0;         // layers on the d3d12 backend (llama_gpu.h)
+    bool m_kv_q8 = false;           // #171: q8_0 KV + forced flash attention
+    bool m_prompt_lookup = false;   // #210: draft-free speculative decoding
+    bool m_prefix_snapshots = true; // hybrid prefix snapshots; false = opt out
+    int m_gpu_layers = 0;           // layers on the d3d12 backend (llama_gpu.h)
 
     // #169: whether the resident KV supports front-drop eviction + RoPE shift.
     // Known once the lazy context exists. Gated on llama_memory_can_shift —
@@ -497,10 +498,11 @@ class LlamaSession final : public Session {
 
     explicit LlamaSession(LlamaModelPtr model, LlamaAdapterLoraPtr adapter, float lora_scale,
                           int n_ctx, int n_threads, int n_batch, int n_ubatch, bool kv_q8,
-                          bool prompt_lookup, int gpu_layers)
+                          bool prompt_lookup, bool prefix_snapshots, int gpu_layers)
         : m_model(std::move(model)), m_adapter(std::move(adapter)), m_lora_scale(lora_scale),
           m_n_ctx(n_ctx), m_n_threads(n_threads), m_n_batch(n_batch), m_n_ubatch(n_ubatch),
-          m_kv_q8(kv_q8), m_prompt_lookup(prompt_lookup), m_gpu_layers(gpu_layers) {}
+          m_kv_q8(kv_q8), m_prompt_lookup(prompt_lookup), m_prefix_snapshots(prefix_snapshots),
+          m_gpu_layers(gpu_layers) {}
 
     const void* resident_llama_model() const override {
         return m_model.get();
@@ -563,7 +565,8 @@ class LlamaSession final : public Session {
             m_can_shift = llama_memory_can_shift(llama_get_memory(m_ctx.get())) &&
                           llama_model_n_swa(m_model.get()) == 0;
             m_needs_prefix_snapshot =
-                llama_model_is_hybrid(m_model.get()) || llama_model_is_recurrent(m_model.get());
+                m_prefix_snapshots &&
+                (llama_model_is_hybrid(m_model.get()) || llama_model_is_recurrent(m_model.get()));
             // Logged because it is a per-ARCH capability that decides whether a long
             // chat shifts (#169) or fail-fasts (#173), and docs used to state it from
             // assumption: imrope and SWA architectures cannot shift, and which is
@@ -647,8 +650,10 @@ class LlamaSession final : public Session {
         // diverges immediately and degrades to the old full clear.
         //
         // Hybrid caches (LFM2) refuse that tail erase. When a post-prefill
-        // prefix snapshot is a prefix of the new prompt, restore it (no stale
-        // generated tail) and prefill only the suffix. Non-hybrid still rewinds.
+        // prefix snapshot is a strict prefix of the new prompt, restore it (no
+        // stale generated tail) and prefill only the suffix. An exact
+        // regenerate Clears so the last token reseeds logits like a cold run.
+        // Non-hybrid still rewinds.
         llama_memory_t mem = llama_get_memory(ctx);
         size_t kv_keep = 0;
         if (full_prompt) {
@@ -1134,6 +1139,9 @@ class LlamaSession final : public Session {
         if (!m_ctx || m_prefix_blob.empty() || m_prefix_tokens.empty())
             return false;
         try {
+            // Drop leftover hybrid cells from a refused seq_rm so set_data
+            // cannot mix a generated tail with the saved prefix.
+            llama_memory_clear(llama_get_memory(m_ctx.get()), true);
             const size_t used =
                 llama_state_set_data(m_ctx.get(), m_prefix_blob.data(), m_prefix_blob.size());
             return used > 0;
@@ -1416,9 +1424,9 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
     int n_threads = sp.n_threads > 0 ? sp.n_threads : detect_threads_llama();
     int n_ctx = sp.n_ctx > 0 ? sp.n_ctx : kDefaultNCtx;
     log_output("[xllama] Session: GGUF model loaded via llama.cpp (persistent)\n");
-    return std::make_unique<LlamaSession>(LlamaModelPtr(raw_model), std::move(adapter),
-                                          sp.lora_scale, n_ctx, n_threads, sp.n_batch, sp.n_ubatch,
-                                          sp.kv_q8, sp.prompt_lookup, gpu_layers);
+    return std::make_unique<LlamaSession>(
+        LlamaModelPtr(raw_model), std::move(adapter), sp.lora_scale, n_ctx, n_threads, sp.n_batch,
+        sp.n_ubatch, sp.kv_q8, sp.prompt_lookup, sp.prefix_snapshots, gpu_layers);
 }
 } // namespace detail
 

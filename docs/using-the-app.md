@@ -201,7 +201,8 @@ are not routed per conversation.
 - **Other GGUF models** run on the CPU.
 - **Operator override:** `gguf_gpu_layers.txt` in LocalState overrides this
   (`0` forces the CPU; see [gguf-gpu-decode.md](gguf-gpu-decode.md)). There is
-  no Settings option for it.
+  no Settings option for it. Hybrid prefix snapshots (LFM2 API prefill reuse)
+  are on by default; `hybrid-prefix-snapshots.txt` = `0` opts out.
 
 Settings persist to `LocalState\settings.json` and take effect on the next
 inference call. Exception: changing the **model** loads it eagerly as soon as
