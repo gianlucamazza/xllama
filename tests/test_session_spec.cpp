@@ -57,19 +57,19 @@ TEST_CASE("resolve_session_params: one resolver for every surface (ADR 0007)") {
     CHECK(resolve_session_params("x", g, "D:\\m\\x\\", 0, 4).n_threads == 4);
 }
 
-TEST_CASE("resolve_gguf_n_threads: absent keeps auto; present is clamped positive") {
+TEST_CASE("resolve_gguf_n_threads: absent, 0, or invalid keep auto") {
     CHECK(resolve_gguf_n_threads(kGgufNThreadsKnobAbsent) == 0);
     CHECK(resolve_gguf_n_threads(4) == 4);
     CHECK(resolve_gguf_n_threads(1) == 1);
-    CHECK(resolve_gguf_n_threads(0) == 1);
-    CHECK(resolve_gguf_n_threads(-5) == 1);
+    CHECK(resolve_gguf_n_threads(0) == 0);
+    CHECK(resolve_gguf_n_threads(-5) == 0);
     CatalogueLoad g;
     g.found = true;
     g.gguf = true;
     CHECK(resolve_session_params("m", g, "D:\\m", -1).n_threads == 0);
     CHECK(resolve_session_params("m", g, "D:\\m", -1, kGgufNThreadsKnobAbsent).n_threads == 0);
     CHECK(resolve_session_params("m", g, "D:\\m", -1, 6).n_threads == 6);
-    CHECK(resolve_session_params("m", g, "D:\\m", -1, 0).n_threads == 1);
+    CHECK(resolve_session_params("m", g, "D:\\m", -1, 0).n_threads == 0);
     // GPU-layer resolution is unchanged when a thread knob is present.
     g.gpu_layers = 32;
     CHECK(resolve_session_params("m", g, "D:\\m", -1, 4).n_gpu_layers == 32);

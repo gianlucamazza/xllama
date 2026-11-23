@@ -59,8 +59,8 @@ int gguf_gpu_layers_knob();
 
 // Operator override for llama.cpp thread count in interactive GGUF sessions
 // (GUI and LAN API): the value in LocalState\gguf_n_threads.txt, or
-// kGgufNThreadsKnobAbsent when there is no file. Callers clamp it through
-// resolve_gguf_n_threads (session_spec.h). Absent keeps auto-detect.
+// kGgufNThreadsKnobAbsent when there is no file. Callers pass it through
+// resolve_gguf_n_threads (session_spec.h). Absent, 0, or invalid keeps auto.
 int gguf_n_threads_knob();
 
 // Heap-ceiling probe. Triggered by LocalFolder\ramceil.flag; writes

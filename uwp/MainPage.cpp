@@ -3195,9 +3195,9 @@ bool MainPageController::EnsureSession(const std::string& model, std::string* er
     // ADR 0007: the same resolver as the LAN API (catalogue n_ctx, backend from
     // the catalogue kind, GPU layers, runtime LoRA), and the hub reuses the
     // resident session only when it was loaded with these parameters.
-    // n_threads is 0 (auto) unless LocalState\gguf_n_threads.txt is present:
-    // llama.cpp then uses that positive count; otherwise detect_threads_llama()
-    // (capped at 6 on UWP). ORT reads intra_op_num_threads from genai_config.json.
+    // n_threads is 0 (auto) unless LocalState\gguf_n_threads.txt holds a
+    // positive count; 0 or invalid stays auto. detect_threads_llama() is
+    // capped at 6 on UWP. ORT reads intra_op_num_threads from genai_config.json.
     const xllama::SessionParams sp = ::xllama::CatalogueSessionParams(model);
     auto& hub = ::xllama::session_hub();
     if (hub.session && hub.model == model && ::xllama::same_load(hub.params, sp)) {

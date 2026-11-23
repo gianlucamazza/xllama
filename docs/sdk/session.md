@@ -102,10 +102,10 @@ Configuration for creating a persistent session.
 | `prompt_lookup` | false   | Draft-free prompt-lookup speculative decoding    |
 
 On UWP, interactive GGUF chat (GUI and LAN API) reads
-`LocalState\gguf_n_threads.txt` through `resolve_session_params`. Absent keeps
-`n_threads` at 0 (auto). A present value is clamped to at least 1.
-`bench_threads.txt` remains bench-only. Threads are a tuning knob, not load
-identity ([ADR 0007](../adr/0007-session-spec.md)).
+`LocalState\gguf_n_threads.txt` through `resolve_session_params`. Absent, 0,
+or an invalid value keeps `n_threads` at 0 (auto). `bench_threads.txt`
+remains bench-only. Threads are a tuning knob, not load identity
+([ADR 0007](../adr/0007-session-spec.md)).
 
 ## `xllama::GenerateParams`
 
