@@ -73,6 +73,10 @@ live XAML chat UI.
   overrides it for the GUI and this API alike; `0` forces the CPU. A change
   reloads the resident session. Gate and verdict:
   [gguf-gpu-decode.md](gguf-gpu-decode.md).
+- **GGUF threads:** `LocalState\gguf_n_threads.txt`, when present, sets
+  llama.cpp thread count for this API and the GUI (clamped to at least 1).
+  Absent keeps auto-detect. Threads are a tuning knob, not load identity, so
+  a change applies on the next session create.
 
 **Foreground only.** The endpoint dies when the app leaves the foreground (UWP Process
 Lifetime Management — no always-on system service). On Xbox this is stricter than on PC: if

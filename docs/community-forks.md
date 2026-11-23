@@ -20,6 +20,11 @@ All forks keep the MIT licence.
 | [vetax-by](#vetax-by-demand-loaded-moe-experts)    | a data point for [#273] and the SSD assessment                                          | the expert-loading runtime and its llama.cpp patches |
 | [EgbertJiang](#egbertjiang-xbox-one-s)             | Gemma 4 chat template (rebuilt in-tree, credited)                                       | Xbox One S port, `/chat` page, second model root     |
 
+## 2026-11-23: interactive GGUF thread knob
+
+- Opt-in LocalState `gguf_n_threads.txt` for interactive GGUF sessions
+  (rebuilt in-tree, 2026-11-23).
+
 ## November 21 contributor updates
 
 - **Chorss.** The initial fork review on 2026-11-21 inspected

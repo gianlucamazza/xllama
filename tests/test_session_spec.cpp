@@ -10,6 +10,8 @@
 #include <string>
 
 using xllama::CatalogueLoad;
+using xllama::kGgufNThreadsKnobAbsent;
+using xllama::resolve_gguf_n_threads;
 using xllama::resolve_session_params;
 using xllama::same_load;
 
@@ -18,6 +20,7 @@ TEST_CASE("resolve_session_params: one resolver for every surface (ADR 0007)") {
     const auto unknown = resolve_session_params("custom", CatalogueLoad{}, "D:\\m\\custom", -1);
     CHECK(unknown.model_path == "custom");
     CHECK(unknown.n_ctx == xllama::kDefaultNCtx);
+    CHECK(unknown.n_threads == 0);
     CHECK(unknown.backend == xllama::Backend::Auto);
     CHECK(unknown.lora_path.empty());
 
@@ -29,6 +32,7 @@ TEST_CASE("resolve_session_params: one resolver for every surface (ADR 0007)") {
     const auto o = resolve_session_params("smollm2", ort, "D:\\m\\smollm2", 4);
     CHECK(o.n_ctx == 3072);
     CHECK(o.n_gpu_layers == 0);
+    CHECK(o.n_threads == 0);
     CHECK(o.lora_path.empty());
 
     // A GGUF entry with an adapter: the GUI and the API used to disagree here (F03).
@@ -45,9 +49,31 @@ TEST_CASE("resolve_session_params: one resolver for every surface (ADR 0007)") {
     CHECK(a.n_gpu_layers == 32);
     CHECK(a.lora_path == "D:\\m\\smollm2-lora-rt\\adapter.gguf");
     CHECK(a.lora_scale == 0.5f);
+    CHECK(a.n_threads == 0);
     // A trailing separator is not doubled; the operator knob wins, 0 included.
     CHECK(resolve_session_params("x", g, "D:\\m\\x\\", 0).lora_path == "D:\\m\\x\\adapter.gguf");
     CHECK(resolve_session_params("x", g, "D:\\m\\x\\", 0).n_gpu_layers == 0);
+    CHECK(resolve_session_params("x", g, "D:\\m\\x\\", 0).n_threads == 0);
+    CHECK(resolve_session_params("x", g, "D:\\m\\x\\", 0, 4).n_threads == 4);
+}
+
+TEST_CASE("resolve_gguf_n_threads: absent keeps auto; present is clamped positive") {
+    CHECK(resolve_gguf_n_threads(kGgufNThreadsKnobAbsent) == 0);
+    CHECK(resolve_gguf_n_threads(4) == 4);
+    CHECK(resolve_gguf_n_threads(1) == 1);
+    CHECK(resolve_gguf_n_threads(0) == 1);
+    CHECK(resolve_gguf_n_threads(-5) == 1);
+    CatalogueLoad g;
+    g.found = true;
+    g.gguf = true;
+    CHECK(resolve_session_params("m", g, "D:\\m", -1).n_threads == 0);
+    CHECK(resolve_session_params("m", g, "D:\\m", -1, kGgufNThreadsKnobAbsent).n_threads == 0);
+    CHECK(resolve_session_params("m", g, "D:\\m", -1, 6).n_threads == 6);
+    CHECK(resolve_session_params("m", g, "D:\\m", -1, 0).n_threads == 1);
+    // GPU-layer resolution is unchanged when a thread knob is present.
+    g.gpu_layers = 32;
+    CHECK(resolve_session_params("m", g, "D:\\m", -1, 4).n_gpu_layers == 32);
+    CHECK(resolve_session_params("m", g, "D:\\m", 0, 4).n_gpu_layers == 0);
 }
 
 TEST_CASE("same_load: an adapter, context or GPU split is a different model in RAM") {
