@@ -129,7 +129,7 @@
   },
   "release_review": {
     "release_prep_PR": 510,
-    "receipts_PR": null,
+    "receipts_PR": 516,
     "owner_publication_approval": "approved 2026-11-23",
     "stable_tag_created": true,
     "published": true
