@@ -27,3 +27,6 @@ merged pull requests for the full record.
   [Xbox One S fork](https://github.com/EgbertJiang/xllama/tree/codex/xbox-one-s-compat).
   Rebuilt in-tree with its own tests; the rest of that fork is reviewed in
   [docs/community-forks.md](docs/community-forks.md#egbertjiang-xbox-one-s).
+- [@Chorss](https://github.com/Chorss) —
+  [#504](https://github.com/gianlucamazza/xllama/pull/504) opt-in F32 bias ADD
+  on the d3d12 GGUF path.

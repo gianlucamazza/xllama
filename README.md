@@ -1,8 +1,6 @@
 # xllama
 
-**Run local language models on your own Xbox Series S or Series X, in Developer Mode.**
-
-A free, MIT-licensed app you sideload onto the console: chat, an OpenAI-compatible API on your local network, image generation and experimental on-device fine-tuning.
+xllama is a free, MIT-licensed open-source project for running local language models on Xbox Series X|S in Developer Mode. The main way to use it today is an app you sideload onto the console: chat, an OpenAI-compatible API on your local network, and image generation. Inference runs on the console. Once a model is on the console, the app only goes online to download a model you don't have yet. The first launch needs an internet connection.
 
 [![build-uwp](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml)
 [![build-linux](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml)
@@ -19,11 +17,12 @@ On a Series S, the default model LFM2.5-350M generates text at **97.9 tok/s** (d
 
 On a Series X, measured by an independent tester (Joshua Henne / Eidon Labs Inc., xllama 1.7.0.1495, [discussion #434](https://github.com/gianlucamazza/xllama/discussions/434)), not by the project:
 
-- LFM2.5-350M, about **103 tok/s** by the app's own on-screen timing, from one short run of 31 tokens.
 - LFM2.5-350M, about **95.7 tok/s** over the local-network API end to end, averaged over ten 1024-token generations, after the app was set as a Game. Before that change, batches averaged about 35.4 to 38.8 tok/s.
 - LFM2.5-1.2B-Instruct (QAD Q4_0, CPU forced), about **37.1 tok/s** over the local-network API end to end, the average of three runs.
 
 xllama is an independent project, not affiliated with or endorsed by Microsoft.
+
+xllama is MIT-licensed, so a studio could reuse its inference code in its own game. That path isn't built or tested: today xllama runs on the console as a Developer Mode app.
 
 ## Before you sideload
 
@@ -60,7 +59,7 @@ Series S, Developer Mode; not a speed claim. Provenance: [`xllama-demo-v1.5.6.mp
 - **LAN API** — OpenAI-compatible completions on your local network; **off by default and has no authentication**.
 - **Image generation** — SD-Turbo on the console. **Powered by Stability AI.**
 - **Benchmarks** — headless tok/s and platform probes on the console. See [bench/README.md](bench/README.md).
-- **Experimental fine-tuning** — on-device last-block fine-tune, host PEFT, and serving a merged GGUF. The in-app _Train on my feedback_ flow is not yet walked end to end on a console.
+- **Experimental fine-tuning** — on-device last-block fine-tune, host PEFT on a workstation, and serving a merged GGUF. The in-app _Train on my feedback_ flow is not yet walked end to end on a console.
 
 ## Models and performance (Series S)
 
@@ -93,7 +92,7 @@ Two backends, dispatched per model at runtime: GGUF through llama.cpp, everythin
 One resident session in the process — two models do not fit the console budget.
 UWP/AppContainer limits apply (no mmap, no dlopen, no registry, no arbitrary paths); measured ceilings live in the constraints doc.
 
-[Architecture](docs/architecture.md) · [Design decisions](docs/design-decisions.md) · [UWP constraints](docs/uwp-constraints.md)
+[Architecture](docs/architecture.md) · [Design decisions](docs/design-decisions.md) · [UWP constraints](docs/uwp-constraints.md) · [Reuse in a game](docs/reuse-in-a-game.md)
 
 ## Documentation
 
@@ -108,6 +107,7 @@ UWP/AppContainer limits apply (no mmap, no dlopen, no registry, no arbitrary pat
 | Build    | Platform limits     | [uwp-constraints.md](docs/uwp-constraints.md)                      |
 | Research | Benchmarks          | [benchmarks.md](docs/benchmarks.md)                                |
 | Research | Positioning         | [positioning.md](docs/positioning.md)                              |
+| Research | Reuse in a game     | [reuse-in-a-game.md](docs/reuse-in-a-game.md)                      |
 | Research | Research package    | [paper/](paper/) · [technical-report.md](docs/technical-report.md) |
 
 Index: [docs/README.md](docs/README.md)
@@ -166,7 +166,7 @@ The DOI badge and version DOI are synchronized from `release.toml`.
 
 - [`llama.cpp`](https://github.com/ggml-org/llama.cpp) — Georgi Gerganov
 - [ONNX Runtime GenAI](https://github.com/microsoft/onnxruntime-genai) — Microsoft
-- Xbox homebrew community
+- The Xbox Developer Mode community
 - Andrei David's `llama2.c` port to Xbox 360
 
 <a id="license"></a>
