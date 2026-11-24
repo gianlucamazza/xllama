@@ -1,0 +1,194 @@
+{
+  "command": "scripts/validate-api.sh all",
+  "env": {
+    "ORT_MODEL": "smollm2-360m-cpu-int4"
+  },
+  "date": "2026-11-24",
+  "transport": "Validation host reaches the console only through a SOCKS5 proxy. Attempt 1: curl via the proxy; Python-socket gates (embed, framing) could not connect. Attempt 2: local TCP forwarder through the same proxy. The proxy closes the connection when the client half-closes (shutdown SHUT_WR), so framing cases that send FIN get no response.",
+  "attempt1": {
+    "gates": [
+      {
+        "gate": "spike",
+        "result": "PASS"
+      },
+      {
+        "gate": "chat",
+        "result": "PASS"
+      },
+      {
+        "gate": "stream",
+        "result": "PASS"
+      },
+      {
+        "gate": "admission",
+        "result": "PASS"
+      },
+      {
+        "gate": "budget",
+        "result": "PASS"
+      },
+      {
+        "gate": "tools",
+        "result": "PASS"
+      },
+      {
+        "gate": "prefs",
+        "result": "PASS"
+      },
+      {
+        "gate": "train",
+        "result": "PASS"
+      },
+      {
+        "gate": "pull",
+        "result": "PASS"
+      }
+    ],
+    "embed": "no PASS/FAIL line: urllib URLError [Errno 110] timeout (no route without the proxy)",
+    "framing": "socket TimeoutError (no route without the proxy)"
+  },
+  "attempt2": {
+    "gates": [
+      {
+        "gate": "spike",
+        "result": "PASS"
+      },
+      {
+        "gate": "chat",
+        "result": "PASS"
+      },
+      {
+        "gate": "stream",
+        "result": "PASS"
+      },
+      {
+        "gate": "admission",
+        "result": "PASS"
+      },
+      {
+        "gate": "embed",
+        "result": "PASS",
+        "note": "embed-nomic-v2-moe, 17 live requests"
+      },
+      {
+        "gate": "budget",
+        "result": "PASS"
+      },
+      {
+        "gate": "tools",
+        "result": "PASS"
+      },
+      {
+        "gate": "framing",
+        "result": "FAIL"
+      },
+      {
+        "gate": "prefs",
+        "result": "PASS"
+      },
+      {
+        "gate": "train",
+        "result": "PASS"
+      },
+      {
+        "gate": "pull",
+        "result": "PASS"
+      }
+    ],
+    "passed": 10,
+    "total": 11,
+    "framing_lines": [
+      "FAIL: negative Content-Length -> none in 0.1s (want 400)",
+      "FAIL: conflicting Content-Length -> none in 0.1s (want 400)",
+      "FAIL: oversized Content-Length -> none in 0.1s (want 413)",
+      "FAIL: chunked -> none in 0.1s (want 411)",
+      "FAIL: short body -> none in 0.1s (want 400)",
+      "ok: stalled body -> 408 in 15.2s (want 408) {\"error\":{\"message\":\"request not received in time\",\"type\":\"xllama_error\"}}",
+      "FAIL: valid request -> none in 0.1s (want 200)",
+      "FAIL: training status lacks a valid usable_samples counter; side effects unverified",
+      "framing: FAIL"
+    ],
+    "note": "box run through the SOCKS route; framing FAIL here is transport-limited (proxy drops the connection on TCP half-close) and is superseded by the direct-LAN run below"
+  },
+  "framing_diagnostic_not_a_gate": {
+    "method": "forwarder that does not pass the client FIN to the proxy",
+    "lines": [
+      "ok: negative Content-Length -> 400 in 0.2s (want 400) {\"error\":{\"message\":\"invalid Content-Length\",\"type\":\"xllama_error\"}}",
+      "ok: conflicting Content-Length -> 400 in 0.2s (want 400) {\"error\":{\"message\":\"conflicting Content-Length\",\"type\":\"xllama_error\"}}",
+      "ok: oversized Content-Length -> 413 in 0.2s (want 413) {\"error\":{\"message\":\"request body too large\",\"type\":\"xllama_error\"}}",
+      "ok: chunked -> 411 in 0.2s (want 411) {\"error\":{\"message\":\"chunked transfer-encoding not supported; send Content-Length\",\"type\":\"xllama_error\"}}",
+      "FAIL: short body -> 408 in 15.2s (want 400) {\"error\":{\"message\":\"request not received in time\",\"type\":\"xllama_error\"}}",
+      "ok: stalled body -> 408 in 55.3s (want 408) {\"error\":{\"message\":\"request not received in time\",\"type\":\"xllama_error\"}}",
+      "ok: valid request -> 200 in 0.2s (want 200) {\"status\":\"ok\",\"service\":\"xllama\"}",
+      "ok: usable_samples unchanged (6)",
+      "framing: FAIL"
+    ]
+  },
+  "verdict": "PASS 11/11: 10 gates from the box run (attempt 2) plus framing from the direct-LAN host; the box SOCKS framing attempt was transport-limited and superseded",
+  "framing_lan": {
+    "command": "scripts/validate-api.sh framing (unmodified, source b47fe340)",
+    "route": "host on the console LAN, direct TCP (no proxy)",
+    "date": "2026-11-24",
+    "result": "PASS",
+    "exit": 0,
+    "lines": [
+      "ok: negative Content-Length -> 400 in 0.0s (want 400) {\"error\":{\"message\":\"invalid Content-Length\",\"type\":\"xllama_error\"}}",
+      "ok: conflicting Content-Length -> 400 in 0.0s (want 400) {\"error\":{\"message\":\"conflicting Content-Length\",\"type\":\"xllama_error\"}}",
+      "ok: oversized Content-Length -> 413 in 0.0s (want 413) {\"error\":{\"message\":\"request body too large\",\"type\":\"xllama_error\"}}",
+      "ok: chunked -> 411 in 0.0s (want 411) {\"error\":{\"message\":\"chunked transfer-encoding not supported; send Content-Length\",\"type\":\"xllama_error\"}}",
+      "ok: short body -> 400 in 0.0s (want 400) {\"error\":{\"message\":\"request body shorter than Content-Length\",\"type\":\"xllama_error\"}}",
+      "ok: stalled body -> 408 in 15.0s (want 408) {\"error\":{\"message\":\"request not received in time\",\"type\":\"xllama_error\"}}",
+      "ok: valid request -> 200 in 0.0s (want 200) {\"status\":\"ok\",\"service\":\"xllama\"}",
+      "ok: usable_samples unchanged (4)"
+    ],
+    "receipt": "validate-api-framing-lan.log"
+  },
+  "final_gates": [
+    {
+      "gate": "spike",
+      "result": "PASS"
+    },
+    {
+      "gate": "chat",
+      "result": "PASS"
+    },
+    {
+      "gate": "stream",
+      "result": "PASS"
+    },
+    {
+      "gate": "admission",
+      "result": "PASS"
+    },
+    {
+      "gate": "embed",
+      "result": "PASS",
+      "note": "embed-nomic-v2-moe, 17 live requests"
+    },
+    {
+      "gate": "budget",
+      "result": "PASS"
+    },
+    {
+      "gate": "tools",
+      "result": "PASS"
+    },
+    {
+      "gate": "prefs",
+      "result": "PASS"
+    },
+    {
+      "gate": "train",
+      "result": "PASS"
+    },
+    {
+      "gate": "pull",
+      "result": "PASS"
+    },
+    {
+      "gate": "framing",
+      "result": "PASS",
+      "note": "direct-LAN host run, validate-api-framing-lan.log"
+    }
+  ]
+}

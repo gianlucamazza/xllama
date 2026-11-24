@@ -1,0 +1,13 @@
+{
+  "source_sha": "b47fe340951cc1bb79a8d1ce8a9434185ff48a38",
+  "package_version": "1.8.1.1764",
+  "msix_sha256": "7126169533a9e0dedfe1c9cc00500f28fc14087727c5e5d6a200ed91904f99fd",
+  "device": "Xbox Series S",
+  "date": "2026-11-24",
+  "console_gates": "PASS 10/10",
+  "lan_api_gates": "PASS 11/11 (10 from the box run; framing from a direct-LAN host run of the unmodified gate; the earlier SOCKS-route framing attempt was transport-limited and is superseded)",
+  "selftests": "PASS: 24/24 off, 25/25 bias ADD, 34/34 require-rope",
+  "rope_logit_parity": "PASS: final and per-position logit binaries byte-identical in all 12 A/B comparisons; requested/resolved GPU layers 99, bias_add=1 in both arms and rope=0/1 confirmed",
+  "restoration": "PASS (six generated test chats remain; original chats/models intact)",
+  "overall": "RELEASE_READY pending the receipts PR and Gianluca's yes for the tag"
+}

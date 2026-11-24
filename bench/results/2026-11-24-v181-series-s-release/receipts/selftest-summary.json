@@ -1,0 +1,31 @@
+{
+  "package_version": "1.8.1.1764",
+  "cases": {
+    "knobs_off": {
+      "correct": 24,
+      "total": 24,
+      "gate": "PASS",
+      "bias_add": 0,
+      "rope": 0
+    },
+    "bias_add_on": {
+      "correct": 25,
+      "total": 25,
+      "gate": "PASS",
+      "bias_add": 1,
+      "rope": 0,
+      "cold_scratch": 1
+    },
+    "require_rope": {
+      "correct": 34,
+      "total": 34,
+      "gate": "PASS",
+      "bias_add": 0,
+      "rope": 1,
+      "cold_scratch": 1,
+      "rope_rows": 10,
+      "rope_rows_bit_identical": 10
+    }
+  },
+  "speed_claim": false
+}
