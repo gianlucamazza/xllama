@@ -1,0 +1,33 @@
+xllama Granite-4.0-H-Tiny T1 host smoke (#525)
+date_utc=2026-11-24T00:45:08Z
+llama_cpp_pin=d81235049384534c167caea52b85a694f6103d14
+gguf_bytes=3062452832
+gguf_sha256=5ec3f4af77fffead37b09984a97625f0f532f6ae2ead65b5019bce6dd8b4d0cd
+gguf_name=granite-4.0-h-tiny-Q3_K_S.gguf
+gguf_kv:
+  general.architecture=granitehybrid
+  general.name=Granite 4.0 H Tiny
+  granitehybrid.expert_count=64
+  granitehybrid.expert_used_count=6
+  granitehybrid.block_count=40
+command=xllama-cli --chat --greedy --gpu-layers 0 -c 512 -t 4 -n 48 -p 'Name one colour.' --system 'You are a helpful assistant.' -m <gguf>
+---
+[llama] load_tensors:   CPU_Mapped model buffer size =  2917.16 MiB
+[xllama] ws after model load: 2966 MB
+[xllama] model loaded
+[llama] llama_context:        CPU  output buffer size =     0.38 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     4.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =    55.37 MiB
+[llama] sched_reserve:        CPU compute buffer size =   211.52 MiB
+[xllama] ws after context: 3028 MB
+[xllama] prompt tokens: 23
+[xllama] prefill starting: 23 tokens
+[xllama] prefill done: 23 tokens in 3702 ms
+One color is blue.[xllama] EOG after 5 tokens
+[xllama] done: load=4210ms prompt=6.2 tok/s decode=5.2 tok/s peak=3040MB drafted=0 spec_accept=0
+[llama] ~llama_context:        CPU compute buffer size is 211.5176 MiB, matches expectation of 211.5176 MiB
+SPEC_STATS success=1 n_eval=5 t_eval_ms=959.5 decode_tok_s=5.21 n_drafted=0 n_spec_accepted=0 peak_ws_mb=3040 prompt_lookup=0
+
+note=Session can_shift=/prefix_snapshot= lines are in hybrid-snapshot.log (this CLI path is run_inference).
+---
+exit=0

@@ -58,15 +58,16 @@ A **ggml backend `d3d12`**, owned by xllama (`src/bridge/`, not the
 - **Placement:** weights go to the backend's buffer type through
   `n_gpu_layers` (already `SessionParams::n_gpu_layers`, default 0). The
   scheduler runs an op where its weight lives; weights of a type the backend
-  does not support (Q5_K, Q8_0, …) stay on the CPU through
+  does not support (Q8_0, …) stay on the CPU through
   `weight_buft_supported`. `token_embd` / `GET_ROWS` are CPU, except a tied
   Q6_K embedding since D2-r2 (one copy in `D3D12_Weights`, `GET_ROWS` on the
   GPU).
 - **Kernels:** the H6.3 `rows` shape (4 rows per group, 64 or 128 threads by K; since D2-r2 the
   activations are q8 and the dot is integer, `dot4add_i8packed`) per weight
-  type: Q4_K and Q4_0 (same density, 0.5625 B/weight) and Q6_K (tied
+  type: Q4_K and Q4_0 (same density, 0.5625 B/weight), Q6_K (tied
   `lm_head` of every target model, `attn_v`/`ffn_down` on Q4_K_M
-  `use_more_bits` layers).
+  `use_more_bits` layers), and Q5_K / IQ4_XS / IQ3_XXS when those weights
+  are loaded. Types without a pipeline stay on the CPU.
 - **Device:** the system D3D12 runtime via `d3d12_dyn`, never the Agility
   factory ([uwp-constraints.md](uwp-constraints.md) §7). Shared plumbing:
   `src/bridge/d3d12_compute.{h,cpp}` (probes and backend).
@@ -92,6 +93,11 @@ t_token = Σ_splits (t_rt + bytes_split / BW) + t_cpu_rest
 - **t_rt** — one CPU↔GPU round trip per split — and **t_cpu_rest** (norms,
   RoPE, attention, conv, sampling on the CPU) are unknown. D1 measures t_rt and
   the whole step; t_cpu_rest is measured in D2.
+
+**Measured later:** the four-split rule undercounts. Coder-3B decode takes
+about 218 submissions per token (FA result below), 6 per layer plus the
+`lm_head`, not 145; Bielik-4.5B takes 421. See "Remaining cuts" under the bias
+ADD section for the cause and the order to remove them.
 
 Model tables (`gpustep_model()`, `include/xllama/gpustep.h`) come from the
 GGUF headers (LFM2.5 QAD Q4_0) and the Qwen2.5-3B config plus the llama.cpp
@@ -206,11 +212,11 @@ device registered with `ggml_backend_register()`:
   one round trip per split (the D1 zero-copy path). Weights go to the extra
   buft **`D3D12_Weights`** (DEFAULT heap, D1c).
 - **`supports_op`** accepts `MUL_MAT` only when the weight already lives in
-  `D3D12_Weights` (Q4_0 / Q4_K / Q6_K, K multiple of 256, contiguous, 2-D;
-  F32 activations). llama.cpp's per-weight buft probe therefore skips the host
-  buft; norms, biases, short-conv, `token_embd` (until D2-r2) and other types
-  fall back to the CPU list by themselves.
-- **Kernels** `shaders/ggml_d3d12_mmv_{q4_0,q4_k,q6_k}.hlsl`: the H6.3 `rows`
+  `D3D12_Weights` (Q4_0 / Q4_K / Q6_K / Q5_K / IQ4_XS / IQ3_XXS, K multiple of
+  256, contiguous, 2-D; F32 activations). llama.cpp's per-weight buft probe
+  therefore skips the host buft; norms, biases, short-conv, `token_embd`
+  (until D2-r2) and other types fall back to the CPU list by themselves.
+- **Kernels** `shaders/ggml_d3d12_mmv_{q4_0,q4_k,q6_k,q5_k,iq4_xs,iq3_xxs}.hlsl`: the H6.3 `rows`
   layout plus a column index for prefill; Q4_0 (18 B) and Q6_K (210 B) blocks
   are read with 2-byte-aligned dword loads (Coder-3B Q6_K `ffn_down` rows are
   9030 B). Weight tensors get 16 B of padding: root descriptors have no bounds
@@ -233,8 +239,20 @@ device registered with `ggml_backend_register()`:
 **D2a gate (console selftest `d3d12be.flag`, `scripts/bench-d3d12-selftest.sh`,
 predeclared):** every type × shape (`{n, k}` from Coder-3B and LFM2.5 tensors,
 ncols 1 / 7 / 512) within `rel_err ≤ 1e-2` of ggml's dequantizers, and every
-decode case (ncols = 1) at ≥ 100 GB/s packed (GPU timestamps). Host tests
-emulate each kernel's lane mapping against the same dequantizers.
+decode case (ncols = 1) at ≥ 100 GB/s packed (GPU timestamps), except the
+3×256 IQ3_XXS row (98-byte unaligned-row correctness case; launch overhead
+dominates packed GB/s) and IQ3_XXS decode rows, which use 55 GB/s packed.
+IQ4_XS decode uses the common 100 GB/s floor. IQ3_XXS is compute-bound (grid
+decode): its 55 GB/s floor is measured, not a target. It is derived from the
+committed Series S receipt
+`bench/results/d3d12-selftest-151804d-20261124.csv` (61.89 GB/s at 2048×2048
+on 151804d) with about 11% margin for run-to-run variance (two
+pre-optimisation runs differed by about 1–2%) and for thermal/clock noise. A
+kernel regression below 55 GB/s fails. That floor is a gate, not a product
+speed claim. Q4 / Q5 / Q6 / IQ4_XS decode rows stay at 100 GB/s. Q5_K /
+IQ4_XS / IQ3_XXS pipelines are optional: a failed PSO leaves that type on
+the CPU. Host tests emulate each kernel's lane mapping against the same
+dequantizers.
 
 ### D2a result (2026-10-01/02, three console runs)
 
@@ -1041,3 +1059,149 @@ GGUF. Its decode, prefill and TTFT intervals must lie within the #503
 equivalence range, and each pair must have identical measured prefill and
 decode submission counts. Preserve the ledger if an arm fails or a
 result is inconclusive.
+
+### ROPE on d3d12 (opt-in, step 1 of the cuts below)
+
+With `LocalState\d3d12-rope.txt` containing `1` when the backend starts (boot
+log `d3d12: rope=1`), `supports_op` accepts a `ROPE` that is F32, contiguous,
+the same shape in and out, with one I32 position per token, no `freq_factors`,
+mode NORMAL or NEOX, `ext_factor == 0` (no YaRN) and `n_offs == 0`
+(`d3d12_rope_supported`) and whose input is not in a `D3D12_Weights` buffer
+(that buffer has no UAV flag, and the kernel binds the input as a UAV; an input
+in `D3D12_Host` is read in place, one in another host buffer is staged). It
+also refuses a `ROPE` whose input or positions already sit in a buffer that is
+not host-visible, because the compute path reads them through the CPU. These
+rules only see tensors that have a buffer when `supports_op` runs. Activations
+do not yet; the scheduler later places every input of a d3d12 node in a buffer
+type that `supports_buft` accepts, copying it if needed
+(`ggml_backend_sched_buffer_supported`). The only such type that is not
+host-visible, `D3D12_Weights`, holds weights, which already have their buffer
+when `supports_op` runs. The compute-path asserts
+(`GGML_ASSERT(ggml_backend_buffer_is_host(...))`) are therefore invariants, not
+a path a model reaches. Any other `ROPE` stays on the CPU. Without the file no ROPE pipeline is created,
+`supports_op` refuses every `ROPE` and the root signature keeps four
+parameters. With the file, a ROPE setup failure is handled in one of two ways,
+and both log `d3d12: ROPE unavailable: …` and `rope=0`. If the five-parameter root
+signature cannot be created, the backend falls back to the four-parameter
+signature and builds every other pipeline against it, as without the file. If
+only the ROPE pipeline fails, the other pipelines have already been built
+against the five-parameter signature and stay on it; the fifth parameter is
+then unused. Either way the other GPU operations stay available. A failure to
+create the four-parameter root signature, a matmul or a `GET_ROWS` pipeline
+stops the backend, with or without the file.
+With the bias ADD on as well, Q, V and K then form one split: 5 → 4 submissions per layer.
+The knob is independent of `d3d12-bias-add.txt`, but without the bias ADD the
+bias `ADD`s still cut the split, so measure with both.
+
+The cos/sin table is computed on the CPU with ggml-cpu's formulas
+(`d3d12_rope_cache`, a copy of `rope_yarn` / `ggml_rope_cache_init` for
+`ext_factor == 0`), once per distinct set of positions and rope parameters in
+a graph evaluation (q and k of a layer share it), and staged in the same
+buffer as the other activations. Attention runs on the CPU between layers, so
+each layer's evaluation computes it again: for a 512-token ubatch that is
+about 65 thousand `sinf`/`cosf` calls per layer on the CPU (their time is not
+measured separately). Keeping the table across
+evaluations would need a key on the position values, not on the buffer
+address, which llama.cpp reuses. The kernel (`shaders/ggml_d3d12_rope_f32.hlsl`) only
+multiplies and adds, with `precise` products and no fused multiply-add. GPU
+`sin`/`cos`/`pow` are not required to be bit-exact against libm, which is why
+the table is not computed there; other backends (Vulkan) do compute it on the
+GPU and pass llama.cpp's op-level bound. A UAV barrier fences a `ROPE` from the
+dispatches before and after it, as for the bias ADD; per-dispatch and
+per-layer lines report it as `op=rope`.
+
+Checks: the host test compares the cache + multiply emulation with
+`ggml_rope_ext` on ggml-cpu (NMSE ≤ 1e-7, the per-op bound of
+`llama.cpp/tests/test-backend-ops.cpp`); the console selftest (`d3d12be.flag`)
+runs `rope_neox` and `rope_norm` rows through the backend, direct and staged
+input. A row passes when its NMSE against `ggml_rope_ext` is at most 1e-7 and
+the output is finite; the gate does not require bit identity. The NMSE, max
+|diff| and whether the output is bit-identical go in the `error` column. The first row (`rope_neox`, decode q) runs before any
+matmul, with the staging buffer unallocated: the log line `rope cold_scratch=1`
+marks it, and `bench-d3d12-selftest.sh --require-rope` fails without it. (A
+`ROPE` always stages its cos/sin table, so the buffer exists before the first
+dispatch; this row is the test of that claim on the console.) End-to-end parity stays a logit dump per arm
+(ADR 0010). Series S console self-test at `d599486` (2026-11-24), correctness
+and bit-identity only (no speed claim):
+`bench/results/d3d12-selftest-d599486-rope-20261124.csv` (ROPE knob on,
+`--require-rope`, GATE=PASS 34/34, all ten `rope_*` rows bit-identical).
+
+Measured on Series X (Game designation, `long-1k`, `--gpu-layers 99`; Series S
+not measured): submissions per decoded token with both knobs are Bielik 241,
+Coder-3B 146, Coder-1.5B 114. The Coder models are one above "4 per layer plus `lm_head`"
+because their tied `token_embd` also runs the input lookup on the GPU (4 × L +
+2; Bielik has a separate `output.weight`, 4 × L + 1). With ROPE off Coder-1.5B
+takes 142 (5 × 28 + 2), so ROPE removes exactly one submission per layer and
+adds two dispatches per layer (Q and K): 282 → 338 dispatches per token. With
+neither knob file Coder-1.5B takes 170 (6 × 28 + 2). The Series X comparisons
+reported in #511 (operator-declared; `logits.flag`, every 16th prompt position
+of `long-1k`, ubatch 512 and 1, all three models, A = bias ADD on, B = bias ADD
+and ROPE on) matched logits byte for byte between the arms.
+
+#### Series S ROPE preregistration (proposal)
+
+Nothing here is agreed yet. The thresholds below reuse the bias ADD ones and
+are a proposal for the maintainer to confirm or change before any Series S run
+counts. The Series X results above are not evidence for them.
+
+Same device, package and setup as the bias ADD preregistration above, with the
+bias ADD knob (`d3d12-bias-add.txt` = `1`) set in both arms, so the only
+difference is ROPE. Run `bench-d3d12-selftest.sh --require-rope` in a fresh
+process with `d3d12-rope.txt` = `1`: all ten `rope_*` rows pass and the log has
+`rope cold_scratch=1`. Compare logit files byte for byte with the ROPE knob
+absent and set to `1`, stride 16, ubatches 512 and 1, for Qwen2.5-Coder-3B and
+Qwen2.5-Coder-1.5B Q4_K_M, requiring the expected bias setting and GPU layer
+count in the log.
+
+Run 20 alternating AB/BA pairs per model with `bench-paired-knob.sh
+--knob d3d12-rope.txt --value 1` and `--save-arm-logs`, A = ROPE absent,
+B = ROPE on, with the `long-1k` prompt, context 2048, ubatch 512, 128
+generated tokens with `--ignore-eog`, 99 GPU layers and greedy sampling, as for
+the bias ADD. Both arms' boot logs must show `bias_add=1`, and `rope=0` in A,
+`rope=1` in B (`--expect-a`, `--expect-b`). `paired-bench-summary.py
+--profile rope` applies the bias ADD margins (decode lower bound ≥ 1.03, prefill lower bound ≥ 0.97, TTFT upper
+bound ≤ 1.03, peak working set delta ≤ 32 MiB) and additionally requires, in
+every pair, fewer measured decode submissions and no more measured prefill
+submissions in B than in A. A speed-up that comes with equal submission counts
+is not the ROPE effect and fails the profile.
+
+There is no control model in this proposal. A control needs a model whose
+placement the knob leaves unchanged, and none has been identified; the host
+rules test cannot say whether LFM2.5's `ROPE` nodes are accepted. Naming one
+needs a node dump first.
+
+### Remaining cuts and the order to remove them (proposal)
+
+A split ends at every node the backend refuses (`ggml-backend.cpp`). The node
+dump of one layer (`llama-eval-callback`, host, `Q4_K_M`) gives the CPU nodes
+that still close a split with the bias knob on:
+
+| Cut               | Node                                                                    | Splits it costs per layer       |
+| ----------------- | ----------------------------------------------------------------------- | ------------------------------- |
+| after `[Q]`       | `ROPE` on Q                                                             | 1 (Q is separated from `[V K]`) |
+| after `[V K]`     | `ROPE` on K, then `SET_ROWS` and `FLASH_ATTN_EXT` (KV cache on the CPU) | the attention boundary          |
+| after `[o]`       | residual `ADD`, `RMS_NORM`, `MUL`                                       | 1                               |
+| after `[gate up]` | `SWIGLU`                                                                | 1                               |
+| after `[down]`    | residual `ADD`                                                          | 1, joins the next layer's norm  |
+
+Order of work, cheapest first:
+
+1. **`ROPE` on d3d12** (opt-in, section above). Q, V and K form one split:
+   5 → 4 per layer (301 → 241 submissions per token on Bielik-4.5B). This is
+   the smallest step and the template for the next ones.
+2. **Elementwise ops (`RMS_NORM`+`MUL`, residual `ADD`, `SWIGLU`).** With
+   these and `ROPE` the only CPU stretch in a layer is attention, so a layer is one split: `[o … down, next qkv]`, 1 per layer.
+   This is the D2-fused direction named under "#310 re-attribution", a new
+   decision with its own gate, and it needs a GPU q8 quantize (the CPU
+   quantize costs time per submission, see `quant_ms`).
+3. **Attention and KV cache on the GPU.** The only way below 1 per layer. It conflicts
+   with the RAM budget (`offload_kqv=false` is why FA AUTO needed the fix
+   above) and is not proposed here.
+
+A reordered graph (expanding Q, V, K before `ROPE`) would give the same 5 → 4
+for every backend, but it changes llama.cpp's node order, so it would live in
+`patches/`, not in this backend. The bias-free Bielik-7B is predicted to be at
+5 per layer already (not measured).
+
+Evidence for the cut analysis (node dumps, emulator reproducing 7/5 and 6/5)
+is in #503.

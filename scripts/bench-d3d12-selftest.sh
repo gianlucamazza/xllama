@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
 # bench-d3d12-selftest.sh — d3d12 ggml backend selftest on the console
 # (docs/gguf-gpu-decode.md). Uploads d3d12be.flag, waits for d3d12be-result.csv,
-# and checks the selftest gate: every Q4_0 / Q4_K / Q6_K case within the
+# and checks the selftest gate: every Q4_0 / Q4_K / Q6_K / Q5_K / IQ4_XS /
+# IQ3_XXS case within the
 # device's tolerance (kD3d12SelftestRelTol) of the CPU backend's q8 vec_dot —
 # gate A (#312); D2a measured against ggml's dequantizers — and the decode
-# (ncols=1) cases at >= 100 GB/s packed (GPU timestamps; the CPU-side q8
-# quantization shows in the end-to-end bench, not here).
+# (ncols=1) cases at >= 100 GB/s packed except IQ3_XXS at 55 GB/s (GPU
+# timestamps; the CPU-side q8 quantization shows in the end-to-end bench, not
+# here). The IQ3_XXS floor is measured from
+# bench/results/d3d12-selftest-151804d-20261124.csv, not a product speed claim.
 # --require-bias-add also requires a successful first ADD with cold scratch.
+# --require-rope requires exactly the ten rope_* rows, in the order the selftest
+# emits them (d3d12-rope.txt = 1), the first of them run with a cold scratch buffer (log line "rope cold_scratch=1"); they are
+# correctness rows, so the decode bandwidth floor does not apply to them.
 #
 # Prerequisites: CI MSVC package (unified or llamacpp) installed on Series S.
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/bench-d3d12-selftest.sh [--out PATH] [--force] [--require-bias-add]
+#   ./scripts/bench-d3d12-selftest.sh [--out PATH] [--force] [--require-bias-add] [--require-rope]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -23,6 +29,7 @@ OUT="${REPO_ROOT}/bench/results/d2a-d3d12-selftest.csv"
 TIMEOUT_S=600
 FORCE=0
 REQUIRE_BIAS_ADD=0
+REQUIRE_ROPE=0
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 	--out)
@@ -37,8 +44,12 @@ while [[ $# -gt 0 ]]; do
 		REQUIRE_BIAS_ADD=1
 		shift
 		;;
+	--require-rope)
+		REQUIRE_ROPE=1
+		shift
+		;;
 	-h | --help)
-		sed -n '2,14p' "$0"
+		sed -n '2,17p' "$0"
 		exit 0
 		;;
 	*)
@@ -66,7 +77,7 @@ trap 'rm -rf "$TMP"' EXIT
 "${SCRIPT_DIR}/deploy.sh" upload-file "$TMP/d3d12be.flag" "$PFN" "" "d3d12be.flag"
 "${SCRIPT_DIR}/deploy.sh" stop-app || true
 log_lines=0
-if ((REQUIRE_BIAS_ADD)); then
+if ((REQUIRE_BIAS_ADD || REQUIRE_ROPE)); then
 	"${SCRIPT_DIR}/deploy.sh" get-log "$PFN" >"$TMP/before.log"
 	log_lines=$(wc -l <"$TMP/before.log")
 fi
@@ -99,25 +110,64 @@ if ((REQUIRE_BIAS_ADD)); then
 		exit 1
 	fi
 fi
+if ((REQUIRE_ROPE)); then
+	"${SCRIPT_DIR}/deploy.sh" get-log "$PFN" | tail -n "+$((log_lines + 1))" >"$TMP/after-rope.log"
+	if ! grep -aF '[xllama] d3d12be: rope cold_scratch=1' "$TMP/after-rope.log" >/dev/null; then
+		echo "GATE=FAIL (first cold ROPE marker missing from this run)" >&2
+		exit 1
+	fi
+fi
 
-python3 - "$OUT" "$REQUIRE_BIAS_ADD" <<'PY'
+python3 - "$OUT" "$REQUIRE_BIAS_ADD" "$REQUIRE_ROPE" <<'PY'
 import csv, math, sys
 rows = list(csv.DictReader(open(sys.argv[1])))
 bad = [r for r in rows if r["ok"] != "1" or r["d3d12_ran"] != "1" or
        any(not math.isfinite(float(r[k])) or float(r[k]) < 0
            for k in ("rel_err", "gpu_ms", "packed_gbs"))]
-slow = [r for r in rows if r["ncols"] == "1" and float(r["packed_gbs"]) < 100.0]
+# ncols==1 is a decode row. 3x256 IQ3_XXS is a 98-byte unaligned-row
+# correctness case: launch overhead dominates packed GB/s, so it is not a
+# throughput gate (same rule as d3d12_selftest_speed_gated). rope_* rows also
+# have ncols=1 and packed_gbs=0, so they are excluded too.
+def speed_gated(r):
+    if r["ncols"] != "1":
+        return False
+    if r["type"].startswith("rope_"):
+        return False
+    return not (r["type"] == "iq3_xxs" and r["n"] == "3" and r["k"] == "256")
+# Same numbers as d3d12_selftest_decode_min_gbs. IQ3_XXS is compute-bound
+# (grid decode). 55 GB/s is measured from
+# bench/results/d3d12-selftest-151804d-20261124.csv (61.89 GB/s at 2048×2048
+# on 151804d) with about 11% margin for run-to-run variance and thermal/clock
+# noise; it is not a target. A kernel regression below 55 fails. IQ4_XS and
+# every other type use 100 GB/s.
+def decode_min_gbs(t):
+    if t == "iq3_xxs":
+        return 55.0
+    return 100.0
+slow = [r for r in rows if speed_gated(r) and float(r["packed_gbs"]) < decode_min_gbs(r["type"])]
 print(f"--- selftest gate: {len(rows) - len(bad)}/{len(rows)} cases correct; "
-      f"{len(slow)} decode case(s) under 100 GB/s ---")
+      f"{len(slow)} decode case(s) under the type floor ---")
 for r in bad:
     print(f"FAIL {r['type']} n={r['n']} k={r['k']} ncols={r['ncols']} rel_err={r['rel_err']} {r['error']}")
 for r in slow:
-    print(f"SLOW {r['type']} n={r['n']} k={r['k']} gbs={r['packed_gbs']}")
-require_bias_add = sys.argv[2:] == ["1"]
+    print(f"SLOW {r['type']} n={r['n']} k={r['k']} gbs={r['packed_gbs']} "
+          f"min={decode_min_gbs(r['type'])}")
+require_bias_add = sys.argv[2:3] == ["1"]
+require_rope = sys.argv[3:4] == ["1"]
 bias_add_first = bool(rows) and rows[0]["type"] == "add_f32"
 if require_bias_add and not bias_add_first:
     print("FAIL the first selftest row must be add_f32")
-passed = bool(rows) and not bad and not slow and (not require_bias_add or bias_add_first)
+# The rope_* rows in the order run_d3d12_selftest emits them: NEOX decode q (cold
+# scratch), decode k, 512-token k, staged 7, n_dims < head_dim; then the same for NORMAL.
+rope_expected = [(m + s, c) for m in ("rope_neox", "rope_norm")
+                 for s, c in (("", "1"), ("", "1"), ("", "512"), ("_staged", "7"), ("", "3"))]
+rope_rows = [r for r in rows if r["type"].startswith("rope_")]
+rope_got = [(r["type"], r["ncols"]) for r in rope_rows]
+rope_ok = rope_got == rope_expected
+if require_rope and not rope_ok:
+    print(f"FAIL expected the ten rope_* rows {rope_expected}; found {rope_got}")
+passed = (bool(rows) and not bad and not slow and (not require_bias_add or bias_add_first) and
+          (not require_rope or rope_ok))
 print("GATE=" + ("PASS" if passed else "FAIL"))
 sys.exit(0 if passed else 1)
 PY

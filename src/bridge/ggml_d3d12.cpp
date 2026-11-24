@@ -25,7 +25,8 @@ namespace xllama {
 // --- Pure rules (host-tested) ---
 
 bool d3d12_weight_type_supported(ggml_type t) {
-    return t == GGML_TYPE_Q4_0 || t == GGML_TYPE_Q4_K || t == GGML_TYPE_Q6_K;
+    return t == GGML_TYPE_Q4_0 || t == GGML_TYPE_Q4_K || t == GGML_TYPE_Q6_K ||
+           t == GGML_TYPE_Q5_K || t == GGML_TYPE_IQ4_XS || t == GGML_TYPE_IQ3_XXS;
 }
 
 D3d12Dispatch d3d12_mm_dispatch(std::int64_t n, std::int64_t ncols) {
@@ -49,8 +50,9 @@ int d3d12_mm_threads(std::int64_t k) {
     return k / kD3d12Chunk >= kD3d12LongKChunks ? kD3d12MmvThreadsLong : kD3d12MmvThreadsShort;
 }
 
-bool d3d12_mm_supported(const D3d12MatmulDesc& d) {
-    return d3d12_weight_type_supported(d.src0_type) && d.src0_in_weight_buffer &&
+bool d3d12_mm_supported(const D3d12MatmulDesc& d, unsigned optional_ready) {
+    return d3d12_weight_type_supported(d.src0_type) &&
+           d3d12_optional_mmv_ready(d.src0_type, optional_ready) && d.src0_in_weight_buffer &&
            d.src0_contiguous && d.src1_contiguous && d.src1_type == GGML_TYPE_F32 &&
            d.dst_type == GGML_TYPE_F32 && d.ne00 > 0 && d.ne00 % kD3d12Chunk == 0 &&
            d.ne00 == d.ne10 && d.ne02 == 1 && d.ne03 == 1 && d.ne12 == 1 && d.ne13 == 1 &&
@@ -76,6 +78,57 @@ bool d3d12_add_supported(const D3d12AddDesc& d) {
            d.src1_contiguous && d.ne00 > 0 && d.ne10 == d.ne00 && d.ne11 == 1 && d.ne12 == 1 &&
            d.ne13 == 1 && d.ne01 >= 0 && d.ne02 == 1 && d.ne03 == 1 &&
            groups_x <= kD3d12MaxGroups && d.ne01 <= kD3d12MaxGroups;
+}
+
+bool d3d12_rope_supported(const D3d12RopeDesc& d) {
+    // Same span as the dispatch in submit_ops.
+    const std::int64_t span = d3d12_rope_span(d.n_dims, d.ne0);
+    const std::int64_t groups = (span + kD3d12RopeThreads - 1) / kD3d12RopeThreads;
+    return d.src0_type == GGML_TYPE_F32 && d.dst_type == GGML_TYPE_F32 && d.same_shape &&
+           d.src0_contiguous && d.dst_contiguous && !d.src0_in_weight_buffer &&
+           !d.src0_in_non_host_buffer && !d.pos_in_non_host_buffer && d.pos_type == GGML_TYPE_I32 &&
+           !d.has_freq_factors &&
+           (d.mode == kD3d12RopeModeNormal || d.mode == kD3d12RopeModeNeox) &&
+           d.ext_factor == 0.0f && d.n_offs == 0 && d.n_dims > 0 && d.n_dims % 2 == 0 &&
+           d.n_dims <= d.ne0 && d.ne0 > 0 && d.ne1 > 0 && d.ne2 > 0 && d.ne3 == 1 &&
+           d.ne_pos == d.ne2 && d.ne1 <= kD3d12MaxGroups && d.ne2 <= kD3d12MaxGroups &&
+           groups <= kD3d12MaxGroups;
+}
+
+void d3d12_rope_cache(const D3d12RopeParams& p, std::int32_t pos, float* table) {
+    // Same float operations, in the same order, as ggml-cpu ops.cpp
+    // (ggml_rope_cache_init with freq_factors == null and ext_factor == 0).
+    const float theta_scale = powf(p.freq_base, -2.0f / static_cast<float>(p.n_dims));
+    float theta = static_cast<float>(static_cast<std::int64_t>(pos));
+    for (int i0 = 0; i0 < p.n_dims; i0 += 2) {
+        const float theta_interp = p.freq_scale * (theta / 1.0f);
+        table[i0 + 0] = cosf(theta_interp) * p.attn_factor;
+        table[i0 + 1] = sinf(theta_interp) * p.attn_factor;
+        theta *= theta_scale;
+    }
+}
+
+void d3d12_rope_emulate(const D3d12RopeParams& p, int mode, std::int64_t ne0, std::int64_t rows,
+                        std::int64_t tokens, const std::int32_t* pos, const float* x, float* y) {
+    std::vector<float> table(static_cast<std::size_t>(p.n_dims));
+    const int half = p.n_dims / 2;
+    for (std::int64_t t = 0; t < tokens; ++t) {
+        d3d12_rope_cache(p, pos[t], table.data());
+        for (std::int64_t r = 0; r < rows; ++r) {
+            const float* xs = x + (t * rows + r) * ne0;
+            float* ys = y + (t * rows + r) * ne0;
+            for (int pr = 0; pr < half; ++pr) {
+                const float c = table[2 * pr], s = table[2 * pr + 1];
+                const int i0 = mode == kD3d12RopeModeNormal ? 2 * pr : pr;
+                const int i1 = mode == kD3d12RopeModeNormal ? 2 * pr + 1 : pr + half;
+                const float x0 = xs[i0], x1 = xs[i1];
+                ys[i0] = x0 * c - x1 * s;
+                ys[i1] = x0 * s + x1 * c;
+            }
+            for (std::int64_t i = p.n_dims; i < ne0; ++i)
+                ys[i] = xs[i];
+        }
+    }
 }
 
 bool d3d12_place_tied_embedding(ggml_type embd_type, bool has_output_weight) {
@@ -131,10 +184,59 @@ void q4k_scale_min(std::uint32_t j, const std::uint8_t* sc, std::int32_t* d, std
     *m = static_cast<std::int32_t>(mm);
 }
 
+// kvalues_iq4nl (ggml-common.h): IQ4_XS nibble → signed reconstruction.
+constexpr std::int8_t kIq4nl[16] = {-127, -104, -83, -65, -49, -35, -22, -10,
+                                    1,    13,   25,  38,  53,  69,  89,  113};
+
+std::uint32_t ksigns_iq2xs(std::uint32_t idx) {
+    idx &= 127u;
+    std::uint32_t p = idx;
+    p ^= p >> 4;
+    p ^= p >> 2;
+    p ^= p >> 1;
+    return idx | ((p & 1u) << 7);
+}
+
+// iq3xxs_grid (ggml-common.h): 256 packed 4-byte grids for IQ3_XXS.
+const std::uint32_t kIq3xxsGrid[256] = {
+    0x04040404, 0x04040414, 0x04040424, 0x04040c0c, 0x04040c1c, 0x04040c3e, 0x04041404, 0x04041414,
+    0x04041c0c, 0x04042414, 0x04043e1c, 0x04043e2c, 0x040c040c, 0x040c041c, 0x040c0c04, 0x040c0c14,
+    0x040c140c, 0x040c142c, 0x040c1c04, 0x040c1c14, 0x040c240c, 0x040c2c24, 0x040c3e04, 0x04140404,
+    0x04140414, 0x04140424, 0x04140c0c, 0x04141404, 0x04141414, 0x04141c0c, 0x04141c1c, 0x04141c3e,
+    0x04142c0c, 0x04142c3e, 0x04143e2c, 0x041c040c, 0x041c043e, 0x041c0c04, 0x041c0c14, 0x041c142c,
+    0x041c3e04, 0x04240c1c, 0x04241c3e, 0x04242424, 0x04242c3e, 0x04243e1c, 0x04243e2c, 0x042c040c,
+    0x042c043e, 0x042c1c14, 0x042c2c14, 0x04341c2c, 0x04343424, 0x043e0c04, 0x043e0c24, 0x043e0c34,
+    0x043e241c, 0x043e340c, 0x0c04040c, 0x0c04041c, 0x0c040c04, 0x0c040c14, 0x0c04140c, 0x0c04141c,
+    0x0c041c04, 0x0c041c14, 0x0c041c24, 0x0c04243e, 0x0c042c04, 0x0c0c0404, 0x0c0c0414, 0x0c0c0c0c,
+    0x0c0c1404, 0x0c0c1414, 0x0c14040c, 0x0c14041c, 0x0c140c04, 0x0c140c14, 0x0c14140c, 0x0c141c04,
+    0x0c143e14, 0x0c1c0404, 0x0c1c0414, 0x0c1c1404, 0x0c1c1c0c, 0x0c1c2434, 0x0c1c3434, 0x0c24040c,
+    0x0c24042c, 0x0c242c04, 0x0c2c1404, 0x0c2c1424, 0x0c2c2434, 0x0c2c3e0c, 0x0c34042c, 0x0c3e1414,
+    0x0c3e2404, 0x14040404, 0x14040414, 0x14040c0c, 0x14040c1c, 0x14041404, 0x14041414, 0x14041434,
+    0x14041c0c, 0x14042414, 0x140c040c, 0x140c041c, 0x140c042c, 0x140c0c04, 0x140c0c14, 0x140c140c,
+    0x140c1c04, 0x140c341c, 0x140c343e, 0x140c3e04, 0x14140404, 0x14140414, 0x14140c0c, 0x14140c3e,
+    0x14141404, 0x14141414, 0x14141c3e, 0x14142404, 0x14142c2c, 0x141c040c, 0x141c0c04, 0x141c0c24,
+    0x141c3e04, 0x141c3e24, 0x14241c2c, 0x14242c1c, 0x142c041c, 0x142c143e, 0x142c240c, 0x142c3e24,
+    0x143e040c, 0x143e041c, 0x143e0c34, 0x143e242c, 0x1c04040c, 0x1c040c04, 0x1c040c14, 0x1c04140c,
+    0x1c04141c, 0x1c042c04, 0x1c04342c, 0x1c043e14, 0x1c0c0404, 0x1c0c0414, 0x1c0c1404, 0x1c0c1c0c,
+    0x1c0c2424, 0x1c0c2434, 0x1c14040c, 0x1c14041c, 0x1c140c04, 0x1c14142c, 0x1c142c14, 0x1c143e14,
+    0x1c1c0c0c, 0x1c1c1c1c, 0x1c241c04, 0x1c24243e, 0x1c243e14, 0x1c2c0404, 0x1c2c0434, 0x1c2c1414,
+    0x1c2c2c2c, 0x1c340c24, 0x1c341c34, 0x1c34341c, 0x1c3e1c1c, 0x1c3e3404, 0x24040424, 0x24040c3e,
+    0x24041c2c, 0x24041c3e, 0x24042c1c, 0x24042c3e, 0x240c3e24, 0x24141404, 0x24141c3e, 0x24142404,
+    0x24143404, 0x24143434, 0x241c043e, 0x241c242c, 0x24240424, 0x24242c0c, 0x24243424, 0x242c142c,
+    0x242c241c, 0x242c3e04, 0x243e042c, 0x243e0c04, 0x243e0c14, 0x243e1c04, 0x2c040c14, 0x2c04240c,
+    0x2c043e04, 0x2c0c0404, 0x2c0c0434, 0x2c0c1434, 0x2c0c2c2c, 0x2c140c24, 0x2c141c14, 0x2c143e14,
+    0x2c1c0414, 0x2c1c2c1c, 0x2c240c04, 0x2c24141c, 0x2c24143e, 0x2c243e14, 0x2c2c0414, 0x2c2c1c0c,
+    0x2c342c04, 0x2c3e1424, 0x2c3e2414, 0x34041424, 0x34042424, 0x34042434, 0x34043424, 0x340c140c,
+    0x340c340c, 0x34140c3e, 0x34143424, 0x341c1c04, 0x341c1c34, 0x34242424, 0x342c042c, 0x342c2c14,
+    0x34341c1c, 0x343e041c, 0x343e140c, 0x3e04041c, 0x3e04042c, 0x3e04043e, 0x3e040c04, 0x3e041c14,
+    0x3e042c14, 0x3e0c1434, 0x3e0c2404, 0x3e140c14, 0x3e14242c, 0x3e142c14, 0x3e1c0404, 0x3e1c0c2c,
+    0x3e1c1c1c, 0x3e1c3404, 0x3e24140c, 0x3e24240c, 0x3e2c0404, 0x3e2c0414, 0x3e2c1424, 0x3e341c04,
+};
+
 // One thread's contribution for one row and one 256-element chunk. `xq` is
 // one activation column in the vec_dot type's ggml blocks (block_q8_0 for
-// Q4_0, block_q8_K for Q4_K / Q6_K). Integer sums are exact; the float terms
-// follow ggml's vec_dot (#312).
+// Q4_0, block_q8_K for Q4_K / Q5_K / Q6_K / IQ4_XS / IQ3_XXS). Integer sums
+// are exact; the float terms follow ggml's vec_dot (#312).
 float thread_chunk(ggml_type t, const std::uint8_t* w, std::uint32_t row_off, std::uint32_t blk,
                    std::uint32_t itid, const std::uint8_t* xq) {
     if (t == GGML_TYPE_Q4_0) {
@@ -175,6 +277,79 @@ float thread_chunk(ggml_type t, const std::uint8_t* w, std::uint32_t row_off, st
         }
         return (d * dy) * static_cast<float>(sc1 * lo + sc2 * hi) -
                (dmin * dy) * static_cast<float>(m1 * sl + m2 * sh);
+    }
+    if (t == GGML_TYPE_Q5_K) {
+        const std::uint32_t il = itid >> 2, ir = itid & 3u;
+        const std::uint32_t e_lo = il * 64u + ir * 8u, e_hi = e_lo + 32u;
+        const std::uint32_t bb = row_off + blk * 176u;
+        const float d = h2f(ld16(w, bb)), dmin = h2f(ld16(w, bb + 2u));
+        std::int32_t sc1, m1, sc2, m2;
+        q4k_scale_min(2u * il, w + bb + 4u, &sc1, &m1);
+        q4k_scale_min(2u * il + 1u, w + bb + 4u, &sc2, &m2);
+        const std::uint32_t qa = ld32(w, bb + 48u + il * 32u + ir * 8u);
+        const std::uint32_t qb = ld32(w, bb + 52u + il * 32u + ir * 8u);
+        const std::uint32_t qha = ld32(w, bb + 16u + ir * 8u);
+        const std::uint32_t qhb = ld32(w, bb + 20u + ir * 8u);
+        const std::uint32_t bit_lo = 2u * il, bit_hi = bit_lo + 1u;
+        auto q5 = [](std::uint32_t q, std::uint32_t hm, std::uint32_t i, std::uint32_t nshift,
+                     std::uint32_t bit) {
+            return static_cast<std::int32_t>(((q >> (8u * i + nshift)) & 0xFu) |
+                                             (((hm >> (8u * i + bit)) & 1u) << 4));
+        };
+        std::int32_t lo = 0, hi = 0, sl = 0, sh = 0;
+        for (std::uint32_t i = 0; i < 4; ++i) {
+            lo += q5(qa, qha, i, 0, bit_lo) * qx[e_lo + i] +
+                  q5(qb, qhb, i, 0, bit_lo) * qx[e_lo + 4 + i];
+            hi += q5(qa, qha, i, 4, bit_hi) * qx[e_hi + i] +
+                  q5(qb, qhb, i, 4, bit_hi) * qx[e_hi + 4 + i];
+            sl += qx[e_lo + i] + qx[e_lo + 4 + i];
+            sh += qx[e_hi + i] + qx[e_hi + 4 + i];
+        }
+        return (d * dy) * static_cast<float>(sc1 * lo + sc2 * hi) -
+               (dmin * dy) * static_cast<float>(m1 * sl + m2 * sh);
+    }
+    if (t == GGML_TYPE_IQ4_XS) {
+        const std::uint32_t g = itid >> 1, half = itid & 1u;
+        const std::uint32_t bb = row_off + blk * 136u;
+        const float d = h2f(ld16(w, bb));
+        const std::uint32_t scales_h = ld16(w, bb + 2u);
+        const std::uint32_t scales_l = ld32(w, bb + 4u);
+        const std::uint32_t sl_byte = (scales_l >> (8u * (g >> 1))) & 0xffu;
+        const std::int32_t ls = static_cast<std::int32_t>((sl_byte >> (4u * (g & 1u))) & 0xfu) |
+                                static_cast<std::int32_t>(((scales_h >> (2u * g)) & 3u) << 4);
+        const std::uint32_t e = g * 32u + half * 16u, shift = 4u * half;
+        std::int32_t sumi = 0;
+        for (std::uint32_t j = 0; j < 16; ++j) {
+            const std::uint32_t qs = ld32(w, bb + 8u + g * 16u + (j & ~3u));
+            const std::uint32_t nibv = (qs >> ((j & 3u) * 8u + shift)) & 0xfu;
+            sumi += kIq4nl[nibv] * qx[e + j];
+        }
+        return (d * dy) * static_cast<float>((ls - 32) * sumi);
+    }
+    if (t == GGML_TYPE_IQ3_XXS) {
+        const std::uint32_t ib32 = itid >> 1, half = itid & 1u, l0 = half * 2u;
+        const std::uint32_t bb = row_off + blk * 98u;
+        const float d = h2f(ld16(w, bb));
+        const std::uint32_t gas = ld32(w, bb + 66u + ib32 * 4u);
+        const std::uint32_t q3w = ld32(w, bb + 2u + ib32 * 8u + half * 4u);
+        const std::int32_t ls = static_cast<std::int32_t>(2u * (gas >> 28) + 1u);
+        std::int32_t sumi = 0;
+        for (std::uint32_t l = 0; l < 2; ++l) {
+            const std::uint32_t grid1 = kIq3xxsGrid[(q3w >> (16u * l)) & 0xffu];
+            const std::uint32_t grid2 = kIq3xxsGrid[(q3w >> (16u * l + 8u)) & 0xffu];
+            const std::uint32_t signs = ksigns_iq2xs((gas >> (7u * (l0 + l))) & 127u);
+            const std::uint32_t e = ib32 * 32u + (l0 + l) * 8u;
+            for (std::uint32_t j = 0; j < 4; ++j) {
+                std::int32_t g1 = static_cast<std::int32_t>((grid1 >> (8u * j)) & 0xffu);
+                std::int32_t g2 = static_cast<std::int32_t>((grid2 >> (8u * j)) & 0xffu);
+                if (signs & (1u << j))
+                    g1 = -g1;
+                if (signs & (1u << (j + 4)))
+                    g2 = -g2;
+                sumi += g1 * qx[e + j] + g2 * qx[e + 4 + j];
+            }
+        }
+        return (d * dy * 0.25f) * static_cast<float>(ls * sumi);
     }
     // Q6_K
     const std::uint32_t v = itid >> 3, l0 = 4u * (itid & 7u), is = l0 >> 4;
@@ -589,12 +764,19 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
         #include "ggml-backend.h"
         #include "ggml_d3d12_add_bias_f32_dxil.h"
         #include "ggml_d3d12_get_rows_q6_k_dxil.h"
+        #include "ggml_d3d12_mmv_iq3_xxs_t128_dxil.h"
+        #include "ggml_d3d12_mmv_iq3_xxs_t64_dxil.h"
+        #include "ggml_d3d12_mmv_iq4_xs_t128_dxil.h"
+        #include "ggml_d3d12_mmv_iq4_xs_t64_dxil.h"
         #include "ggml_d3d12_mmv_q4_0_t128_dxil.h"
         #include "ggml_d3d12_mmv_q4_0_t64_dxil.h"
         #include "ggml_d3d12_mmv_q4_k_t128_dxil.h"
         #include "ggml_d3d12_mmv_q4_k_t64_dxil.h"
+        #include "ggml_d3d12_mmv_q5_k_t128_dxil.h"
+        #include "ggml_d3d12_mmv_q5_k_t64_dxil.h"
         #include "ggml_d3d12_mmv_q6_k_t128_dxil.h"
         #include "ggml_d3d12_mmv_q6_k_t64_dxil.h"
+        #include "ggml_d3d12_rope_f32_dxil.h"
         #include "xllama/d3d12_dyn.h"
         #include "xllama/path_utils.h"
         #include "xllama/platform.h"
@@ -605,7 +787,16 @@ namespace {
 
 using d3d12c::ComPtr;
 
-enum Pso { kPsoQ40 = 0, kPsoQ4K = 1, kPsoQ6K = 2, kPsoCount = 3 };
+enum Pso {
+    kPsoQ40 = 0,
+    kPsoQ4K = 1,
+    kPsoQ6K = 2,
+    kPsoRequiredCount = 3, // Q4_0 / Q4_K / Q6_K: a failed PSO takes the backend down
+    kPsoQ5K = 3,
+    kPsoIq4Xs = 4,
+    kPsoIq3Xxs = 5,
+    kPsoCount = 6
+};
 
 int pso_for(ggml_type t) {
     switch (t) {
@@ -615,6 +806,12 @@ int pso_for(ggml_type t) {
         return kPsoQ4K;
     case GGML_TYPE_Q6_K:
         return kPsoQ6K;
+    case GGML_TYPE_Q5_K:
+        return kPsoQ5K;
+    case GGML_TYPE_IQ4_XS:
+        return kPsoIq4Xs;
+    case GGML_TYPE_IQ3_XXS:
+        return kPsoIq3Xxs;
     default:
         return -1;
     }
@@ -628,11 +825,14 @@ struct Gpu {
     ComPtr<ID3D12GraphicsCommandList> cl;
     ComPtr<ID3D12RootSignature> root;
     ComPtr<ID3D12PipelineState> pso[kPsoCount][2]; // [type][0 = 64 threads, 1 = 128]
+    unsigned optional_mmv = 0;                     // kD3d12OptionalMmv* bits that created
     ComPtr<ID3D12PipelineState> pso_get_rows;      // Q6_K
     ComPtr<ID3D12PipelineState> pso_add_bias;      // F32 bias ADD
+    ComPtr<ID3D12PipelineState> pso_rope;          // F32 ROPE
     // d3d12-bias-add.txt = 1: supports_op accepts the bias ADD, so llama.cpp
     // places biases in D3D12_Weights and keeps them in the projection's split.
     bool bias_add = false;
+    bool rope = false;
     ComPtr<ID3D12QueryHeap> ts;
     ComPtr<ID3D12Resource> ts_rb;
     // #421 per-dispatch timing (d3d12-dispatch-timing.txt): one timestamp
@@ -672,8 +872,10 @@ struct Gpu {
 // round trips at load only.
 constexpr UINT64 kStagingBytes = 8ull << 20;
 
-ComPtr<ID3D12RootSignature> make_root_sig(ID3D12Device* device, std::string* err) {
-    D3D12_ROOT_PARAMETER p[4] = {};
+// `with_rope` adds u2 (the ROPE cos/sin table). Without the knob the signature
+// is the four-parameter one every other kernel was built against.
+ComPtr<ID3D12RootSignature> make_root_sig(ID3D12Device* device, bool with_rope, std::string* err) {
+    D3D12_ROOT_PARAMETER p[5] = {};
     p[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
     p[0].Constants.ShaderRegister = 0;
     p[0].Constants.Num32BitValues = 8;
@@ -683,10 +885,12 @@ ComPtr<ID3D12RootSignature> make_root_sig(ID3D12Device* device, std::string* err
     p[2].Descriptor.ShaderRegister = 0;
     p[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV; // u1 activations
     p[3].Descriptor.ShaderRegister = 1;
+    p[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV; // u2 ROPE cos/sin table
+    p[4].Descriptor.ShaderRegister = 2;
     for (auto& q : p)
         q.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     D3D12_ROOT_SIGNATURE_DESC desc = {};
-    desc.NumParameters = 4;
+    desc.NumParameters = with_rope ? 5 : 4;
     desc.pParameters = p;
     auto serialize = d3d12_dyn::SerializeRootSignature();
     if (!serialize) {
@@ -740,17 +944,40 @@ bool init_gpu(Gpu& g) {
     g.cl->Close();
     if (!g.fence.init(g.device.Get(), &err))
         return false;
-    g.root = make_root_sig(g.device.Get(), &err);
+    if (FILE* f = _wfopen(utf8_to_wstring(resolve_local_path("d3d12-rope.txt")).c_str(), L"rb")) {
+        char config[16] = {};
+        const std::size_t bytes = std::fread(config, 1, sizeof(config), f);
+        std::fclose(f);
+        g.rope = d3d12_flag_enabled(std::string_view(config, bytes));
+    }
+    g.root = make_root_sig(g.device.Get(), g.rope, &err);
+    if (!g.root && g.rope) {
+        // The opt-in must not take the backend down: fall back to the
+        // four-parameter signature every other kernel was built against.
+        log_output("[xllama] d3d12: ROPE unavailable: " + err + "\n");
+        g.rope = false;
+        err.clear();
+        g.root = make_root_sig(g.device.Get(), false, &err);
+    }
     if (!g.root)
         return false;
     const void* blobs[kPsoCount][2] = {{kGgmlD3d12MmvQ40T64Dxil, kGgmlD3d12MmvQ40T128Dxil},
                                        {kGgmlD3d12MmvQ4KT64Dxil, kGgmlD3d12MmvQ4KT128Dxil},
-                                       {kGgmlD3d12MmvQ6KT64Dxil, kGgmlD3d12MmvQ6KT128Dxil}};
+                                       {kGgmlD3d12MmvQ6KT64Dxil, kGgmlD3d12MmvQ6KT128Dxil},
+                                       {kGgmlD3d12MmvQ5KT64Dxil, kGgmlD3d12MmvQ5KT128Dxil},
+                                       {kGgmlD3d12MmvIq4XsT64Dxil, kGgmlD3d12MmvIq4XsT128Dxil},
+                                       {kGgmlD3d12MmvIq3XxsT64Dxil, kGgmlD3d12MmvIq3XxsT128Dxil}};
     const size_t sizes[kPsoCount][2] = {
         {kGgmlD3d12MmvQ40T64DxilSize, kGgmlD3d12MmvQ40T128DxilSize},
         {kGgmlD3d12MmvQ4KT64DxilSize, kGgmlD3d12MmvQ4KT128DxilSize},
-        {kGgmlD3d12MmvQ6KT64DxilSize, kGgmlD3d12MmvQ6KT128DxilSize}};
+        {kGgmlD3d12MmvQ6KT64DxilSize, kGgmlD3d12MmvQ6KT128DxilSize},
+        {kGgmlD3d12MmvQ5KT64DxilSize, kGgmlD3d12MmvQ5KT128DxilSize},
+        {kGgmlD3d12MmvIq4XsT64DxilSize, kGgmlD3d12MmvIq4XsT128DxilSize},
+        {kGgmlD3d12MmvIq3XxsT64DxilSize, kGgmlD3d12MmvIq3XxsT128DxilSize}};
+    const char* pso_names[kPsoCount] = {"q4_0", "q4_k", "q6_k", "q5_k", "iq4_xs", "iq3_xxs"};
+    g.optional_mmv = 0;
     for (int i = 0; i < kPsoCount; ++i) {
+        bool both = true;
         for (int wd = 0; wd < 2; ++wd) {
             D3D12_COMPUTE_PIPELINE_STATE_DESC pd = {};
             pd.pRootSignature = g.root.Get();
@@ -758,8 +985,24 @@ bool init_gpu(Gpu& g) {
             pd.CS.BytecodeLength = sizes[i][wd];
             hr = g.device->CreateComputePipelineState(&pd, IID_PPV_ARGS(&g.pso[i][wd]));
             if (FAILED(hr)) {
-                err = d3d12c::hr_message("CreateComputePipelineState", hr);
-                return false;
+                if (i < kPsoRequiredCount) {
+                    err = d3d12c::hr_message("CreateComputePipelineState", hr);
+                    return false;
+                }
+                log_output("[xllama] d3d12: optional " + std::string(pso_names[i]) +
+                           (wd ? " t128" : " t64") + " pipeline unavailable: " +
+                           d3d12c::hr_message("CreateComputePipelineState", hr) +
+                           " — type stays on CPU\n");
+                both = false;
+                break;
+            }
+        }
+        if (i >= kPsoRequiredCount) {
+            if (both) {
+                g.optional_mmv |= 1u << (i - kPsoRequiredCount);
+            } else {
+                g.pso[i][0].Reset();
+                g.pso[i][1].Reset();
             }
         }
     }
@@ -794,6 +1037,19 @@ bool init_gpu(Gpu& g) {
         }
     }
     log_output(std::string("[xllama] d3d12: bias_add=") + (g.bias_add ? "1" : "0") + "\n");
+    if (g.rope) { // knob read before the root signature, which it shapes
+        D3D12_COMPUTE_PIPELINE_STATE_DESC pd = {};
+        pd.pRootSignature = g.root.Get();
+        pd.CS.pShaderBytecode = kGgmlD3d12RopeF32Dxil;
+        pd.CS.BytecodeLength = kGgmlD3d12RopeF32DxilSize;
+        hr = g.device->CreateComputePipelineState(&pd, IID_PPV_ARGS(&g.pso_rope));
+        if (FAILED(hr)) {
+            log_output("[xllama] d3d12: ROPE unavailable: " +
+                       d3d12c::hr_message("CreateComputePipelineState", hr) + "\n");
+            g.rope = false;
+        }
+    }
+    log_output(std::string("[xllama] d3d12: rope=") + (g.rope ? "1" : "0") + "\n");
     if (SUCCEEDED(g.queue->GetTimestampFrequency(&g.ts_freq)) && g.ts_freq > 0) {
         D3D12_QUERY_HEAP_DESC qhd = {};
         qhd.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
@@ -1154,9 +1410,12 @@ const ggml_tensor* base_of(const ggml_tensor* t) {
 // place from D3D12_Host, or staged in g.xq when it lives elsewhere).
 struct Op {
     const ggml_tensor* node;
-    std::size_t xq_off;   // staged input in g.xq
-    std::uint32_t xq_row; // bytes per quantized column (MUL_MAT)
-    bool staged = true;   // ADD: false = u1 is src[0] itself
+    std::size_t xq_off;      // staged input in g.xq
+    std::uint32_t xq_row;    // bytes per quantized column (MUL_MAT)
+    bool staged = true;      // ADD/ROPE: false = u1 is src[0] itself
+    std::size_t tab_off = 0; // ROPE: cos/sin table in g.xq
+    int n_dims = 0;          // ROPE
+    int mode = 0;            // ROPE
 };
 
 // Room for `count` per-dispatch timestamps. Caller holds g.mu, nothing in flight.
@@ -1196,9 +1455,17 @@ const char* dispatch_op_name(const ggml_tensor* node) {
         return "get_rows";
     case GGML_OP_ADD:
         return "add";
+    case GGML_OP_ROPE:
+        return "rope";
     default:
         return "mul_mat";
     }
+}
+
+// Columns of a dispatch for the profile: tokens. A ROPE node is [head_dim,
+// heads, tokens], so its ne[1] is the head count.
+std::int64_t dispatch_columns(const ggml_tensor* node) {
+    return node->op == GGML_OP_ROPE ? node->ne[2] : node->ne[1];
 }
 
 // What a dispatch is, for the per-dispatch profile.
@@ -1206,10 +1473,13 @@ D3d12DispatchKind dispatch_kind(const ggml_tensor* node) {
     const ggml_tensor* w = dispatch_weight(node);
     D3d12DispatchKind k;
     k.type = ggml_type_name(w->type);
-    k.cols = d3d12_cols_class(node->ne[1]);
+    k.cols = d3d12_cols_class(dispatch_columns(node));
     if (node->op == GGML_OP_ADD) {
         k.op = "add";
         k.threads = kD3d12AddThreads;
+    } else if (node->op == GGML_OP_ROPE) {
+        k.op = "rope";
+        k.threads = kD3d12RopeThreads;
     } else if (node->op == GGML_OP_GET_ROWS) {
         k.op = "get_rows";
     } else {
@@ -1240,6 +1510,7 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
     double exec_before = 0.0;
     if (dt)
         exec_before = g.phase.exec_wait_ms;
+    bool missing_pso = false;
     const bool ran = run_now(
         g,
         [&](ID3D12GraphicsCommandList* cl) {
@@ -1264,11 +1535,41 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
             for (const Op& op : ops) {
                 const ggml_tensor* node = op.node;
                 const ggml_tensor* w = node->src[0];
+                const bool is_rope = node->op == GGML_OP_ROPE;
                 const bool is_add = node->op == GGML_OP_ADD;
-                if (prev && !dt && (is_add || prev_add))
+                const bool fenced = is_add || is_rope;
+                if (prev && !dt && (fenced || prev_add))
                     cl->ResourceBarrier(1, &uav);
                 prev = true;
-                prev_add = is_add;
+                prev_add = fenced;
+                if (is_rope) {
+                    const ggml_tensor* x = node->src[0];
+                    const std::uint32_t nd = static_cast<std::uint32_t>(op.n_dims);
+                    const std::uint32_t xr = op.staged ? static_cast<std::uint32_t>(x->ne[0])
+                                                       : static_cast<std::uint32_t>(x->nb[1] / 4);
+                    const std::uint32_t xt = op.staged ? xr * static_cast<std::uint32_t>(x->ne[1])
+                                                       : static_cast<std::uint32_t>(x->nb[2] / 4);
+                    const std::uint32_t c[8] = {static_cast<std::uint32_t>(node->ne[0]),
+                                                nd,
+                                                static_cast<std::uint32_t>(op.mode),
+                                                xr,
+                                                xt,
+                                                static_cast<std::uint32_t>(node->nb[1] / 4),
+                                                static_cast<std::uint32_t>(node->nb[2] / 4),
+                                                0};
+                    cl->SetPipelineState(g.pso_rope.Get());
+                    cl->SetComputeRoot32BitConstants(0, 8, c, 0);
+                    cl->SetComputeRootUnorderedAccessView(2, tensor_va(node));
+                    cl->SetComputeRootUnorderedAccessView(3, op.staged ? xq_va + op.xq_off
+                                                                       : tensor_va(x));
+                    cl->SetComputeRootUnorderedAccessView(4, xq_va + op.tab_off);
+                    const std::int64_t span = d3d12_rope_span(nd, node->ne[0]);
+                    cl->Dispatch(
+                        static_cast<UINT>((span + kD3d12RopeThreads - 1) / kD3d12RopeThreads),
+                        static_cast<UINT>(node->ne[1]), static_cast<UINT>(node->ne[2]));
+                    after_dispatch();
+                    continue;
+                }
                 if (is_add) {
                     const ggml_tensor* b = node->src[1];
                     const std::uint32_t c[8] = {
@@ -1323,7 +1624,12 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
                                             0,
                                             0};
                 const int wide = d3d12_mm_threads(w->ne[0]) == kD3d12MmvThreadsLong ? 1 : 0;
-                cl->SetPipelineState(g.pso[pso_for(w->type)][wide].Get());
+                const int pi = pso_for(w->type);
+                if (pi < 0 || !g.pso[pi][wide]) {
+                    missing_pso = true;
+                    return;
+                }
+                cl->SetPipelineState(g.pso[pi][wide].Get());
                 cl->SetComputeRoot32BitConstants(0, 8, c, 0);
                 cl->SetComputeRootShaderResourceView(1, tensor_va(w));
                 cl->SetComputeRootUnorderedAccessView(2, tensor_va(node));
@@ -1341,7 +1647,7 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
             }
         },
         &g.phase);
-    if (!ran)
+    if (!ran || missing_pso)
         return false;
     bool ts_ok = false;
     double submission_gpu_ms = 0.0;
@@ -1384,11 +1690,12 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
                 }
                 const double ms =
                     1000.0 * static_cast<double>(t[i + 1] - t[i]) / static_cast<double>(g.ts_freq);
-                const double bytes = node->op == GGML_OP_ADD ? static_cast<double>(ggml_nbytes(w))
+                const double bytes = node->op == GGML_OP_ADD || node->op == GGML_OP_ROPE
+                                         ? static_cast<double>(ggml_nbytes(w))
                                      : node->op == GGML_OP_GET_ROWS
                                          ? static_cast<double>(w->nb[1]) * node->ne[1]
                                          : static_cast<double>(w->nb[1]) * w->ne[1];
-                g.phase.dispatch.add(dispatch_kind(node), ms, bytes, node->ne[1]);
+                g.phase.dispatch.add(dispatch_kind(node), ms, bytes, dispatch_columns(node));
                 g.phase.layer.add(dispatch_layer_key(node), ms, wait_share);
             }
             const D3D12_RANGE none = {0, 0};
@@ -1416,6 +1723,7 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
         case GGML_OP_MUL_MAT:
         case GGML_OP_GET_ROWS:
         case GGML_OP_ADD:
+        case GGML_OP_ROPE:
             mm.push_back(node);
             break;
         case GGML_OP_NONE:
@@ -1448,6 +1756,13 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
         int ncols;
     };
     std::vector<Quantized> done;
+    struct RopeTable { // a cos/sin table staged in this submission
+        const void* pos;
+        std::int64_t n;
+        D3d12RopeParams p;
+        std::size_t off;
+    };
+    std::vector<RopeTable> tables;
     std::size_t used = 0;
     auto flush = [&]() -> bool {
         if (ops.empty())
@@ -1456,10 +1771,79 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
         ops.clear();
         produced.clear();
         done.clear();
+        tables.clear();
         used = 0;
         return ok;
     };
     for (const ggml_tensor* node : mm) {
+        if (node->op == GGML_OP_ROPE) {
+            const ggml_tensor* a = node->src[0];
+            const ggml_tensor* pos = node->src[1];
+            GGML_ASSERT(a->buffer && node->buffer && is_ours(node->buffer->buft));
+            GGML_ASSERT(pos->buffer && ggml_backend_buffer_is_host(pos->buffer));
+            if (ggml_nelements(node) == 0)
+                continue;
+            const std::int32_t* op_params = node->op_params;
+            D3d12RopeParams rp;
+            rp.n_dims = op_params[1];
+            std::memcpy(&rp.freq_base, op_params + 5, sizeof(float));
+            std::memcpy(&rp.freq_scale, op_params + 6, sizeof(float));
+            std::memcpy(&rp.attn_factor, op_params + 8, sizeof(float));
+            const std::int64_t nt = node->ne[2];
+            const std::size_t tab_bytes = static_cast<std::size_t>(nt) * rp.n_dims * sizeof(float);
+            const bool direct = a->buffer->buft == &kHostBuft;
+            std::size_t xbytes = 0;
+            if (!direct) {
+                GGML_ASSERT(ggml_backend_buffer_is_host(a->buffer));
+                xbytes = static_cast<std::size_t>(ggml_nbytes(a));
+            }
+            // Same positions and rope parameters share one table (q and k of a
+            // layer) within this graph evaluation; the next layer's starts anew.
+            const auto find_table = [&]() -> const RopeTable* {
+                for (const RopeTable& t : tables)
+                    if (t.pos == pos->data && t.n == nt && t.p.n_dims == rp.n_dims &&
+                        t.p.freq_base == rp.freq_base && t.p.freq_scale == rp.freq_scale &&
+                        t.p.attn_factor == rp.attn_factor)
+                        return &t;
+                return nullptr;
+            };
+            const auto need_bytes = [&](bool has_table) {
+                return ((xbytes + 255) & ~std::size_t(255)) +
+                       (has_table ? 0 : ((tab_bytes + 255) & ~std::size_t(255)));
+            };
+            const RopeTable* tab = find_table();
+            if (used + need_bytes(tab != nullptr) > g.xq_bytes) {
+                if (!flush())
+                    return GGML_STATUS_FAILED;
+                tab = nullptr; // flush() dropped the staged tables
+            }
+            Op o{node, 0, 0, true};
+            o.n_dims = rp.n_dims;
+            o.mode = op_params[2];
+            if (!ensure_xq(g, used + need_bytes(tab != nullptr)))
+                return GGML_STATUS_FAILED;
+            if (!direct) {
+                // Another host buffer: a dense copy (contiguous, so one memcpy).
+                std::memcpy(g.xq_ptr + used, a->data, xbytes);
+                o.xq_off = used;
+                used += (xbytes + 255) & ~std::size_t(255);
+            } else {
+                o.staged = false;
+            }
+            if (!tab) {
+                const auto* ids = static_cast<const std::int32_t*>(pos->data);
+                auto* t = reinterpret_cast<float*>(g.xq_ptr + used);
+                for (std::int64_t i = 0; i < nt; ++i)
+                    d3d12_rope_cache(rp, ids[i], t + i * rp.n_dims);
+                tables.push_back({pos->data, nt, rp, used});
+                tab = &tables.back();
+                used += (tab_bytes + 255) & ~std::size_t(255);
+            }
+            o.tab_off = tab->off;
+            ops.push_back(o);
+            produced.push_back(base_of(node));
+            continue;
+        }
         if (node->op == GGML_OP_ADD) {
             const ggml_tensor* a = node->src[0];
             const ggml_tensor* b = node->src[1];
@@ -1602,7 +1986,8 @@ const char* dev_name(ggml_backend_dev_t) {
     return "D3D12";
 }
 const char* dev_description(ggml_backend_dev_t) {
-    return "xllama D3D12 compute (Q4_0/Q4_K/Q6_K matmul, Q6_K get_rows, F32 bias add)";
+    return "xllama D3D12 compute (Q4_0/Q4_K/Q6_K/Q5_K/IQ4_XS/IQ3_XXS matmul, Q6_K get_rows, F32 "
+           "bias add and ROPE)";
 }
 void dev_memory(ggml_backend_dev_t, size_t* free, size_t* total) {
     *free = *total = 0;
@@ -1667,7 +2052,7 @@ bool dev_supports_op(ggml_backend_dev_t, const ggml_tensor* op) {
         d.src0_contiguous = ggml_is_contiguous(w);
         d.src1_contiguous = ggml_is_contiguous(x);
         d.src0_in_weight_buffer = w->buffer && w->buffer->buft == &kWeightsBuft;
-        const bool ok = d3d12_mm_supported(d);
+        const bool ok = d3d12_mm_supported(d, gpu().optional_mmv);
         // A refused matmul whose weight already sits in D3D12_Weights means a
         // placement the backend then cannot run — log the first few (D2b #309).
         static int logged = 0;
@@ -1704,6 +2089,33 @@ bool dev_supports_op(ggml_backend_dev_t, const ggml_tensor* op) {
         d.src1_contiguous = ggml_is_contiguous(ids);
         d.src0_in_weight_buffer = w->buffer && w->buffer->buft == &kWeightsBuft;
         return d3d12_get_rows_supported(d);
+    }
+    case GGML_OP_ROPE: {
+        if (!gpu().rope)
+            return false;
+        const ggml_tensor* a = op->src[0];
+        const ggml_tensor* pos = op->src[1];
+        D3d12RopeDesc d;
+        d.src0_type = a->type;
+        d.ne0 = a->ne[0];
+        d.ne1 = a->ne[1];
+        d.ne2 = a->ne[2];
+        d.ne3 = a->ne[3];
+        d.dst_type = op->type;
+        d.same_shape = ggml_are_same_shape(a, op);
+        d.src0_contiguous = ggml_is_contiguous(a);
+        d.dst_contiguous = ggml_is_contiguous(op);
+        d.src0_in_weight_buffer = a->buffer && a->buffer->buft == &kWeightsBuft;
+        d.src0_in_non_host_buffer = a->buffer && !ggml_backend_buffer_is_host(a->buffer);
+        d.pos_in_non_host_buffer = pos->buffer && !ggml_backend_buffer_is_host(pos->buffer);
+        d.pos_type = pos->type;
+        d.ne_pos = pos->ne[0] * pos->ne[1] * pos->ne[2] * pos->ne[3];
+        d.has_freq_factors = op->src[2] != nullptr;
+        d.n_dims = op->op_params[1];
+        d.mode = op->op_params[2];
+        d.n_offs = op->op_params[15];
+        std::memcpy(&d.ext_factor, op->op_params + 7, sizeof(float));
+        return d3d12_rope_supported(d);
     }
     case GGML_OP_ADD: {
         if (!gpu().bias_add)
@@ -2042,6 +2454,15 @@ D3d12SelftestRow run_get_rows_case(ggml_backend_t backend, int n, int k) {
     return row;
 }
 
+// "cold_scratch=1" means no op has allocated the staging buffer yet: the op
+// about to run is the first one to reach it, and bench-d3d12-selftest.sh gates on it.
+void log_cold_scratch(const char* what) {
+    Gpu& g = gpu();
+    std::lock_guard<std::mutex> lock(g.mu);
+    log_output(std::string("[xllama] d3d12be: ") + what + " cold_scratch=" + (g.xq ? "0" : "1") +
+               "\n");
+}
+
 // Run before the staged cases so a direct ADD cannot rely on an existing scratch buffer.
 D3d12SelftestRow run_bias_add_case(ggml_backend_t backend) {
     constexpr int width = 129;
@@ -2084,12 +2505,7 @@ D3d12SelftestRow run_bias_add_case(ggml_backend_t backend) {
     ggml_backend_tensor_set(input, input_values, 0, sizeof(input_values));
     ggml_cgraph* graph = ggml_new_graph(activations.get());
     ggml_build_forward_expand(graph, output);
-    {
-        Gpu& g = gpu();
-        std::lock_guard<std::mutex> lock(g.mu);
-        log_output(g.xq ? "[xllama] d3d12be: bias ADD cold_scratch=0\n"
-                        : "[xllama] d3d12be: bias ADD cold_scratch=1\n");
-    }
+    log_cold_scratch("bias ADD");
     row.d3d12_ran = ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS;
     if (!row.d3d12_ran) {
         row.error = "graph_compute failed";
@@ -2117,6 +2533,132 @@ D3d12SelftestRow run_bias_add_case(ggml_backend_t backend) {
     return row;
 }
 
+// ROPE on the GPU against ggml-cpu's ggml_rope_ext (G2: NMSE <= 1e-7, the
+// test-backend-ops bound). `staged` puts the activations in a plain CPU buffer so
+// the backend copies them into xq; otherwise it reads the D3D12_Host buffer in
+// place. n = head_dim, k = heads, ncols = tokens. Max |diff| and bit identity go
+// in the note (the error column) whatever the verdict.
+D3d12SelftestRow run_rope_case(ggml_backend_t backend, int mode, bool staged, int head_dim,
+                               int heads, int tokens, int n_dims) {
+    D3d12SelftestRow row;
+    row.type = std::string(mode == kD3d12RopeModeNeox ? "rope_neox" : "rope_norm") +
+               (staged ? "_staged" : "");
+    row.n = head_dim;
+    row.k = heads;
+    row.ncols = tokens;
+    const float freq_base = 1000000.0f, freq_scale = 1.0f, attn_factor = 1.0f;
+    const std::size_t count = static_cast<std::size_t>(head_dim) * heads * tokens;
+
+    ggml_init_params ip = {};
+    ip.mem_size = 16 * ggml_tensor_overhead() + 2 * ggml_graph_overhead();
+    ip.no_alloc = true;
+    ggml_context* ctx_x = ggml_init(ip);
+    ggml_context* ctx_p = ggml_init(ip);
+    ggml_context* ctx_g = ggml_init(ip);
+    if (!ctx_x || !ctx_p || !ctx_g) {
+        row.error = "context allocation failed";
+        ggml_free(ctx_g);
+        ggml_free(ctx_p);
+        ggml_free(ctx_x);
+        return row;
+    }
+    ggml_tensor* x = ggml_new_tensor_3d(ctx_x, GGML_TYPE_F32, head_dim, heads, tokens);
+    ggml_tensor* pos = ggml_new_tensor_1d(ctx_p, GGML_TYPE_I32, tokens);
+    ggml_backend_buffer_t xbuf = ggml_backend_alloc_ctx_tensors_from_buft(
+        ctx_x, staged ? ggml_backend_cpu_buffer_type() : &kHostBuft);
+    ggml_backend_buffer_t pbuf = ggml_backend_alloc_ctx_tensors_from_buft(ctx_p, &kHostBuft);
+    ggml_gallocr_t galloc = nullptr;
+    auto cleanup = [&] {
+        if (galloc)
+            ggml_gallocr_free(galloc);
+        if (xbuf)
+            ggml_backend_buffer_free(xbuf);
+        if (pbuf)
+            ggml_backend_buffer_free(pbuf);
+        ggml_free(ctx_g);
+        ggml_free(ctx_p);
+        ggml_free(ctx_x);
+    };
+    if (!xbuf || !pbuf) {
+        row.error = "buffer allocation failed";
+        cleanup();
+        return row;
+    }
+    std::mt19937 rng(4242u + static_cast<unsigned>(mode * 17 + tokens));
+    std::uniform_real_distribution<float> uni(-2.f, 2.f);
+    std::vector<float> xf(count);
+    for (float& v : xf)
+        v = uni(rng);
+    std::vector<std::int32_t> pv(static_cast<std::size_t>(tokens));
+    for (int i = 0; i < tokens; ++i)
+        pv[static_cast<std::size_t>(i)] = 311 + 5 * i; // decode-like positions
+    ggml_backend_tensor_set(x, xf.data(), 0, count * sizeof(float));
+    ggml_backend_tensor_set(pos, pv.data(), 0, pv.size() * sizeof(std::int32_t));
+
+    ggml_tensor* y = ggml_rope_ext(ctx_g, x, pos, nullptr, n_dims, mode, 0, freq_base, freq_scale,
+                                   0.0f, attn_factor, 32.0f, 1.0f);
+    ggml_cgraph* gf = ggml_new_graph(ctx_g);
+    ggml_build_forward_expand(gf, y);
+    galloc = ggml_gallocr_new(&kHostBuft);
+    if (!ggml_gallocr_alloc_graph(galloc, gf)) {
+        row.error = "graph allocation failed";
+        cleanup();
+        return row;
+    }
+    row.d3d12_ran = ggml_backend_graph_compute(backend, gf) == GGML_STATUS_SUCCESS;
+    if (!row.d3d12_ran) {
+        row.error = "graph_compute failed";
+        cleanup();
+        return row;
+    }
+    row.gpu_ms = gpu().last_gpu_ms;
+    std::vector<float> got(count);
+    ggml_backend_tensor_get(y, got.data(), 0, count * sizeof(float));
+
+    // Reference: the same ROPE on ggml-cpu.
+    ggml_init_params rp = {};
+    rp.mem_size = count * sizeof(float) * 2 + (4u << 20);
+    ggml_context* rc = ggml_init(rp);
+    if (!rc) {
+        row.error = "reference context allocation failed";
+        cleanup();
+        return row;
+    }
+    ggml_tensor* rx = ggml_new_tensor_3d(rc, GGML_TYPE_F32, head_dim, heads, tokens);
+    ggml_tensor* rpos = ggml_new_tensor_1d(rc, GGML_TYPE_I32, tokens);
+    std::memcpy(rx->data, xf.data(), count * sizeof(float));
+    std::memcpy(rpos->data, pv.data(), pv.size() * sizeof(std::int32_t));
+    ggml_tensor* ry = ggml_rope_ext(rc, rx, rpos, nullptr, n_dims, mode, 0, freq_base, freq_scale,
+                                    0.0f, attn_factor, 32.0f, 1.0f);
+    ggml_cgraph* rg = ggml_new_graph(rc);
+    ggml_build_forward_expand(rg, ry);
+    const bool ref_ok = ggml_graph_compute_with_ctx(rc, rg, 1) == GGML_STATUS_SUCCESS;
+    double num = 0.0, den = 0.0, max_abs = 0.0;
+    bool finite = ref_ok, identical = ref_ok;
+    if (ref_ok) {
+        const auto* ref = static_cast<const float*>(ry->data);
+        for (std::size_t i = 0; i < count; ++i) {
+            if (!std::isfinite(ref[i]) || !std::isfinite(got[i]))
+                finite = false;
+            const double e = static_cast<double>(got[i]) - ref[i];
+            num += e * e;
+            den += static_cast<double>(ref[i]) * ref[i];
+            max_abs = std::max(max_abs, std::fabs(e));
+            identical = identical && std::memcmp(&got[i], &ref[i], sizeof(float)) == 0;
+        }
+    }
+    ggml_free(rc);
+    const double nmse = den > 0.0 ? num / den : num;
+    row.rel_err = nmse; // NMSE for the rope rows
+    row.ok = ref_ok && finite && nmse <= 1e-7;
+    char note[96];
+    std::snprintf(note, sizeof(note), "nmse=%.3g max_abs=%.3g bit_identical=%d", nmse, max_abs,
+                  identical ? 1 : 0);
+    row.error = !ref_ok ? "cpu reference failed" : !finite ? "non-finite rope output" : note;
+    cleanup();
+    return row;
+}
+
 } // namespace
 
 void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
@@ -2132,19 +2674,58 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
     ggml_backend_t backend = dev_init_backend(&kDevice, nullptr);
     if (gpu().bias_add)
         out->push_back(run_bias_add_case(backend));
+    // The first ROPE of the process, before any matmul has allocated the staging
+    // buffer: its cos/sin table is the first thing staged there.
+    if (gpu().rope) {
+        log_cold_scratch("rope");
+        out->push_back(run_rope_case(backend, kD3d12RopeModeNeox, false, 128, 16, 1, 128));
+    }
     // Shapes of the D2 target models; q6_k 2048x11008 has 2-byte-aligned rows.
     const SelftestCase cases[] = {
-        {GGML_TYPE_Q4_0, "q4_0", 8192, 2048, 1},   {GGML_TYPE_Q4_0, "q4_0", 2048, 8192, 1},
-        {GGML_TYPE_Q4_K, "q4_k", 11008, 2048, 1},  {GGML_TYPE_Q4_K, "q4_k", 2048, 11008, 1},
-        {GGML_TYPE_Q6_K, "q6_k", 2048, 11008, 1},  {GGML_TYPE_Q6_K, "q6_k", 65536, 1024, 1},
-        {GGML_TYPE_Q4_0, "q4_0", 1024, 1024, 7},   {GGML_TYPE_Q4_K, "q4_k", 1024, 1024, 7},
-        {GGML_TYPE_Q6_K, "q6_k", 1024, 1024, 7},   {GGML_TYPE_Q4_0, "q4_0", 1024, 1024, 512},
-        {GGML_TYPE_Q4_K, "q4_k", 1024, 1024, 512}, {GGML_TYPE_Q6_K, "q6_k", 1024, 1024, 512},
+        {GGML_TYPE_Q4_0, "q4_0", 8192, 2048, 1},
+        {GGML_TYPE_Q4_0, "q4_0", 2048, 8192, 1},
+        {GGML_TYPE_Q4_K, "q4_k", 11008, 2048, 1},
+        {GGML_TYPE_Q4_K, "q4_k", 2048, 11008, 1},
+        {GGML_TYPE_Q6_K, "q6_k", 2048, 11008, 1},
+        {GGML_TYPE_Q6_K, "q6_k", 65536, 1024, 1},
+        {GGML_TYPE_Q4_0, "q4_0", 1024, 1024, 7},
+        {GGML_TYPE_Q4_K, "q4_k", 1024, 1024, 7},
+        {GGML_TYPE_Q6_K, "q6_k", 1024, 1024, 7},
+        {GGML_TYPE_Q4_0, "q4_0", 1024, 1024, 512},
+        {GGML_TYPE_Q4_K, "q4_k", 1024, 1024, 512},
+        {GGML_TYPE_Q6_K, "q6_k", 1024, 1024, 512},
+        {GGML_TYPE_Q5_K, "q5_k", 11008, 2048, 1},
+        {GGML_TYPE_Q5_K, "q5_k", 2048, 11008, 1},
+        {GGML_TYPE_Q5_K, "q5_k", 1024, 1024, 7},
+        {GGML_TYPE_Q5_K, "q5_k", 1024, 1024, 512},
+        {GGML_TYPE_IQ4_XS, "iq4_xs", 2048, 2048, 1},
+        {GGML_TYPE_IQ4_XS, "iq4_xs", 1024, 1024, 7},
+        {GGML_TYPE_IQ4_XS, "iq4_xs", 1024, 1024, 512},
+        {GGML_TYPE_IQ3_XXS, "iq3_xxs", 2048, 2048, 1},
+        {GGML_TYPE_IQ3_XXS, "iq3_xxs", 1024, 1024, 7},
+        // 98-byte rows, 2-byte aligned. Correctness only: packed GB/s is not
+        // a throughput signal (d3d12_selftest_speed_gated).
+        {GGML_TYPE_IQ3_XXS, "iq3_xxs", 3, 256, 1},
     };
-    for (const auto& sc : cases)
+    for (const auto& sc : cases) {
+        if (!d3d12_optional_mmv_ready(sc.type, gpu().optional_mmv))
+            continue;
         out->push_back(run_case(backend, sc));
+    }
     out->push_back(run_get_rows_case(backend, 151936, 2048)); // Coder-3B tied token_embd
     out->push_back(run_get_rows_case(backend, 65536, 1024));  // LFM2.5-350M
+    // ROPE (d3d12-rope.txt): head_dim 128, q (16 heads) and GQA k (2), decode and
+    // a 512-token ubatch; NEOX (Qwen2.5) and NORMAL; in-place and staged input.
+    for (const int mode : {kD3d12RopeModeNeox, kD3d12RopeModeNormal}) {
+        if (!gpu().rope)
+            break;
+        if (mode != kD3d12RopeModeNeox) // the NEOX decode q row ran first, above
+            out->push_back(run_rope_case(backend, mode, false, 128, 16, 1, 128));
+        out->push_back(run_rope_case(backend, mode, false, 128, 2, 1, 128));
+        out->push_back(run_rope_case(backend, mode, false, 128, 2, 512, 128));
+        out->push_back(run_rope_case(backend, mode, true, 128, 16, 7, 128));
+        out->push_back(run_rope_case(backend, mode, false, 128, 4, 3, 64)); // n_dims < head_dim
+    }
     ggml_backend_free(backend);
 }
 

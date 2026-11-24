@@ -131,6 +131,7 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
   tests/test_research_package.py tests/test_xab_contract.py \
   tests/test_release_metadata.py tests/test_release_bundle.py \
   tests/test_make_shape_gguf.py tests/test_bench_run_status.py \
+  tests/test_wdp_curl_auth.py \
   tests/test_console_run_log.py tests/test_console_temp_chats.py \
   tests/test_console_taesd_result.py tests/test_api_framing_status.py \
   tests/test_measure_api_ttfb.py \
@@ -357,7 +358,7 @@ If you change a contract, update the owning doc in the same PR
 | Change                                            | Update                                                                                                                                 |
 | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | SSD MoE contribution stage or acceptance evidence | `docs/research/moe-upstream-readiness.md`, corresponding `ROADMAP.md` stage and #479–#481 tracker; preserve revision-specific evidence |
-| Product intent / public positioning               | `docs/positioning.md`                                                                                                                  |
+| Product intent / public positioning               | `docs/positioning.md` and `docs/reuse-in-a-game.md`                                                                                    |
 | Module boundaries, routing, session ownership     | `docs/architecture.md`                                                                                                                 |
 | Training lanes or Phase 11                        | `docs/training-architecture.md` and `training/README.md`                                                                               |
 | User-facing UI steps                              | `docs/using-the-app.md`                                                                                                                |

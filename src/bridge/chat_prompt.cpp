@@ -76,6 +76,10 @@ bool model_is_phi(const std::string& model_id) {
     return to_lower(model_basename(model_id)).find("phi") != std::string::npos;
 }
 
+bool model_is_granite(const std::string& model_id) {
+    return to_lower(model_basename(model_id)).find("granite") != std::string::npos;
+}
+
 bool model_is_thinking(const std::string& model_id) {
     const std::string id = to_lower(model_basename(model_id));
     // Catalogue / file ids like lfm25-1.2b-thinking, LFM2.5-1.2B-Thinking-….
@@ -228,6 +232,22 @@ ChatFormat chat_format_for(const std::string& model_id) {
         f.system_style = SystemStyle::DedicatedTurn;
         f.stop_sequences = {"<|end|>"};
         f.gen_suffix = {};
+    } else if (model_is_granite(model_id)) {
+        // IBM Granite 4.x instruct (chat_template.jinja): dedicated system
+        // turn, no extra space after <|end_of_role|>, generation header has
+        // no closer. Same tokens as Granite 3.x instruct. Built once so #521
+        // (dense 4.2-3B) reuses this branch.
+        f.kind = ChatFormatKind::Granite;
+        f.turn_open = "<|start_of_role|>";
+        f.turn_close = "<|end_of_text|>\n";
+        f.role_sep = "<|end_of_role|>";
+        f.user_tag = "user";
+        f.assistant_tag = "assistant";
+        f.system_tag = "system";
+        f.system_sep = "";
+        f.system_style = SystemStyle::DedicatedTurn;
+        f.stop_sequences = {"<|end_of_text|>"};
+        f.gen_suffix = {};
     } else {
         f.kind = ChatFormatKind::ChatML;
         f.turn_open = "<|im_start|>";
@@ -261,8 +281,11 @@ std::string ChatFormat::render_system_prefix(const std::string& system) const {
 std::string ChatFormat::render_prompt(const std::string& system,
                                       const std::vector<ChatTurn>& history,
                                       const std::string& final_user) const {
-    // System: dedicated turn (ChatML / Llama-3 / Gemma 4, emitted
-    // unconditionally) or merged into the first user turn (Gemma 3).
+    // System: dedicated turn (ChatML / Llama-3 / Gemma 4 / Granite, emitted
+    // unconditionally — an empty `system` still produces an empty system turn;
+    // IBM's Granite jinja would insert a default message instead. CLI, GUI, and
+    // the LAN API always pass kDefaultSystemPrompt or the coding default today)
+    // or merged into the first user turn (Gemma 3).
     std::string p = render_system_prefix(system);
 
     bool sys_pending = (system_style == SystemStyle::MergeIntoFirstUser) && !system.empty();

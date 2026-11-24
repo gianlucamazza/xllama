@@ -16,7 +16,11 @@ The checkout includes all default-branch source, tests, CI, raw evidence and the
 pinned submodule. Remote branches at discovery: main, the C4 prefill experiment,
 FloppyLM training and the decision-model spike. The latter two are unrelated to
 this GPU program and were not integrated. Current open work is #313, #374,
-#395, upstream overlays #84/#85/#86 and architecture watches #273/#274/#275.
+#395, upstream overlays #84/#85/#86 and architecture watch #273 (MoE).
+[#274](https://github.com/gianlucamazza/xllama/issues/274) BitNet and
+[#275](https://github.com/gianlucamazza/xllama/issues/275) SSM/RWKV + mm
+closed completed: gates documented in [model-matrix.md](../model-matrix.md)
+§I2 / §I3; latest scan found no candidate.
 The GitHub API returned no native milestones. This execution can create issues
 and PRs but has no milestone-creation connector or authenticated CLI; the browser
 fallback also failed before opening the milestone page. The stages below are
@@ -45,15 +49,15 @@ Source authorities: `src/bridge/session.cpp`, `inference.cpp`, `llama_gpu.h`,
 `ggml_d3d12.cpp`, `include/xllama/routing_policy.h` and the shipping catalogue.
 The complete model-by-model status remains in [model-matrix](../model-matrix.md).
 
-| Family / path                                                     | Load and placement                                                                                          | Prefill / decode                                                                       | KV, attention and sampling                                                                                                 |
-| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| GGUF CPU (including small LFM and shipping coding model)          | llama.cpp buffered weights, CPU/repack buffers; Linux supports this path                                    | llama.cpp graph, CPU kernels                                                           | Persistent llama context; CPU attention/KV and shared llama sampler                                                        |
-| GGUF custom D3D12 (shipping LFM2.5-1.2B; explicit layer override) | Register static ggml backend; select supported weight buffers; unavailable device falls back before loading | GPU Q4_0/Q4_K/Q6_K MUL_MAT; Q6_K tied embedding GET_ROWS; unsupported types/ops on CPU | CPU q8 activation quantization, CPU norms/RoPE/attention/KV, CPU logits/sampling; CPU Flash Attention explicitly preserved |
-| ONNX ORT CPU                                                      | ORT GenAI model/config and CPU provider                                                                     | ORT graph via shared decode loop                                                       | ORT generator; continuous KV reuse where supported; ORT sampling path                                                      |
-| ONNX ORT DirectML                                                 | Verified eligible DML asset/provider; independent of GGUF layer offload                                     | Actual EP placement requires an ORT profile; fused nodes can conceal internals         | DML text route does not support continuous KV reuse; no claim that every node or sampling stage is GPU-resident            |
+| Family / path                                                     | Load and placement                                                                                          | Prefill / decode                                                                                           | KV, attention and sampling                                                                                                 |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| GGUF CPU (including small LFM and shipping coding model)          | llama.cpp buffered weights, CPU/repack buffers; Linux supports this path                                    | llama.cpp graph, CPU kernels                                                                               | Persistent llama context; CPU attention/KV and shared llama sampler                                                        |
+| GGUF custom D3D12 (shipping LFM2.5-1.2B; explicit layer override) | Register static ggml backend; select supported weight buffers; unavailable device falls back before loading | GPU Q4_0/Q4_K/Q6_K/Q5_K/IQ4_XS/IQ3_XXS MUL_MAT; Q6_K tied embedding GET_ROWS; unsupported types/ops on CPU | CPU q8 activation quantization, CPU norms/RoPE/attention/KV, CPU logits/sampling; CPU Flash Attention explicitly preserved |
+| ONNX ORT CPU                                                      | ORT GenAI model/config and CPU provider                                                                     | ORT graph via shared decode loop                                                                           | ORT generator; continuous KV reuse where supported; ORT sampling path                                                      |
+| ONNX ORT DirectML                                                 | Verified eligible DML asset/provider; independent of GGUF layer offload                                     | Actual EP placement requires an ORT profile; fused nodes can conceal internals                             | DML text route does not support continuous KV reuse; no claim that every node or sampling stage is GPU-resident            |
 
 The custom backend is deliberately hybrid, not a complete GPU transformer.
-Q5_K/Q8_0 weight kernels, GPU RoPE/attention/KV and a general GPU GEMM are not
+Q8_0 weight kernels, GPU RoPE/attention/KV and a general GPU GEMM are not
 implemented by main's custom backend. The requested Q8_0 _weight_ kernel must
 not be confused with its existing q8 _activation_ path. Prefill reuses the
 single-column kernel across columns; C4 is only on the draft branch.

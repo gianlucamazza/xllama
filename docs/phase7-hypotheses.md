@@ -228,6 +228,10 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   Rejected on the same pass: **granite-3.1-3b-a800m** Q4_K_M (2017 MB, ~2.3 GB
   peak) fits comfortably and would be fast, but 800M active is ~1B-class quality —
   it answers "cheap decode", not H2's "peer quality at mid-speed".
+  **Granite-4.0-H-Tiny** (`granitehybrid`, official Q3_K_S, 7B total / 1B
+  active) is a different checkpoint and is the #525 candidate against this
+  same #273 gate. That F0 does not reopen granite-3.1-3b-a800m. See
+  [model-matrix.md](model-matrix.md) §I1.
 
 ### H3 — Speculative decoding (draft LFM + target 1.7–3B)
 
@@ -397,7 +401,8 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   Post-hoc 2-bit quantisation of a normal model is not the same bet and is
   separately discouraged here: the IQ2_M precedent collapsed to an immediate
   EOG on long declarative prompts. Gate issue
-  [#274](https://github.com/gianlucamazza/xllama/issues/274); matrix row
+  [#274](https://github.com/gianlucamazza/xllama/issues/274) (closed completed:
+  gate documented in the matrix, latest scan found no candidate); matrix row
   [model-matrix.md](model-matrix.md#i2-bitnet-158-post-h5-no-go) §I2.
 
 ### H6 — GGUF GPU backend (Vulkan/D3D12) in AppContainer

@@ -13,7 +13,9 @@ ids, templates, licenses, and campaign notes** — not runtime contracts.
 | Catalogue data                                                 | [`../uwp/models/manifest.json`](../uwp/models/manifest.json) |
 | Tok/s tables                                                   | [benchmarks.md](./benchmarks.md) only                        |
 
-Last updated: **2026-10-25**. `qwen25-coder-3b` is withdrawn from the
+Last updated: **2026-11-24**. F0 desk and T3 receipts for Granite-4.0-H-Tiny
+(#525) are in §I1 (no catalogue id). The #275 new fact is in §I3.
+`qwen25-coder-3b` is withdrawn from the
 downloadable catalogue
 ([Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE));
 receipts stay below, labelled as a non-commercial research-licence measurement.
@@ -23,7 +25,7 @@ is `lfm25-1.2b-instruct` (D3). Newest prior entries: D3 — `qwen25-coder-3b` an
 (`2026-09-30-catalogue-gates`): §A1 `phi4-mini` T3 PASS (#268), LFM2.5 QAD
 Q4_0 PASS for `lfm25-350m` / `lfm25-1.2b-instruct` (#270); §F MiniCPM5-1B (#267) and Gemma-3-1B (#269)
 rejected — measured; §I arch-watch reopen gates
-(#273 MoE, #274 BitNet, #275 SSM/RWKV + mm), then §F MiniCPM5 renderer shipped / T3 not booked (2026-08-10), WS-E
+(#273 MoE, #274 BitNet, #275 SSM/RWKV + mm; #274 and #275 later closed, see §I), then §F MiniCPM5 renderer shipped / T3 not booked (2026-08-10), WS-E
 closed (no consumer); then §A1 `lfm25-230m` shipped as the floor tier and
 `gemma3-270m`'s H9 measured (2026-08-10), §A3 H2 MoE FAIL (2026-07-30), §D
 per-arch `can_shift` (2026-07-29), §A2 phase14 (2026-07-27).
@@ -257,16 +259,16 @@ models.
 
 ## F. Survey rejected / deferred (desk 2026-07-27)
 
-| Candidate                  | Decision           | Reason                                                                        |
-| -------------------------- | ------------------ | ----------------------------------------------------------------------------- |
-| Qwen3-Coder-30B-A3B GGUF   | reject for console | weight size                                                                   |
-| Devstral Small             | reject             | weight size                                                                   |
-| DeepSeek-Coder-V2-Lite     | reject             | weight size                                                                   |
-| Qwen2.5-Coder-7B           | defer              | interactive decode too low                                                    |
-| StarCoder2-3B              | defer              | weaker than Qwen2.5-Coder-3B                                                  |
-| Phi-4-mini                 | shipped — T3 PASS  | `phi4-mini` (#268): H9 6/8 vs `llama32-3b` 5/8, 11.2 tok/s, 2765 MiB, see §A1 |
-| Qwen3-1.7B/4B general      | defer              | chat upgrade, not coding                                                      |
-| Granite 3.1 2B / 4.0 micro | defer              | generalist; lower priority                                                    |
+| Candidate                  | Decision           | Reason                                                                                          |
+| -------------------------- | ------------------ | ----------------------------------------------------------------------------------------------- |
+| Qwen3-Coder-30B-A3B GGUF   | reject for console | weight size                                                                                     |
+| Devstral Small             | reject             | weight size                                                                                     |
+| DeepSeek-Coder-V2-Lite     | reject             | weight size                                                                                     |
+| Qwen2.5-Coder-7B           | defer              | interactive decode too low                                                                      |
+| StarCoder2-3B              | defer              | weaker than Qwen2.5-Coder-3B                                                                    |
+| Phi-4-mini                 | shipped — T3 PASS  | `phi4-mini` (#268): H9 6/8 vs `llama32-3b` 5/8, 11.2 tok/s, 2765 MiB, see §A1                   |
+| Qwen3-1.7B/4B general      | defer              | chat upgrade, not coding                                                                        |
+| Granite 3.1 2B / 4.0 micro | defer              | generalist; lower priority. Not a reject of Granite-4.0-H-Tiny (#525) or Granite 4.2-3B (#521). |
 
 **Phase 16 (desk + measured, 2026-08-10)** — campaign SSOT:
 [phase16-model-scouting.md](phase16-model-scouting.md).
@@ -301,17 +303,19 @@ under the 3584 MiB host gate are catalogued. These host figures are not Series S
 measurements. Series S protocol and maximum-input memory validation passed on
 2026-09-28; the source/package-bound outcomes live in
 [`2026-09-28-console-api-validation.json`](../bench/results/2026-09-28-console-api-validation.json).
-BGE-M3 and Nomic each pass 17 contract requests on the main MSVC package.
-The maximum BGE input is bounded by the API logical batch, not its larger
-catalogue context; see [API limits](api-endpoint.md#embeddings-apiembed-apiembeddings-v1embeddings).
-Dedicated embedding throughput and retrieval-quality benchmarks remain open.
+BGE-M3 (`embed-bge-m3`) and Nomic Embed Text v2 MoE (`embed-nomic-v2-moe`)
+passed the Series S contract check only; throughput and retrieval quality are
+not yet measured. Each still passes 17 contract requests on the main MSVC
+package. The maximum BGE input is bounded by the API logical batch, not its
+larger catalogue context; see
+[API limits](api-endpoint.md#embeddings-apiembed-apiembeddings-v1embeddings).
 Process high-water marks do not establish a separate Nomic peak-memory bound.
 
-| Model                   | Catalogue            | Arch           | Quant  | Pooling | n_ctx | Width | License    | Host peak RSS | Status                                                     |
-| ----------------------- | -------------------- | -------------- | ------ | ------- | ----: | ----: | ---------- | ------------: | ---------------------------------------------------------- |
-| BGE-M3                  | `embed-bge-m3`       | bert           | Q8_0   | CLS     |  8192 |  1024 | MIT        |       746 MiB | **host + Series S contract PASS**                          |
-| Nomic Embed Text v2 MoE | `embed-nomic-v2-moe` | nomic-bert-moe | Q8_0   | mean    |   512 |   768 | Apache-2.0 |       632 MiB | **host + Series S contract PASS** · task prefixes required |
-| Qwen3-Embedding-4B      | —                    | qwen3          | Q4_K_M | last    |  2048 |  2560 | Apache-2.0 |      4411 MiB | **not catalogued** · exceeds 3584 MiB host gate            |
+| Model                   | Catalogue            | Arch           | Quant  | Pooling | n_ctx | Width | License    | Host peak RSS | Status                                                                                                                              |
+| ----------------------- | -------------------- | -------------- | ------ | ------- | ----: | ----: | ---------- | ------------: | ----------------------------------------------------------------------------------------------------------------------------------- |
+| BGE-M3                  | `embed-bge-m3`       | bert           | Q8_0   | CLS     |  8192 |  1024 | MIT        |       746 MiB | **host + Series S contract PASS** · contract check only; throughput and retrieval quality not yet measured                          |
+| Nomic Embed Text v2 MoE | `embed-nomic-v2-moe` | nomic-bert-moe | Q8_0   | mean    |   512 |   768 | Apache-2.0 |       632 MiB | **host + Series S contract PASS** · contract check only; throughput and retrieval quality not yet measured · task prefixes required |
+| Qwen3-Embedding-4B      | —                    | qwen3          | Q4_K_M | last    |  2048 |  2560 | Apache-2.0 |      4411 MiB | **not catalogued** · exceeds 3584 MiB host gate                                                                                     |
 
 Model SHA-256 pins: BGE-M3 `950f4a8e5e19477a6d3c26d2f162233c20002c601f75e4b002e3239997821167`, Nomic `36c5817bc25f379e62021f49efde05b10ed3b0c93ab8059c43173a7a5de73565`. Qwen candidate pin (not catalogued): `2b0cf8f17b4c723c27303015383c27ec4bf2d8314bb677d05e920dd70bb0f16b`.
 
@@ -332,14 +336,20 @@ Model SHA-256 pins: BGE-M3 `950f4a8e5e19477a6d3c26d2f162233c20002c601f75e4b002e3
    shipped (`lfm25-230m`, §A1) and everything else rejected, deferred or blocked;
    the verdicts are in §F. Of the 2026-07-27 seeds, LFM2.5-230M shipped and the
    rest were not displaced. WS-E (embeddings) now has a named LAN API consumer;
-   BGE-M3 and Nomic v2 MoE pass host screening and Series S contract validation
-   (see §G); dedicated throughput/retrieval-quality measurements remain open. WS-F (ASR): microphone capture PASS on Series S 2026-09-30 (#241). No ASR model is catalogued yet.
+   BGE-M3 (`embed-bge-m3`) and Nomic Embed Text v2 MoE (`embed-nomic-v2-moe`)
+   pass host screening and the Series S contract check only (see §G);
+   throughput and retrieval quality are not yet measured. WS-F (ASR): microphone capture PASS on Series S 2026-09-30 (#241). No ASR model is catalogued yet.
 7. ~~**W3 gpubw** (#211)~~ — **closed PASS** Series S **119.07 GB/s** STREAM;
    H6 eng **#228** (`docs/phase15-re-opt.md`).
 8. ~~**MiniCPM5-1B Series S T3**~~ — **closed** 2026-09-30: reject — measured
    (H9 3/8), see §F (#267).
-9. **Arch-watch** — desk-only reopen gates in [§I](#i-arch-watch) (#273 MoE,
-   #274 BitNet, #275 SSM/RWKV + mm). Not a catalogue seed.
+9. **Arch-watch** — desk-only reopen gates in [§I](#i-arch-watch).
+   [#273](https://github.com/gianlucamazza/xllama/issues/273) MoE remains open.
+   [#274](https://github.com/gianlucamazza/xllama/issues/274) BitNet and
+   [#275](https://github.com/gianlucamazza/xllama/issues/275) SSM/RWKV + mm
+   are closed (completed): the gates are documented in §I2 / §I3 and the latest
+   scan found no candidate; reopen if a qualifying model appears. Not a
+   catalogue seed.
 
 ---
 
@@ -352,10 +362,14 @@ candidate that appears still follows the ladder in
 [architecture.md](./architecture.md) (host smoke, then console bench, then
 manifest). No new catalogue id without a Series S PASS.
 
-Tracking: [#273](https://github.com/gianlucamazza/xllama/issues/273) MoE,
-[#274](https://github.com/gianlucamazza/xllama/issues/274) BitNet 1.58,
+Tracking: [#273](https://github.com/gianlucamazza/xllama/issues/273) MoE
+(open). [#274](https://github.com/gianlucamazza/xllama/issues/274) BitNet 1.58
+closed completed: the reopen gate is documented in §I2 and the latest scan
+found no candidate; reopen if a qualifying model appears.
 [#275](https://github.com/gianlucamazza/xllama/issues/275) SSM/RWKV + small
-multimodal. Verdicts: [phase7-hypotheses.md](./phase7-hypotheses.md) H2 / H5.
+multimodal closed completed: the gate is documented in §I3 and the latest scan
+found no candidate to pursue; reopen if a qualifying model appears.
+Verdicts: [phase7-hypotheses.md](./phase7-hypotheses.md) H2 / H5.
 
 ### I1. MoE (post H2 FAIL)
 
@@ -400,11 +414,43 @@ not fit, and streamed it runs at 1.18–2.47 tok/s
 Order and status: [moe-streaming-candidates.md](research/moe-streaming-candidates.md).
 None of this enters a product tier while the rate is below the dense peer.
 
+**F0 desk, 2026-11-24 — Granite-4.0-H-Tiny (`granitehybrid`), #525.** Official
+GGUF on the current pin (`d812350`, arch in `src/llama-arch.cpp`). Q3_K_S is
+3,062,452,832 bytes (the reopen quant); Q4_K_M is over the 3584 MiB gate as a
+file. Apache 2.0. Chat template is Granite 4.x (`ChatFormatKind::Granite`),
+shared with #521. Hits against this page: granite-3.1-3b-a800m was rejected
+on the same H2 pass (different checkpoint, 800M-active quality class);
+§F “Granite 3.1 2B / 4.0 micro” is a low-priority defer, not this model;
+granite-embedding-english-r2 is an embedding reject. Not in
+`uwp/models/manifest.json`. File size is not peak: the peak must be measured
+on Series S. Routed experts, Mamba2 layers and Q3_K dense projections stay
+on the CPU here (#421).
+
+**T3, 2026-11-24 — Granite-4.0-H-Tiny vs the dense peer `llama32-3b`.** Series
+S, Developer Mode, CPU, 6 threads, `n_ctx` 2048, 512-token `standard-512`
+prompt, 96 generated tokens, median of 3 recorded runs (warmup dropped).
+Receipts: `t3-series-s.csv` and `t3-llama32-3b.csv` in
+`bench/results/2026-11-24-granite40-h-tiny/`. Not a catalogue entry.
+
+| Model                 | Id               | Quant  | Decode tok/s |    TTFT ms | peak_ws_mb |
+| --------------------- | ---------------- | ------ | -----------: | ---------: | ---------: |
+| Granite-4.0-H-Tiny    | granite40-h-tiny | Q3_K_S |    **21.73** | **5442.3** |   **3100** |
+| Llama-3.2-3B Instruct | `llama32-3b`     | Q3_K_S |        14.06 |     7950.9 |       1832 |
+
+Every Granite run `peak_ws_mb` 3100 ≤ 3584 (**PASS**). Decode 21.73 > 14.06
+and TTFT 5442.3 ms is not several× worse than 7950.9 ms: **speed+memory gate
+PASS**. The #273 “same quality bar” (Llama-3.2-3B / Phi-4-mini class) is
+**NOT MEASURED** (open). Overall reopen verdict pending quality. Do not add a
+catalogue id from this row. Host T1 and the #512 snapshot receipt sit in the
+same directory; LocalState override: `manifest.override.json`.
+
 ### I2. BitNet 1.58 (post H5 NO-GO)
 
 Closed: H5 **NO-GO** on absence of artefact, not on measured merit (2026-08-10,
 Phase 15 M8). The pin already carries `bitnet`. No downloadable sub-4B weights
-trained at ≤2 bits. Gate: #274.
+trained at ≤2 bits. Gate:
+[#274](https://github.com/gianlucamazza/xllama/issues/274) (closed completed:
+documented here; latest scan found no candidate).
 
 **Do not reopen unless all hold:**
 
@@ -432,7 +478,10 @@ Track non-Transformer / hybrid and small multimodal options that might fit
 Series S without repeating closed kills. **Do not reopen unless** the arch is
 on the UWP llama.cpp pin, a GGUF exists, and the Series S envelope holds.
 Diffusion **text** and custom runtimes stay out (WS-D closed; image SD-Turbo
-remains product). Gate: #275.
+remains product). Gate:
+[#275](https://github.com/gianlucamazza/xllama/issues/275) (closed completed:
+documented here; latest scan found no candidate to pursue; the 2026-11-24
+fact below is the first Mamba2-class hit of that reopen condition).
 
 | Class                      | Interest            | Do not reopen unless                                                                 |
 | -------------------------- | ------------------- | ------------------------------------------------------------------------------------ |
@@ -456,6 +505,28 @@ closed kills (do not re-argue): diffusion **image** SD-Turbo remains product;
 diffusion **text** WS-D closed; ORT DML int4 text reject; speculative default
 FAIL (opt-in only).
 
+**#275 new fact, 2026-11-24:** Granite-4.0-H-Tiny is a Mamba2 hybrid + MoE
+(`granitehybrid` on pin `d812350`) with an official Q3_K_S GGUF of
+3,062,452,832 bytes, under the 3584 MiB file-size envelope. That is the
+condition recorded when #275 closed (architecture on the pin and a GGUF
+within the envelope). It is evaluated as a **resident MoE** against the #273
+gate (#525), not as a product reopen of #275. T3 is in §I1.
+
+---
+
+## Candidates
+
+November 2026 Series S tracking:
+[#523](https://github.com/gianlucamazza/xllama/issues/523)
+(Model candidates, Nov 2026 (Series S)). Per-candidate issues:
+[#519](https://github.com/gianlucamazza/xllama/issues/519) LFM2.5-2.6B,
+[#520](https://github.com/gianlucamazza/xllama/issues/520) MiniCPM5-2B,
+[#521](https://github.com/gianlucamazza/xllama/issues/521) Granite 4.2-3B,
+[#522](https://github.com/gianlucamazza/xllama/issues/522) (blocked on a llama.cpp pin bump),
+[#525](https://github.com/gianlucamazza/xllama/issues/525) Granite-4.0-H-Tiny
+(resident MoE vs #273; T3 in §I1; no catalogue id).
+These are not catalogue entries. This page records no reopen verdict for them.
+
 ---
 
 ## See also
@@ -465,4 +536,5 @@ FAIL (opt-in only).
 - Selection / add-your-own → [model-selection.md](./model-selection.md)
 - Phase 7 research → [phase7-hypotheses.md](./phase7-hypotheses.md)
 - Runtime structure → [architecture.md](./architecture.md)
-- Arch-watch issues → #273 · #274 · #275
+- Arch-watch issues → [#273](https://github.com/gianlucamazza/xllama/issues/273) (open) · [#274](https://github.com/gianlucamazza/xllama/issues/274) (closed) · [#275](https://github.com/gianlucamazza/xllama/issues/275) (closed)
+- Candidates (Nov 2026, Series S) → [#523](https://github.com/gianlucamazza/xllama/issues/523)

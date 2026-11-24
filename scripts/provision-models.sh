@@ -81,7 +81,9 @@ PFN=$("${DEPLOY}" pfn 2>/dev/null)
 }
 echo "==> device PFN: $PFN"
 
-CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS -m 20)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/wdp-curl-auth.sh"
+wdp_setup_curl_auth -m 20
 BASE_URL="https://${XBOX_IP}:11443"
 
 # Disk-backed work dir: model files are up to ~1.7 GB, so the default /tmp
@@ -90,7 +92,7 @@ BASE_URL="https://${XBOX_IP}:11443"
 WORK_ROOT="${PROVISION_WORK_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/xllama-provision}"
 mkdir -p "$WORK_ROOT"
 WORK_DIR="$(mktemp -d "${WORK_ROOT}/run.XXXXXX")"
-trap 'rm -rf "$WORK_DIR"' EXIT
+trap 'rm -rf "$WORK_DIR"; wdp_curl_auth_cleanup' EXIT
 
 # Emit "filename<TAB>remote" lines for a model, plus hf_base_url on the first line
 # prefixed with "BASE\t". Exits 3 if the model is USB-only / unknown.

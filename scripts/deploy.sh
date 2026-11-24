@@ -26,10 +26,12 @@ set -euo pipefail
 : "${XBOX_PASS:?XBOX_PASS not set}"
 
 BASE_URL="https://${XBOX_IP}:11443"
-CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
 DEPLOY_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1090,SC1091
+source "${DEPLOY_SCRIPT_DIR}/wdp-curl-auth.sh"
+# shellcheck disable=SC1090,SC1091
 source "${DEPLOY_SCRIPT_DIR}/wdp-file-upload.sh"
+wdp_setup_curl_auth
 APP_ID="GianlucaMazza.xllama"
 # Pre-rebrand package identity (≤ v1.4.x installs). Kept so pfn/uninstall/log
 # sub-commands still find an old package during the migration window.

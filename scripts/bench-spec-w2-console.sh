@@ -69,7 +69,10 @@ PFN=$("${SCRIPT_DIR}/deploy.sh" pfn 2>/dev/null || true)
 
 # Auto-pick model if unset: prefer 1.5b (coding option), else 0.5b.
 if [[ -z "$MODEL" ]]; then
-	listing=$(curl -sk -u "${XBOX_USER}:${XBOX_PASS}" \
+	# shellcheck disable=SC1091
+	source "${SCRIPT_DIR}/wdp-curl-auth.sh"
+	wdp_setup_curl_auth
+	listing=$(curl "${CURL_AUTH[@]}" \
 		"https://${XBOX_IP}:11443/api/filesystem/apps/files?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState%5Cmodels" \
 		2>/dev/null || true)
 	for cand in qwen25-coder-1.5b qwen25-coder-0.5b; do

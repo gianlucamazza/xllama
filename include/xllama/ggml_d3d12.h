@@ -4,9 +4,10 @@
 // ggml backend "d3d12" — GGUF GPU decode D2 (docs/gguf-gpu-decode.md).
 //
 // A GPU-type ggml device, registered at runtime, that runs MUL_MAT with
-// Q4_0 / Q4_K / Q6_K weights, GET_ROWS from a Q6_K weight and the F32 bias ADD
-// after a projection on our D3D12 compute shaders; matmul inputs are quantized
-// to q8 on the CPU first, exactly as the CPU backend does.
+// Q4_0 / Q4_K / Q6_K / Q5_K / IQ4_XS / IQ3_XXS weights, GET_ROWS from a Q6_K
+// weight, the F32 bias ADD after a projection and (opt-in) plain F32 ROPE on
+// our D3D12 compute shaders; matmul inputs are quantized to q8 on the CPU
+// first, exactly as the CPU backend does.
 // Two buffer types:
 //   D3D12_Weights  DEFAULT heap, holds matmul weights (exposed as an extra buft)
 //   D3D12_Host     CUSTOM WRITE_BACK heap, is_host — the device default buft, so
@@ -45,8 +46,61 @@ inline constexpr int kD3d12LongKChunks = 16; // K >= 4096 → 128 threads
 inline constexpr int kD3d12Chunk = 256;
 inline constexpr std::uint32_t kD3d12MaxGroups = 65535;
 
-// Weight types the backend runs.
+// Weight types the backend runs when their pipelines exist.
 bool d3d12_weight_type_supported(ggml_type t);
+
+// PSO slots 0–2 (Q4_0, Q4_K, Q6_K) are required at backend init. Slots 3–5
+// (Q5_K, IQ4_XS, IQ3_XXS) are optional: one failed CreateComputePipelineState
+// leaves that type on the CPU and keeps the rest of the backend.
+inline constexpr unsigned kD3d12OptionalMmvQ5K = 1u << 0;
+inline constexpr unsigned kD3d12OptionalMmvIq4Xs = 1u << 1;
+inline constexpr unsigned kD3d12OptionalMmvIq3Xxs = 1u << 2;
+inline constexpr unsigned kD3d12OptionalMmvAll =
+    kD3d12OptionalMmvQ5K | kD3d12OptionalMmvIq4Xs | kD3d12OptionalMmvIq3Xxs;
+
+inline unsigned d3d12_optional_mmv_bit(ggml_type t) {
+    switch (t) {
+    case GGML_TYPE_Q5_K:
+        return kD3d12OptionalMmvQ5K;
+    case GGML_TYPE_IQ4_XS:
+        return kD3d12OptionalMmvIq4Xs;
+    case GGML_TYPE_IQ3_XXS:
+        return kD3d12OptionalMmvIq3Xxs;
+    default:
+        return 0;
+    }
+}
+
+inline bool d3d12_optional_mmv_ready(ggml_type t, unsigned ready) {
+    const unsigned bit = d3d12_optional_mmv_bit(t);
+    return bit == 0 || (ready & bit) != 0;
+}
+
+// 3×256 IQ3_XXS is a 98-byte unaligned-row correctness case. Packed GB/s is
+// launch-overhead dominated, so the decode speed gate skips it.
+inline bool d3d12_selftest_speed_gated(std::string_view type, int n, int k, int ncols) {
+    if (ncols != 1)
+        return false;
+    return !(type == "iq3_xxs" && n == 3 && k == 256);
+}
+
+// Packed decode GB/s floors (scripts/bench-d3d12-selftest.sh, same numbers).
+// Q4 / Q5 / Q6 / IQ4_XS stay at the STREAM-class 100 GB/s kill. IQ3_XXS
+// decodes a 256-entry grid per nibble, so it is compute-bound: the 55 GB/s
+// floor is measured, not a target. It is derived from the committed Series S
+// receipt bench/results/d3d12-selftest-151804d-20261124.csv (IQ3_XXS 2048×2048
+// = 61.89 GB/s packed at 151804d), with about 11% margin for run-to-run
+// variance (two pre-optimisation runs differed by about 1–2%) and for
+// thermal/clock noise. A kernel regression below 55 GB/s fails. These floors
+// are a gate, not a product speed claim.
+inline constexpr double kD3d12SelftestDecodeMinGbs = 100.0;
+inline constexpr double kD3d12SelftestIq3XxsDecodeMinGbs = 55.0;
+
+inline double d3d12_selftest_decode_min_gbs(std::string_view type) {
+    if (type == "iq3_xxs")
+        return kD3d12SelftestIq3XxsDecodeMinGbs;
+    return kD3d12SelftestDecodeMinGbs;
+}
 
 // What supports_op sees, as plain data (no ggml_tensor needed in tests).
 struct D3d12MatmulDesc {
@@ -60,8 +114,9 @@ struct D3d12MatmulDesc {
     bool src0_in_weight_buffer = false; // weight lives in a D3D12_Weights buffer
 };
 
-// The MUL_MAT rules of supports_op.
-bool d3d12_mm_supported(const D3d12MatmulDesc& d);
+// The MUL_MAT rules of supports_op. `optional_ready` is the mask of optional
+// MMV pipelines that created (kD3d12OptionalMmvAll when every shader loaded).
+bool d3d12_mm_supported(const D3d12MatmulDesc& d, unsigned optional_ready = kD3d12OptionalMmvAll);
 
 struct D3d12Dispatch {
     std::uint32_t groups_x = 0; // ceil(N / kD3d12MmvRows)
@@ -77,7 +132,8 @@ int d3d12_mm_threads(std::int64_t k);
 
 // Activations go to the GPU the way the CPU backend feeds its own vec_dot:
 // quantized by ggml's from_float of the weight's vec_dot type (Q4_0 → q8_0,
-// Q4_K / Q6_K → q8_K), one row of ggml blocks per column. The kernels then
+// Q4_K / Q5_K / Q6_K / IQ4_XS / IQ3_XXS → q8_K), one row of ggml blocks per
+// column. The kernels then
 // sum integers exactly, so GPU and CPU differ only in float summation order
 // (#312: f32 activations changed greedy text).
 ggml_type d3d12_activation_type(ggml_type weight);
@@ -149,6 +205,73 @@ struct D3d12AddDesc {
 
 bool d3d12_add_supported(const D3d12AddDesc& d);
 
+// --- ROPE on an F32 activation ---
+// build_qkv rotates Q and K right after the bias ADD. On the CPU each ROPE cuts
+// the scheduler's split, so q/k/v end up in two submissions. Here ROPE runs in
+// the same submission as the projections. Only the plain form is placed: F32
+// contiguous src0/dst of one shape, I32 positions (one per token), no
+// freq_factors, no YaRN (ext_factor == 0), mode NORMAL or NEOX, n_offs == 0.
+// Everything else stays on the CPU.
+// The cos/sin table is computed on the CPU with the ggml-cpu formulas
+// (rope_yarn, ggml_rope_cache_init) and read by the shader: sinf/cosf/powf on
+// the GPU are not bit-exact against libm, the table costs n_dims/2 pairs per token.
+
+inline constexpr int kD3d12RopeThreads = 128; // threads per group of the ROPE kernel
+inline constexpr int kD3d12RopeModeNormal = 0;
+inline constexpr int kD3d12RopeModeNeox = 2;
+static_assert(kD3d12RopeModeNormal == GGML_ROPE_TYPE_NORMAL &&
+                  kD3d12RopeModeNeox == GGML_ROPE_TYPE_NEOX,
+              "ROPE mode values must match ggml.h");
+
+struct D3d12RopeDesc {
+    ggml_type src0_type = GGML_TYPE_F32;
+    std::int64_t ne0 = 0, ne1 = 1, ne2 = 1, ne3 = 1; // [head_dim, heads, tokens, batch]
+    ggml_type dst_type = GGML_TYPE_F32;
+    bool same_shape = true; // dst has src0's shape
+    bool src0_contiguous = true;
+    bool dst_contiguous = true;
+    // D3D12_Weights has no UAV flag, and the kernel binds src0 as a UAV: a
+    // weight-buffer activation is refused (D3D12_Host and other host buffers
+    // are fine; the latter are staged).
+    bool src0_in_weight_buffer = false;
+    // The compute path reads the positions, and an input outside D3D12_Host,
+    // through the CPU: one already in a buffer that is not host-visible when
+    // supports_op runs is refused here instead of reaching its asserts.
+    bool src0_in_non_host_buffer = false;
+    bool pos_in_non_host_buffer = false;
+    ggml_type pos_type = GGML_TYPE_I32;
+    std::int64_t ne_pos = 0; // positions
+    bool has_freq_factors = false;
+    int mode = kD3d12RopeModeNeox;
+    int n_dims = 0;
+    int n_offs = 0;
+    float ext_factor = 0.0f;
+};
+
+bool d3d12_rope_supported(const D3d12RopeDesc& d);
+
+// Threads along the x-dimension of a ROPE dispatch: the rotated pairs or the
+// copied tail of a row, whichever is longer.
+inline std::int64_t d3d12_rope_span(std::int64_t n_dims, std::int64_t ne0) {
+    return n_dims / 2 > ne0 - n_dims ? n_dims / 2 : ne0 - n_dims;
+}
+
+struct D3d12RopeParams {
+    int n_dims = 0;
+    float freq_base = 10000.0f;
+    float freq_scale = 1.0f;
+    float attn_factor = 1.0f;
+};
+
+// Fill `table` (2 * n_dims / 2 floats: cos, sin per rotated pair) for one
+// position, as ggml_rope_cache_init does with ext_factor == 0.
+void d3d12_rope_cache(const D3d12RopeParams& p, std::int32_t pos, float* table);
+
+// Host emulation of shaders/ggml_d3d12_rope_f32.hlsl over a dense [ne0, rows,
+// tokens] activation (tests): x/y have ne0 * rows * tokens floats.
+void d3d12_rope_emulate(const D3d12RopeParams& p, int mode, std::int64_t ne0, std::int64_t rows,
+                        std::int64_t tokens, const std::int32_t* pos, const float* x, float* y);
+
 // The D3D12_Weights buffer type, for llama's tensor_buft_overrides. Null
 // until ggml_d3d12_register() succeeds (always on non-Windows).
 ggml_backend_buffer_type_t ggml_d3d12_weights_buft();
@@ -178,7 +301,7 @@ bool d3d12_flag_enabled(std::string_view config);
 const char* d3d12_cols_class(std::int64_t ncols);
 
 struct D3d12DispatchKind {
-    std::string op;            // "mul_mat" | "get_rows" | "add"
+    std::string op;            // "mul_mat" | "get_rows" | "add" | "rope"
     std::string type;          // weight type name, e.g. "q4_0"
     int threads = 0;           // 64 | 128 for mul_mat, kD3d12AddThreads for add, 0 for get_rows
     int columns_per_group = 1; // kernel variant (the single-column kernel is 1)
@@ -242,7 +365,7 @@ std::string d3d12_layer_label(std::optional<int> layer);
 // Aggregation key: one transformer layer (or unattributed) × one op.
 struct D3d12LayerKey {
     std::optional<int> layer; // nullopt = unattributed
-    std::string op;           // "mul_mat" | "get_rows" | "add"
+    std::string op;           // "mul_mat" | "get_rows" | "add" | "rope"
     bool operator==(const D3d12LayerKey& o) const {
         return layer == o.layer && op == o.op;
     }
@@ -318,13 +441,19 @@ bool ggml_d3d12_register();
 // --- Console selftest (d3d12be.flag) ---
 
 struct D3d12SelftestRow {
-    std::string type; // q4_0 | q4_k | q6_k
+    std::string type; // q4_0 | q4_k | q6_k | q5_k | iq4_xs | iq3_xxs | get_rows_q6_k | add_f32 |
+                      // rope_{neox,norm}[_staged]
     int n = 0, k = 0, ncols = 0;
-    double rel_err = 0.0; // max |gpu - ref| / max |ref|
-    double gpu_ms = 0.0;  // GPU timestamp time, median of 5 timed computes (ms)
+    // max |gpu - ref| / max |ref|; NMSE (sum e^2 / sum ref^2) for the rope_* rows
+    double rel_err = 0.0;
+    // GPU timestamp time (ms): median of 5 timed computes for the MUL_MAT rows,
+    // one compute for get_rows, add and rope
+    double gpu_ms = 0.0;
     double packed_gbs = 0.0;
     bool ok = false;
     bool d3d12_ran = false;
+    // The failure reason; empty (written "-" in the CSV) when none. The rope_* rows carry
+    // "nmse=… max_abs=… bit_identical=0|1", also when ok is true.
     std::string error;
 };
 

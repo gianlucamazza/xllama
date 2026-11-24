@@ -23,11 +23,14 @@ set -euo pipefail
 : "${XBOX_PASS:?XBOX_PASS not set}"
 
 N="${1:-30}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/wdp-curl-auth.sh"
+wdp_setup_curl_auth
 BASE_URL="https://${XBOX_IP}:11443"
-CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
 
 WORK=$(mktemp -d)
-trap 'rm -rf "$WORK"' EXIT
+trap 'rm -rf "$WORK"; wdp_curl_auth_cleanup' EXIT
 
 echo "==> ${N} back-to-back screenshots, no sleep between them"
 

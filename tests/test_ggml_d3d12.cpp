@@ -83,8 +83,11 @@ TEST_CASE("ggml_d3d12: weight types") {
     CHECK(d3d12_weight_type_supported(GGML_TYPE_Q4_0));
     CHECK(d3d12_weight_type_supported(GGML_TYPE_Q4_K));
     CHECK(d3d12_weight_type_supported(GGML_TYPE_Q6_K));
-    CHECK_FALSE(d3d12_weight_type_supported(GGML_TYPE_Q5_K));
+    CHECK(d3d12_weight_type_supported(GGML_TYPE_Q5_K));
+    CHECK(d3d12_weight_type_supported(GGML_TYPE_IQ4_XS));
+    CHECK(d3d12_weight_type_supported(GGML_TYPE_IQ3_XXS));
     CHECK_FALSE(d3d12_weight_type_supported(GGML_TYPE_Q8_0));
+    CHECK_FALSE(d3d12_weight_type_supported(GGML_TYPE_IQ2_XXS));
     CHECK_FALSE(d3d12_weight_type_supported(GGML_TYPE_F16));
     CHECK_FALSE(d3d12_weight_type_supported(GGML_TYPE_F32));
 }
@@ -92,6 +95,9 @@ TEST_CASE("ggml_d3d12: weight types") {
 TEST_CASE("ggml_d3d12: supports_op rules for MUL_MAT") {
     D3d12MatmulDesc d = decode_desc(GGML_TYPE_Q4_K, 2048, 2048);
     CHECK(d3d12_mm_supported(d));
+    CHECK(d3d12_mm_supported(decode_desc(GGML_TYPE_Q5_K, 2048, 2048)));
+    CHECK(d3d12_mm_supported(decode_desc(GGML_TYPE_IQ4_XS, 2048, 2048)));
+    CHECK(d3d12_mm_supported(decode_desc(GGML_TYPE_IQ3_XXS, 2048, 2048)));
 
     // The buft probe: a weight still in D3D12_Host is refused, so llama.cpp
     // moves on to D3D12_Weights.
@@ -139,6 +145,46 @@ TEST_CASE("ggml_d3d12: supports_op rules for MUL_MAT") {
     CHECK_FALSE(d3d12_mm_supported(decode_desc(GGML_TYPE_Q6_K, 4 * 65536, 2048)));
 }
 
+TEST_CASE("ggml_d3d12: optional MMV pipelines fall back per type") {
+    D3d12MatmulDesc q40 = decode_desc(GGML_TYPE_Q4_0, 2048, 2048);
+    D3d12MatmulDesc q5 = decode_desc(GGML_TYPE_Q5_K, 2048, 2048);
+    D3d12MatmulDesc iq4 = decode_desc(GGML_TYPE_IQ4_XS, 2048, 2048);
+    D3d12MatmulDesc iq3 = decode_desc(GGML_TYPE_IQ3_XXS, 2048, 2048);
+    CHECK(d3d12_optional_mmv_bit(GGML_TYPE_Q4_0) == 0);
+    CHECK(d3d12_optional_mmv_bit(GGML_TYPE_Q4_K) == 0);
+    CHECK(d3d12_optional_mmv_bit(GGML_TYPE_Q6_K) == 0);
+    // A failed Q5_K PSO must not refuse Q4_0 / Q4_K / Q6_K.
+    CHECK(d3d12_mm_supported(q40, 0));
+    CHECK(d3d12_mm_supported(decode_desc(GGML_TYPE_Q4_K, 2048, 2048), 0));
+    CHECK(d3d12_mm_supported(decode_desc(GGML_TYPE_Q6_K, 2048, 2048), 0));
+    CHECK_FALSE(d3d12_mm_supported(q5, 0));
+    CHECK_FALSE(d3d12_mm_supported(iq4, 0));
+    CHECK_FALSE(d3d12_mm_supported(iq3, 0));
+    CHECK(d3d12_mm_supported(q5, kD3d12OptionalMmvQ5K));
+    CHECK_FALSE(d3d12_mm_supported(iq3, kD3d12OptionalMmvQ5K));
+    CHECK(d3d12_mm_supported(iq4, kD3d12OptionalMmvIq4Xs));
+    CHECK(d3d12_mm_supported(iq3, kD3d12OptionalMmvIq3Xxs));
+    CHECK(d3d12_mm_supported(q5, kD3d12OptionalMmvAll));
+    CHECK(d3d12_mm_supported(iq3)); // default: every optional pipeline present
+}
+
+TEST_CASE("ggml_d3d12: 3x256 IQ3_XXS is correctness-only for the speed gate") {
+    CHECK_FALSE(d3d12_selftest_speed_gated("iq3_xxs", 3, 256, 1));
+    CHECK(d3d12_selftest_speed_gated("iq3_xxs", 2048, 2048, 1));
+    CHECK_FALSE(d3d12_selftest_speed_gated("q4_0", 2048, 2048, 512)); // prefill
+    CHECK(d3d12_selftest_speed_gated("q4_0", 2048, 2048, 1));
+}
+
+TEST_CASE("ggml_d3d12: IQ3_XXS uses a measured 55 GB/s floor; other types stay at 100") {
+    CHECK(d3d12_selftest_decode_min_gbs("q4_0") == kD3d12SelftestDecodeMinGbs);
+    CHECK(d3d12_selftest_decode_min_gbs("q4_k") == 100.0);
+    CHECK(d3d12_selftest_decode_min_gbs("q6_k") == 100.0);
+    CHECK(d3d12_selftest_decode_min_gbs("q5_k") == 100.0);
+    CHECK(d3d12_selftest_decode_min_gbs("iq4_xs") == kD3d12SelftestDecodeMinGbs);
+    CHECK(d3d12_selftest_decode_min_gbs("iq3_xxs") == kD3d12SelftestIq3XxsDecodeMinGbs);
+    CHECK(kD3d12SelftestIq3XxsDecodeMinGbs == 55.0);
+}
+
 TEST_CASE("ggml_d3d12: dispatch planner") {
     D3d12Dispatch d = d3d12_mm_dispatch(2048, 1);
     CHECK(d.ok);
@@ -178,11 +224,17 @@ TEST_CASE("ggml_d3d12: kernel emulation matches the CPU backend (q8 activations)
         {GGML_TYPE_Q4_0, 13, 1024},
         {GGML_TYPE_Q4_K, 13, 1024},
         {GGML_TYPE_Q6_K, 13, 1024},
+        {GGML_TYPE_Q5_K, 13, 1024},
+        {GGML_TYPE_IQ4_XS, 13, 1024},
+        {GGML_TYPE_IQ3_XXS, 13, 1024},
         // 9 super-blocks: 1890-byte rows, odd rows start 2-byte aligned.
         {GGML_TYPE_Q6_K, 6, 2304},
         // Coder-3B ffn_down width: 43 super-blocks, 9030-byte rows.
         {GGML_TYPE_Q6_K, 3, 11008},
         {GGML_TYPE_Q4_0, 5, 2304},
+        {GGML_TYPE_Q5_K, 5, 2304},
+        // One IQ3_XXS super-block: 98-byte rows, 2-byte aligned.
+        {GGML_TYPE_IQ3_XXS, 6, 256},
     };
     for (const auto& c : cases) {
         CAPTURE(ggml_type_name(c.t));
@@ -191,6 +243,7 @@ TEST_CASE("ggml_d3d12: kernel emulation matches the CPU backend (q8 activations)
         CHECK(emulate_rel_err(c.t, c.n, c.k, 7, 12, 3) <= kD3d12SelftestRelTol);
     }
     CHECK(ggml_row_size(GGML_TYPE_Q6_K, 11008) % 4 == 2); // the case the ld32 trick covers
+    CHECK(ggml_row_size(GGML_TYPE_IQ3_XXS, 256) % 4 == 2);
 }
 
 TEST_CASE("ggml_d3d12: selftest CSV and non-Windows behaviour") {
@@ -680,4 +733,157 @@ TEST_CASE("d3d12: dispatch profile groups by kind and reports untimed dispatches
     CHECK_FALSE(only_missing.empty());
     CHECK(format_d3d12_dispatch_profile("decode", only_missing).find("missing=1") !=
           std::string::npos);
+}
+
+TEST_CASE("ggml_d3d12: ROPE rules") {
+    // Qwen2.5-Coder-3B q after the bias ADD, decode: [128, 16, 1].
+    D3d12RopeDesc d;
+    d.ne0 = 128;
+    d.ne1 = 16;
+    d.ne2 = 1;
+    d.ne_pos = 1;
+    d.n_dims = 128;
+    CHECK(d3d12_rope_supported(d));
+
+    D3d12RopeDesc t = d;
+    t.mode = kD3d12RopeModeNormal;
+    CHECK(d3d12_rope_supported(t));
+    t = d;
+    t.n_dims = 64; // partial rotation, the tail is copied
+    CHECK(d3d12_rope_supported(t));
+    t = d;
+    t.ne1 = 2;
+    t.ne2 = 512; // prefill, GQA k with 2 heads
+    t.ne_pos = 512;
+    CHECK(d3d12_rope_supported(t));
+
+    t = d;
+    t.src0_type = GGML_TYPE_F16;
+    CHECK_FALSE(d3d12_rope_supported(t));
+    // A short rotated part with a long copied tail: the x-dimension is the tail
+    // (ne0 - n_dims), not ne0 / 2.
+    CHECK(d3d12_rope_span(2, 8388610) == 8388608);
+    CHECK(d3d12_rope_span(128, 128) == 64);
+    t = d;
+    t.ne0 = 8388610;
+    t.n_dims = 2;
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
+    t.src0_in_weight_buffer = true; // D3D12_Weights has no UAV flag
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
+    t.src0_in_non_host_buffer = true; // compute path reads it through the CPU
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
+    t.pos_in_non_host_buffer = true; // positions are read on the CPU for the table
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
+    t.dst_type = GGML_TYPE_F16;
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
+    t.same_shape = false;
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
+    t.src0_contiguous = false;
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
+    t.dst_contiguous = false;
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
+    t.pos_type = GGML_TYPE_F32;
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
+    t.has_freq_factors = true;
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
+    t.mode = 8; // MROPE
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t.mode = 24; // vision
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
+    t.ext_factor = 1.0f; // YaRN
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
+    t.n_offs = 2;
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
+    t.n_dims = 0;
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t.n_dims = 129; // odd
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t.n_dims = 130; // beyond the row
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
+    t.ne3 = 2;
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
+    t.ne_pos = 2; // one position per token
+    CHECK_FALSE(d3d12_rope_supported(t));
+}
+
+namespace {
+
+// ggml_rope_ext on ggml-cpu as the reference for the cache + mul/sub emulation.
+void rope_parity(int mode, int ne0, int heads, int tokens, int n_dims, float freq_base,
+                 float freq_scale, float attn_factor) {
+    ggml_init_params ip = {};
+    ip.mem_size = 8u << 20;
+    ggml_context* ctx = ggml_init(ip);
+    REQUIRE(ctx != nullptr);
+    ggml_tensor* x = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, ne0, heads, tokens);
+    ggml_tensor* pos = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, tokens);
+    std::mt19937 rng(7u + static_cast<unsigned>(mode * 131 + ne0 + tokens));
+    std::uniform_real_distribution<float> u(-2.0f, 2.0f);
+    auto* xd = static_cast<float*>(x->data);
+    for (std::int64_t i = 0; i < ggml_nelements(x); ++i)
+        xd[i] = u(rng);
+    auto* pd = static_cast<std::int32_t*>(pos->data);
+    for (int i = 0; i < tokens; ++i)
+        pd[i] = 1000 * (i % 3) + i * 37; // not a plain 0..n ramp
+    ggml_tensor* y = ggml_rope_ext(ctx, x, pos, nullptr, n_dims, mode, 0, freq_base, freq_scale,
+                                   0.0f, attn_factor, 32.0f, 1.0f);
+    ggml_cgraph* gf = ggml_new_graph(ctx);
+    ggml_build_forward_expand(gf, y);
+    REQUIRE(ggml_graph_compute_with_ctx(ctx, gf, 2) == GGML_STATUS_SUCCESS);
+
+    std::vector<float> mine(static_cast<std::size_t>(ggml_nelements(x)));
+    D3d12RopeParams p;
+    p.n_dims = n_dims;
+    p.freq_base = freq_base;
+    p.freq_scale = freq_scale;
+    p.attn_factor = attn_factor;
+    d3d12_rope_emulate(p, mode, ne0, heads, tokens, pd, xd, mine.data());
+
+    const auto* ref = static_cast<const float*>(y->data);
+    double num = 0.0, den = 0.0, max_abs = 0.0;
+    for (std::size_t i = 0; i < mine.size(); ++i) {
+        const double e = static_cast<double>(mine[i]) - ref[i];
+        num += e * e;
+        den += static_cast<double>(ref[i]) * ref[i];
+        max_abs = std::max(max_abs, std::fabs(e));
+    }
+    CAPTURE(mode);
+    CAPTURE(ne0);
+    CAPTURE(tokens);
+    CAPTURE(max_abs);
+    CHECK(den > 0.0);
+    // test-backend-ops' default per-op bound (llama.cpp/tests/test-backend-ops.cpp).
+    CHECK(num / den <= 1e-7);
+    ggml_free(ctx);
+}
+
+} // namespace
+
+TEST_CASE("ggml_d3d12: ROPE cache + mul/sub matches ggml-cpu rope") {
+    const float kBase = 1000000.0f; // Qwen2.5-Coder
+    for (int mode : {kD3d12RopeModeNormal, kD3d12RopeModeNeox}) {
+        rope_parity(mode, 128, 16, 1, 128, kBase, 1.0f, 1.0f);    // decode, q
+        rope_parity(mode, 128, 2, 1, 128, kBase, 1.0f, 1.0f);     // decode, GQA k
+        rope_parity(mode, 128, 16, 4, 128, 10000.0f, 1.0f, 1.0f); // small batch
+        rope_parity(mode, 128, 2, 512, 128, kBase, 1.0f, 1.0f);   // ubatch 512
+        rope_parity(mode, 64, 4, 8, 32, 10000.0f, 1.0f, 1.0f);    // n_dims < ne0
+        rope_parity(mode, 8, 3, 5, 8, 10000.0f, 0.25f, 1.0f);     // freq_scale
+        rope_parity(mode, 8, 3, 5, 8, 10000.0f, 1.0f, 1.3f);      // attn_factor
+        rope_parity(mode, 2, 1, 3, 2, 10000.0f, 0.5f, 0.9f);      // one pair
+    }
 }
