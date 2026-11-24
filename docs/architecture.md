@@ -126,8 +126,10 @@ applied to the stateless path),
 `d3d12_compute.cpp` (shared D3D12 device, buffers, root signature and fence
 helpers for the GPU probes and the d3d12 backend; Windows-only, empty on Linux),
 `ggml_d3d12.cpp` (ggml backend `d3d12`: Q4_0/Q4_K/Q6_K/Q5_K/IQ4_XS/IQ3_XXS
-MUL_MAT with q8 activations and Q6_K GET_ROWS on D3D12; llama builds only, the
-pure rules and kernel emulation also build on Linux).
+MUL_MAT with q8 activations and Q6_K GET_ROWS on D3D12, plus two opt-in ops
+behind LocalState knobs: F32 bias ADD (`d3d12-bias-add.txt`) and plain F32 ROPE
+(`d3d12-rope.txt`, CPU-computed cos/sin table); llama builds only, the pure
+rules and kernel emulation also build on Linux).
 
 ## Inference backends and runtime dispatch
 
@@ -553,7 +555,7 @@ A family of micro-bench probes that pin the platform's physical ceilings:
 | **GPU STREAM**    | `gpubw.h`      | D3D12 compute-shader STREAM read over ~1 GiB VRAM (kill gate 100 GB/s)                                                | `gpubw.flag` / `--gpubw`     |
 | **GPU GEMV**      | `gpugemv.h`    | Q4_K GEMV density, naive/wave32/rows/dot4 (G1 + G2 density ≥ 40 GB/s)                                                 | `gpugemv.flag` / `--gpugemv` |
 | **GPU step**      | `gpustep.h`    | GGUF GPU decode D1: round trip, simulated token per model, heap BW                                                    | `gpustep.flag` / `--gpustep` |
-| **d3d12 backend** | `ggml_d3d12.h` | Backend selftest: MUL_MAT vs the CPU backend's q8 vec_dot (rel ≤ 1e-5), GET_ROWS bit-exact, decode GB/s (median of 5) | `d3d12be.flag`               |
+| **d3d12 backend** | `ggml_d3d12.h` | Selftest: MUL_MAT vs CPU q8 vec_dot (rel ≤ 1e-5), GET_ROWS and ADD exact, ROPE NMSE ≤ 1e-7, decode GB/s (median of 5) | `d3d12be.flag`               |
 
 All probes share the same design: pure helpers (pattern fill, checksum, CSV
 serialization) are host-testable on Linux; the D3D12/Windows path returns
@@ -920,7 +922,7 @@ flags are supported:
 | `gpugemv.flag`         | `run_gpugemv`            | Q4_K GEMV density probe (D3D12 compute shader)                      |
 | `gpustep.flag`         | `run_gpustep(false)`     | GGUF GPU decode probe D1 ([gguf-gpu-decode.md](gguf-gpu-decode.md)) |
 | `gpustep-inproc.flag`  | `run_gpustep(true)`      | D1d: the same probe inside the XAML process                         |
-| `d3d12be.flag`         | `run_d3d12_selftest`     | d3d12 ggml backend selftest vs the CPU backend (MUL_MAT, GET_ROWS)  |
+| `d3d12be.flag`         | `run_d3d12_selftest`     | d3d12 backend selftest vs the CPU (MUL_MAT, GET_ROWS, ADD, ROPE)    |
 | `ramceil.flag`         | `run_ramceil`            | Heap ceiling probe (commit in steps)                                |
 | `mic.flag`             | `run_mic_probe`          | Microphone / AudioGraph probe                                       |
 | `native-capture.flag`  | capture probe            | GraphicsCapture availability probe (`capture_probe.h`)              |
@@ -1059,15 +1061,16 @@ Machine-readable output: `SPEC_STATS` line on stderr for bench scripts.
 
 `shaders/` contains HLSL compute shaders and their AOT-compiled DXIL headers:
 
-| Shader                                                                            | Purpose                                             | Output                                      |
-| --------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------- |
-| `gpubw_stream.hlsl`                                                               | GPU STREAM read (~1 GiB VRAM)                       | `generated/gpubw_stream_dxil.h`             |
-| `gpugemv_q4k.hlsl`                                                                | Naive Q4_K GEMV                                     | `generated/gpugemv_q4k_dxil.h`              |
-| `gpugemv_q4k_wave32.hlsl`                                                         | Wave32-optimized Q4_K GEMV                          | `generated/gpugemv_q4k_wave32_dxil.h`       |
-| `gpugemv_q4k_rows.hlsl`                                                           | Multi-row Q4_K GEMV (H6.3; also the gpustep kernel) | `generated/gpugemv_q4k_rows_dxil.h`         |
-| `gpugemv_q4k_dot4.hlsl`                                                           | Multi-row Q4_K × q8 GEMV, cs_6_4 (H6.3)             | `generated/gpugemv_q4k_dot4_dxil.h`         |
-| `ggml_d3d12_mmv_q4_0.hlsl` / `_q4_k` / `_q6_k` / `_q5_k` / `_iq4_xs` / `_iq3_xxs` | d3d12 backend MUL_MAT, q8 integer dot, cs_6_4       | `generated/ggml_d3d12_mmv_*_dxil.h`         |
-| `ggml_d3d12_get_rows_q6_k.hlsl`                                                   | d3d12 backend GET_ROWS (tied embedding), cs_6_4     | `generated/ggml_d3d12_get_rows_q6_k_dxil.h` |
+| Shader                                                                            | Purpose                                                | Output                                      |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------- |
+| `gpubw_stream.hlsl`                                                               | GPU STREAM read (~1 GiB VRAM)                          | `generated/gpubw_stream_dxil.h`             |
+| `gpugemv_q4k.hlsl`                                                                | Naive Q4_K GEMV                                        | `generated/gpugemv_q4k_dxil.h`              |
+| `gpugemv_q4k_wave32.hlsl`                                                         | Wave32-optimized Q4_K GEMV                             | `generated/gpugemv_q4k_wave32_dxil.h`       |
+| `gpugemv_q4k_rows.hlsl`                                                           | Multi-row Q4_K GEMV (H6.3; also the gpustep kernel)    | `generated/gpugemv_q4k_rows_dxil.h`         |
+| `gpugemv_q4k_dot4.hlsl`                                                           | Multi-row Q4_K × q8 GEMV, cs_6_4 (H6.3)                | `generated/gpugemv_q4k_dot4_dxil.h`         |
+| `ggml_d3d12_mmv_q4_0.hlsl` / `_q4_k` / `_q6_k` / `_q5_k` / `_iq4_xs` / `_iq3_xxs` | d3d12 backend MUL_MAT, q8 integer dot, cs_6_4          | `generated/ggml_d3d12_mmv_*_dxil.h`         |
+| `ggml_d3d12_get_rows_q6_k.hlsl`                                                   | d3d12 backend GET_ROWS (tied embedding), cs_6_4        | `generated/ggml_d3d12_get_rows_q6_k_dxil.h` |
+| `ggml_d3d12_rope_f32.hlsl`                                                        | d3d12 backend ROPE (opt-in, CPU cos/sin table), cs_6_4 | `generated/ggml_d3d12_rope_f32_dxil.h`      |
 
 Compile scripts: `scripts/compile-gpubw-shader.sh`,
 `scripts/compile-gpugemv-shader.sh` (dxc → binary → C header; takes per-target

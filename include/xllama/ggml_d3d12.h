@@ -5,9 +5,9 @@
 //
 // A GPU-type ggml device, registered at runtime, that runs MUL_MAT with
 // Q4_0 / Q4_K / Q6_K / Q5_K / IQ4_XS / IQ3_XXS weights, GET_ROWS from a Q6_K
-// weight and the F32 bias ADD
-// after a projection on our D3D12 compute shaders; matmul inputs are quantized
-// to q8 on the CPU first, exactly as the CPU backend does.
+// weight, the F32 bias ADD after a projection and (opt-in) plain F32 ROPE on
+// our D3D12 compute shaders; matmul inputs are quantized to q8 on the CPU
+// first, exactly as the CPU backend does.
 // Two buffer types:
 //   D3D12_Weights  DEFAULT heap, holds matmul weights (exposed as an extra buft)
 //   D3D12_Host     CUSTOM WRITE_BACK heap, is_host — the device default buft, so
@@ -205,6 +205,73 @@ struct D3d12AddDesc {
 
 bool d3d12_add_supported(const D3d12AddDesc& d);
 
+// --- ROPE on an F32 activation ---
+// build_qkv rotates Q and K right after the bias ADD. On the CPU each ROPE cuts
+// the scheduler's split, so q/k/v end up in two submissions. Here ROPE runs in
+// the same submission as the projections. Only the plain form is placed: F32
+// contiguous src0/dst of one shape, I32 positions (one per token), no
+// freq_factors, no YaRN (ext_factor == 0), mode NORMAL or NEOX, n_offs == 0.
+// Everything else stays on the CPU.
+// The cos/sin table is computed on the CPU with the ggml-cpu formulas
+// (rope_yarn, ggml_rope_cache_init) and read by the shader: sinf/cosf/powf on
+// the GPU are not bit-exact against libm, the table costs n_dims/2 pairs per token.
+
+inline constexpr int kD3d12RopeThreads = 128; // threads per group of the ROPE kernel
+inline constexpr int kD3d12RopeModeNormal = 0;
+inline constexpr int kD3d12RopeModeNeox = 2;
+static_assert(kD3d12RopeModeNormal == GGML_ROPE_TYPE_NORMAL &&
+                  kD3d12RopeModeNeox == GGML_ROPE_TYPE_NEOX,
+              "ROPE mode values must match ggml.h");
+
+struct D3d12RopeDesc {
+    ggml_type src0_type = GGML_TYPE_F32;
+    std::int64_t ne0 = 0, ne1 = 1, ne2 = 1, ne3 = 1; // [head_dim, heads, tokens, batch]
+    ggml_type dst_type = GGML_TYPE_F32;
+    bool same_shape = true; // dst has src0's shape
+    bool src0_contiguous = true;
+    bool dst_contiguous = true;
+    // D3D12_Weights has no UAV flag, and the kernel binds src0 as a UAV: a
+    // weight-buffer activation is refused (D3D12_Host and other host buffers
+    // are fine; the latter are staged).
+    bool src0_in_weight_buffer = false;
+    // The compute path reads the positions, and an input outside D3D12_Host,
+    // through the CPU: one already in a buffer that is not host-visible when
+    // supports_op runs is refused here instead of reaching its asserts.
+    bool src0_in_non_host_buffer = false;
+    bool pos_in_non_host_buffer = false;
+    ggml_type pos_type = GGML_TYPE_I32;
+    std::int64_t ne_pos = 0; // positions
+    bool has_freq_factors = false;
+    int mode = kD3d12RopeModeNeox;
+    int n_dims = 0;
+    int n_offs = 0;
+    float ext_factor = 0.0f;
+};
+
+bool d3d12_rope_supported(const D3d12RopeDesc& d);
+
+// Threads along the x-dimension of a ROPE dispatch: the rotated pairs or the
+// copied tail of a row, whichever is longer.
+inline std::int64_t d3d12_rope_span(std::int64_t n_dims, std::int64_t ne0) {
+    return n_dims / 2 > ne0 - n_dims ? n_dims / 2 : ne0 - n_dims;
+}
+
+struct D3d12RopeParams {
+    int n_dims = 0;
+    float freq_base = 10000.0f;
+    float freq_scale = 1.0f;
+    float attn_factor = 1.0f;
+};
+
+// Fill `table` (2 * n_dims / 2 floats: cos, sin per rotated pair) for one
+// position, as ggml_rope_cache_init does with ext_factor == 0.
+void d3d12_rope_cache(const D3d12RopeParams& p, std::int32_t pos, float* table);
+
+// Host emulation of shaders/ggml_d3d12_rope_f32.hlsl over a dense [ne0, rows,
+// tokens] activation (tests): x/y have ne0 * rows * tokens floats.
+void d3d12_rope_emulate(const D3d12RopeParams& p, int mode, std::int64_t ne0, std::int64_t rows,
+                        std::int64_t tokens, const std::int32_t* pos, const float* x, float* y);
+
 // The D3D12_Weights buffer type, for llama's tensor_buft_overrides. Null
 // until ggml_d3d12_register() succeeds (always on non-Windows).
 ggml_backend_buffer_type_t ggml_d3d12_weights_buft();
@@ -234,7 +301,7 @@ bool d3d12_flag_enabled(std::string_view config);
 const char* d3d12_cols_class(std::int64_t ncols);
 
 struct D3d12DispatchKind {
-    std::string op;            // "mul_mat" | "get_rows" | "add"
+    std::string op;            // "mul_mat" | "get_rows" | "add" | "rope"
     std::string type;          // weight type name, e.g. "q4_0"
     int threads = 0;           // 64 | 128 for mul_mat, kD3d12AddThreads for add, 0 for get_rows
     int columns_per_group = 1; // kernel variant (the single-column kernel is 1)
@@ -298,7 +365,7 @@ std::string d3d12_layer_label(std::optional<int> layer);
 // Aggregation key: one transformer layer (or unattributed) × one op.
 struct D3d12LayerKey {
     std::optional<int> layer; // nullopt = unattributed
-    std::string op;           // "mul_mat" | "get_rows" | "add"
+    std::string op;           // "mul_mat" | "get_rows" | "add" | "rope"
     bool operator==(const D3d12LayerKey& o) const {
         return layer == o.layer && op == o.op;
     }
@@ -374,13 +441,19 @@ bool ggml_d3d12_register();
 // --- Console selftest (d3d12be.flag) ---
 
 struct D3d12SelftestRow {
-    std::string type; // q4_0 | q4_k | q6_k | q5_k | iq4_xs | iq3_xxs
+    std::string type; // q4_0 | q4_k | q6_k | q5_k | iq4_xs | iq3_xxs | get_rows_q6_k | add_f32 |
+                      // rope_{neox,norm}[_staged]
     int n = 0, k = 0, ncols = 0;
-    double rel_err = 0.0; // max |gpu - ref| / max |ref|
-    double gpu_ms = 0.0;  // GPU timestamp time, median of 5 timed computes (ms)
+    // max |gpu - ref| / max |ref|; NMSE (sum e^2 / sum ref^2) for the rope_* rows
+    double rel_err = 0.0;
+    // GPU timestamp time (ms): median of 5 timed computes for the MUL_MAT rows,
+    // one compute for get_rows, add and rope
+    double gpu_ms = 0.0;
     double packed_gbs = 0.0;
     bool ok = false;
     bool d3d12_ran = false;
+    // The failure reason; empty (written "-" in the CSV) when none. The rope_* rows carry
+    // "nmse=… max_abs=… bit_identical=0|1", also when ok is true.
     std::string error;
 };
 

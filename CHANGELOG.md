@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Opt-in GPU ROPE for d3d12 GGUF layers.** With
+  `LocalState\d3d12-rope.txt` set to `1`, plain F32 NORMAL/NEOX `ROPE` (no
+  `freq_factors`, no YaRN) runs on the d3d12 backend, so q/k/v of a layer form
+  one split with the bias ADD knob on (5 → 4 submissions per layer). The
+  cos/sin table is computed on the CPU. The Series X comparisons reported in
+  #511 (operator-declared, Series X) matched logits bit for bit for the three
+  models and two ubatch sizes tried. Series S self-test at `d599486`
+  (correctness and bit-identity only, no speed claim):
+  [`d3d12-selftest-d599486-rope-20261124.csv`](bench/results/d3d12-selftest-d599486-rope-20261124.csv)
+  (`--require-rope`, GATE=PASS 34/34, all ten `rope_*` rows bit-identical).
+  Details: [GGUF GPU decode](docs/gguf-gpu-decode.md).
+
 - **Granite 4.x chat renderer (#525).** `chat_format_for` selects
   `<|start_of_role|>…<|end_of_role|>…<|end_of_text|>` for ids and filenames
   whose basename contains `granite`, shared with #521 (Granite 4.2-3B). Host
