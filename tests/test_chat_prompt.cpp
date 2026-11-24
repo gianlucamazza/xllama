@@ -172,6 +172,18 @@ TEST_CASE("phi detection") {
     CHECK_FALSE(model_is_phi("gemma3-270m"));
 }
 
+TEST_CASE("granite detection") {
+    CHECK(model_is_granite("granite40-h-tiny"));
+    CHECK(model_is_granite("granite-4.0-h-tiny-Q3_K_S.gguf"));
+    CHECK(model_is_granite("granite-4.2-3b")); // #521 reuses this renderer
+    CHECK(model_is_granite("/models/cache/granite-4.0-h-tiny-Q3_K_S.gguf"));
+    CHECK_FALSE(model_is_granite("lfm25-350m"));
+    CHECK_FALSE(model_is_granite("llama32-3b"));
+    CHECK_FALSE(model_is_granite("phi4-mini"));
+    // Basename only: a cache dir named granite must not select the template.
+    CHECK_FALSE(model_is_granite("/models/granite-cache/lfm25-350m.gguf"));
+}
+
 TEST_CASE("model detection ignores directory names (full-path ids)") {
     // The CLI passes a FULL path; directory names must not select a template.
     // A cache dir literally named "xllama-gguf" contains "llama" and used to
@@ -184,6 +196,8 @@ TEST_CASE("model detection ignores directory names (full-path ids)") {
     CHECK_FALSE(model_is_phi("C:\\phi-cache\\LFM2.5-350M-Q4_K_M.gguf"));
     CHECK(model_is_phi("C:\\models\\Phi-3.5-mini-instruct-Q3_K_S.gguf"));
     CHECK_FALSE(model_is_gemma("/srv/gemma-store/lfm25-350m.gguf"));
+    CHECK_FALSE(model_is_granite("/srv/granite-store/lfm25-350m.gguf"));
+    CHECK(model_is_granite("/srv/cache/granite-4.0-h-tiny-Q3_K_S.gguf"));
 }
 
 TEST_CASE("chat format selection") {
@@ -196,6 +210,8 @@ TEST_CASE("chat format selection") {
     CHECK(chat_format_for("llama32-3b").kind == ChatFormatKind::Llama3);
     CHECK(chat_format_for("phi35-mini").kind == ChatFormatKind::Phi3);
     CHECK(chat_format_for("phi4-mini").kind == ChatFormatKind::Phi3);
+    CHECK(chat_format_for("granite40-h-tiny").kind == ChatFormatKind::Granite);
+    CHECK(chat_format_for("granite-4.2-3b").kind == ChatFormatKind::Granite);
 
     const ChatFormat qwen = chat_format_for("qwen35-0.8b");
     CHECK(qwen.kind == ChatFormatKind::ChatML);
@@ -204,6 +220,7 @@ TEST_CASE("chat format selection") {
     CHECK(chat_format_for("smollm2-360m-cpu-int4").gen_suffix.empty());
     CHECK(chat_format_for("llama32-3b").gen_suffix.empty());
     CHECK(chat_format_for("phi35-mini").gen_suffix.empty());
+    CHECK(chat_format_for("granite40-h-tiny").gen_suffix.empty());
 }
 
 TEST_CASE("minicpm5 needs both renderer halves, and nothing else gets them") {
@@ -232,7 +249,7 @@ TEST_CASE("minicpm5 needs both renderer halves, and nothing else gets them") {
     // No other catalogue id acquires a template BOS — Gemma and Llama-3 GGUF add
     // it in the tokenizer, so emitting it here would double it.
     for (const char* id : {"smollm2-360m-cpu-int4", "lfm25-350m", "qwen35-0.8b", "gemma3-270m",
-                           "llama32-3b", "phi35-mini", "qwen25-coder-1.5b"}) {
+                           "llama32-3b", "phi35-mini", "qwen25-coder-1.5b", "granite40-h-tiny"}) {
         CHECK(chat_format_for(id).bos.empty());
     }
     CHECK_FALSE(model_is_minicpm5("minicpm3-4b")); // MiniCPM3 is a different family
@@ -246,6 +263,8 @@ TEST_CASE("chat format stop sequences") {
           std::vector<std::string>{"<end_of_turn>"});
     CHECK(chat_format_for("llama32-3b").stop_sequences == std::vector<std::string>{"<|eot_id|>"});
     CHECK(chat_format_for("phi35-mini").stop_sequences == std::vector<std::string>{"<|end|>"});
+    CHECK(chat_format_for("granite40-h-tiny").stop_sequences ==
+          std::vector<std::string>{"<|end_of_text|>"});
 }
 
 TEST_CASE("chatml render is byte-exact with the legacy hand-built prompt") {
@@ -363,6 +382,16 @@ TEST_CASE("render_delta for chatml, gemma, llama3, phi3 and prev_ended_with_stop
     const ChatFormat ph = chat_format_for("phi35-mini");
     CHECK(ph.render_delta("q", /*stop=*/true) == "\n<|user|>\nq<|end|>\n<|assistant|>\n");
     CHECK(ph.render_delta("q", /*stop=*/false) == "<|end|>\n<|user|>\nq<|end|>\n<|assistant|>\n");
+
+    // Granite 4.x: stop is a prefix of turn_close ("<|end_of_text|>" vs
+    // "<|end_of_text|>\n") → post-stop glue "\n".
+    const ChatFormat gr = chat_format_for("granite40-h-tiny");
+    CHECK(gr.render_delta("q", /*stop=*/true) ==
+          "\n<|start_of_role|>user<|end_of_role|>q<|end_of_text|>\n"
+          "<|start_of_role|>assistant<|end_of_role|>");
+    CHECK(gr.render_delta("q", /*stop=*/false) ==
+          "<|end_of_text|>\n<|start_of_role|>user<|end_of_role|>q<|end_of_text|>\n"
+          "<|start_of_role|>assistant<|end_of_role|>");
 }
 
 TEST_CASE("phi3 render matches Microsoft instruct layout") {
@@ -423,12 +452,13 @@ static void check_kv_reuse_invariant(const ChatFormat& f) {
     CHECK(base + raw_out + f.render_delta(next_user, /*prev_ended_with_stop=*/false) == cold);
 }
 
-TEST_CASE("kv-reuse invariant holds for chatml, gemma, llama3, and phi3") {
+TEST_CASE("kv-reuse invariant holds for chatml, gemma, llama3, phi3, and granite") {
     check_kv_reuse_invariant(chat_format_for("smollm2-360m-cpu-int4"));
     check_kv_reuse_invariant(chat_format_for("gemma3-270m"));
     check_kv_reuse_invariant(chat_format_for("gemma4-e2b"));
     check_kv_reuse_invariant(chat_format_for("llama32-3b"));
     check_kv_reuse_invariant(chat_format_for("phi35-mini"));
+    check_kv_reuse_invariant(chat_format_for("granite40-h-tiny"));
 }
 
 TEST_CASE("render_system_prefix is the exact head of render_prompt (#169)") {
@@ -436,7 +466,8 @@ TEST_CASE("render_system_prefix is the exact head of render_prompt (#169)") {
     // DedicatedTurn formats: the prefix must be byte-identical to what
     // render_prompt emits before the first user turn — a context shift pins
     // exactly its token count.
-    for (const char* id : {"smollm2-360m-cpu-int4", "llama32-3b", "phi35-mini", "gemma4-e2b"}) {
+    for (const char* id :
+         {"smollm2-360m-cpu-int4", "llama32-3b", "phi35-mini", "gemma4-e2b", "granite40-h-tiny"}) {
         const ChatFormat f = chat_format_for(id);
         const std::string prefix = f.render_system_prefix(sys);
         CHECK(!prefix.empty());
@@ -445,4 +476,50 @@ TEST_CASE("render_system_prefix is the exact head of render_prompt (#169)") {
     // MergeIntoFirstUser (Gemma 3): no standalone system block exists — the
     // prefix is empty and the caller pins only the BOS.
     CHECK(chat_format_for("gemma3-270m").render_system_prefix(sys).empty());
+}
+
+// Expected strings follow ibm-granite/granite-4.0-h-tiny chat_template.jinja
+// (and the model-card golden) with add_generation_prompt: dedicated system
+// turn, no space after <|end_of_role|>, generation header has no closer.
+TEST_CASE("granite 4.x render matches the IBM instruct golden") {
+    const ChatFormat f = chat_format_for("granite-4.0-h-tiny-Q3_K_S.gguf");
+    CHECK(f.kind == ChatFormatKind::Granite);
+    CHECK(f.system_style == SystemStyle::DedicatedTurn);
+    CHECK(f.gen_suffix.empty());
+    CHECK(f.stop_sequences == std::vector<std::string>{"<|end_of_text|>"});
+    const std::string sys =
+        "You are a helpful assistant. Please ensure responses are professional, accurate, and "
+        "safe.";
+    const std::string user =
+        "Please list one IBM Research laboratory located in the United States. You should only "
+        "output its name and location.";
+    CHECK(f.render_prompt(sys, {}, user) == "<|start_of_role|>system<|end_of_role|>" + sys +
+                                                "<|end_of_text|>\n"
+                                                "<|start_of_role|>user<|end_of_role|>" +
+                                                user +
+                                                "<|end_of_text|>\n"
+                                                "<|start_of_role|>assistant<|end_of_role|>");
+}
+
+TEST_CASE("granite 4.x multi-turn keeps the system turn and closes history") {
+    const ChatFormat f = chat_format_for("granite-4.2-3b"); // #521 reuses this branch
+    const std::string p = f.render_prompt("Be concise.", {{"hi", "hello"}}, "how are you?");
+    CHECK(p == "<|start_of_role|>system<|end_of_role|>Be concise.<|end_of_text|>\n"
+               "<|start_of_role|>user<|end_of_role|>hi<|end_of_text|>\n"
+               "<|start_of_role|>assistant<|end_of_role|>hello<|end_of_text|>\n"
+               "<|start_of_role|>user<|end_of_role|>how are you?<|end_of_text|>\n"
+               "<|start_of_role|>assistant<|end_of_role|>");
+    CHECK(p.find("<|im_start|>") == std::string::npos);
+    CHECK(p.find("<|eot_id|>") == std::string::npos);
+}
+
+TEST_CASE("granite 4.x system prompt is a dedicated turn, never merged") {
+    const ChatFormat f = chat_format_for("granite40-h-tiny");
+    const std::string p = f.render_prompt("SYS", {}, "ciao");
+    CHECK(p == "<|start_of_role|>system<|end_of_role|>SYS<|end_of_text|>\n"
+               "<|start_of_role|>user<|end_of_role|>ciao<|end_of_text|>\n"
+               "<|start_of_role|>assistant<|end_of_role|>");
+    CHECK(p.find("SYS\n\nciao") == std::string::npos);
+    CHECK(f.render_system_prefix("SYS") ==
+          "<|start_of_role|>system<|end_of_role|>SYS<|end_of_text|>\n");
 }

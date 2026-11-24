@@ -13,7 +13,7 @@ inline constexpr const char kCodingSystemPrompt[] =
 Chat template format detection and rendering.
 
 ```cpp
-enum class ChatFormatKind { ChatML, Gemma, Llama3, Phi3 };
+enum class ChatFormatKind { ChatML, Gemma, Llama3, Phi3, Granite };
 
 enum class SystemStyle { DedicatedTurn, MergeIntoFirstUser };
 
@@ -56,6 +56,7 @@ bool model_is_qwen3(const std::string& model_id);
 bool model_is_gemma(const std::string& model_id);
 bool model_is_llama(const std::string& model_id);
 bool model_is_phi(const std::string& model_id);
+bool model_is_granite(const std::string& model_id);
 bool model_is_thinking(const std::string& model_id);
 bool model_is_minicpm5(const std::string& model_id);
 ```

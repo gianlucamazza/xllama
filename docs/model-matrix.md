@@ -13,7 +13,9 @@ ids, templates, licenses, and campaign notes** — not runtime contracts.
 | Catalogue data                                                 | [`../uwp/models/manifest.json`](../uwp/models/manifest.json) |
 | Tok/s tables                                                   | [benchmarks.md](./benchmarks.md) only                        |
 
-Last updated: **2026-11-23**. `qwen25-coder-3b` is withdrawn from the
+Last updated: **2026-11-24**. F0 desk for Granite-4.0-H-Tiny (#525) is in
+§I1 (TODO(T3) placeholder, no matrix row yet). The #275 new fact is in §I3.
+`qwen25-coder-3b` is withdrawn from the
 downloadable catalogue
 ([Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE));
 receipts stay below, labelled as a non-commercial research-licence measurement.
@@ -257,16 +259,16 @@ models.
 
 ## F. Survey rejected / deferred (desk 2026-07-27)
 
-| Candidate                  | Decision           | Reason                                                                        |
-| -------------------------- | ------------------ | ----------------------------------------------------------------------------- |
-| Qwen3-Coder-30B-A3B GGUF   | reject for console | weight size                                                                   |
-| Devstral Small             | reject             | weight size                                                                   |
-| DeepSeek-Coder-V2-Lite     | reject             | weight size                                                                   |
-| Qwen2.5-Coder-7B           | defer              | interactive decode too low                                                    |
-| StarCoder2-3B              | defer              | weaker than Qwen2.5-Coder-3B                                                  |
-| Phi-4-mini                 | shipped — T3 PASS  | `phi4-mini` (#268): H9 6/8 vs `llama32-3b` 5/8, 11.2 tok/s, 2765 MiB, see §A1 |
-| Qwen3-1.7B/4B general      | defer              | chat upgrade, not coding                                                      |
-| Granite 3.1 2B / 4.0 micro | defer              | generalist; lower priority                                                    |
+| Candidate                  | Decision           | Reason                                                                                          |
+| -------------------------- | ------------------ | ----------------------------------------------------------------------------------------------- |
+| Qwen3-Coder-30B-A3B GGUF   | reject for console | weight size                                                                                     |
+| Devstral Small             | reject             | weight size                                                                                     |
+| DeepSeek-Coder-V2-Lite     | reject             | weight size                                                                                     |
+| Qwen2.5-Coder-7B           | defer              | interactive decode too low                                                                      |
+| StarCoder2-3B              | defer              | weaker than Qwen2.5-Coder-3B                                                                    |
+| Phi-4-mini                 | shipped — T3 PASS  | `phi4-mini` (#268): H9 6/8 vs `llama32-3b` 5/8, 11.2 tok/s, 2765 MiB, see §A1                   |
+| Qwen3-1.7B/4B general      | defer              | chat upgrade, not coding                                                                        |
+| Granite 3.1 2B / 4.0 micro | defer              | generalist; lower priority. Not a reject of Granite-4.0-H-Tiny (#525) or Granite 4.2-3B (#521). |
 
 **Phase 16 (desk + measured, 2026-08-10)** — campaign SSOT:
 [phase16-model-scouting.md](phase16-model-scouting.md).
@@ -412,6 +414,25 @@ not fit, and streamed it runs at 1.18–2.47 tok/s
 Order and status: [moe-streaming-candidates.md](research/moe-streaming-candidates.md).
 None of this enters a product tier while the rate is below the dense peer.
 
+**F0 desk, 2026-11-24 — Granite-4.0-H-Tiny (`granitehybrid`), #525.** Official
+GGUF on the current pin (`d812350`, arch in `src/llama-arch.cpp`). Q3_K_S is
+3,062,452,832 bytes (the reopen quant); Q4_K_M is over the 3584 MiB gate as a
+file. Apache 2.0. Chat template is Granite 4.x (`ChatFormatKind::Granite`),
+shared with #521. Hits against this page: granite-3.1-3b-a800m was rejected
+on the same H2 pass (different checkpoint, 800M-active quality class);
+§F “Granite 3.1 2B / 4.0 micro” is a low-priority defer, not this model;
+granite-embedding-english-r2 is an embedding reject. Not in
+`uwp/models/manifest.json`. File size is not peak: the peak must be measured
+on Series S. Routed experts, Mamba2 layers and Q3_K dense projections stay
+on the CPU here (#421).
+
+**TODO(T3):** no `docs/model-matrix.md` §I1 results row until Series S receipts
+are committed (3 recorded runs, `peak_ws_mb` ≤ 3584, decode and TTFT vs the
+dense peer `llama32-3b` / Phi-4-mini class named in #273). Host T1 and the
+#512 snapshot receipt: `bench/results/2026-11-24-granite40-h-tiny/`. LocalState
+override for the reviewer: `manifest.override.json` in that directory. Do not
+add a catalogue id from host smoke alone.
+
 ### I2. BitNet 1.58 (post H5 NO-GO)
 
 Closed: H5 **NO-GO** on absence of artefact, not on measured merit (2026-08-10,
@@ -448,7 +469,8 @@ on the UWP llama.cpp pin, a GGUF exists, and the Series S envelope holds.
 Diffusion **text** and custom runtimes stay out (WS-D closed; image SD-Turbo
 remains product). Gate:
 [#275](https://github.com/gianlucamazza/xllama/issues/275) (closed completed:
-documented here; latest scan found no candidate to pursue).
+documented here; latest scan found no candidate to pursue; the 2026-11-24
+fact below is the first Mamba2-class hit of that reopen condition).
 
 | Class                      | Interest            | Do not reopen unless                                                                 |
 | -------------------------- | ------------------- | ------------------------------------------------------------------------------------ |
@@ -472,6 +494,14 @@ closed kills (do not re-argue): diffusion **image** SD-Turbo remains product;
 diffusion **text** WS-D closed; ORT DML int4 text reject; speculative default
 FAIL (opt-in only).
 
+**#275 new fact, 2026-11-24:** Granite-4.0-H-Tiny is a Mamba2 hybrid + MoE
+(`granitehybrid` on pin `d812350`) with an official Q3_K_S GGUF of
+3,062,452,832 bytes, under the 3584 MiB file-size envelope. That is the
+condition recorded when #275 closed (architecture on the pin and a GGUF
+within the envelope). It is evaluated as a **resident MoE** against the #273
+gate (#525), not as a product reopen of #275. Peak working set is still
+unmeasured; T3 on Series S decides. See §I1 TODO(T3).
+
 ---
 
 ## Candidates
@@ -482,7 +512,9 @@ November 2026 Series S tracking:
 [#519](https://github.com/gianlucamazza/xllama/issues/519) LFM2.5-2.6B,
 [#520](https://github.com/gianlucamazza/xllama/issues/520) MiniCPM5-2B,
 [#521](https://github.com/gianlucamazza/xllama/issues/521) Granite 4.2-3B,
-[#522](https://github.com/gianlucamazza/xllama/issues/522) (blocked on a llama.cpp pin bump).
+[#522](https://github.com/gianlucamazza/xllama/issues/522) (blocked on a llama.cpp pin bump),
+[#525](https://github.com/gianlucamazza/xllama/issues/525) Granite-4.0-H-Tiny
+(resident MoE vs #273; TODO(T3), no row until console receipts).
 These are not catalogue entries. This page records no verdict for them.
 
 ---

@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Granite 4.x chat renderer (#525).** `chat_format_for` selects
+  `<|start_of_role|>…<|end_of_role|>…<|end_of_text|>` for ids and filenames
+  whose basename contains `granite`, shared with #521 (Granite 4.2-3B). Host
+  T1 on the official Q3_K_S GGUF is under
+  `bench/results/2026-11-24-granite40-h-tiny/`. Not a catalogue entry; Series S
+  T3 is still due (TODO(T3) in [model-matrix.md](docs/model-matrix.md) §I1).
+
 - **D3D12 MMV for IQ3_XXS, IQ4_XS, Q5_K.** The ggml `d3d12` backend accepts
   those weight types for MUL_MAT once the matching compute pipelines are
   present (same q8 activation path and selftest contract as Q4_0 / Q4_K /

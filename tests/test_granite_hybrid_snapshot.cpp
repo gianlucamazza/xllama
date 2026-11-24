@@ -1,0 +1,134 @@
+// Copyright (c) 2024 Gianluca Mazza
+// SPDX-License-Identifier: MIT
+//
+// #525 / #512: hybrid prefix snapshots on the Granite-4.0-H-Tiny Mamba2
+// checkpoint. CI does not fetch the ~3.1 GB official Q3_K_S GGUF; skip with
+// a reason when XLLAMA_GRANITE_H_TINY is unset. Host receipt:
+// bench/results/2026-11-24-granite40-h-tiny/
+
+#include "xllama/chat_prompt.h"
+#include "xllama/session.h"
+
+#include <cstdlib>
+#include <doctest/doctest.h>
+#include <string>
+
+using namespace xllama;
+
+namespace {
+
+const char* granite_h_tiny_path() {
+    return std::getenv("XLLAMA_GRANITE_H_TINY");
+}
+
+GenerateParams greedy(const std::string& prompt, const ChatFormat& fmt, int n_predict = 16) {
+    GenerateParams gp;
+    gp.prompt = prompt;
+    gp.n_predict = n_predict;
+    gp.temperature = 0.0f;
+    gp.top_p = 1.0f;
+    gp.top_k = 1;
+    gp.stop_sequences = fmt.stop_sequences;
+    return gp;
+}
+
+std::unique_ptr<Session> load_session(const char* model, std::string* error) {
+    SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 512;
+    sp.n_threads = 4;
+    sp.n_gpu_layers = 0; // CPU only (#421); no MUL_MAT_ID / SSM offload
+    sp.prefix_snapshots = true;
+    return Session::create(sp, error);
+}
+
+} // namespace
+
+TEST_CASE("Session: granitehybrid prefix snapshot restore (#512/#525, "
+          "opt-in: XLLAMA_GRANITE_H_TINY)") {
+    const char* model = granite_h_tiny_path();
+    if (!model) {
+        MESSAGE("SKIP: XLLAMA_GRANITE_H_TINY is unset — the official "
+                "ibm-granite/granite-4.0-h-tiny-GGUF Q3_K_S file is not fetched "
+                "in CI (~3.1 GB). Run locally and keep the receipt under "
+                "bench/results/2026-11-24-granite40-h-tiny/.");
+        return;
+    }
+
+    const ChatFormat fmt = chat_format_for(model);
+    REQUIRE(fmt.kind == ChatFormatKind::Granite);
+    const std::string sys = "You are a helpful assistant.";
+    const std::string p1 = fmt.render_prompt(sys, {}, "Name a colour.");
+    const std::string p_other = fmt.render_prompt(sys, {}, "Say hi.");
+    // Strict extension of the saved prefix (p1) that is not an extension of a
+    // generated tail. Same suffix covers KeepResident (prefill-only pin) and
+    // RestoreSnapshot (after a decode that left a colour-name tail).
+    const std::string p_ext = p1 +
+                              "NOT_A_COLOUR_TAIL<|end_of_text|>\n"
+                              "<|start_of_role|>user<|end_of_role|>And another.<|end_of_text|>\n"
+                              "<|start_of_role|>assistant<|end_of_role|>";
+    REQUIRE(p_ext.compare(0, p1.size(), p1) == 0);
+    REQUIRE(p_ext.size() > p1.size());
+
+    std::string error;
+
+    // Pure extension / KeepResident: pin p1 with n_predict=0 so resident KV is
+    // still the post-prefill snapshot, then extend it. A decode tail would
+    // compare SSM decode-then-prefill with a cold prefill of the same tokens.
+    auto keep = load_session(model, &error);
+    REQUIRE_MESSAGE(keep, error);
+    const auto r_pin = keep->generate(greedy(p1, fmt, 0));
+    REQUIRE_MESSAGE(r_pin.success, r_pin.error_msg);
+    REQUIRE(r_pin.n_p_eval > 0);
+    const auto r_ext = keep->generate(greedy(p_ext, fmt));
+    REQUIRE_MESSAGE(r_ext.success, r_ext.error_msg);
+    CHECK(r_ext.n_p_eval < r_ext.n_prompt);
+    CHECK(r_ext.n_prompt == keep->count_tokens(p_ext));
+    CHECK_FALSE(r_ext.output_text.empty());
+    keep.reset();
+
+    auto cold_ext = load_session(model, &error);
+    REQUIRE_MESSAGE(cold_ext, error);
+    const auto c_ext = cold_ext->generate(greedy(p_ext, fmt));
+    REQUIRE_MESSAGE(c_ext.success, c_ext.error_msg);
+    CHECK(r_ext.output_text == c_ext.output_text);
+    cold_ext.reset();
+
+    // Non-prefix drop: unrelated prompt is not a prefix of the saved snapshot.
+    auto warm_drop = load_session(model, &error);
+    REQUIRE_MESSAGE(warm_drop, error);
+    const auto r1 = warm_drop->generate(greedy(p1, fmt));
+    REQUIRE_MESSAGE(r1.success, r1.error_msg);
+    REQUIRE(r1.n_p_eval > 0);
+    REQUIRE_FALSE(r1.output_text.empty());
+    const auto r_drop = warm_drop->generate(greedy(p_other, fmt));
+    REQUIRE_MESSAGE(r_drop.success, r_drop.error_msg);
+    CHECK(r_drop.n_p_eval == r_drop.n_prompt);
+    CHECK_FALSE(r_drop.output_text.empty());
+    warm_drop.reset();
+
+    auto cold_drop = load_session(model, &error);
+    REQUIRE_MESSAGE(cold_drop, error);
+    const auto c_drop = cold_drop->generate(greedy(p_other, fmt));
+    REQUIRE_MESSAGE(c_drop.success, c_drop.error_msg);
+    CHECK(r_drop.output_text == c_drop.output_text);
+    cold_drop.reset();
+
+    // Strict-prefix restore: new prompt extends p1, not the generated tail.
+    auto warm_restore = load_session(model, &error);
+    REQUIRE_MESSAGE(warm_restore, error);
+    const auto r1b = warm_restore->generate(greedy(p1, fmt));
+    REQUIRE_MESSAGE(r1b.success, r1b.error_msg);
+    const auto r_restore = warm_restore->generate(greedy(p_ext, fmt));
+    REQUIRE_MESSAGE(r_restore.success, r_restore.error_msg);
+    CHECK(r_restore.n_p_eval < r_restore.n_prompt);
+    CHECK(r_restore.n_p_eval >= 1);
+    CHECK_FALSE(r_restore.output_text.empty());
+    warm_restore.reset();
+
+    auto cold_restore = load_session(model, &error);
+    REQUIRE_MESSAGE(cold_restore, error);
+    const auto c_restore = cold_restore->generate(greedy(p_ext, fmt));
+    REQUIRE_MESSAGE(c_restore.success, c_restore.error_msg);
+    CHECK(r_restore.output_text == c_restore.output_text);
+}

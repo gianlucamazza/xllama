@@ -217,11 +217,11 @@ the existing GGUF/`Session`/`ChatFormat` path with optional catalogue knobs.
 }
 ```
 
-| Field            | Effect                                                                                  | Non-effect                                                                  |
-| ---------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `role: "coding"` | Trimmer 3.5 chars/token; LAN empty `system` → `kCodingSystemPrompt`                     | Does **not** rewrite Settings system prompt; does not pick backend/template |
-| `n_ctx: 4096`    | Session + trimmer ceiling (`resolve_n_ctx` / `max_prompt_tokens_for_n_ctx`)             | Does not change sampling or routing (GGUF has no EP routing)                |
-| Chat template    | `chat_format_for` by family — Qwen2.5-Coder = ChatML **without** Qwen3 no-think prefill | Qwen3 only gets empty-`<think>` via `model_is_qwen3`                        |
+| Field            | Effect                                                                                                                                         | Non-effect                                                                  |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `role: "coding"` | Trimmer 3.5 chars/token; LAN empty `system` → `kCodingSystemPrompt`                                                                            | Does **not** rewrite Settings system prompt; does not pick backend/template |
+| `n_ctx: 4096`    | Session + trimmer ceiling (`resolve_n_ctx` / `max_prompt_tokens_for_n_ctx`)                                                                    | Does not change sampling or routing (GGUF has no EP routing)                |
+| Chat template    | `chat_format_for` by family — Qwen2.5-Coder = ChatML **without** Qwen3 no-think prefill; Granite 4.x = `ChatFormatKind::Granite` (#525 / #521) | Qwen3 only gets empty-`<think>` via `model_is_qwen3`                        |
 
 **Best practices before shipping a new GGUF (any role):**
 
@@ -340,6 +340,14 @@ format: the app hard-coded ChatML. `chat_format_for()` (`src/bridge/chat_prompt.
 now selects the Gemma template (`<start_of_turn>…<end_of_turn>`, no system role,
 stop `<end_of_turn>`, `<bos>` via `add_bos`) by model id, so any `gemma*` GGUF
 gets the right template with zero per-model code.
+
+**Granite 4.x chat template (#525, shared with #521).** Basename `granite`
+selects `<|start_of_role|>…<|end_of_role|>…<|end_of_text|>`. Granite-4.0-H-Tiny
+is a LocalState override candidate against the #273 reopen gate, not a
+catalogue id. F0: not in this page's shipping table; the older Granite 3.1 /
+4.0-micro defer in [model-matrix.md](model-matrix.md) §F is a different
+checkpoint. #275 new fact (Mamba2-class arch on the pin + GGUF in the
+envelope) is recorded in model-matrix §I3.
 
 **Gemma-4-E2B verdict** (console-validated 2026-07-14): the "too big" call is
 **overturned**. E2B is ~5B raw params (2B effective, MatFormer). Key findings

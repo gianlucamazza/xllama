@@ -348,9 +348,10 @@ int main(int argc, char** argv) {
 
 #endif // XLLAMA_BUILD_PROBES
 
-    // --chat: wrap the raw prompt with the model's chat template (ChatML or
-    // Gemma, selected by model name) and stop on its stop token. Without this the
-    // CLI feeds the prompt verbatim and generates to n_predict.
+    // --chat: wrap the raw prompt with the model's chat template (ChatML,
+    // Gemma, Llama-3, Phi-3 or Granite, selected by model name) and stop on
+    // its stop token. Without this the CLI feeds the prompt verbatim and
+    // generates to n_predict.
     if (params.chat_template) {
         const xllama::ChatFormat fmt = xllama::chat_format_for(params.model_path);
         // --system overrides it; the default matches the chat UI and the API
