@@ -1,0 +1,20 @@
+{
+  "device": {
+    "Platform": "Xbox Series S",
+    "OsVersion": "26100.9662.amd64fre.xb_flt_2610ge.261104-2200",
+    "OsEdition": "SystemOS"
+  },
+  "package": {
+    "version": "1.8.0.1721",
+    "pfn_installed": "GianlucaMazza.xllama_1.8.0.1721_x64__pj67f1fcj4n14",
+    "pfn_before": "GianlucaMazza.xllama_1.7.0.1702_x64__pj67f1fcj4n14",
+    "running_process_package": "['GianlucaMazza.xllama_1.8.0.1721_x64__pj67f1fcj4n14']",
+    "registered": "['GianlucaMazza.xllama_1.8.0.1721_x64__pj67f1fcj4n14']",
+    "sku": "Developer Mode unified CI MSVC (xllama-appx, build-uwp push workflow on the source commit)",
+    "install": "in-place update over 1.7.0.1702 via Device Portal; LocalState preserved"
+  },
+  "source": {
+    "sha": "47d1cee3648eb5e157e67382c81366caed26c344",
+    "subject": "chore: prepare xllama v1.8.0.0 Dev Mode release (#510)"
+  }
+}

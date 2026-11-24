@@ -1,0 +1,151 @@
+{
+  "status": "stable Developer Mode release v1.8.0.0 (owner approval 2026-11-23)",
+  "provenance": {
+    "tag": "v1.8.0.0",
+    "proposed_tag": "v1.8.0.0",
+    "source_sha": "47d1cee3648eb5e157e67382c81366caed26c344",
+    "package_version": "1.8.0.1721",
+    "package_name": "xllama_1.8.0.1721_x64.msix",
+    "package_sha256": "cf2909c0ebd4c63b005126d8901b748c5f3a64ba618a38edb395be835cc9fbcf",
+    "expected_pfn": "GianlucaMazza.xllama_1.8.0.1721_x64__pj67f1fcj4n14",
+    "required_checks": [
+      {
+        "name": "build (unified, true, xllama-appx)",
+        "state": "SUCCESS"
+      },
+      {
+        "name": "build (llamacpp, false, xllama-appx-llamacpp)",
+        "state": "SUCCESS"
+      },
+      {
+        "name": "build (linux)",
+        "state": "SUCCESS"
+      },
+      {
+        "name": "analyze (c-cpp)",
+        "state": "SUCCESS"
+      },
+      {
+        "name": "asan",
+        "state": "SKIPPED"
+      },
+      {
+        "name": "store",
+        "state": "SKIPPED"
+      }
+    ],
+    "sku": "Developer Mode unified CI MSVC",
+    "device": {
+      "Platform": "Xbox Series S",
+      "OsVersion": "26100.9662.amd64fre.xb_flt_2610ge.261104-2200",
+      "OsEdition": "SystemOS"
+    },
+    "tag_commit": "47d1cee3648eb5e157e67382c81366caed26c344",
+    "package_source_note": "package built by the build-uwp push workflow from the tag commit itself; attached without rebuild",
+    "install": "sideloaded through Device Portal as an in-place update over 1.7.0.1702; LocalState preserved"
+  },
+  "console_gates": 10,
+  "console_gate_names": [
+    "routing",
+    "settings",
+    "gguf",
+    "longchat",
+    "kvsnap",
+    "coderpaste",
+    "thinkcut",
+    "thinkdone",
+    "genroom",
+    "taesd"
+  ],
+  "console_all": "pass",
+  "lan_all": "pass",
+  "lan_all_attempts": [
+    "attempt 1: fail, embed only (embed-nomic-v2-moe was not provisioned on the console: HTTP 404); other gates pass",
+    "embed-nomic-v2-moe pulled through /api/pull (pull gate with PULL_MODEL_KIND=embedding: pass)",
+    "attempt 2: all pass"
+  ],
+  "lan_gates": [
+    "spike",
+    "chat",
+    "stream",
+    "admission",
+    "embed",
+    "budget",
+    "tools",
+    "framing",
+    "prefs",
+    "train",
+    "pull"
+  ],
+  "ONNX_tools_refusal": "pass",
+  "GPU_native_selftest": {
+    "status": "pass",
+    "package": "GianlucaMazza.xllama_1.8.0.1721_x64__pj67f1fcj4n14",
+    "source": "47d1cee3648eb5e157e67382c81366caed26c344",
+    "rows": 14,
+    "bias_add": "knob absent",
+    "csv_sha256": "7d64bd91632afe15b8954b035d6bc5ff304ba5dc5eec7eb1ca6721c51fad1f21",
+    "scope": "one fresh numerical/micro gate; no full-model parity or throughput publication claim"
+  },
+  "bias_ADD_selftest": {
+    "status": "pass",
+    "package": "GianlucaMazza.xllama_1.8.0.1721_x64__pj67f1fcj4n14",
+    "source": "47d1cee3648eb5e157e67382c81366caed26c344",
+    "rows": 15,
+    "first_row": "add_f32 ok",
+    "cold_scratch_check": "pass (--require-bias-add)",
+    "csv_sha256": "0c1ad5d43a7113bb1465a0bc2a7ae156d30c2bdb4cb99c16e3e4a040d34199da"
+  },
+  "bias_ADD_logit_parity": {
+    "status": "pass",
+    "models": [
+      "lfm25-1.2b-instruct",
+      "qwen25-coder-1.5b",
+      "qwen25-coder-3b"
+    ],
+    "ubatches": [
+      512,
+      1
+    ],
+    "stride": 16,
+    "gpu_layers": 99,
+    "comparisons": 12,
+    "byte_identical": 12,
+    "scope": "knob absent vs 1, fresh process per arm; no throughput claim"
+  },
+  "bias_ADD_performance_campaign": "not repeated for the release package; accepted on CI package 1.7.0.1702 (#504)",
+  "MoE_8B_console_parity": "not applicable; declaration PREPARED_NOT_EXECUTABLE and loader integration not in this package",
+  "embedding_contracts": {
+    "embed-nomic-v2-moe": 17
+  },
+  "BGE_coverage": "not executed",
+  "restoration": {
+    "status": "settings.json, model.txt, prompt.txt, api.flag, autopilot.json byte-identical to pre-run copies; probe files absent",
+    "app_state": "stopped; no uninstall or LocalState wipe; console left on Developer Mode home",
+    "side_effects": [
+      "embed-nomic-v2-moe provisioned in LocalState",
+      "d3d12be-result.csv and logits.bin.positions.json overwritten by the gates"
+    ]
+  },
+  "release_review": {
+    "release_prep_PR": 510,
+    "receipts_PR": 516,
+    "owner_publication_approval": "approved 2026-11-23",
+    "stable_tag_created": true,
+    "published": true
+  },
+  "limits": [
+    "single Series S console; no Series X run in this record",
+    "no separate GUI/API busy-admission probe; LAN admission and chat 503 gates only",
+    "no device training job and no H9 screen in this record; the train gate reads training status only",
+    "no diffusion peak-memory evidence; the console TAESD gate is functional only",
+    "no throughput, power or thermal figures are claimed",
+    "logit binaries and full device logs retained by the operator, not committed"
+  ],
+  "private_evidence_sha256": {
+    "release-1721-console-all.log": "1dea37827207043760dd15508a4c78bf647feda36518559d8be3d2808e7474f9",
+    "release-1721-api-all-attempt1.log": "848c6db4662a5c8838aae70c97e07c0b07b27432deda702bfafaf7de46d841c5",
+    "release-1721-api-all-attempt2.log": "0ca31eb1931d741ec492335410501951e93473e2c7a19c1bf2c374fe00916a3b"
+  },
+  "receipts": "bench/results/2026-11-23-v180-series-s-release/receipts/"
+}

@@ -1,0 +1,225 @@
+{
+  "scope": "D3D12 bias ADD knob absent (A) vs LocalState\\d3d12-bias-add.txt=1 (B); fresh process per arm; logits.flag headless dump; stride 16; gpu layers 99; prompt bench/prompts/standard-512.txt",
+  "cells": [
+    {
+      "model": "lfm25-1.2b-instruct",
+      "ubatch": 1,
+      "knob": "off",
+      "boot_bias_add": "0",
+      "requested_gpu_layers": "99",
+      "resolved_gpu_layers": "99",
+      "prefill_submissions": "17784",
+      "logits_done": "ok",
+      "logits_bin_bytes": 262144,
+      "positions_bin_bytes": 4456448
+    },
+    {
+      "model": "lfm25-1.2b-instruct",
+      "ubatch": 1,
+      "knob": "on",
+      "boot_bias_add": "1",
+      "requested_gpu_layers": "99",
+      "resolved_gpu_layers": "99",
+      "prefill_submissions": "17784",
+      "logits_done": "ok",
+      "logits_bin_bytes": 262144,
+      "positions_bin_bytes": 4456448
+    },
+    {
+      "model": "lfm25-1.2b-instruct",
+      "ubatch": 512,
+      "knob": "off",
+      "boot_bias_add": "0",
+      "requested_gpu_layers": "99",
+      "resolved_gpu_layers": "99",
+      "prefill_submissions": "72",
+      "logits_done": "ok",
+      "logits_bin_bytes": 262144,
+      "positions_bin_bytes": 4456448
+    },
+    {
+      "model": "lfm25-1.2b-instruct",
+      "ubatch": 512,
+      "knob": "on",
+      "boot_bias_add": "1",
+      "requested_gpu_layers": "99",
+      "resolved_gpu_layers": "99",
+      "prefill_submissions": "72",
+      "logits_done": "ok",
+      "logits_bin_bytes": 262144,
+      "positions_bin_bytes": 4456448
+    },
+    {
+      "model": "qwen25-coder-1.5b",
+      "ubatch": 1,
+      "knob": "off",
+      "boot_bias_add": "0",
+      "requested_gpu_layers": "99",
+      "resolved_gpu_layers": "99",
+      "prefill_submissions": "41965",
+      "logits_done": "ok",
+      "logits_bin_bytes": 607744,
+      "positions_bin_bytes": 9723904
+    },
+    {
+      "model": "qwen25-coder-1.5b",
+      "ubatch": 1,
+      "knob": "on",
+      "boot_bias_add": "1",
+      "requested_gpu_layers": "99",
+      "resolved_gpu_layers": "99",
+      "prefill_submissions": "34937",
+      "logits_done": "ok",
+      "logits_bin_bytes": 607744,
+      "positions_bin_bytes": 9723904
+    },
+    {
+      "model": "qwen25-coder-1.5b",
+      "ubatch": 512,
+      "knob": "off",
+      "boot_bias_add": "0",
+      "requested_gpu_layers": "99",
+      "resolved_gpu_layers": "99",
+      "prefill_submissions": "170",
+      "logits_done": "ok",
+      "logits_bin_bytes": 607744,
+      "positions_bin_bytes": 9723904
+    },
+    {
+      "model": "qwen25-coder-1.5b",
+      "ubatch": 512,
+      "knob": "on",
+      "boot_bias_add": "1",
+      "requested_gpu_layers": "99",
+      "resolved_gpu_layers": "99",
+      "prefill_submissions": "142",
+      "logits_done": "ok",
+      "logits_bin_bytes": 607744,
+      "positions_bin_bytes": 9723904
+    },
+    {
+      "model": "qwen25-coder-3b",
+      "ubatch": 1,
+      "knob": "off",
+      "boot_bias_add": "0",
+      "requested_gpu_layers": "99",
+      "resolved_gpu_layers": "99",
+      "prefill_submissions": "54013",
+      "logits_done": "ok",
+      "logits_bin_bytes": 607744,
+      "positions_bin_bytes": 9723904
+    },
+    {
+      "model": "qwen25-coder-3b",
+      "ubatch": 1,
+      "knob": "on",
+      "boot_bias_add": "1",
+      "requested_gpu_layers": "99",
+      "resolved_gpu_layers": "99",
+      "prefill_submissions": "44977",
+      "logits_done": "ok",
+      "logits_bin_bytes": 607744,
+      "positions_bin_bytes": 9723904
+    },
+    {
+      "model": "qwen25-coder-3b",
+      "ubatch": 512,
+      "knob": "off",
+      "boot_bias_add": "0",
+      "requested_gpu_layers": "99",
+      "resolved_gpu_layers": "99",
+      "prefill_submissions": "218",
+      "logits_done": "ok",
+      "logits_bin_bytes": 607744,
+      "positions_bin_bytes": 9723904
+    },
+    {
+      "model": "qwen25-coder-3b",
+      "ubatch": 512,
+      "knob": "on",
+      "boot_bias_add": "1",
+      "requested_gpu_layers": "99",
+      "resolved_gpu_layers": "99",
+      "prefill_submissions": "182",
+      "logits_done": "ok",
+      "logits_bin_bytes": 607744,
+      "positions_bin_bytes": 9723904
+    }
+  ],
+  "comparisons": [
+    {
+      "model": "lfm25-1.2b-instruct",
+      "ubatch": 512,
+      "file": "logits.bin",
+      "byte_identical": true
+    },
+    {
+      "model": "lfm25-1.2b-instruct",
+      "ubatch": 512,
+      "file": "logits.bin.positions.bin",
+      "byte_identical": true
+    },
+    {
+      "model": "lfm25-1.2b-instruct",
+      "ubatch": 1,
+      "file": "logits.bin",
+      "byte_identical": true
+    },
+    {
+      "model": "lfm25-1.2b-instruct",
+      "ubatch": 1,
+      "file": "logits.bin.positions.bin",
+      "byte_identical": true
+    },
+    {
+      "model": "qwen25-coder-1.5b",
+      "ubatch": 512,
+      "file": "logits.bin",
+      "byte_identical": true
+    },
+    {
+      "model": "qwen25-coder-1.5b",
+      "ubatch": 512,
+      "file": "logits.bin.positions.bin",
+      "byte_identical": true
+    },
+    {
+      "model": "qwen25-coder-1.5b",
+      "ubatch": 1,
+      "file": "logits.bin",
+      "byte_identical": true
+    },
+    {
+      "model": "qwen25-coder-1.5b",
+      "ubatch": 1,
+      "file": "logits.bin.positions.bin",
+      "byte_identical": true
+    },
+    {
+      "model": "qwen25-coder-3b",
+      "ubatch": 512,
+      "file": "logits.bin",
+      "byte_identical": true
+    },
+    {
+      "model": "qwen25-coder-3b",
+      "ubatch": 512,
+      "file": "logits.bin.positions.bin",
+      "byte_identical": true
+    },
+    {
+      "model": "qwen25-coder-3b",
+      "ubatch": 1,
+      "file": "logits.bin",
+      "byte_identical": true
+    },
+    {
+      "model": "qwen25-coder-3b",
+      "ubatch": 1,
+      "file": "logits.bin.positions.bin",
+      "byte_identical": true
+    }
+  ],
+  "all_byte_identical": true,
+  "not_run": "20-pair AB/BA performance campaign (feature acceptance on 1.7.0.1702 is in #504; not repeated for the release package)"
+}
