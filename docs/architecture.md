@@ -125,9 +125,9 @@ applied to the stateless path),
 `gpustep.cpp` (GGUF GPU decode probe D1 driver),
 `d3d12_compute.cpp` (shared D3D12 device, buffers, root signature and fence
 helpers for the GPU probes and the d3d12 backend; Windows-only, empty on Linux),
-`ggml_d3d12.cpp` (ggml backend `d3d12`: Q4_0/Q4_K/Q6_K MUL_MAT with q8
-activations and Q6_K GET_ROWS on D3D12; llama builds only, the pure rules and
-kernel emulation also build on Linux).
+`ggml_d3d12.cpp` (ggml backend `d3d12`: Q4_0/Q4_K/Q6_K/Q5_K/IQ4_XS/IQ3_XXS
+MUL_MAT with q8 activations and Q6_K GET_ROWS on D3D12; llama builds only, the
+pure rules and kernel emulation also build on Linux).
 
 ## Inference backends and runtime dispatch
 
@@ -145,8 +145,8 @@ Two text backends, selected by build variant **and** per model at runtime:
   `GGML_USE_CPU_REPACK` (PR #155 — it was silently dead code before; enabling
   the repacked-weight GEMM raised GGUF prefill ~62% on Q4_K).
   - **GPU layers:** xllama's own ggml backend `d3d12`
-    (`ggml_d3d12.h/.cpp`) can run the weight matmuls (Q4_0 / Q4_K / Q6_K) and
-    a tied Q6_K embedding lookup on the GPU.
+    (`ggml_d3d12.h/.cpp`) can run the weight matmuls (Q4_0 / Q4_K / Q6_K /
+    Q5_K / IQ4_XS / IQ3_XXS) and a tied Q6_K embedding lookup on the GPU.
   - Activations are quantized to q8 on the CPU exactly as the CPU backend does,
     so numerics match.
   - KV, attention (Flash Attention, as on the CPU-only path) and every other op
@@ -845,61 +845,61 @@ the case and assertion totals (`Verify the test-suite size`); this page does
 not keep a second copy. Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 (`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 
-| Test file                        | Under test                                                                                       |
-| -------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `test_api_activity.cpp`          | `api_activity.h`                                                                                 |
-| `test_compute_admission.cpp`     | `compute_admission.h`                                                                            |
-| `test_api_connection.cpp`        | `api_connection.h` — overlapping compute requests are 200+503; connection-gate bound             |
-| `test_debug_dashboard.cpp`       | `debug_dashboard.h`                                                                              |
-| `test_api_config.cpp`            | LAN API config validation (`uwp/api-server.h`)                                                   |
-| `test_api_policy.cpp`            | `api_policy.h` numeric admission (F01)                                                           |
-| `test_api_pull.cpp`              | `api_pull_policy.h`, `withdrawn_models.h`                                                        |
-| `test_autopilot.cpp`             | `autopilot.h`                                                                                    |
-| `test_bench.cpp`                 | bench CSV (`inference.h`), `platform.h`, `benchmark_identity.h`                                  |
-| `test_cancel_policy.cpp`         | `cancel_policy.h`                                                                                |
-| `test_capture_probe.cpp`         | `capture_probe.h`                                                                                |
-| `test_chat_history.cpp`          | `uwp/chat-history.h`                                                                             |
-| `test_chat_prompt.cpp`           | `chat_prompt.h`                                                                                  |
-| `test_cli.cpp`                   | `cli.h`                                                                                          |
-| `test_decode_loop.cpp`           | `decode_loop.h` via `run_inference` (opt-in model)                                               |
-| `test_inference_progress.cpp`    | `inference_progress.h` cadence, stall policy, watchdog                                           |
-| `test_device_train.cpp`          | `device_train.h`                                                                                 |
-| `test_diffusion.cpp`             | `diffusion/` (Euler golden vectors, LCM step table, LCM-off = Euler)                             |
-| `test_diskbw.cpp`                | `diskbw.h`                                                                                       |
-| `test_embedding.cpp`             | `embedding.h`                                                                                    |
-| `test_ggml_d3d12.cpp`            | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`; name→layer mapping and `d3d12-layer` lines             |
-| `test_gpubw.cpp`                 | `gpubw.h`                                                                                        |
-| `test_gpugemv.cpp`               | `gpugemv.h`                                                                                      |
-| `test_gpustep.cpp`               | `gpustep.h`                                                                                      |
-| `test_http_framing.cpp`          | `http_framing.h`                                                                                 |
-| `test_json_utils.cpp`            | `json_utils.h`                                                                                   |
-| `test_kv_store.cpp`              | `kv_store.h`                                                                                     |
-| `test_logit_parity.cpp`          | `logit_dump.h` (opt-in model)                                                                    |
-| `test_tensor_capture.cpp`        | `tensor_capture.h`                                                                               |
-| `test_manifest_merge.cpp`        | `manifest_merge.h`, `withdrawn_models.h`                                                         |
-| `test_membw.cpp`                 | `membw.h`                                                                                        |
-| `test_model_provision.cpp`       | `model_provision.h`                                                                              |
-| `test_model_file_plan.cpp`       | `model_file_plan.h`                                                                              |
-| `test_moe_streaming.cpp`         | `moe_streaming.h`                                                                                |
-| `test_model_write.cpp`           | `model_write.h`                                                                                  |
-| `test_path.cpp`                  | `path_utils.h`                                                                                   |
-| `test_personalize.cpp`           | `personalize.h`                                                                                  |
-| `test_preference_capture.cpp`    | `preference_capture.h`                                                                           |
-| `test_prefix_snapshot.cpp`       | `prefix_snapshot.h` — extension keeps snapshot; non-extension restores/clears; regenerate Clears |
-| `test_prompt_budget.cpp`         | `prompt_budget.h`                                                                                |
-| `test_ramceil.cpp`               | `ramceil.h`                                                                                      |
-| `test_routing_policy.cpp`        | `routing_policy.h`                                                                               |
-| `test_sampling.cpp`              | `sampling.h` (CLI/Session parity opt-in)                                                         |
-| `test_session.cpp`               | `session.h`, `session_hub.h`                                                                     |
-| `test_session_spec.cpp`          | `session_spec.h`, hub reuse rule                                                                 |
-| `test_speculative.cpp`           | `speculative.h`                                                                                  |
-| `test_sse.cpp`                   | `sse.h` framing and UTF-8 boundaries                                                             |
-| `test_stability_attribution.cpp` | `stability_attribution.h`                                                                        |
-| `test_stop_filter.cpp`           | `stop_sequence_filter.h` parity with `apply_stop_sequences`                                      |
-| `test_tool_budget.cpp`           | `tool_budget.h`                                                                                  |
-| `test_tool_proposal.cpp`         | `api_policy.h`, `tool_request.h`, `tool_transcript.h`, `prompt_budget.h`, `tool_template.h`      |
-| `test_training.cpp`              | `training.h` / `training_params.h`                                                               |
-| `test_utf8.cpp`                  | `utf8_utils.h`                                                                                   |
+| Test file                        | Under test                                                                                                     |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `test_api_activity.cpp`          | `api_activity.h`                                                                                               |
+| `test_compute_admission.cpp`     | `compute_admission.h`                                                                                          |
+| `test_api_connection.cpp`        | `api_connection.h` — overlapping compute requests are 200+503; connection-gate bound                           |
+| `test_debug_dashboard.cpp`       | `debug_dashboard.h`                                                                                            |
+| `test_api_config.cpp`            | LAN API config validation (`uwp/api-server.h`)                                                                 |
+| `test_api_policy.cpp`            | `api_policy.h` numeric admission (F01)                                                                         |
+| `test_api_pull.cpp`              | `api_pull_policy.h`, `withdrawn_models.h`                                                                      |
+| `test_autopilot.cpp`             | `autopilot.h`                                                                                                  |
+| `test_bench.cpp`                 | bench CSV (`inference.h`), `platform.h`, `benchmark_identity.h`                                                |
+| `test_cancel_policy.cpp`         | `cancel_policy.h`                                                                                              |
+| `test_capture_probe.cpp`         | `capture_probe.h`                                                                                              |
+| `test_chat_history.cpp`          | `uwp/chat-history.h`                                                                                           |
+| `test_chat_prompt.cpp`           | `chat_prompt.h`                                                                                                |
+| `test_cli.cpp`                   | `cli.h`                                                                                                        |
+| `test_decode_loop.cpp`           | `decode_loop.h` via `run_inference` (opt-in model)                                                             |
+| `test_inference_progress.cpp`    | `inference_progress.h` cadence, stall policy, watchdog                                                         |
+| `test_device_train.cpp`          | `device_train.h`                                                                                               |
+| `test_diffusion.cpp`             | `diffusion/` (Euler golden vectors, LCM step table, LCM-off = Euler)                                           |
+| `test_diskbw.cpp`                | `diskbw.h`                                                                                                     |
+| `test_embedding.cpp`             | `embedding.h`                                                                                                  |
+| `test_ggml_d3d12.cpp`            | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`; optional MMV fallback; IQ3 55 GB/s measured decode floor; others 100 |
+| `test_gpubw.cpp`                 | `gpubw.h`                                                                                                      |
+| `test_gpugemv.cpp`               | `gpugemv.h`                                                                                                    |
+| `test_gpustep.cpp`               | `gpustep.h`                                                                                                    |
+| `test_http_framing.cpp`          | `http_framing.h`                                                                                               |
+| `test_json_utils.cpp`            | `json_utils.h`                                                                                                 |
+| `test_kv_store.cpp`              | `kv_store.h`                                                                                                   |
+| `test_logit_parity.cpp`          | `logit_dump.h` (opt-in model)                                                                                  |
+| `test_tensor_capture.cpp`        | `tensor_capture.h`                                                                                             |
+| `test_manifest_merge.cpp`        | `manifest_merge.h`, `withdrawn_models.h`                                                                       |
+| `test_membw.cpp`                 | `membw.h`                                                                                                      |
+| `test_model_provision.cpp`       | `model_provision.h`                                                                                            |
+| `test_model_file_plan.cpp`       | `model_file_plan.h`                                                                                            |
+| `test_moe_streaming.cpp`         | `moe_streaming.h`                                                                                              |
+| `test_model_write.cpp`           | `model_write.h`                                                                                                |
+| `test_path.cpp`                  | `path_utils.h`                                                                                                 |
+| `test_personalize.cpp`           | `personalize.h`                                                                                                |
+| `test_preference_capture.cpp`    | `preference_capture.h`                                                                                         |
+| `test_prefix_snapshot.cpp`       | `prefix_snapshot.h` — extension keeps snapshot; non-extension restores/clears; regenerate Clears               |
+| `test_prompt_budget.cpp`         | `prompt_budget.h`                                                                                              |
+| `test_ramceil.cpp`               | `ramceil.h`                                                                                                    |
+| `test_routing_policy.cpp`        | `routing_policy.h`                                                                                             |
+| `test_sampling.cpp`              | `sampling.h` (CLI/Session parity opt-in)                                                                       |
+| `test_session.cpp`               | `session.h`, `session_hub.h`                                                                                   |
+| `test_session_spec.cpp`          | `session_spec.h`, hub reuse rule                                                                               |
+| `test_speculative.cpp`           | `speculative.h`                                                                                                |
+| `test_sse.cpp`                   | `sse.h` framing and UTF-8 boundaries                                                                           |
+| `test_stability_attribution.cpp` | `stability_attribution.h`                                                                                      |
+| `test_stop_filter.cpp`           | `stop_sequence_filter.h` parity with `apply_stop_sequences`                                                    |
+| `test_tool_budget.cpp`           | `tool_budget.h`                                                                                                |
+| `test_tool_proposal.cpp`         | `api_policy.h`, `tool_request.h`, `tool_transcript.h`, `prompt_budget.h`, `tool_template.h`                    |
+| `test_training.cpp`              | `training.h` / `training_params.h`                                                                             |
+| `test_utf8.cpp`                  | `utf8_utils.h`                                                                                                 |
 
 ## UWP headless flag registry
 
@@ -1057,15 +1057,15 @@ Machine-readable output: `SPEC_STATS` line on stderr for bench scripts.
 
 `shaders/` contains HLSL compute shaders and their AOT-compiled DXIL headers:
 
-| Shader                                         | Purpose                                             | Output                                      |
-| ---------------------------------------------- | --------------------------------------------------- | ------------------------------------------- |
-| `gpubw_stream.hlsl`                            | GPU STREAM read (~1 GiB VRAM)                       | `generated/gpubw_stream_dxil.h`             |
-| `gpugemv_q4k.hlsl`                             | Naive Q4_K GEMV                                     | `generated/gpugemv_q4k_dxil.h`              |
-| `gpugemv_q4k_wave32.hlsl`                      | Wave32-optimized Q4_K GEMV                          | `generated/gpugemv_q4k_wave32_dxil.h`       |
-| `gpugemv_q4k_rows.hlsl`                        | Multi-row Q4_K GEMV (H6.3; also the gpustep kernel) | `generated/gpugemv_q4k_rows_dxil.h`         |
-| `gpugemv_q4k_dot4.hlsl`                        | Multi-row Q4_K × q8 GEMV, cs_6_4 (H6.3)             | `generated/gpugemv_q4k_dot4_dxil.h`         |
-| `ggml_d3d12_mmv_q4_0.hlsl` / `_q4_k` / `_q6_k` | d3d12 backend MUL_MAT, q8 integer dot, cs_6_4       | `generated/ggml_d3d12_mmv_*_dxil.h`         |
-| `ggml_d3d12_get_rows_q6_k.hlsl`                | d3d12 backend GET_ROWS (tied embedding), cs_6_4     | `generated/ggml_d3d12_get_rows_q6_k_dxil.h` |
+| Shader                                                                            | Purpose                                             | Output                                      |
+| --------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------- |
+| `gpubw_stream.hlsl`                                                               | GPU STREAM read (~1 GiB VRAM)                       | `generated/gpubw_stream_dxil.h`             |
+| `gpugemv_q4k.hlsl`                                                                | Naive Q4_K GEMV                                     | `generated/gpugemv_q4k_dxil.h`              |
+| `gpugemv_q4k_wave32.hlsl`                                                         | Wave32-optimized Q4_K GEMV                          | `generated/gpugemv_q4k_wave32_dxil.h`       |
+| `gpugemv_q4k_rows.hlsl`                                                           | Multi-row Q4_K GEMV (H6.3; also the gpustep kernel) | `generated/gpugemv_q4k_rows_dxil.h`         |
+| `gpugemv_q4k_dot4.hlsl`                                                           | Multi-row Q4_K × q8 GEMV, cs_6_4 (H6.3)             | `generated/gpugemv_q4k_dot4_dxil.h`         |
+| `ggml_d3d12_mmv_q4_0.hlsl` / `_q4_k` / `_q6_k` / `_q5_k` / `_iq4_xs` / `_iq3_xxs` | d3d12 backend MUL_MAT, q8 integer dot, cs_6_4       | `generated/ggml_d3d12_mmv_*_dxil.h`         |
+| `ggml_d3d12_get_rows_q6_k.hlsl`                                                   | d3d12 backend GET_ROWS (tied embedding), cs_6_4     | `generated/ggml_d3d12_get_rows_q6_k_dxil.h` |
 
 Compile scripts: `scripts/compile-gpubw-shader.sh`,
 `scripts/compile-gpugemv-shader.sh` (dxc → binary → C header; takes per-target

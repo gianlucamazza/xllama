@@ -731,7 +731,8 @@ void run_gpustep(bool inproc) {
 
 void run_d3d12_selftest() {
 #if defined(XLLAMA_UWP) && defined(XLLAMA_USE_LLAMA)
-    log_output("[xllama] d3d12be: backend selftest (Q4_0/Q4_K/Q6_K vs ggml dequant)\n");
+    log_output("[xllama] d3d12be: backend selftest (Q4_0/Q4_K/Q6_K/Q5_K/IQ4_XS/IQ3_XXS vs q8 "
+               "vec_dot)\n");
     std::vector<::xllama::D3d12SelftestRow> rows;
     ::xllama::run_d3d12_selftest(&rows);
     const std::string csv = resolve_local_path("d3d12be-result.csv");

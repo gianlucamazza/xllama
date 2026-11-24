@@ -7,6 +7,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **D3D12 MMV for IQ3_XXS, IQ4_XS, Q5_K.** The ggml `d3d12` backend accepts
+  those weight types for MUL_MAT once the matching compute pipelines are
+  present (same q8 activation path and selftest contract as Q4_0 / Q4_K /
+  Q6_K). A failed Q5_K / IQ4_XS / IQ3_XXS pipeline creation leaves that type
+  on the CPU and does not take down the backend. IQ4_XS / IQ3_XXS decode
+  kernels keep the codebook/grid in groupshared. The 3×256 IQ3_XXS selftest
+  row is a 98-byte unaligned-row correctness case and is excluded from the
+  decode speed gate. IQ4_XS decode uses the common ≥100 GB/s packed floor.
+  IQ3_XXS decode uses a measured 55 GB/s packed floor (receipt
+  `bench/results/d3d12-selftest-151804d-20261124.csv`, about 11% below the
+  2048×2048 row; not a product speed claim). Catalogue Q4_0 / Q6_K models
+  are unchanged. See
+  [GGUF GPU decode](docs/gguf-gpu-decode.md).
+
 - **Hybrid-cache prefix snapshots.** GGUF sessions already reuse a supported
   KV prefix and fall back to a full prefill when a hybrid cache (LFM2) refuses
   a tail rewind. After each successful prefill the session now keeps an

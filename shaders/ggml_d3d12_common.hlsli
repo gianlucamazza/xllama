@@ -4,7 +4,8 @@
 // t0 (weights, DEFAULT heap), root UAVs u0 (output) and u1 (activations). X is
 // not the f32 tensor: the backend quantizes it on the CPU with ggml's own
 // from_float into the weight's vec_dot type (q8_0 for Q4_0, q8_K for Q4_K /
-// Q6_K) — one row of ggml blocks per column, x_stride bytes apart — so the
+// Q5_K / Q6_K / IQ4_XS / IQ3_XXS) — one row of ggml blocks per column,
+// x_stride bytes apart — so the
 // kernels sum integers exactly like the CPU's vec_dot (#312). X and Y live in
 // CPU-visible buffers that stay in UNORDERED_ACCESS, so X is read through a UAV.
 //
