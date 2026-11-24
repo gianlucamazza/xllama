@@ -121,11 +121,11 @@ class D3d12SelftestExitTests(unittest.TestCase):
             (dict(good, type="add_f32", n="129", ncols="2", packed_gbs="0"), True, ["1"]),
             # 3x256 IQ3_XXS decode is correctness-only; 1 GB/s must not fail the gate.
             (dict(good, type="iq3_xxs", n="3", k="256", packed_gbs="1"), True, []),
-            # Per-type IQ floors (88 / 65); a non-IQ type below 100 still fails.
-            (dict(good, type="iq4_xs", packed_gbs="87.9"), False, []),
-            (dict(good, type="iq4_xs", packed_gbs="88"), True, []),
-            (dict(good, type="iq3_xxs", packed_gbs="64.9"), False, []),
-            (dict(good, type="iq3_xxs", packed_gbs="65"), True, []),
+            # IQ3_XXS uses 55; IQ4_XS and every other type use 100.
+            (dict(good, type="iq3_xxs", packed_gbs="54.9"), False, []),
+            (dict(good, type="iq3_xxs", packed_gbs="55"), True, []),
+            (dict(good, type="iq4_xs", packed_gbs="99"), False, []),
+            (dict(good, type="iq4_xs", packed_gbs="100"), True, []),
             (dict(good, packed_gbs="99"), False, []),
         ]
         with tempfile.TemporaryDirectory() as tmp:

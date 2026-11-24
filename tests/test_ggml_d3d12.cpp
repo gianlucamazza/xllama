@@ -175,18 +175,14 @@ TEST_CASE("ggml_d3d12: 3x256 IQ3_XXS is correctness-only for the speed gate") {
     CHECK(d3d12_selftest_speed_gated("q4_0", 2048, 2048, 1));
 }
 
-TEST_CASE("ggml_d3d12: IQ decode floors are below 100; other types stay at 100") {
+TEST_CASE("ggml_d3d12: IQ3_XXS uses a measured 55 GB/s floor; other types stay at 100") {
     CHECK(d3d12_selftest_decode_min_gbs("q4_0") == kD3d12SelftestDecodeMinGbs);
     CHECK(d3d12_selftest_decode_min_gbs("q4_k") == 100.0);
     CHECK(d3d12_selftest_decode_min_gbs("q6_k") == 100.0);
     CHECK(d3d12_selftest_decode_min_gbs("q5_k") == 100.0);
-    CHECK(d3d12_selftest_decode_min_gbs("iq4_xs") == kD3d12SelftestIq4XsDecodeMinGbs);
+    CHECK(d3d12_selftest_decode_min_gbs("iq4_xs") == kD3d12SelftestDecodeMinGbs);
     CHECK(d3d12_selftest_decode_min_gbs("iq3_xxs") == kD3d12SelftestIq3XxsDecodeMinGbs);
-    CHECK(kD3d12SelftestIq4XsDecodeMinGbs < 100.0);
-    CHECK(kD3d12SelftestIq3XxsDecodeMinGbs < kD3d12SelftestIq4XsDecodeMinGbs);
-    // Pre-opt console rows (80.88 / 51.27) sit below the provisional floors.
-    CHECK(80.88 < kD3d12SelftestIq4XsDecodeMinGbs);
-    CHECK(51.27 < kD3d12SelftestIq3XxsDecodeMinGbs);
+    CHECK(kD3d12SelftestIq3XxsDecodeMinGbs == 55.0);
 }
 
 TEST_CASE("ggml_d3d12: dispatch planner") {

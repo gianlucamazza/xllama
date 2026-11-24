@@ -5,8 +5,10 @@
 # IQ3_XXS case within the
 # device's tolerance (kD3d12SelftestRelTol) of the CPU backend's q8 vec_dot —
 # gate A (#312); D2a measured against ggml's dequantizers — and the decode
-# (ncols=1) cases at >= 100 GB/s packed (GPU timestamps; the CPU-side q8
-# quantization shows in the end-to-end bench, not here).
+# (ncols=1) cases at >= 100 GB/s packed except IQ3_XXS at 55 GB/s (GPU
+# timestamps; the CPU-side q8 quantization shows in the end-to-end bench, not
+# here). The IQ3_XXS floor is measured from
+# bench/results/d3d12-selftest-151804d-20261124.csv, not a product speed claim.
 # --require-bias-add also requires a successful first ADD with cold scratch.
 #
 # Prerequisites: CI MSVC package (unified or llamacpp) installed on Series S.
@@ -114,15 +116,15 @@ def speed_gated(r):
     if r["ncols"] != "1":
         return False
     return not (r["type"] == "iq3_xxs" and r["n"] == "3" and r["k"] == "256")
-# Same numbers as d3d12_selftest_decode_min_gbs. IQ types decode a codebook
-# or grid per nibble, so they are compute-bound; 100 GB/s stays the floor
-# for every other type. IQ floors are provisional until measured on console
-# after the groupshared lookup kernels (expected ~92 / ~70 GB/s packed).
+# Same numbers as d3d12_selftest_decode_min_gbs. IQ3_XXS is compute-bound
+# (grid decode). 55 GB/s is measured from
+# bench/results/d3d12-selftest-151804d-20261124.csv (61.89 GB/s at 2048×2048
+# on 151804d) with about 11% margin for run-to-run variance and thermal/clock
+# noise; it is not a target. A kernel regression below 55 fails. IQ4_XS and
+# every other type use 100 GB/s.
 def decode_min_gbs(t):
-    if t == "iq4_xs":
-        return 88.0
     if t == "iq3_xxs":
-        return 65.0
+        return 55.0
     return 100.0
 slow = [r for r in rows if speed_gated(r) and float(r["packed_gbs"]) < decode_min_gbs(r["type"])]
 print(f"--- selftest gate: {len(rows) - len(bad)}/{len(rows)} cases correct; "

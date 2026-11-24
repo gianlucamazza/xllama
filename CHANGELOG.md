@@ -14,9 +14,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   on the CPU and does not take down the backend. IQ4_XS / IQ3_XXS decode
   kernels keep the codebook/grid in groupshared. The 3×256 IQ3_XXS selftest
   row is a 98-byte unaligned-row correctness case and is excluded from the
-  decode speed gate. IQ decode rows use provisional per-type packed floors
-  (codebook-bound; not a product speed claim); every other type stays at
-  ≥100 GB/s. Catalogue Q4_0 / Q6_K models are unchanged. See
+  decode speed gate. IQ4_XS decode uses the common ≥100 GB/s packed floor.
+  IQ3_XXS decode uses a measured 55 GB/s packed floor (receipt
+  `bench/results/d3d12-selftest-151804d-20261124.csv`, about 11% below the
+  2048×2048 row; not a product speed claim). Catalogue Q4_0 / Q6_K models
+  are unchanged. See
   [GGUF GPU decode](docs/gguf-gpu-decode.md).
 
 - **Hybrid-cache prefix snapshots.** GGUF sessions already reuse a supported

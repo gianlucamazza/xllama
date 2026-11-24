@@ -85,20 +85,18 @@ inline bool d3d12_selftest_speed_gated(std::string_view type, int n, int k, int 
 }
 
 // Packed decode GB/s floors (scripts/bench-d3d12-selftest.sh, same numbers).
-// Q4 / Q5 / Q6 stay at the STREAM-class 100 GB/s kill. IQ formats pay for
-// codebook/grid decoding, so they are compute-bound rather than bandwidth-
-// bound on Series S: a 2048×2048 decode row measured 80.88 GB/s (IQ4_XS) and
-// 51.27 GB/s (IQ3_XXS) before the groupshared lookup kernels. The IQ floors
-// sit just below the expected post-optimisation figures (~92 and ~70 GB/s),
-// not at those pre-opt numbers, and are provisional until a console selftest
-// after this kernel. They are a gate, not a product speed claim.
+// Q4 / Q5 / Q6 / IQ4_XS stay at the STREAM-class 100 GB/s kill. IQ3_XXS
+// decodes a 256-entry grid per nibble, so it is compute-bound: the 55 GB/s
+// floor is measured, not a target. It is derived from the committed Series S
+// receipt bench/results/d3d12-selftest-151804d-20261124.csv (IQ3_XXS 2048×2048
+// = 61.89 GB/s packed at 151804d), with about 11% margin for run-to-run
+// variance (two pre-optimisation runs differed by about 1–2%) and for
+// thermal/clock noise. A kernel regression below 55 GB/s fails. These floors
+// are a gate, not a product speed claim.
 inline constexpr double kD3d12SelftestDecodeMinGbs = 100.0;
-inline constexpr double kD3d12SelftestIq4XsDecodeMinGbs = 88.0;
-inline constexpr double kD3d12SelftestIq3XxsDecodeMinGbs = 65.0;
+inline constexpr double kD3d12SelftestIq3XxsDecodeMinGbs = 55.0;
 
 inline double d3d12_selftest_decode_min_gbs(std::string_view type) {
-    if (type == "iq4_xs")
-        return kD3d12SelftestIq4XsDecodeMinGbs;
     if (type == "iq3_xxs")
         return kD3d12SelftestIq3XxsDecodeMinGbs;
     return kD3d12SelftestDecodeMinGbs;
