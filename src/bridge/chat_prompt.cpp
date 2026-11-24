@@ -281,8 +281,11 @@ std::string ChatFormat::render_system_prefix(const std::string& system) const {
 std::string ChatFormat::render_prompt(const std::string& system,
                                       const std::vector<ChatTurn>& history,
                                       const std::string& final_user) const {
-    // System: dedicated turn (ChatML / Llama-3 / Gemma 4, emitted
-    // unconditionally) or merged into the first user turn (Gemma 3).
+    // System: dedicated turn (ChatML / Llama-3 / Gemma 4 / Granite, emitted
+    // unconditionally — an empty `system` still produces an empty system turn;
+    // IBM's Granite jinja would insert a default message instead. CLI, GUI, and
+    // the LAN API always pass kDefaultSystemPrompt or the coding default today)
+    // or merged into the first user turn (Gemma 3).
     std::string p = render_system_prefix(system);
 
     bool sys_pending = (system_style == SystemStyle::MergeIntoFirstUser) && !system.empty();

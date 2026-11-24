@@ -523,3 +523,15 @@ TEST_CASE("granite 4.x system prompt is a dedicated turn, never merged") {
     CHECK(f.render_system_prefix("SYS") ==
           "<|start_of_role|>system<|end_of_role|>SYS<|end_of_text|>\n");
 }
+
+TEST_CASE("granite 4.x empty system still emits an empty dedicated turn") {
+    // IBM's granite-4.x jinja inserts a default system message when the caller
+    // omits one. This renderer emits the empty turn instead. CLI, GUI, and the
+    // LAN API always pass kDefaultSystemPrompt (or the coding default) today.
+    const ChatFormat f = chat_format_for("granite40-h-tiny");
+    CHECK(f.render_prompt("", {}, "ciao") ==
+          "<|start_of_role|>system<|end_of_role|><|end_of_text|>\n"
+          "<|start_of_role|>user<|end_of_role|>ciao<|end_of_text|>\n"
+          "<|start_of_role|>assistant<|end_of_role|>");
+    CHECK(f.render_system_prefix("") == "<|start_of_role|>system<|end_of_role|><|end_of_text|>\n");
+}

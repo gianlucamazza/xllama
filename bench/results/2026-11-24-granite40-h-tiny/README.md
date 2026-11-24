@@ -6,14 +6,11 @@ Architecture `granitehybrid` (Mamba2 hybrid + MoE) on llama.cpp pin
 `ibm-granite/granite-4.0-h-tiny-GGUF` Q3_K_S. Apache 2.0.
 
 **Not a catalogue entry.** Do not copy this id into `uwp/models/manifest.json`.
-Do not fill a `docs/model-matrix.md` §I1 results row until Series S receipts
-exist.
 
-**TODO(T3):** Series S in Developer Mode, one resident session, CPU only
-(#421 — no `MUL_MAT_ID`, no SSM offload). Three recorded runs,
-`peak_ws_mb` ≤ 3584, decode and TTFT against `llama32-3b` (Llama-3.2-3B /
-Phi-4-mini class named in #273). Host tok/s and host RSS in the files below
-are not product numbers.
+Series S T3 receipts are `t3-series-s.csv` and `t3-llama32-3b.csv`. Every run
+`peak_ws_mb` ≤ 3584. Host tok/s and host RSS in the T1 / snapshot logs below
+are not product numbers. The §I1 row is filled from the CSVs only
+([model-matrix.md](../../../docs/model-matrix.md) §I1).
 
 ## Identity
 
@@ -34,25 +31,32 @@ are not product numbers.
 | ------------------------ | ------------------------------------------------------------------------------------------- |
 | `t1-host-smoke.log`      | T1: load, `general.architecture`, greedy `--chat` output, `can_shift=` / `prefix_snapshot=` |
 | `hybrid-snapshot.log`    | #512 host test on this checkpoint (strict-prefix restore, pure extension, non-prefix drop)  |
-| `manifest.override.json` | LocalState override for the reviewer to load Q3_K_S on Series S                             |
+| `t3-series-s.csv`        | Series S T3, granite40-h-tiny Q3_K_S, 3 recorded runs after warmup                          |
+| `t3-llama32-3b.csv`      | Series S T3, dense peer `llama32-3b` Q3_K_S, same settings                                  |
+| `manifest.override.json` | LocalState override to load Q3_K_S on Series S                                              |
 
 Logs are redacted with `scripts/redact_recorded_path.py` (no hostnames, IPs,
 usernames, or paths with usernames).
 
-## T3 for the reviewer (console, Developer Mode)
+## T3 (console, Developer Mode)
 
 Sideload a current unified `xllama-appx`. Upload the override as
-`LocalState\manifest.json` (per-entry merge; bundled catalogue stays). The
-app fetches the GGUF from the Hugging Face `hf_base_url` on first select, or
-upload the file to `LocalState\models\granite40-h-tiny\`.
+`LocalState\manifest.json` (per-entry merge; bundled catalogue stays). After
+the package is sideloaded and has been launched once, **select the model so
+the app fetches it from the official Hugging Face URL.**
+
+A ~3 GB Device Portal upload of the GGUF broke off twice after ~11 min; keep
+that as a fallback (`LocalState\models\granite40-h-tiny\`) if the fetch
+cannot run.
 
 ```bash
 source ~/.config/xllama/xbox-env
-# after the package is installed and has been launched once:
+# after the package is sideloaded and has been launched once:
 PFN=$(./scripts/deploy.sh pfn)
 ./scripts/deploy.sh upload-file \
   bench/results/2026-11-24-granite40-h-tiny/manifest.override.json \
   "$PFN" "" manifest.json
+# select granite40-h-tiny in the app so it fetches Q3_K_S from hf_base_url
 # 3 recorded runs at product n_ctx; CPU; compare with llama32-3b at the same prompt
 ./scripts/bench-xbox-ort.sh granite40-h-tiny --hardware xbox-series-s --runs 4 --n-predict 96 \
   --out bench/results/2026-11-24-granite40-h-tiny/t3-series-s.csv
@@ -61,5 +65,5 @@ PFN=$(./scripts/deploy.sh pfn)
 ```
 
 `--runs 4` drops run 1 as warmup and records three `run_index` rows. Gate:
-median `peak_ws_mb` ≤ 3584; decode strictly above the dense peer; TTFT not
-several× worse. Commit those CSVs before writing a §I1 row.
+every run `peak_ws_mb` ≤ 3584; decode strictly above the dense peer; TTFT not
+several× worse. The #273 same-quality bar is a separate measurement.

@@ -231,7 +231,7 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   **Granite-4.0-H-Tiny** (`granitehybrid`, official Q3_K_S, 7B total / 1B
   active) is a different checkpoint and is the #525 candidate against this
   same #273 gate. That F0 does not reopen granite-3.1-3b-a800m. See
-  [model-matrix.md](model-matrix.md) §I1 TODO(T3).
+  [model-matrix.md](model-matrix.md) §I1.
 
 ### H3 — Speculative decoding (draft LFM + target 1.7–3B)
 
