@@ -1,0 +1,231 @@
+xllama Granite-4.0-H-Tiny hybrid prefix snapshot host test (#512/#525)
+date_utc=2026-11-24T00:48:46Z
+llama_cpp_pin=d81235049384534c167caea52b85a694f6103d14
+gguf_bytes=3062452832
+gguf_sha256=5ec3f4af77fffead37b09984a97625f0f532f6ae2ead65b5019bce6dd8b4d0cd
+gguf_name=granite-4.0-h-tiny-Q3_K_S.gguf
+general.architecture=granitehybrid
+opt_in=XLLAMA_GRANITE_H_TINY
+n_gpu_layers=0
+---
+[llama] load_tensors:   CPU_Mapped model buffer size =  2917.16 MiB
+[xllama] ws after model load: 2978 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[llama] llama_context:        CPU  output buffer size =     0.38 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     4.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =    55.37 MiB
+[llama] sched_reserve:        CPU compute buffer size =   211.52 MiB
+[xllama] ws after context: 3040 MB
+[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0) prefix_snapshot=1
+[xllama] prefill starting: 23 tokens
+[xllama] prefill done: 23 tokens in 3876 ms
+[xllama] session generate: n=0 prefill=3876.4ms (23 tok) reuse=0 drafted=0 spec_accept=0
+[xllama] session: KV prefix reuse — kept 23 of 42 tokens (#170)
+[xllama] prefill starting: 19 tokens
+[xllama] prefill done: 19 tokens in 3534 ms
+[xllama] EOG after 6 tokens
+[xllama] session generate: n=6 prefill=3533.7ms (19 tok) reuse=0 drafted=0 spec_accept=0
+[llama] ~llama_context:        CPU compute buffer size is 211.5176 MiB, matches expectation of 211.5176 MiB
+[llama] load_tensors:   CPU_Mapped model buffer size =  2917.16 MiB
+[xllama] ws after model load: 2984 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[llama] llama_context:        CPU  output buffer size =     0.38 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     4.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =    55.37 MiB
+[llama] sched_reserve:        CPU compute buffer size =   211.52 MiB
+[xllama] ws after context: 3043 MB
+[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0) prefix_snapshot=1
+[xllama] prefill starting: 42 tokens
+[xllama] prefill done: 42 tokens in 6931 ms
+[xllama] EOG after 6 tokens
+[xllama] session generate: n=6 prefill=6931.4ms (42 tok) reuse=0 drafted=0 spec_accept=0
+[llama] ~llama_context:        CPU compute buffer size is 211.5176 MiB, matches expectation of 211.5176 MiB
+[llama] load_tensors:   CPU_Mapped model buffer size =  2917.16 MiB
+[xllama] ws after model load: 2987 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[llama] llama_context:        CPU  output buffer size =     0.38 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     4.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =    55.37 MiB
+[llama] sched_reserve:        CPU compute buffer size =   211.52 MiB
+[xllama] ws after context: 3045 MB
+[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0) prefix_snapshot=1
+[xllama] prefill starting: 23 tokens
+[xllama] prefill done: 23 tokens in 4074 ms
+[xllama] EOG after 9 tokens
+[xllama] session generate: n=9 prefill=4073.9ms (23 tok) reuse=0 drafted=0 spec_accept=0
+[xllama] session: KV rewind unsupported (hybrid cache) — full re-prefill (#170): common=14 resident=32 prompt=22
+[xllama] prefill starting: 22 tokens
+[xllama] prefill done: 22 tokens in 3785 ms
+[xllama] EOG after 9 tokens
+[xllama] session generate: n=9 prefill=3785.3ms (22 tok) reuse=0 drafted=0 spec_accept=0
+[llama] ~llama_context:        CPU compute buffer size is 211.5176 MiB, matches expectation of 211.5176 MiB
+[llama] load_tensors:   CPU_Mapped model buffer size =  2917.16 MiB
+[xllama] ws after model load: 2988 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[llama] llama_context:        CPU  output buffer size =     0.38 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     4.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =    55.37 MiB
+[llama] sched_reserve:        CPU compute buffer size =   211.52 MiB
+[xllama] ws after context: 3045 MB
+[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0) prefix_snapshot=1
+[xllama] prefill starting: 22 tokens
+[xllama] prefill done: 22 tokens in 3821 ms
+[xllama] EOG after 9 tokens
+[xllama] session generate: n=9 prefill=3821.4ms (22 tok) reuse=0 drafted=0 spec_accept=0
+[llama] ~llama_context:        CPU compute buffer size is 211.5176 MiB, matches expectation of 211.5176 MiB
+[llama] load_tensors:   CPU_Mapped model buffer size =  2917.16 MiB
+[xllama] ws after model load: 2988 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[llama] llama_context:        CPU  output buffer size =     0.38 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     4.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =    55.37 MiB
+[llama] sched_reserve:        CPU compute buffer size =   211.52 MiB
+[xllama] ws after context: 3045 MB
+[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0) prefix_snapshot=1
+[xllama] prefill starting: 23 tokens
+[xllama] prefill done: 23 tokens in 3921 ms
+[xllama] EOG after 9 tokens
+[xllama] session generate: n=9 prefill=3920.6ms (23 tok) reuse=0 drafted=0 spec_accept=0
+[doctest] doctest version is "2.4.11"
+[doctest] run with "--help" for options
+===============================================================================
+<repo>/tests/test_granite_hybrid_snapshot.cpp:47:
+TEST CASE:  Session: granitehybrid prefix snapshot restore (#512/#525, opt-in: XLLAMA_GRANITE_H_TINY)
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:59: SUCCESS: REQUIRE( fmt.kind == ChatFormatKind::Granite ) is correct!
+  values: REQUIRE( 4 == 4 )
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:70: SUCCESS: REQUIRE( p_ext.compare(0, p1.size(), p1) == 0 ) is correct!
+  values: REQUIRE( 0 == 0 )
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:71: SUCCESS: REQUIRE( p_ext.size() > p1.size() ) is correct!
+  values: REQUIRE( 327 >  189 )
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:79: SUCCESS: REQUIRE( keep ) is correct!
+  values: REQUIRE( {?} )
+  logged: 
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:81: SUCCESS: REQUIRE( r_pin.success ) is correct!
+  values: REQUIRE( true )
+  logged: 
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:82: SUCCESS: REQUIRE( r_pin.n_p_eval > 0 ) is correct!
+  values: REQUIRE( 23 >  0 )
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:84: SUCCESS: REQUIRE( r_ext.success ) is correct!
+  values: REQUIRE( true )
+  logged: 
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:85: SUCCESS: CHECK( r_ext.n_p_eval < r_ext.n_prompt ) is correct!
+  values: CHECK( 19 <  42 )
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:86: SUCCESS: CHECK( r_ext.n_prompt == keep->count_tokens(p_ext) ) is correct!
+  values: CHECK( 42 == 42 )
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:87: SUCCESS: CHECK_FALSE( r_ext.output_text.empty() ) is correct!
+  values: CHECK_FALSE( false )
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:91: SUCCESS: REQUIRE( cold_ext ) is correct!
+  values: REQUIRE( {?} )
+  logged: 
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:93: SUCCESS: REQUIRE( c_ext.success ) is correct!
+  values: REQUIRE( true )
+  logged: 
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:94: SUCCESS: CHECK( r_ext.output_text == c_ext.output_text ) is correct!
+  values: CHECK( NOT_A_COLOUR_TAIL == NOT_A_COLOUR_TAIL )
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:99: SUCCESS: REQUIRE( warm_drop ) is correct!
+  values: REQUIRE( {?} )
+  logged: 
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:101: SUCCESS: REQUIRE( r1.success ) is correct!
+  values: REQUIRE( true )
+  logged: 
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:102: SUCCESS: REQUIRE( r1.n_p_eval > 0 ) is correct!
+  values: REQUIRE( 23 >  0 )
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:103: SUCCESS: REQUIRE_FALSE( r1.output_text.empty() ) is correct!
+  values: REQUIRE_FALSE( false )
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:105: SUCCESS: REQUIRE( r_drop.success ) is correct!
+  values: REQUIRE( true )
+  logged: 
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:106: SUCCESS: CHECK( r_drop.n_p_eval == r_drop.n_prompt ) is correct!
+  values: CHECK( 22 == 22 )
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:107: SUCCESS: CHECK_FALSE( r_drop.output_text.empty() ) is correct!
+  values: CHECK_FALSE( false )
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:111: SUCCESS: REQUIRE( cold_drop ) is correct!
+  values: REQUIRE( {?} )
+  logged: 
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:113: SUCCESS: REQUIRE( c_drop.success ) is correct!
+  values: REQUIRE( true )
+  logged: 
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:114: SUCCESS: CHECK( r_drop.output_text == c_drop.output_text ) is correct!
+  values: CHECK( Hi! How can I assist you today? == Hi! How can I assist you today? )
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:119: SUCCESS: REQUIRE( warm_restore ) is correct!
+  values: REQUIRE( {?} )
+  logged: 
+
+<repo>/tests/test_granite_hybrid_snapsho[xllama] session: KV prefix snapshot restored — 23 of 42 tokens (hybrid)
+[xllama] prefill starting: 19 tokens
+[xllama] prefill done: 19 tokens in 3786 ms
+[xllama] EOG after 6 tokens
+[xllama] session generate: n=6 prefill=3785.6ms (19 tok) reuse=0 drafted=0 spec_accept=0
+[llama] ~llama_context:        CPU compute buffer size is 211.5176 MiB, matches expectation of 211.5176 MiB
+[llama] load_tensors:   CPU_Mapped model buffer size =  2917.16 MiB
+[xllama] ws after model load: 2988 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[llama] llama_context:        CPU  output buffer size =     0.38 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     4.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =    55.37 MiB
+[llama] sched_reserve:        CPU compute buffer size =   211.52 MiB
+[xllama] ws after context: 3045 MB
+[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0) prefix_snapshot=1
+[xllama] prefill starting: 42 tokens
+[xllama] prefill done: 42 tokens in 6074 ms
+[xllama] EOG after 6 tokens
+[xllama] session generate: n=6 prefill=6073.8ms (42 tok) reuse=0 drafted=0 spec_accept=0
+[llama] ~llama_context:        CPU compute buffer size is 211.5176 MiB, matches expectation of 211.5176 MiB
+t.cpp:121: SUCCESS: REQUIRE( r1b.success ) is correct!
+  values: REQUIRE( true )
+  logged: 
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:123: SUCCESS: REQUIRE( r_restore.success ) is correct!
+  values: REQUIRE( true )
+  logged: 
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:124: SUCCESS: CHECK( r_restore.n_p_eval < r_restore.n_prompt ) is correct!
+  values: CHECK( 19 <  42 )
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:125: SUCCESS: CHECK( r_restore.n_p_eval >= 1 ) is correct!
+  values: CHECK( 19 >= 1 )
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:126: SUCCESS: CHECK_FALSE( r_restore.output_text.empty() ) is correct!
+  values: CHECK_FALSE( false )
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:130: SUCCESS: REQUIRE( cold_restore ) is correct!
+  values: REQUIRE( {?} )
+  logged: 
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:132: SUCCESS: REQUIRE( c_restore.success ) is correct!
+  values: REQUIRE( true )
+  logged: 
+
+<repo>/tests/test_granite_hybrid_snapshot.cpp:133: SUCCESS: CHECK( r_restore.output_text == c_restore.output_text ) is correct!
+  values: CHECK( NOT_A_COLOUR_TAIL == NOT_A_COLOUR_TAIL )
+
+===============================================================================
+[doctest] test cases:  1 |  1 passed | 0 failed | 488 skipped
+[doctest] assertions: 32 | 32 passed | 0 failed |
+[doctest] Status: SUCCESS!
+---
+exit=0

@@ -19,9 +19,11 @@
 #include "xllama/path_utils.h"
 #include "xllama/personalize.h"
 #include "xllama/platform.h"
+#include "xllama/prefix_snapshot.h"
 #include "xllama/ramceil.h"
 #include "xllama/routing_policy.h"
 #include "xllama/session.h"
+#include "xllama/session_spec.h"
 #include "xllama/training.h"
 #include "xllama/utf8_utils.h"
 
@@ -163,6 +165,14 @@ void run_kv_bench(const std::string& model_name, const std::string& sys, const s
 
 int gguf_gpu_layers_knob() {
     return read_local_int("gguf_gpu_layers.txt", ::xllama::kGgufGpuLayersKnobAbsent);
+}
+
+int hybrid_prefix_snapshots_knob() {
+    return read_local_int("hybrid-prefix-snapshots.txt", ::xllama::kPrefixSnapshotsKnobAbsent);
+}
+
+int gguf_n_threads_knob() {
+    return read_local_int("gguf_n_threads.txt", ::xllama::kGgufNThreadsKnobAbsent);
 }
 #endif // XLLAMA_UWP
 
@@ -721,7 +731,8 @@ void run_gpustep(bool inproc) {
 
 void run_d3d12_selftest() {
 #if defined(XLLAMA_UWP) && defined(XLLAMA_USE_LLAMA)
-    log_output("[xllama] d3d12be: backend selftest (Q4_0/Q4_K/Q6_K vs ggml dequant)\n");
+    log_output("[xllama] d3d12be: backend selftest (Q4_0/Q4_K/Q6_K/Q5_K/IQ4_XS/IQ3_XXS vs q8 "
+               "vec_dot)\n");
     std::vector<::xllama::D3d12SelftestRow> rows;
     ::xllama::run_d3d12_selftest(&rows);
     const std::string csv = resolve_local_path("d3d12be-result.csv");

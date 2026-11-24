@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/ usr / bin / env python3
 """Tests for scripts/bench_run_status.py — hung/timeout campaign contract."""
 
 import csv
@@ -57,7 +57,7 @@ class BenchRunStatusTests(unittest.TestCase):
             n_ctx=2048,
             n_threads=6,
         )
-        # Old harness: 2 of 3 measurement rows, exit 0. Must now fail.
+#Old harness : 2 of 3 measurement rows, exit 0. Must now fail.
         self.assertEqual(
             MODULE.campaign_exit_code(n_runs=4, rows=[ok2, ok3], failed_runs=1),
             1,
@@ -121,6 +121,14 @@ class D3d12SelftestExitTests(unittest.TestCase):
             (dict(good, type="add_f32", n="129", ncols="2", packed_gbs="0"), True, ["1"]),
             (dict(good, type="rope_neox", n="128", ncols="1", packed_gbs="0"), True, []),
             (dict(good, type="rope_neox", n="128", ncols="1", packed_gbs="0"), False, ["0", "1"]),
+# 3x256 IQ3_XXS decode is correctness - only; 1 GB / s must not fail the gate.
+            (dict(good, type="iq3_xxs", n="3", k="256", packed_gbs="1"), True, []),
+#IQ3_XXS uses 55; IQ4_XS and every other type use 100.
+            (dict(good, type="iq3_xxs", packed_gbs="54.9"), False, []),
+            (dict(good, type="iq3_xxs", packed_gbs="55"), True, []),
+            (dict(good, type="iq4_xs", packed_gbs="99"), False, []),
+            (dict(good, type="iq4_xs", packed_gbs="100"), True, []),
+            (dict(good, packed_gbs="99"), False, []),
         ]
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "rows.csv"
@@ -136,6 +144,30 @@ class D3d12SelftestExitTests(unittest.TestCase):
                     )
                     self.assertEqual(result.returncode, 0 if passed else 1, result.stderr)
                     self.assertIn("GATE=" + ("PASS" if passed else "FAIL"), result.stdout)
+
+    def test_rope_row_is_not_speed_gated_while_iq3_xxs_floor_still_fails(self):
+        script = (ROOT / "scripts/bench-d3d12-selftest.sh").read_text()
+        gate = script.split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
+        good = dict(
+            type="q4_0", n="2048", k="2048", ncols="1", rel_err="0.000001",
+            gpu_ms="0.1", packed_gbs="120", ok="1", d3d12_ran="1", error="-"
+        )
+        rope = dict(good, type="rope_neox", n="128", ncols="1", packed_gbs="0")
+        slow_iq3 = dict(good, type="iq3_xxs", packed_gbs="54.9")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "rows.csv"
+            with path.open("w", newline="") as stream:
+                writer = csv.DictWriter(stream, fieldnames=list(good))
+                writer.writeheader()
+                writer.writerow(rope)
+                writer.writerow(slow_iq3)
+            result = subprocess.run(
+                [sys.executable, "-c", gate, str(path)], text=True, capture_output=True
+            )
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("GATE=FAIL", result.stdout)
+            self.assertNotIn("SLOW rope_neox", result.stdout)
+            self.assertIn("SLOW iq3_xxs", result.stdout)
 
     def test_require_rope_needs_ten_rows_starting_with_the_neox_decode_row(self):
         script = (ROOT / "scripts/bench-d3d12-selftest.sh").read_text()

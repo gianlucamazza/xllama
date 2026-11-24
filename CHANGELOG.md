@@ -16,16 +16,59 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   models and two ubatch sizes tried; Series S is not measured. Details:
   [GGUF GPU decode](docs/gguf-gpu-decode.md).
 
+- **Granite 4.x chat renderer (#525).** `chat_format_for` selects
+  `<|start_of_role|>…<|end_of_role|>…<|end_of_text|>` for ids and filenames
+  whose basename contains `granite`, shared with #521 (Granite 4.2-3B). Host
+  T1 and Series S T3 receipts are under
+  `bench/results/2026-11-24-granite40-h-tiny/`. Not a catalogue entry. The
+  #273 row is [model-matrix.md](docs/model-matrix.md) §I1.
+
+- **D3D12 MMV for IQ3_XXS, IQ4_XS, Q5_K.** The ggml `d3d12` backend accepts
+  those weight types for MUL_MAT once the matching compute pipelines are
+  present (same q8 activation path and selftest contract as Q4_0 / Q4_K /
+  Q6_K). A failed Q5_K / IQ4_XS / IQ3_XXS pipeline creation leaves that type
+  on the CPU and does not take down the backend. IQ4_XS / IQ3_XXS decode
+  kernels keep the codebook/grid in groupshared. The 3×256 IQ3_XXS selftest
+  row is a 98-byte unaligned-row correctness case and is excluded from the
+  decode speed gate. IQ4_XS decode uses the common ≥100 GB/s packed floor.
+  IQ3_XXS decode uses a measured 55 GB/s packed floor (receipt
+  `bench/results/d3d12-selftest-151804d-20261124.csv`, about 11% below the
+  2048×2048 row; not a product speed claim). Catalogue Q4_0 / Q6_K models
+  are unchanged. See
+  [GGUF GPU decode](docs/gguf-gpu-decode.md).
+
+- **Hybrid-cache prefix snapshots.** GGUF sessions already reuse a supported
+  KV prefix and fall back to a full prefill when a hybrid cache (LFM2) refuses
+  a tail rewind. After each successful prefill the session now keeps an
+  in-memory prefix state (logits + memory) for hybrid/recurrent models, and
+  restores it when the next full prompt is a strict extension of that saved
+  prefix, so API and multi-turn turns re-prefill only the suffix. An exact
+  regenerate Clears and re-prefills so greedy output matches a cold run.
+  `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. Non-hybrid #170a
+  rewind is unchanged. Idea from bjoern2088, rebuilt in-tree. See
+  [session.md](docs/sdk/session.md) and
+  [architecture.md](docs/architecture.md#kv-cache-reuse-both-backends).
+
+- **Opt-in GGUF thread count for interactive sessions.**
+  `LocalState\gguf_n_threads.txt`, when present and positive, sets llama.cpp
+  threads for GUI and LAN API GGUF chat through the shared session resolver.
+  Absent, 0, or an invalid value keeps auto-detect. GPU-layer knobs and
+  d3d12 placement are unchanged. Headless bench still uses `bench_threads.txt`.
+  Idea from Chorss, rebuilt in-tree.
+
+- **Opt-in LCM diffusion scheduler.** `LocalState\diffuse-lcm.txt` set to `1`
+  uses the Latent Consistency Model step table instead of Euler. Absent, the
+  SD-Turbo Euler path is unchanged. See
+  [using-the-app.md](docs/using-the-app.md).
+
 ## [1.8.0]
 
 User-facing notes: [docs/releases/v1.8.0.md](docs/releases/v1.8.0.md).
 
-- **Opt-in GPU bias ADD for d3d12 GGUF layers (#503).** With
+- **Opt-in GPU bias ADD for d3d12 GGUF layers (#504, contributed by Chorss).** With
   `LocalState\d3d12-bias-add.txt` set to `1`, the F32 bias ADD after a
   projection runs on the d3d12 backend, so it no longer ends the GPU split.
-  This affects models with biases, such as Qwen2.5 and Bielik. The Series X
-  comparisons reported in #503 matched logits bit for bit for the three models
-  tested at ubatch 512 and 1. The default stays off. See
+  This affects models with biases, such as Qwen2.5 and Bielik. The default stays off. See
   [GGUF GPU decode](docs/gguf-gpu-decode.md).
 
 - **SSE for LAN tool proposals.** Requests with `stream: true` receive the

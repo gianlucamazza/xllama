@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Diffusion image generation: plain ONNX Runtime DirectML, three sessions
 // (text_encoder + UNet + VAE decoder) driven by the host-validated CLIP tokenizer
-// and Euler scheduler. Callable headless (diffuse.flag) or in-process from the
+// and Euler scheduler (optional LCM via LocalState\\diffuse-lcm.txt). Callable
+// headless (diffuse.flag) or in-process from the
 // Image dialog. The 887A0036 compositor conflict applies to ORT GenAI chat DML
 // only — plain ORT DML coexists with XAML (docs/uwp-constraints.md §7).
 //
@@ -25,6 +26,7 @@
 //
 // Inputs (LocalState): prompt.txt, diffuse-model.txt (model dir name),
 // diffuse-steps.txt (default 1), diffuse-seed.txt (default 42);
+// diffuse-lcm.txt (`1` selects the LCM scheduler; absent keeps Euler);
 // diffuse-cancel.flag aborts between UNet steps (consumed).
 // Outputs: diffuse-out.png (+ .done), diffuse-result.csv with per-stage ms,
 // diffuse-progress.txt with the live stage (start/text_encoder/unet s/N/vae/
@@ -48,6 +50,7 @@
     #include "xllama/diffusion/clip_tokenizer.h"
     #include "xllama/diffusion/euler_scheduler.h"
     #include "xllama/diffusion/half.h"
+    #include "xllama/diffusion/lcm_scheduler.h"
     #include "xllama/diffusion/png_writer.h"
     #include "xllama/path_utils.h"
     #include "xllama/platform.h"
@@ -228,8 +231,10 @@ void run_diffuse() {
         read_text_file("prompt.txt", "a red sports car on a mountain road at sunset");
     const int steps = read_int_file("diffuse-steps.txt", 1, 1, 50);
     const int seed = read_int_file("diffuse-seed.txt", 42, 0, 1'000'000'000);
+    const bool use_lcm = diffusion::lcm_scheduler_requested(read_text_file("diffuse-lcm.txt", ""));
     log_output("[xllama] diffuse: model='" + dir + "' steps=" + std::to_string(steps) +
-               " seed=" + std::to_string(seed) + " prompt='" + prompt + "'\n");
+               " seed=" + std::to_string(seed) + " scheduler=" + (use_lcm ? "lcm" : "euler") +
+               " prompt='" + prompt + "'\n");
 
     // Fresh run: stale completion marker and a leftover cancel flag from a
     // previous run must not leak into this one.
@@ -294,104 +299,126 @@ void run_diffuse() {
         const int64_t hidden_dim = (int64_t)hidden.size() / kSeq; // 1024 (SD2-class) or 768 (SD1.x)
 
         // ---- Scheduler + init latent ---------------------------------------
-        diffusion::EulerDiscreteScheduler sched;
-        sched.set_timesteps(steps);
-        const size_t latent_n = (size_t)kLatentC * kLatentHW * kLatentHW;
-        std::vector<float> latent(latent_n);
+        // Default remains EulerDiscreteScheduler (SD-Turbo). LocalState
+        // diffuse-lcm.txt = 1 selects LCM; otherwise this type is unused.
         std::mt19937 rng((unsigned)seed);
         std::normal_distribution<float> gauss(0.0f, 1.0f);
-        for (auto& v : latent)
-            v = gauss(rng) * (float)sched.init_noise_sigma();
-
+        const size_t latent_n = (size_t)kLatentC * kLatentHW * kLatentHW;
+        std::vector<float> latent;
         std::array<int64_t, 4> s_shape{1, kLatentC, kLatentHW, kLatentHW};
         std::array<int64_t, 1> t_shape{1};
         std::array<int64_t, 3> h_shape{1, kSeq, hidden_dim};
         double unet_ms = 0.0;
-        {
-            Ort::Session unet = make_session(env, model("unet"));
-            const bool unet_fp16 =
-                input_type_by_name(unet, "sample") == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16;
-            // timestep dtype is export-dependent too: int64 (optimum default) or
-            // float16/float32 (the ORT-team fp16 export declares timestep:f16 — the
-            // values used here, e.g. 999, are integers < 2048, exact in fp16).
-            const auto ts_type = input_type_by_name(unet, "timestep");
-            // timestep shape is export-dependent as well: [1] (optimum <= 1.23) or
-            // [] scalar (optimum-onnx 0.1.0+). Same 1-element buffer either way;
-            // only the declared rank changes.
-            const size_t ts_rank = input_rank_by_name(unet, "timestep");
-            log_output(std::string("[xllama] diffuse: unet input ") +
-                       (unet_fp16 ? "fp16" : "fp32") + ", hidden_dim " +
-                       std::to_string(hidden_dim) + ", ts rank " + std::to_string(ts_rank) +
-                       ", te+unet load " + std::to_string((int)ms_since(t_load0)) + " ms\n");
+        bool cancelled = false;
+        size_t n_sched_steps = 0;
 
-            // encoder_hidden_states is constant across steps: convert to fp16
-            // once; each step only wraps these buffers in a zero-copy tensor.
-            std::vector<uint16_t> hs_f16;
-            if (unet_fp16)
-                hs_f16 = to_half(hidden);
-            std::vector<float> scaled;        // reused across steps
-            std::vector<uint16_t> scaled_f16; // reused when unet_fp16
-            std::vector<float> noise;         // reused across steps
+        auto run_unet = [&](auto& sched) {
+            sched.set_timesteps(steps);
+            n_sched_steps = sched.timesteps().size();
+            latent.assign(latent_n, 0.f);
+            for (auto& v : latent)
+                v = gauss(rng) * (float)sched.init_noise_sigma();
 
-            for (size_t s = 0; s < sched.timesteps().size(); ++s) {
-                const std::string step_label =
-                    std::to_string(s + 1) + "/" + std::to_string(sched.timesteps().size());
-                if (cancel_requested()) {
-                    log_output("[xllama] diffuse: cancelled at unet step " + step_label + "\n");
-                    write_progress("cancelled");
-                    return;
+            {
+                Ort::Session unet = make_session(env, model("unet"));
+                const bool unet_fp16 =
+                    input_type_by_name(unet, "sample") == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16;
+                // timestep dtype is export-dependent too: int64 (optimum default) or
+                // float16/float32 (the ORT-team fp16 export declares timestep:f16 — the
+                // values used here, e.g. 999, are integers < 2048, exact in fp16).
+                const auto ts_type = input_type_by_name(unet, "timestep");
+                // timestep shape is export-dependent as well: [1] (optimum <= 1.23) or
+                // [] scalar (optimum-onnx 0.1.0+). Same 1-element buffer either way;
+                // only the declared rank changes.
+                const size_t ts_rank = input_rank_by_name(unet, "timestep");
+                log_output(std::string("[xllama] diffuse: unet input ") +
+                           (unet_fp16 ? "fp16" : "fp32") + ", hidden_dim " +
+                           std::to_string(hidden_dim) + ", ts rank " + std::to_string(ts_rank) +
+                           ", te+unet load " + std::to_string((int)ms_since(t_load0)) + " ms\n");
+
+                // encoder_hidden_states is constant across steps: convert to fp16
+                // once; each step only wraps these buffers in a zero-copy tensor.
+                std::vector<uint16_t> hs_f16;
+                if (unet_fp16)
+                    hs_f16 = to_half(hidden);
+                std::vector<float> scaled;        // reused across steps
+                std::vector<uint16_t> scaled_f16; // reused when unet_fp16
+                std::vector<float> noise;         // reused across steps
+
+                for (size_t s = 0; s < sched.timesteps().size(); ++s) {
+                    const std::string step_label =
+                        std::to_string(s + 1) + "/" + std::to_string(sched.timesteps().size());
+                    if (cancel_requested()) {
+                        log_output("[xllama] diffuse: cancelled at unet step " + step_label + "\n");
+                        write_progress("cancelled");
+                        cancelled = true;
+                        return;
+                    }
+                    write_progress("unet " + step_label);
+                    // scale_model_input on a copy (UNet sees the scaled latent).
+                    scaled = latent;
+                    sched.scale_model_input(scaled);
+                    Ort::Value u_sample{nullptr};
+                    if (unet_fp16) {
+                        scaled_f16.resize(scaled.size());
+                        for (size_t i = 0; i < scaled.size(); ++i)
+                            scaled_f16[i] = diffusion::float_to_half(scaled[i]);
+                        u_sample = Ort::Value::CreateTensor(
+                            mem, scaled_f16.data(), scaled_f16.size() * sizeof(uint16_t),
+                            s_shape.data(), s_shape.size(), ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16);
+                    } else {
+                        u_sample = Ort::Value::CreateTensor<float>(
+                            mem, scaled.data(), scaled.size(), s_shape.data(), s_shape.size());
+                    }
+                    Ort::Value u_hs =
+                        unet_fp16
+                            ? Ort::Value::CreateTensor(mem, hs_f16.data(),
+                                                       hs_f16.size() * sizeof(uint16_t),
+                                                       h_shape.data(), h_shape.size(),
+                                                       ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16)
+                            : Ort::Value::CreateTensor<float>(mem, hidden.data(), hidden.size(),
+                                                              h_shape.data(), h_shape.size());
+                    const double ts_val = sched.timesteps()[s];
+                    int64_t ts_i64 = (int64_t)ts_val;
+                    float ts_f32 = (float)ts_val;
+                    uint16_t ts_f16 = diffusion::float_to_half(ts_f32);
+                    Ort::Value u_ts{nullptr};
+                    if (ts_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16) {
+                        u_ts = Ort::Value::CreateTensor(mem, &ts_f16, sizeof(ts_f16),
+                                                        t_shape.data(), ts_rank,
+                                                        ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16);
+                    } else if (ts_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT) {
+                        u_ts = Ort::Value::CreateTensor<float>(mem, &ts_f32, 1, t_shape.data(),
+                                                               ts_rank);
+                    } else {
+                        u_ts = Ort::Value::CreateTensor<int64_t>(mem, &ts_i64, 1, t_shape.data(),
+                                                                 ts_rank);
+                    }
+
+                    Ort::Value u_ins[] = {std::move(u_sample), std::move(u_ts), std::move(u_hs)};
+                    const char* u_in_names[] = {"sample", "timestep", "encoder_hidden_states"};
+                    const char* u_out_names[] = {"out_sample"};
+                    auto t_u0 = std::chrono::steady_clock::now();
+                    auto u_out =
+                        unet.Run(Ort::RunOptions{nullptr}, u_in_names, u_ins, 3, u_out_names, 1);
+                    unet_ms += ms_since(t_u0);
+                    read_output_f32_into(u_out[0], noise); // epsilon [1,4,64,64]
+
+                    sched.step(noise, latent); // latent <- previous sample
                 }
-                write_progress("unet " + step_label);
-                // scale_model_input on a copy (UNet sees the scaled latent).
-                scaled = latent;
-                sched.scale_model_input(scaled);
-                Ort::Value u_sample{nullptr};
-                if (unet_fp16) {
-                    scaled_f16.resize(scaled.size());
-                    for (size_t i = 0; i < scaled.size(); ++i)
-                        scaled_f16[i] = diffusion::float_to_half(scaled[i]);
-                    u_sample = Ort::Value::CreateTensor(
-                        mem, scaled_f16.data(), scaled_f16.size() * sizeof(uint16_t),
-                        s_shape.data(), s_shape.size(), ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16);
-                } else {
-                    u_sample = Ort::Value::CreateTensor<float>(mem, scaled.data(), scaled.size(),
-                                                               s_shape.data(), s_shape.size());
-                }
-                Ort::Value u_hs =
-                    unet_fp16 ? Ort::Value::CreateTensor(mem, hs_f16.data(),
-                                                         hs_f16.size() * sizeof(uint16_t),
-                                                         h_shape.data(), h_shape.size(),
-                                                         ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16)
-                              : Ort::Value::CreateTensor<float>(mem, hidden.data(), hidden.size(),
-                                                                h_shape.data(), h_shape.size());
-                const double ts_val = sched.timesteps()[s];
-                int64_t ts_i64 = (int64_t)ts_val;
-                float ts_f32 = (float)ts_val;
-                uint16_t ts_f16 = diffusion::float_to_half(ts_f32);
-                Ort::Value u_ts{nullptr};
-                if (ts_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16) {
-                    u_ts = Ort::Value::CreateTensor(mem, &ts_f16, sizeof(ts_f16), t_shape.data(),
-                                                    ts_rank, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16);
-                } else if (ts_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT) {
-                    u_ts =
-                        Ort::Value::CreateTensor<float>(mem, &ts_f32, 1, t_shape.data(), ts_rank);
-                } else {
-                    u_ts =
-                        Ort::Value::CreateTensor<int64_t>(mem, &ts_i64, 1, t_shape.data(), ts_rank);
-                }
+            } // release UNet weights (~1.65 GB) before the VAE's 512x512 activations
+        };
 
-                Ort::Value u_ins[] = {std::move(u_sample), std::move(u_ts), std::move(u_hs)};
-                const char* u_in_names[] = {"sample", "timestep", "encoder_hidden_states"};
-                const char* u_out_names[] = {"out_sample"};
-                auto t_u0 = std::chrono::steady_clock::now();
-                auto u_out =
-                    unet.Run(Ort::RunOptions{nullptr}, u_in_names, u_ins, 3, u_out_names, 1);
-                unet_ms += ms_since(t_u0);
-                read_output_f32_into(u_out[0], noise); // epsilon [1,4,64,64]
-
-                sched.step(noise, latent); // latent <- previous sample
-            }
-        } // release UNet weights (~1.65 GB) before the VAE's 512x512 activations
+        if (use_lcm) {
+            diffusion::LCMScheduler sched;
+            sched.set_rng(&rng);
+            run_unet(sched);
+        } else {
+            diffusion::EulerDiscreteScheduler sched;
+            run_unet(sched);
+        }
+        if (cancelled)
+            return;
 
         // ---- VAE decode: latent/scale [1,4,64,64] -> sample[1,3,512,512] -----
         write_progress("vae");
@@ -438,8 +465,8 @@ void run_diffuse() {
         snprintf(lb, sizeof(lb),
                  "[xllama] diffuse: te %.0f ms | unet %.0f ms (%zu step, %.0f ms/step) | vae "
                  "%.0f ms | total %.0f ms | process_peak_ws_mb=%zu\n",
-                 te_ms, unet_ms, sched.timesteps().size(),
-                 unet_ms / (double)sched.timesteps().size(), vae_ms, total_ms, process_peak_ws_mb);
+                 te_ms, unet_ms, n_sched_steps, unet_ms / (double)n_sched_steps, vae_ms, total_ms,
+                 process_peak_ws_mb);
         log_output(lb);
 
         // Result CSV (+ .done marker), fetchable via Device Portal.
@@ -452,8 +479,8 @@ void run_diffuse() {
                   "date,process_peak_ws_mb\n",
                   fp);
             fprintf(fp, "%s,%d,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%dx%d,%s,%zu\n", dir.c_str(), steps,
-                    seed, te_ms, unet_ms, unet_ms / (double)sched.timesteps().size(), vae_ms,
-                    total_ms, kImageHW, kImageHW, date_buf, process_peak_ws_mb);
+                    seed, te_ms, unet_ms, unet_ms / (double)n_sched_steps, vae_ms, total_ms,
+                    kImageHW, kImageHW, date_buf, process_peak_ws_mb);
             fclose(fp);
         }
         if (pf) {

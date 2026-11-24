@@ -201,7 +201,12 @@ are not routed per conversation.
 - **Other GGUF models** run on the CPU.
 - **Operator override:** `gguf_gpu_layers.txt` in LocalState overrides this
   (`0` forces the CPU; see [gguf-gpu-decode.md](gguf-gpu-decode.md)). There is
-  no Settings option for it.
+  no Settings option for it. Hybrid prefix snapshots (LFM2 API prefill reuse)
+  are on by default; `hybrid-prefix-snapshots.txt` = `0` opts out.
+- **Thread count:** `gguf_n_threads.txt` in LocalState sets llama.cpp threads
+  for interactive GGUF chat (GUI and LAN API). Absent, `0`, or an invalid
+  value keeps auto-detect (capped at 6 on UWP). This does not change
+  GPU-layer placement. Headless bench still uses `bench_threads.txt`.
 
 Settings persist to `LocalState\settings.json` and take effect on the next
 inference call. Exception: changing the **model** loads it eagerly as soon as
@@ -231,6 +236,10 @@ Plain ORT DirectML (diffusion) coexists with the XAML compositor. The D3D12
 device conflict (`887A0036`, `uwp-constraints.md §7`) applies only to ORT
 **GenAI** chat DML, not to this pipeline. Press **Cancel** during generation to
 abort between UNet steps.
+
+An operator can select the LCM scheduler by writing `1` to
+`LocalState\diffuse-lcm.txt`. Absent, image generation keeps the Euler schedule
+SD-Turbo was validated with.
 
 The `sd-turbo-fp16` model (2.4 GB: text encoder, UNet, VAE decoder + CLIP
 tokenizer) is **downloaded automatically on the first Generate** from the

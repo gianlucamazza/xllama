@@ -1,0 +1,19 @@
+{
+  "_comment": "LocalState/manifest.json override for Series S T3 of Granite-4.0-H-Tiny (#525). Upload via Device Portal (Developer Mode sideload). NOT a shipped catalogue entry — do not copy into uwp/models/manifest.json. Q3_K_S is the reopen quant (3,062,452,832 bytes). Stay on CPU (no gpu_layers; #421). Product n_ctx 2048. After T3: 3 recorded runs, peak_ws_mb <= 3584, decode and TTFT vs llama32-3b (dense peer in #273). TODO(T3): fill model-matrix.md §I1 only from committed console receipts.",
+  "models": [
+    {
+      "name": "granite40-h-tiny",
+      "display": "Granite 4.0 H Tiny Q3_K_S (T3 override, not catalogue)",
+      "kind": "gguf",
+      "n_ctx": 2048,
+      "hf_base_url": "https://huggingface.co/ibm-granite/granite-4.0-h-tiny-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "granite-4.0-h-tiny-Q3_K_S.gguf",
+          "approx_bytes": 3062452832,
+          "sha256": "5ec3f4af77fffead37b09984a97625f0f532f6ae2ead65b5019bce6dd8b4d0cd"
+        }
+      ]
+    }
+  ]
+}

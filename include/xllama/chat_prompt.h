@@ -38,6 +38,13 @@ bool model_is_llama(const std::string& model_id);
 // case-insensitive). Selects the Phi-3 instruct template (<|user|>…<|end|>).
 bool model_is_phi(const std::string& model_id);
 
+// True for Granite 4.x (and 3.x instruct) catalogue ids or filenames
+// (substring "granite", case-insensitive). Selects
+// <|start_of_role|>…<|end_of_role|>…<|end_of_text|>. Shared by #525
+// (Granite-4.0-H-Tiny) and #521 (Granite 4.2-3B). Basename only — a cache
+// dir named "granite" must not select this template.
+bool model_is_granite(const std::string& model_id);
+
 // True for models that emit chain-of-thought inside <think>…</think> before the
 // user-visible answer (basename contains "thinking", e.g. lfm25-1.2b-thinking).
 // These keep plain ChatML with no Qwen3 no-think prefill; postprocess strips
@@ -83,7 +90,7 @@ bool apply_stop_sequences(std::string& output, const std::vector<std::string>& s
 // a per-model generation suffix. Built via chat_format_for().
 // ---------------------------------------------------------------------------
 
-enum class ChatFormatKind { ChatML, Gemma, Llama3, Phi3 };
+enum class ChatFormatKind { ChatML, Gemma, Llama3, Phi3, Granite };
 
 // How the system prompt is emitted.
 // - DedicatedTurn: its own turn (ChatML / Llama-3 / Gemma 4 system role).

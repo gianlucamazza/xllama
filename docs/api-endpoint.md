@@ -73,6 +73,10 @@ live XAML chat UI.
   overrides it for the GUI and this API alike; `0` forces the CPU. A change
   reloads the resident session. Gate and verdict:
   [gguf-gpu-decode.md](gguf-gpu-decode.md).
+- **GGUF threads:** `LocalState\gguf_n_threads.txt`, when present and
+  positive, sets llama.cpp thread count for this API and the GUI. Absent, 0,
+  or an invalid value keeps auto-detect. Threads are a tuning knob, not load
+  identity, so a change applies on the next session create.
 
 **Foreground only.** The endpoint dies when the app leaves the foreground (UWP Process
 Lifetime Management — no always-on system service). On Xbox this is stricter than on PC: if
@@ -356,9 +360,12 @@ curl -s http://<ip-xbox>:11434/v1/embeddings \
 - **embed-bge-m3**: BAAI/bge-m3 (Q8_0, 1024 dim, 8192 ctx). Dense retrieval, no required prefix. Not Matryoshka — `dimensions` must be 0 or 1024.
 - **embed-nomic-v2-moe**: nomic-ai/nomic-embed-text-v2-moe (Q8_0, 768 dim, 512 ctx). Client must prepend `search_query:` or `search_document:` to inputs.
 
-Qwen3-Embedding-4B Q4_K_M is not in the catalogue: its Release embedding smoke peaked at 4411 MiB, above the 3584 MiB host gate. The listed models pass host Release smoke and Series S contract validation.
+Qwen3-Embedding-4B Q4_K_M is not in the catalogue: its Release embedding smoke peaked at 4411 MiB, above the 3584 MiB host gate. The listed models pass host Release smoke and the Series S contract check.
+BGE-M3 (`embed-bge-m3`) and Nomic Embed Text v2 MoE (`embed-nomic-v2-moe`)
+passed the Series S contract check only; throughput and retrieval quality are
+not yet measured.
 [Catalogue status](model-matrix.md#g-embedding-api-catalogue-host-and-series-s-validated) owns
-the current validation evidence and remaining throughput/retrieval-quality work.
+the current validation evidence.
 
 **Ollama name aliases**: The API also accepts `bge-m3` and `nomic-embed-text-v2-moe`. The `qwen3-embedding:4b` alias is reserved for a future catalogue entry.
 

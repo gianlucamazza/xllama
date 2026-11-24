@@ -9,6 +9,7 @@
 #include "xllama/inference_params.h"
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
+#include "xllama/prefix_snapshot.h"
 #include "xllama/routing_policy.h"
 #include "xllama/session_hub.h"
 #include "xllama/utf8_utils.h"
@@ -475,9 +476,18 @@ class LlamaSession final : public Session {
     // whenever the KV state stops being trustworthy (decode failure).
     std::vector<llama_token> m_kv_tokens;
 
-    bool m_kv_q8 = false;         // #171: q8_0 KV + forced flash attention
-    bool m_prompt_lookup = false; // #210: draft-free speculative decoding
-    int m_gpu_layers = 0;         // layers on the d3d12 backend (llama_gpu.h)
+    // Hybrid/recurrent caches refuse a partial tail erase. After each
+    // successful prefill, a post-prefill llama_state_get_data blob lets the
+    // next full-prompt turn restore that prefix instead of prefilling from
+    // scratch. Unused until llama_model_is_hybrid/is_recurrent is true.
+    std::vector<llama_token> m_prefix_tokens;
+    std::vector<uint8_t> m_prefix_blob;
+    bool m_needs_prefix_snapshot = false;
+
+    bool m_kv_q8 = false;           // #171: q8_0 KV + forced flash attention
+    bool m_prompt_lookup = false;   // #210: draft-free speculative decoding
+    bool m_prefix_snapshots = true; // hybrid prefix snapshots; false = opt out
+    int m_gpu_layers = 0;           // layers on the d3d12 backend (llama_gpu.h)
 
     // #169: whether the resident KV supports front-drop eviction + RoPE shift.
     // Known once the lazy context exists. Gated on llama_memory_can_shift —
@@ -488,10 +498,11 @@ class LlamaSession final : public Session {
 
     explicit LlamaSession(LlamaModelPtr model, LlamaAdapterLoraPtr adapter, float lora_scale,
                           int n_ctx, int n_threads, int n_batch, int n_ubatch, bool kv_q8,
-                          bool prompt_lookup, int gpu_layers)
+                          bool prompt_lookup, bool prefix_snapshots, int gpu_layers)
         : m_model(std::move(model)), m_adapter(std::move(adapter)), m_lora_scale(lora_scale),
           m_n_ctx(n_ctx), m_n_threads(n_threads), m_n_batch(n_batch), m_n_ubatch(n_ubatch),
-          m_kv_q8(kv_q8), m_prompt_lookup(prompt_lookup), m_gpu_layers(gpu_layers) {}
+          m_kv_q8(kv_q8), m_prompt_lookup(prompt_lookup), m_prefix_snapshots(prefix_snapshots),
+          m_gpu_layers(gpu_layers) {}
 
     const void* resident_llama_model() const override {
         return m_model.get();
@@ -553,18 +564,22 @@ class LlamaSession final : public Session {
             }
             m_can_shift = llama_memory_can_shift(llama_get_memory(m_ctx.get())) &&
                           llama_model_n_swa(m_model.get()) == 0;
+            m_needs_prefix_snapshot =
+                m_prefix_snapshots &&
+                (llama_model_is_hybrid(m_model.get()) || llama_model_is_recurrent(m_model.get()));
             // Logged because it is a per-ARCH capability that decides whether a long
             // chat shifts (#169) or fail-fasts (#173), and docs used to state it from
             // assumption: imrope and SWA architectures cannot shift, and which is
             // which is not something to guess per model. One line makes it a
             // measurement anyone can read off the device log.
             {
-                char cb[128];
+                char cb[192];
                 snprintf(cb, sizeof(cb),
-                         "[xllama] session: can_shift=%d (memory_can_shift=%d n_swa=%d)\n",
+                         "[xllama] session: can_shift=%d (memory_can_shift=%d n_swa=%d) "
+                         "prefix_snapshot=%d\n",
                          m_can_shift ? 1 : 0,
                          llama_memory_can_shift(llama_get_memory(m_ctx.get())) ? 1 : 0,
-                         (int)llama_model_n_swa(m_model.get()));
+                         (int)llama_model_n_swa(m_model.get()), m_needs_prefix_snapshot ? 1 : 0);
                 log_output(cb);
             }
             // Apply runtime LoRA after context exists (llama_set_adapters_lora is
@@ -633,42 +648,64 @@ class LlamaSession final : public Session {
         // sample. Regenerate keeps everything but the final token; an edited
         // last message keeps everything before the edit; an unrelated prompt
         // diverges immediately and degrades to the old full clear.
+        //
+        // Hybrid caches (LFM2) refuse that tail erase. When a post-prefill
+        // prefix snapshot is a strict prefix of the new prompt, restore it (no
+        // stale generated tail) and prefill only the suffix. An exact
+        // regenerate Clears so the last token reseeds logits like a cold run.
+        // Non-hybrid still rewinds.
         llama_memory_t mem = llama_get_memory(ctx);
         size_t kv_keep = 0;
         if (full_prompt) {
-            const size_t max_keep = tokens.empty() ? 0 : tokens.size() - 1;
-            while (kv_keep < m_kv_tokens.size() && kv_keep < max_keep &&
-                   m_kv_tokens[kv_keep] == tokens[kv_keep])
-                ++kv_keep;
-            if (kv_keep > 0) {
-                // Pure extension (no divergent tail) needs no removal. When a
-                // tail must go, honor seq_rm's result: hybrid caches (LFM2's
-                // attn+recurrent) refuse a partial tail erase — the recurrent
-                // state cannot be rewound — and mutate NOTHING on failure, so
-                // decoding on top would corrupt the output. Degrade to a full
-                // clear + re-prefill instead.
-                if (kv_keep < m_kv_tokens.size() &&
-                    !llama_memory_seq_rm(mem, 0, static_cast<llama_pos>(kv_keep), -1)) {
+            const size_t common = common_kv_prefix(m_kv_tokens, tokens);
+            bool can_rewind = true;
+            if (common > 0 && common < m_kv_tokens.size()) {
+                can_rewind = llama_memory_seq_rm(mem, 0, static_cast<llama_pos>(common), -1);
+            }
+            const bool snap_prefix = tokens_are_prefix(m_prefix_tokens, tokens);
+            const PrefixSnapshotPlan plan =
+                plan_prefix_snapshot(common, m_kv_tokens.size(), tokens.size(),
+                                     m_prefix_tokens.size(), snap_prefix, can_rewind);
+            kv_keep = plan.kv_keep;
+            switch (plan.action) {
+            case PrefixSnapshotAction::KeepResident:
+            case PrefixSnapshotAction::RewindTail: {
+                char pb[128];
+                snprintf(pb, sizeof(pb),
+                         "[xllama] session: KV prefix reuse — kept %zu of %zu tokens (#170)\n",
+                         kv_keep, tokens.size());
+                log_output(pb);
+                break;
+            }
+            case PrefixSnapshotAction::RestoreSnapshot: {
+                if (restore_prefix_snapshot()) {
+                    char rb[192];
+                    snprintf(rb, sizeof(rb),
+                             "[xllama] session: KV prefix snapshot restored — %zu of %zu "
+                             "tokens (hybrid)\n",
+                             kv_keep, tokens.size());
+                    log_output(rb);
+                } else {
+                    log_output("[xllama] session: KV prefix snapshot restore failed — "
+                               "full re-prefill\n");
+                    llama_memory_clear(mem, true);
+                    kv_keep = 0;
+                    drop_prefix_snapshot();
+                }
+                break;
+            }
+            case PrefixSnapshotAction::Clear:
+                if (!can_rewind && common > 0) {
                     char rb[256];
                     snprintf(rb, sizeof(rb),
                              "[xllama] session: KV rewind unsupported (hybrid cache) — "
                              "full re-prefill (#170): common=%zu resident=%zu prompt=%zu\n",
-                             kv_keep, m_kv_tokens.size(), tokens.size());
+                             common, m_kv_tokens.size(), tokens.size());
                     log_output(rb);
-                    llama_memory_clear(mem, true);
-                    kv_keep = 0;
-                } else {
-                    char pb[128];
-                    snprintf(pb, sizeof(pb),
-                             "[xllama] session: KV prefix reuse — kept %zu of %zu tokens (#170)\n",
-                             kv_keep, tokens.size());
-                    log_output(pb);
-                }
-            } else {
-                // #216: when a #170b restore just landed, "restored" + full
-                // re-prefill means the saved token list and the re-rendered
-                // prompt share no common prefix — log enough to diagnose.
-                if (!m_kv_tokens.empty()) {
+                } else if (!m_kv_tokens.empty()) {
+                    // #216: when a #170b restore just landed, "restored" + full
+                    // re-prefill means the saved token list and the re-rendered
+                    // prompt share no common prefix — log enough to diagnose.
                     char pb[192];
                     snprintf(pb, sizeof(pb),
                              "[xllama] session: KV prefix reuse none — resident %zu tok, "
@@ -677,8 +714,16 @@ class LlamaSession final : public Session {
                     log_output(pb);
                 }
                 llama_memory_clear(mem, true);
+                kv_keep = 0;
+                break;
             }
-            m_kv_tokens.resize(kv_keep);
+            if (plan.action == PrefixSnapshotAction::RestoreSnapshot && kv_keep > 0) {
+                m_kv_tokens = m_prefix_tokens;
+                if (m_kv_tokens.size() > kv_keep)
+                    m_kv_tokens.resize(kv_keep);
+            } else {
+                m_kv_tokens.resize(kv_keep);
+            }
         }
 
         // #173: the KV length is exact and free to read (seq_pos_max is -1 on
@@ -693,7 +738,12 @@ class LlamaSession final : public Session {
         // prompt, the whole delta on a continuation.
         llama_token* pf = tokens.data() + (full_prompt ? kv_keep : 0);
         const int n_pf = static_cast<int>(tokens.size()) - (full_prompt ? (int)kv_keep : 0);
-        if (n_pf <= 0) {
+        if (n_pf < 0) {
+            res.error_msg = "nothing to prefill";
+            log_output("[xllama] session generate: nothing to prefill\n");
+            return res;
+        }
+        if (n_pf == 0 && kv_keep == 0) {
             // Both callers always render at least one token (a delta carries the
             // turn close + user turn; a full prompt keeps size-1 at most), so
             // this is a programming error, not a user-reachable state. Fail
@@ -769,36 +819,40 @@ class LlamaSession final : public Session {
         // LOGICAL batch only — the physical ubatch stays 512 (#172 optimum),
         // which is what the prefill rate was measured on.
         InferenceWatchdog wd(gp.progress(), gp.abort_flag);
-        wd.enter_prefill(n_pf);
         const auto t_prefill0 = std::chrono::steady_clock::now();
-        if (!prefill_chunked(ctx, pf, n_pf, &wd)) {
-            if (wd.stalled()) {
-                res.stalled = true;
-                res.error_msg = wd.stall_error();
-            } else {
-                res.error_msg = "prompt decode failed";
+        if (n_pf > 0) {
+            wd.enter_prefill(n_pf);
+            if (!prefill_chunked(ctx, pf, n_pf, &wd)) {
+                if (wd.stalled()) {
+                    res.stalled = true;
+                    res.error_msg = wd.stall_error();
+                } else {
+                    res.error_msg = "prompt decode failed";
+                }
+                log_output("[xllama] session generate: " + res.error_msg + "\n");
+                // The cache now holds a partial batch — nothing about it is
+                // trustworthy, so drop the record AND the cells. Clearing both keeps
+                // a continuation turn (which reads the cache length, not
+                // m_kv_tokens) from decoding on top of half a prefill.
+                m_kv_tokens.clear();
+                drop_prefix_snapshot();
+                llama_memory_clear(mem, true);
+                return res;
             }
-            log_output("[xllama] session generate: " + res.error_msg + "\n");
-            // The cache now holds a partial batch — nothing about it is
-            // trustworthy, so drop the record AND the cells. Clearing both keeps
-            // a continuation turn (which reads the cache length, not
-            // m_kv_tokens) from decoding on top of half a prefill.
-            m_kv_tokens.clear();
-            llama_memory_clear(mem, true);
-            return res;
+            res.t_p_eval_ms = std::chrono::duration<double, std::milli>(
+                                  std::chrono::steady_clock::now() - t_prefill0)
+                                  .count();
+            wd.prefill_done(n_pf, res.t_p_eval_ms);
         }
-        res.t_p_eval_ms =
-            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_prefill0)
-                .count();
         res.n_p_eval = n_pf;
         res.n_prompt = static_cast<int>(tokens.size());
-        wd.prefill_done(n_pf, res.t_p_eval_ms);
 
         // The resident-token record now covers everything prefilled.
         if (full_prompt)
             m_kv_tokens.assign(tokens.begin(), tokens.end());
         else
             m_kv_tokens.insert(m_kv_tokens.end(), tokens.begin(), tokens.end());
+        capture_prefix_snapshot();
 
         // Shared with run_inference — see src/bridge/sampler_chain.h and #125.
         // SamplingConfig::is_greedy() also covers temperature 0, where the full
@@ -884,6 +938,7 @@ class LlamaSession final : public Session {
         if (dlr.rewind_failed) {
             // History and KV are untrustworthy — same class as a decode failure.
             m_kv_tokens.clear();
+            drop_prefix_snapshot();
             if (m_ctx)
                 llama_memory_clear(llama_get_memory(m_ctx.get()), /*data=*/true);
             res.success = false;
@@ -998,6 +1053,7 @@ class LlamaSession final : public Session {
         // Embedding requests share this context with chat. Drop any chat KV and
         // invalidate its token mirror; the next chat turn will prefill cleanly.
         m_kv_tokens.clear();
+        drop_prefix_snapshot();
         llama_memory_clear(llama_get_memory(ctx), true);
         llama_set_embeddings(ctx, true);
         struct EmbeddingContextReset {
@@ -1052,6 +1108,46 @@ class LlamaSession final : public Session {
 
     bool can_context_shift() const override {
         return m_can_shift;
+    }
+
+    void drop_prefix_snapshot() {
+        m_prefix_tokens.clear();
+        m_prefix_blob.clear();
+    }
+
+    void capture_prefix_snapshot() {
+        if (!m_needs_prefix_snapshot || !m_ctx || m_kv_tokens.empty()) {
+            drop_prefix_snapshot();
+            return;
+        }
+        try {
+            const size_t n = llama_state_get_size(m_ctx.get());
+            m_prefix_blob.resize(n);
+            const size_t used = llama_state_get_data(m_ctx.get(), m_prefix_blob.data(), n);
+            if (used == 0) {
+                drop_prefix_snapshot();
+                return;
+            }
+            m_prefix_blob.resize(used);
+            m_prefix_tokens = m_kv_tokens;
+        } catch (const std::exception&) {
+            drop_prefix_snapshot();
+        }
+    }
+
+    bool restore_prefix_snapshot() {
+        if (!m_ctx || m_prefix_blob.empty() || m_prefix_tokens.empty())
+            return false;
+        try {
+            // Drop leftover hybrid cells from a refused seq_rm so set_data
+            // cannot mix a generated tail with the saved prefix.
+            llama_memory_clear(llama_get_memory(m_ctx.get()), true);
+            const size_t used =
+                llama_state_set_data(m_ctx.get(), m_prefix_blob.data(), m_prefix_blob.size());
+            return used > 0;
+        } catch (const std::exception&) {
+            return false;
+        }
     }
 
     // --- #170b: KV state files ---------------------------------------------
@@ -1264,11 +1360,16 @@ class LlamaSession final : public Session {
             // The pin rolls its own read back, but the bookkeeping is ours.
             llama_memory_clear(llama_get_memory(m_ctx.get()), true);
             m_kv_tokens.clear();
+            drop_prefix_snapshot();
             if (err && err->empty())
                 *err = "llama_state_seq_set_data rejected the file";
             return false;
         }
         m_kv_tokens = std::move(tokens);
+        // Disk state includes generated tokens — not a prefix. The next
+        // prefill recaptures. Restoring this as a hybrid prefix would put
+        // a stale tail back.
+        drop_prefix_snapshot();
         char lb[160];
         snprintf(lb, sizeof(lb),
                  "[xllama] session: KV state loaded — %zu tokens, %.1f MB (#170b)\n",
@@ -1323,9 +1424,9 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
     int n_threads = sp.n_threads > 0 ? sp.n_threads : detect_threads_llama();
     int n_ctx = sp.n_ctx > 0 ? sp.n_ctx : kDefaultNCtx;
     log_output("[xllama] Session: GGUF model loaded via llama.cpp (persistent)\n");
-    return std::make_unique<LlamaSession>(LlamaModelPtr(raw_model), std::move(adapter),
-                                          sp.lora_scale, n_ctx, n_threads, sp.n_batch, sp.n_ubatch,
-                                          sp.kv_q8, sp.prompt_lookup, gpu_layers);
+    return std::make_unique<LlamaSession>(
+        LlamaModelPtr(raw_model), std::move(adapter), sp.lora_scale, n_ctx, n_threads, sp.n_batch,
+        sp.n_ubatch, sp.kv_q8, sp.prompt_lookup, sp.prefix_snapshots, gpu_layers);
 }
 } // namespace detail
 

@@ -13,7 +13,7 @@ inline constexpr const char kCodingSystemPrompt[] =
 Chat template format detection and rendering.
 
 ```cpp
-enum class ChatFormatKind { ChatML, Gemma, Llama3, Phi3 };
+enum class ChatFormatKind { ChatML, Gemma, Llama3, Phi3, Granite };
 
 enum class SystemStyle { DedicatedTurn, MergeIntoFirstUser };
 
@@ -48,6 +48,11 @@ struct ChatFormat {
 ChatFormat chat_format_for(const std::string& model_id);
 ```
 
+Dedicated-turn formats (ChatML, Llama-3, Phi-3, Gemma 4, Granite) emit a
+system turn even when `system` is empty. Granite 4.x IBM jinja inserts a
+default system message in that case; this renderer does not. CLI, GUI, and
+the LAN API always pass `kDefaultSystemPrompt` (or the coding default).
+
 ## Model Format Detection
 
 ```cpp
@@ -56,6 +61,7 @@ bool model_is_qwen3(const std::string& model_id);
 bool model_is_gemma(const std::string& model_id);
 bool model_is_llama(const std::string& model_id);
 bool model_is_phi(const std::string& model_id);
+bool model_is_granite(const std::string& model_id);
 bool model_is_thinking(const std::string& model_id);
 bool model_is_minicpm5(const std::string& model_id);
 ```

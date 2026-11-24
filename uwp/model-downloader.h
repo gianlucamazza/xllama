@@ -125,7 +125,8 @@ inline const ManifestEntry* FindManifestEntry(const std::vector<ManifestEntry>& 
 
 // ADR 0007: the session parameters for a catalogue model id — the one way GUI
 // chat, LAN chat, embeddings and pull build a session (session_spec.h). Reads
-// the merged catalogue, the model directory and the GPU-layers knob.
+// the merged catalogue, the model directory, the GPU-layers knob and the
+// optional GGUF thread-count knob.
 SessionParams CatalogueSessionParams(const std::string& model);
 
 // True when the model dir is usable without a download: .complete marker, a
