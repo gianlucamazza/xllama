@@ -1,0 +1,17 @@
+{
+  "device": {
+    "Platform": "Xbox Series S",
+    "OsVersion": "26100.9662.amd64fre.xb_flt_2610ge.261104-2200",
+    "OsEdition": "SystemOS"
+  },
+  "package": {
+    "version": "1.8.1.1764",
+    "sku": "Developer Mode unified CI MSVC (xllama-appx, build-uwp push workflow on the source commit)",
+    "install": "in-place update over 1.8.0.1754 via Device Portal; LocalState preserved (top-level files, 41 model folders and 102 chats unchanged; settings.json, model.txt, prompt.txt, api.flag, autopilot.json byte-identical)",
+    "previous_version": "1.8.0.1754"
+  },
+  "source": {
+    "sha": "b47fe340951cc1bb79a8d1ce8a9434185ff48a38",
+    "subject": "chore: prepare xllama v1.8.1.0 Developer Mode release (#529)"
+  }
+}

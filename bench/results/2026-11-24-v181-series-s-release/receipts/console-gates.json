@@ -1,0 +1,49 @@
+{
+  "command": "scripts/validate-console.sh all",
+  "date": "2026-11-24",
+  "gates": [
+    {
+      "gate": "\u00a72 routing",
+      "result": "PASS"
+    },
+    {
+      "gate": "settings ops",
+      "result": "PASS"
+    },
+    {
+      "gate": "GGUF chat",
+      "result": "PASS"
+    },
+    {
+      "gate": "#169 long-chat",
+      "result": "PASS"
+    },
+    {
+      "gate": "#170b KV snapshot",
+      "result": "PASS"
+    },
+    {
+      "gate": "#193 coding paste",
+      "result": "PASS"
+    },
+    {
+      "gate": "#193 truncated reasoning",
+      "result": "PASS"
+    },
+    {
+      "gate": "#223 thinking complete",
+      "result": "PASS"
+    },
+    {
+      "gate": "#193 generation room",
+      "result": "PASS"
+    },
+    {
+      "gate": "\u00a77c TAESD",
+      "result": "PASS"
+    }
+  ],
+  "passed": 10,
+  "total": 10,
+  "summary": "ALL PASS"
+}

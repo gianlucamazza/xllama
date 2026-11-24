@@ -11,3 +11,6 @@ build-uwp-test/
 uwp/packages/
 cache_dir/
 node_modules/
+
+# Byte-identical Series S release receipts (do not reformat).
+bench/results/2026-11-24-v181-series-s-release/
