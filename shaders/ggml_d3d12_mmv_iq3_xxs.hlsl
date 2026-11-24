@@ -3,6 +3,8 @@
 // uint32s). 8 groups of 32; each group is four 8-element (grid, sign) pairs.
 // Per super-block: 0.25f * (d * d_y) * sum(ls * signed_grid * q8), as
 // ggml_vec_dot_iq3_xxs_q8_K. 98-byte rows are 2-byte aligned: use ld32.
+// The 256-entry grid is copied to groupshared once per group: random CB
+// gathers are the decode bottleneck, not packed bandwidth.
 
 #include "ggml_d3d12_common.hlsli"
 
@@ -41,29 +43,31 @@ static const uint kIq3xxsGrid[256] = {
     0x3e1c1c1c, 0x3e1c3404, 0x3e24140c, 0x3e24240c, 0x3e2c0404, 0x3e2c0414, 0x3e2c1424, 0x3e341c04,
 };
 
+groupshared uint gIq3Grid[256];
+
 uint ksigns(uint idx) {
     idx &= 127u;
     return idx | ((countbits(idx) & 1u) << 7);
 }
 
+// Apply four sign bits to four packed int8 grid bytes with no per-lane branch.
+// Grid bytes are 0x04..0x3e, so (grid ^ 0xFF) + 1 cannot carry into the next byte.
 uint pack_signed_grid(uint grid, uint signs, uint bit0) {
-    int a = (int)((grid >> 0) & 0xffu);
-    int b = (int)((grid >> 8) & 0xffu);
-    int c = (int)((grid >> 16) & 0xffu);
-    int d = (int)((grid >> 24) & 0xffu);
-    if (signs & (1u << (bit0 + 0u)))
-        a = -a;
-    if (signs & (1u << (bit0 + 1u)))
-        b = -b;
-    if (signs & (1u << (bit0 + 2u)))
-        c = -c;
-    if (signs & (1u << (bit0 + 3u)))
-        d = -d;
-    return (a & 0xff) | ((b & 0xff) << 8) | ((c & 0xff) << 16) | ((d & 0xff) << 24);
+    const uint m = (signs >> bit0) & 15u;
+    const uint b0 = (m & 1u) * 0xffu;
+    const uint b1 = ((m >> 1) & 1u) * 0xffu;
+    const uint b2 = ((m >> 2) & 1u) * 0xffu;
+    const uint b3 = ((m >> 3) & 1u) * 0xffu;
+    const uint xor_m = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
+    return (grid ^ xor_m) + (xor_m & 0x01010101u);
 }
 
 [numthreads(NUM_THREADS, 1, 1)]
 void CSMain(uint tid : SV_GroupIndex, uint3 gid : SV_GroupID) {
+    for (uint gi = tid; gi < 256u; gi += NUM_THREADS)
+        gIq3Grid[gi] = kIq3xxsGrid[gi];
+    GroupMemoryBarrierWithGroupSync();
+
     const uint row0 = gid.x * NUM_ROWS;
     const uint col = gid.y;
     const uint ix = tid >> 4;
@@ -81,8 +85,7 @@ void CSMain(uint tid : SV_GroupIndex, uint3 gid : SV_GroupID) {
     for (uint blk = ix; blk < nchunk; blk += IN_FLIGHT) {
         const uint xb = col * x_stride + blk * 292u;
         const float dy = asfloat(X.Load(xb));
-        const uint2 x0 = X.Load2(xb + 4u + e);
-        const uint2 x1 = X.Load2(xb + 4u + e + 8u);
+        const uint4 xq = X.Load4(xb + 4u + e);
 
         [unroll]
         for (uint r = 0; r < NUM_ROWS; ++r) {
@@ -94,14 +97,14 @@ void CSMain(uint tid : SV_GroupIndex, uint3 gid : SV_GroupID) {
             const int ls = (int)(2u * (gas >> 28) + 1u);
             const uint signs0 = ksigns((gas >> (7u * (l0 + 0u))) & 127u);
             const uint signs1 = ksigns((gas >> (7u * (l0 + 1u))) & 127u);
-            const uint g00 = kIq3xxsGrid[(q3w >> 0) & 0xffu];
-            const uint g01 = kIq3xxsGrid[(q3w >> 8) & 0xffu];
-            const uint g10 = kIq3xxsGrid[(q3w >> 16) & 0xffu];
-            const uint g11 = kIq3xxsGrid[(q3w >> 24) & 0xffu];
-            const int sumi = dot4(pack_signed_grid(g00, signs0, 0u), x0.x) +
-                             dot4(pack_signed_grid(g01, signs0, 4u), x0.y) +
-                             dot4(pack_signed_grid(g10, signs1, 0u), x1.x) +
-                             dot4(pack_signed_grid(g11, signs1, 4u), x1.y);
+            const uint g00 = gIq3Grid[(q3w >> 0) & 0xffu];
+            const uint g01 = gIq3Grid[(q3w >> 8) & 0xffu];
+            const uint g10 = gIq3Grid[(q3w >> 16) & 0xffu];
+            const uint g11 = gIq3Grid[(q3w >> 24) & 0xffu];
+            const int sumi = dot4(pack_signed_grid(g00, signs0, 0u), xq.x) +
+                             dot4(pack_signed_grid(g01, signs0, 4u), xq.y) +
+                             dot4(pack_signed_grid(g10, signs1, 0u), xq.z) +
+                             dot4(pack_signed_grid(g11, signs1, 4u), xq.w);
             acc[r] += (d * dy * 0.25) * (float)(ls * sumi);
         }
     }

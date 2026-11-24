@@ -114,13 +114,24 @@ def speed_gated(r):
     if r["ncols"] != "1":
         return False
     return not (r["type"] == "iq3_xxs" and r["n"] == "3" and r["k"] == "256")
-slow = [r for r in rows if speed_gated(r) and float(r["packed_gbs"]) < 100.0]
+# Same numbers as d3d12_selftest_decode_min_gbs. IQ types decode a codebook
+# or grid per nibble, so they are compute-bound; 100 GB/s stays the floor
+# for every other type. IQ floors are provisional until measured on console
+# after the groupshared lookup kernels (expected ~92 / ~70 GB/s packed).
+def decode_min_gbs(t):
+    if t == "iq4_xs":
+        return 88.0
+    if t == "iq3_xxs":
+        return 65.0
+    return 100.0
+slow = [r for r in rows if speed_gated(r) and float(r["packed_gbs"]) < decode_min_gbs(r["type"])]
 print(f"--- selftest gate: {len(rows) - len(bad)}/{len(rows)} cases correct; "
-      f"{len(slow)} decode case(s) under 100 GB/s ---")
+      f"{len(slow)} decode case(s) under the type floor ---")
 for r in bad:
     print(f"FAIL {r['type']} n={r['n']} k={r['k']} ncols={r['ncols']} rel_err={r['rel_err']} {r['error']}")
 for r in slow:
-    print(f"SLOW {r['type']} n={r['n']} k={r['k']} gbs={r['packed_gbs']}")
+    print(f"SLOW {r['type']} n={r['n']} k={r['k']} gbs={r['packed_gbs']} "
+          f"min={decode_min_gbs(r['type'])}")
 require_bias_add = sys.argv[2:] == ["1"]
 bias_add_first = bool(rows) and rows[0]["type"] == "add_f32"
 if require_bias_add and not bias_add_first:

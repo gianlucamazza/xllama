@@ -867,7 +867,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_diffusion.cpp`             | `diffusion/` (Euler golden vectors, LCM step table, LCM-off = Euler)                             |
 | `test_diskbw.cpp`                | `diskbw.h`                                                                                       |
 | `test_embedding.cpp`             | `embedding.h`                                                                                    |
-| `test_ggml_d3d12.cpp`            | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`; name→layer mapping and `d3d12-layer` lines             |
+| `test_ggml_d3d12.cpp`            | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`; optional MMV fallback; IQ vs 100 GB/s decode floors    |
 | `test_gpubw.cpp`                 | `gpubw.h`                                                                                        |
 | `test_gpugemv.cpp`               | `gpugemv.h`                                                                                      |
 | `test_gpustep.cpp`               | `gpustep.h`                                                                                      |

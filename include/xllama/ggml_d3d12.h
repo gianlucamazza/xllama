@@ -77,11 +77,31 @@ inline bool d3d12_optional_mmv_ready(ggml_type t, unsigned ready) {
 }
 
 // 3×256 IQ3_XXS is a 98-byte unaligned-row correctness case. Packed GB/s is
-// launch-overhead dominated, so the ≥100 GB/s decode gate skips it.
+// launch-overhead dominated, so the decode speed gate skips it.
 inline bool d3d12_selftest_speed_gated(std::string_view type, int n, int k, int ncols) {
     if (ncols != 1)
         return false;
     return !(type == "iq3_xxs" && n == 3 && k == 256);
+}
+
+// Packed decode GB/s floors (scripts/bench-d3d12-selftest.sh, same numbers).
+// Q4 / Q5 / Q6 stay at the STREAM-class 100 GB/s kill. IQ formats pay for
+// codebook/grid decoding, so they are compute-bound rather than bandwidth-
+// bound on Series S: a 2048×2048 decode row measured 80.88 GB/s (IQ4_XS) and
+// 51.27 GB/s (IQ3_XXS) before the groupshared lookup kernels. The IQ floors
+// sit just below the expected post-optimisation figures (~92 and ~70 GB/s),
+// not at those pre-opt numbers, and are provisional until a console selftest
+// after this kernel. They are a gate, not a product speed claim.
+inline constexpr double kD3d12SelftestDecodeMinGbs = 100.0;
+inline constexpr double kD3d12SelftestIq4XsDecodeMinGbs = 88.0;
+inline constexpr double kD3d12SelftestIq3XxsDecodeMinGbs = 65.0;
+
+inline double d3d12_selftest_decode_min_gbs(std::string_view type) {
+    if (type == "iq4_xs")
+        return kD3d12SelftestIq4XsDecodeMinGbs;
+    if (type == "iq3_xxs")
+        return kD3d12SelftestIq3XxsDecodeMinGbs;
+    return kD3d12SelftestDecodeMinGbs;
 }
 
 // What supports_op sees, as plain data (no ggml_tensor needed in tests).

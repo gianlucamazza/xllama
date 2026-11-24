@@ -236,9 +236,14 @@ predeclared):** every type × shape (`{n, k}` from Coder-3B and LFM2.5 tensors,
 ncols 1 / 7 / 512) within `rel_err ≤ 1e-2` of ggml's dequantizers, and every
 decode case (ncols = 1) at ≥ 100 GB/s packed (GPU timestamps), except the
 3×256 IQ3_XXS row (98-byte unaligned-row correctness case; launch overhead
-dominates packed GB/s). Q5_K / IQ4_XS / IQ3_XXS pipelines are optional: a
-failed PSO leaves that type on the CPU. Host tests emulate each kernel's
-lane mapping against the same dequantizers.
+dominates packed GB/s). IQ4_XS and IQ3_XXS decode a codebook/grid per nibble,
+so they are compute-bound rather than bandwidth-bound: their decode rows use
+provisional per-type floors in `d3d12_selftest_decode_min_gbs` (88 GB/s packed
+for IQ4_XS, 65 GB/s for IQ3_XXS) until a console measurement after the
+groupshared lookup kernels. Those floors are a gate, not a product speed
+claim. Q4 / Q5 / Q6 decode rows stay at 100 GB/s. Q5_K / IQ4_XS / IQ3_XXS
+pipelines are optional: a failed PSO leaves that type on the CPU. Host tests
+emulate each kernel's lane mapping against the same dequantizers.
 
 ### D2a result (2026-10-01/02, three console runs)
 

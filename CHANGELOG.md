@@ -11,9 +11,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   those weight types for MUL_MAT once the matching compute pipelines are
   present (same q8 activation path and selftest contract as Q4_0 / Q4_K /
   Q6_K). A failed Q5_K / IQ4_XS / IQ3_XXS pipeline creation leaves that type
-  on the CPU and does not take down the backend. The 3×256 IQ3_XXS selftest
+  on the CPU and does not take down the backend. IQ4_XS / IQ3_XXS decode
+  kernels keep the codebook/grid in groupshared. The 3×256 IQ3_XXS selftest
   row is a 98-byte unaligned-row correctness case and is excluded from the
-  ≥100 GB/s decode gate. Catalogue Q4_0 / Q6_K models are unchanged. See
+  decode speed gate. IQ decode rows use provisional per-type packed floors
+  (codebook-bound; not a product speed claim); every other type stays at
+  ≥100 GB/s. Catalogue Q4_0 / Q6_K models are unchanged. See
   [GGUF GPU decode](docs/gguf-gpu-decode.md).
 
 - **Hybrid-cache prefix snapshots.** GGUF sessions already reuse a supported
