@@ -6,6 +6,7 @@
 
 #include "xllama/session.h"
 #include "xllama/chat_prompt.h"
+#include "xllama/context_shift.h"
 #include "xllama/inference_params.h"
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
@@ -562,8 +563,9 @@ class LlamaSession final : public Session {
                 log_output("[xllama] session: failed to create context\n");
                 return false;
             }
-            m_can_shift = llama_memory_can_shift(llama_get_memory(m_ctx.get())) &&
-                          llama_model_n_swa(m_model.get()) == 0;
+            m_can_shift =
+                context_shift_allowed(llama_memory_can_shift(llama_get_memory(m_ctx.get())),
+                                      static_cast<int>(llama_model_n_swa(m_model.get())));
             m_needs_prefix_snapshot =
                 m_prefix_snapshots &&
                 (llama_model_is_hybrid(m_model.get()) || llama_model_is_recurrent(m_model.get()));

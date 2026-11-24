@@ -132,3 +132,59 @@ TEST_CASE("Session: granitehybrid prefix snapshot restore (#512/#525, "
     REQUIRE_MESSAGE(c_restore.success, c_restore.error_msg);
     CHECK(r_restore.output_text == c_restore.output_text);
 }
+
+// #527: granitehybrid logs can_shift=1. Overflow must take the #169 path
+// (success, not "context full") because llama.cpp reports memory_can_shift
+// from the attention half. This does *not* prove cold vs post-shift
+// continuation parity — that comparison is a follow-up, not a default change.
+TEST_CASE("Session: granitehybrid context shift on overflow (#527, "
+          "opt-in: XLLAMA_GRANITE_H_TINY)") {
+    const char* model = granite_h_tiny_path();
+    if (!model) {
+        MESSAGE("SKIP: XLLAMA_GRANITE_H_TINY is unset — overflow shift is "
+                "not exercised in CI.");
+        return;
+    }
+
+    const ChatFormat fmt = chat_format_for(model);
+    REQUIRE(fmt.kind == ChatFormatKind::Granite);
+
+    SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 96;
+    sp.n_threads = 4;
+    sp.n_gpu_layers = 0;
+    sp.prefix_snapshots = true;
+    std::string error;
+    auto sess = Session::create(sp, &error);
+    REQUIRE_MESSAGE(sess, error);
+
+    const std::string sys = "You are a helpful assistant.";
+    const std::string seed_prompt = fmt.render_prompt(sys, {}, "Name a colour.");
+    const int n_keep = sess->count_tokens(fmt.render_system_prefix(sys));
+    REQUIRE(n_keep > 0);
+
+    GenerateParams seed = greedy(seed_prompt, fmt, 8);
+    seed.reuse_kv = true;
+    seed.reset_kv = true;
+    seed.n_keep = n_keep;
+    const auto r_seed = sess->generate(seed);
+    REQUIRE_MESSAGE(r_seed.success, r_seed.error_msg);
+    REQUIRE(sess->can_context_shift());
+
+    int total_tokens = sess->count_tokens(seed_prompt) + r_seed.n_eval;
+    bool saw_shift_success = false;
+    for (int i = 0; i < 12; ++i) {
+        GenerateParams cont =
+            greedy(fmt.render_delta("And another colour, please.", /*stop=*/true), fmt, 8);
+        cont.reuse_kv = true;
+        cont.reset_kv = false;
+        cont.n_keep = n_keep;
+        const auto rc = sess->generate(cont);
+        REQUIRE_MESSAGE(rc.success, rc.error_msg);
+        total_tokens += rc.n_p_eval + rc.n_eval;
+        if (total_tokens > sp.n_ctx)
+            saw_shift_success = true;
+    }
+    CHECK(saw_shift_success);
+}
