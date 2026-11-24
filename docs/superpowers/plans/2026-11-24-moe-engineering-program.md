@@ -252,7 +252,7 @@ Suggested work allocation (roles, not assignments): maintainer owns issue alignm
 
 ### 6.1 Cost and budget
 
-Work proceeds within the project's daily usage cap. **M0 first.** M1 starts only if Granite passes the quality bar **and** after a new explicit owner approval (and only after the #522 pin-bump regression, or an explicit deferral of that bump). M2 stays contributor-led ([#479](https://github.com/gianlucamazza/xllama/issues/479)–[#481](https://github.com/gianlucamazza/xllama/issues/481), no parallel extraction). M3–M5 stay parked until a later decision.
+Work proceeds within the daily usage cap (FLOW §7.9). Work stops when weekly usage reaches 80%. **M0 first.** M1 starts only if Granite passes the quality bar **and** after a new explicit owner approval (and only after the #522 pin-bump regression, or an explicit deferral of that bump). M2 stays contributor-led ([#479](https://github.com/gianlucamazza/xllama/issues/479)–[#481](https://github.com/gianlucamazza/xllama/issues/481), no parallel extraction). M3–M5 stay parked until a later decision.
 
 ## 7. Validation protocol and quality gates
 
