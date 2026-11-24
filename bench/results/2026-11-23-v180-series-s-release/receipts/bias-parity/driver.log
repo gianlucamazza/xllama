@@ -1,0 +1,88 @@
+# bias run start 2026-11-23T21:58:17+01:00 pfn=GianlucaMazza.xllama_1.8.0.1721_x64__pj67f1fcj4n14
+selftest off exit=0
+selftest on exit=0
+Fetched logits.done -> <run>/out/bias/qwen25-coder-3b-u512-off/logits.done
+Fetched logits.bin -> <run>/out/bias/qwen25-coder-3b-u512-off/logits.bin
+Fetched logits.bin.json -> <run>/out/bias/qwen25-coder-3b-u512-off/logits.bin.json
+Fetched logits.bin.positions.bin -> <run>/out/bias/qwen25-coder-3b-u512-off/logits.bin.positions.bin
+Fetched logits.bin.positions.json -> <run>/out/bias/qwen25-coder-3b-u512-off/logits.bin.positions.json
+<run>/out/bias/qwen25-coder-3b-u512-off: d3d12: bias_add=0 resolved_gpu_layers=99 done=ok
+Fetched logits.done -> <run>/out/bias/qwen25-coder-3b-u512-on/logits.done
+Fetched logits.bin -> <run>/out/bias/qwen25-coder-3b-u512-on/logits.bin
+Fetched logits.bin.json -> <run>/out/bias/qwen25-coder-3b-u512-on/logits.bin.json
+Fetched logits.bin.positions.bin -> <run>/out/bias/qwen25-coder-3b-u512-on/logits.bin.positions.bin
+Fetched logits.bin.positions.json -> <run>/out/bias/qwen25-coder-3b-u512-on/logits.bin.positions.json
+<run>/out/bias/qwen25-coder-3b-u512-on: d3d12: bias_add=1 resolved_gpu_layers=99 done=ok
+CMP qwen25-coder-3b u512 logits.bin IDENTICAL 607744B
+CMP qwen25-coder-3b u512 logits.bin.positions.bin IDENTICAL 9723904B
+Fetched logits.done -> <run>/out/bias/qwen25-coder-3b-u1-off/logits.done
+Fetched logits.bin -> <run>/out/bias/qwen25-coder-3b-u1-off/logits.bin
+Fetched logits.bin.json -> <run>/out/bias/qwen25-coder-3b-u1-off/logits.bin.json
+Fetched logits.bin.positions.bin -> <run>/out/bias/qwen25-coder-3b-u1-off/logits.bin.positions.bin
+Fetched logits.bin.positions.json -> <run>/out/bias/qwen25-coder-3b-u1-off/logits.bin.positions.json
+<run>/out/bias/qwen25-coder-3b-u1-off: d3d12: bias_add=0 resolved_gpu_layers=99 done=ok
+Fetched logits.done -> <run>/out/bias/qwen25-coder-3b-u1-on/logits.done
+Fetched logits.bin -> <run>/out/bias/qwen25-coder-3b-u1-on/logits.bin
+Fetched logits.bin.json -> <run>/out/bias/qwen25-coder-3b-u1-on/logits.bin.json
+Fetched logits.bin.positions.bin -> <run>/out/bias/qwen25-coder-3b-u1-on/logits.bin.positions.bin
+Fetched logits.bin.positions.json -> <run>/out/bias/qwen25-coder-3b-u1-on/logits.bin.positions.json
+<run>/out/bias/qwen25-coder-3b-u1-on: d3d12: bias_add=1 resolved_gpu_layers=99 done=ok
+CMP qwen25-coder-3b u1 logits.bin IDENTICAL 607744B
+CMP qwen25-coder-3b u1 logits.bin.positions.bin IDENTICAL 9723904B
+Fetched logits.done -> <run>/out/bias/qwen25-coder-1.5b-u512-off/logits.done
+Fetched logits.bin -> <run>/out/bias/qwen25-coder-1.5b-u512-off/logits.bin
+Fetched logits.bin.json -> <run>/out/bias/qwen25-coder-1.5b-u512-off/logits.bin.json
+Fetched logits.bin.positions.bin -> <run>/out/bias/qwen25-coder-1.5b-u512-off/logits.bin.positions.bin
+Fetched logits.bin.positions.json -> <run>/out/bias/qwen25-coder-1.5b-u512-off/logits.bin.positions.json
+<run>/out/bias/qwen25-coder-1.5b-u512-off: d3d12: bias_add=0 resolved_gpu_layers=99 done=ok
+Fetched logits.done -> <run>/out/bias/qwen25-coder-1.5b-u512-on/logits.done
+Fetched logits.bin -> <run>/out/bias/qwen25-coder-1.5b-u512-on/logits.bin
+Fetched logits.bin.json -> <run>/out/bias/qwen25-coder-1.5b-u512-on/logits.bin.json
+Fetched logits.bin.positions.bin -> <run>/out/bias/qwen25-coder-1.5b-u512-on/logits.bin.positions.bin
+Fetched logits.bin.positions.json -> <run>/out/bias/qwen25-coder-1.5b-u512-on/logits.bin.positions.json
+<run>/out/bias/qwen25-coder-1.5b-u512-on: d3d12: bias_add=1 resolved_gpu_layers=99 done=ok
+CMP qwen25-coder-1.5b u512 logits.bin IDENTICAL 607744B
+CMP qwen25-coder-1.5b u512 logits.bin.positions.bin IDENTICAL 9723904B
+Fetched logits.done -> <run>/out/bias/qwen25-coder-1.5b-u1-off/logits.done
+Fetched logits.bin -> <run>/out/bias/qwen25-coder-1.5b-u1-off/logits.bin
+Fetched logits.bin.json -> <run>/out/bias/qwen25-coder-1.5b-u1-off/logits.bin.json
+Fetched logits.bin.positions.bin -> <run>/out/bias/qwen25-coder-1.5b-u1-off/logits.bin.positions.bin
+Fetched logits.bin.positions.json -> <run>/out/bias/qwen25-coder-1.5b-u1-off/logits.bin.positions.json
+<run>/out/bias/qwen25-coder-1.5b-u1-off: d3d12: bias_add=0 resolved_gpu_layers=99 done=ok
+Fetched logits.done -> <run>/out/bias/qwen25-coder-1.5b-u1-on/logits.done
+Fetched logits.bin -> <run>/out/bias/qwen25-coder-1.5b-u1-on/logits.bin
+Fetched logits.bin.json -> <run>/out/bias/qwen25-coder-1.5b-u1-on/logits.bin.json
+Fetched logits.bin.positions.bin -> <run>/out/bias/qwen25-coder-1.5b-u1-on/logits.bin.positions.bin
+Fetched logits.bin.positions.json -> <run>/out/bias/qwen25-coder-1.5b-u1-on/logits.bin.positions.json
+<run>/out/bias/qwen25-coder-1.5b-u1-on: d3d12: bias_add=1 resolved_gpu_layers=99 done=ok
+CMP qwen25-coder-1.5b u1 logits.bin IDENTICAL 607744B
+CMP qwen25-coder-1.5b u1 logits.bin.positions.bin IDENTICAL 9723904B
+Fetched logits.done -> <run>/out/bias/lfm25-1.2b-instruct-u512-off/logits.done
+Fetched logits.bin -> <run>/out/bias/lfm25-1.2b-instruct-u512-off/logits.bin
+Fetched logits.bin.json -> <run>/out/bias/lfm25-1.2b-instruct-u512-off/logits.bin.json
+Fetched logits.bin.positions.bin -> <run>/out/bias/lfm25-1.2b-instruct-u512-off/logits.bin.positions.bin
+Fetched logits.bin.positions.json -> <run>/out/bias/lfm25-1.2b-instruct-u512-off/logits.bin.positions.json
+<run>/out/bias/lfm25-1.2b-instruct-u512-off: d3d12: bias_add=0 resolved_gpu_layers=99 done=ok
+Fetched logits.done -> <run>/out/bias/lfm25-1.2b-instruct-u512-on/logits.done
+Fetched logits.bin -> <run>/out/bias/lfm25-1.2b-instruct-u512-on/logits.bin
+Fetched logits.bin.json -> <run>/out/bias/lfm25-1.2b-instruct-u512-on/logits.bin.json
+Fetched logits.bin.positions.bin -> <run>/out/bias/lfm25-1.2b-instruct-u512-on/logits.bin.positions.bin
+Fetched logits.bin.positions.json -> <run>/out/bias/lfm25-1.2b-instruct-u512-on/logits.bin.positions.json
+<run>/out/bias/lfm25-1.2b-instruct-u512-on: d3d12: bias_add=1 resolved_gpu_layers=99 done=ok
+CMP lfm25-1.2b-instruct u512 logits.bin IDENTICAL 262144B
+CMP lfm25-1.2b-instruct u512 logits.bin.positions.bin IDENTICAL 4456448B
+Fetched logits.done -> <run>/out/bias/lfm25-1.2b-instruct-u1-off/logits.done
+Fetched logits.bin -> <run>/out/bias/lfm25-1.2b-instruct-u1-off/logits.bin
+Fetched logits.bin.json -> <run>/out/bias/lfm25-1.2b-instruct-u1-off/logits.bin.json
+Fetched logits.bin.positions.bin -> <run>/out/bias/lfm25-1.2b-instruct-u1-off/logits.bin.positions.bin
+Fetched logits.bin.positions.json -> <run>/out/bias/lfm25-1.2b-instruct-u1-off/logits.bin.positions.json
+<run>/out/bias/lfm25-1.2b-instruct-u1-off: d3d12: bias_add=0 resolved_gpu_layers=99 done=ok
+Fetched logits.done -> <run>/out/bias/lfm25-1.2b-instruct-u1-on/logits.done
+Fetched logits.bin -> <run>/out/bias/lfm25-1.2b-instruct-u1-on/logits.bin
+Fetched logits.bin.json -> <run>/out/bias/lfm25-1.2b-instruct-u1-on/logits.bin.json
+Fetched logits.bin.positions.bin -> <run>/out/bias/lfm25-1.2b-instruct-u1-on/logits.bin.positions.bin
+Fetched logits.bin.positions.json -> <run>/out/bias/lfm25-1.2b-instruct-u1-on/logits.bin.positions.json
+<run>/out/bias/lfm25-1.2b-instruct-u1-on: d3d12: bias_add=1 resolved_gpu_layers=99 done=ok
+CMP lfm25-1.2b-instruct u1 logits.bin IDENTICAL 262144B
+CMP lfm25-1.2b-instruct u1 logits.bin.positions.bin IDENTICAL 4456448B
+# bias run exit=0 end 2026-11-23T22:02:29+01:00

@@ -1,0 +1,14 @@
+[xllama] logits.flag detected -> headless logit-parity dump
+[xllama] logits model: lfm25-1.2b-instruct
+[xllama] logits prompt: The following is a technical overview of heterogeneous computing architectures u
+[xllama] d3d12: bias_add=0
+[xllama] d3d12: dispatch_timing=0
+[xllama] d3d12: D3D12_Weights buffer 660.8 MiB
+[xllama] d3d12: D3D12_Host buffer 70.0 MiB
+[xllama] d3d12: D3D12_Host buffer 4.2 MiB
+[xllama] d3d12-phase phase=prefill calls=72 submissions=72 dispatches=94 wall_ms=904.313 quant_ms=26.379 record_ms=1.457 exec_wait_ms=874.142 gpu_ms=865.366 ts_valid=72 ts_missing=0
+[xllama] logits dumped to Q:\Users\<user>\AppData\Local\Packages\GianlucaMazza.xllama_pj67f1fcj4n14\LocalState\logits.bin
+[xllama] d3d12-phase phase=decode calls=72 submissions=72 dispatches=94 wall_ms=9.533 quant_ms=0.102 record_ms=0.189 exec_wait_ms=8.957 gpu_ms=5.695 ts_valid=72 ts_missing=0
+[xllama] d3d12: 144 graph_compute calls, 188 dispatches, 913.8 ms wall (871.1 ms GPU)
+[xllama] logits: requested_gpu_layers=99 resolved_gpu_layers=99
+[xllama] logits dump OK
