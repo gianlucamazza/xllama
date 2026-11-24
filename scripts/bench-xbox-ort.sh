@@ -194,12 +194,14 @@ esac
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck disable=SC1090,SC1091
+source "${SCRIPT_DIR}/wdp-curl-auth.sh"
+# shellcheck disable=SC1090,SC1091
 source "${SCRIPT_DIR}/wdp-file-upload.sh"
+wdp_setup_curl_auth
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEPLOY="${SCRIPT_DIR}/deploy.sh"
 STATUS_PY="${SCRIPT_DIR}/bench_run_status.py"
 BASE_URL="https://${XBOX_IP}:11443"
-CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
 
 echo "=== xllama bench-xbox-ort ==="
 echo "  Model:   $MODEL_NAME"
@@ -287,6 +289,7 @@ cleanup() {
 	# A declaration belongs to this invocation, not to a later manual bench.
 	delete_from_localstate "bench_hardware.txt"
 	rm -rf "$TMPDIR_LOCAL"
+	wdp_curl_auth_cleanup
 }
 trap cleanup EXIT
 

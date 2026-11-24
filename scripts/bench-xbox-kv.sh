@@ -97,8 +97,10 @@ printf 'hardware: %s (operator-declared)\ngpu_layers: %s\n' "$HARDWARE" "$GPU_LA
 : "${XBOX_IP:?XBOX_IP not set — run: source ~/.config/xllama/xbox-env}"
 : "${XBOX_USER:?XBOX_USER not set}"
 : "${XBOX_PASS:?XBOX_PASS not set}"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/wdp-curl-auth.sh"
+wdp_setup_curl_auth
 BASE_URL="https://${XBOX_IP}:11443"
-CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
 
 CSRF_TOKEN=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
 	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' |
@@ -139,7 +141,8 @@ remove() {
 # These declarations belong to this invocation, not later manual runs.
 trap 'remove "bench_hardware.txt"
 remove "bench_gpu_layers.txt"
-rm -rf "$TMPDIR_LOCAL"' EXIT
+rm -rf "$TMPDIR_LOCAL"
+wdp_curl_auth_cleanup' EXIT
 
 restart_app() {
 	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X DELETE \

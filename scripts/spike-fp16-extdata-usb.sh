@@ -63,6 +63,9 @@ PROMPT_SRC="${PROMPT_FILE:-${REPO_ROOT}/bench/prompts/long-1k.txt}"
 OUT_CSV="${REPO_ROOT}/bench/results/phase6-fp16-extdata.csv"
 TMPDIR_LOCAL="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR_LOCAL"' EXIT
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/wdp-curl-auth.sh"
+wdp_setup_curl_auth
 
 echo "=== Fase 0 spike: fp16 + external data from USB ==="
 echo "  Model (USB): $MODEL_NAME"
@@ -106,7 +109,7 @@ cat >"${TMPDIR_LOCAL}/settings.json" <<EOF
 }
 EOF
 # Clear the log so the verdict grep only sees this attempt.
-curl --basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS -X DELETE \
+curl "${CURL_AUTH[@]}" -X DELETE \
 	"https://${XBOX_IP}:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState&filename=xllama.log" \
 	>/dev/null 2>&1 || true
 "${DEPLOY}" upload-file "${TMPDIR_LOCAL}/settings.json" "$PFN" >/dev/null 2>&1 || true

@@ -65,6 +65,9 @@ WORK_DIR="/tmp/xllama-install-$$"
 
 cleanup() { rm -rf "$WORK_DIR"; }
 trap cleanup EXIT
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/wdp-curl-auth.sh"
+wdp_setup_curl_auth
 
 echo "==> Looking for latest successful build-uwp run on branch: ${BRANCH} (artifact: ${ARTIFACT_NAME})"
 
@@ -129,10 +132,10 @@ echo "==> Found MSIX: $MSIX"
 
 # Uninstall current version first to avoid MSIX update requiring space for both old+new.
 echo "==> Uninstalling current version (if any) ..."
-CSRF=$(curl --basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS "https://${XBOX_IP}:11443/" \
+CSRF=$(curl "${CURL_AUTH[@]}" "https://${XBOX_IP}:11443/" \
 	-o /dev/null -D - 2>/dev/null |
 	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' | tr -d '\r' | head -1)
-CURRENT_PFN=$(curl --basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS \
+CURRENT_PFN=$(curl "${CURL_AUTH[@]}" \
 	"https://${XBOX_IP}:11443/api/app/packagemanager/packages" |
 	python3 -c 'import json,sys,os; d=json.load(sys.stdin); [print(p["PackageFullName"]) for p in d.get("InstalledPackages",[]) if any(a in p.get("PackageRelativeId","") for a in ("GianlucaMazza.xllama","VenereLabs.xllama"))]' 2>/dev/null || true)
 if [[ -n "$CURRENT_PFN" ]]; then
@@ -143,7 +146,7 @@ if [[ -n "$CURRENT_PFN" ]]; then
 		# --fail: WDP reports uninstall errors via HTTP status; without it a
 		# failed DELETE would print "Uninstalled" and leave the old identity
 		# registered while the install continues.
-		if ! curl --basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS --fail \
+		if ! curl "${CURL_AUTH[@]}" --fail \
 			-H "X-CSRF-Token:${CSRF}" -X DELETE \
 			"https://${XBOX_IP}:11443/api/app/packagemanager/package?package=${pfn}" >/dev/null; then
 			echo "ERROR: failed to uninstall ${pfn}; aborting before install" >&2
