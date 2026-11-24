@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.1]
+
+User-facing notes: [docs/releases/v1.8.1.md](docs/releases/v1.8.1.md).
+
 - **Device Portal credentials off argv.** Console scripts pass `XBOX_USER`/`XBOX_PASS` to curl through a 0600 `-K` config file instead of `-u` on the command line.
 
 - **Opt-in GPU ROPE for d3d12 GGUF layers.** With
