@@ -1121,7 +1121,10 @@ matmul, with the staging buffer unallocated: the log line `rope cold_scratch=1`
 marks it, and `bench-d3d12-selftest.sh --require-rope` fails without it. (A
 `ROPE` always stages its cos/sin table, so the buffer exists before the first
 dispatch; this row is the test of that claim on the console.) End-to-end parity stays a logit dump per arm
-(ADR 0010).
+(ADR 0010). Series S console self-test at `d599486` (2026-11-24), correctness
+and bit-identity only (no speed claim):
+`bench/results/d3d12-selftest-d599486-rope-20261124.csv` (ROPE knob on,
+`--require-rope`, GATE=PASS 34/34, all ten `rope_*` rows bit-identical).
 
 Measured on Series X (Game designation, `long-1k`, `--gpu-layers 99`; Series S
 not measured): submissions per decoded token with both knobs are Bielik 241,
