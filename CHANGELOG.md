@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Device Portal credentials off argv.** Console scripts pass `XBOX_USER`/`XBOX_PASS` to curl through a 0600 `-K` config file instead of `-u` on the command line.
+
 - **Opt-in GPU ROPE for d3d12 GGUF layers.** With
   `LocalState\d3d12-rope.txt` set to `1`, plain F32 NORMAL/NEOX `ROPE` (no
   `freq_factors`, no YaRN) runs on the d3d12 backend, so q/k/v of a layer form

@@ -43,7 +43,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEPLOY="${SCRIPT_DIR}/deploy.sh"
 BASE_URL="https://${XBOX_IP}:11443"
-CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/wdp-curl-auth.sh"
+wdp_setup_curl_auth
 
 CSRF_TOKEN=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
 	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' |
@@ -154,6 +156,10 @@ console_exit() {
 	else
 		release_original_recovery_dir
 		rm -rf "$TMPDIR_LOCAL"
+	fi
+	# console tests extract this function without sourcing wdp-curl-auth.sh
+	if declare -F wdp_curl_auth_cleanup >/dev/null 2>&1; then
+		wdp_curl_auth_cleanup
 	fi
 	exit "$rc"
 }

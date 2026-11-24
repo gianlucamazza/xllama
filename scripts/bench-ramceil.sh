@@ -33,7 +33,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEPLOY="${SCRIPT_DIR}/deploy.sh"
 BASE_URL="https://${XBOX_IP}:11443"
-CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/wdp-curl-auth.sh"
+wdp_setup_curl_auth
 
 OUT="${REPO_ROOT}/bench/results/phase15-ramceil.csv"
 while [[ $# -gt 0 ]]; do
@@ -61,7 +63,7 @@ PFN=$("${DEPLOY}" pfn 2>/dev/null)
 }
 
 TMPDIR_LOCAL=$(mktemp -d)
-trap 'rm -rf "$TMPDIR_LOCAL"' EXIT
+trap 'rm -rf "$TMPDIR_LOCAL"; wdp_curl_auth_cleanup' EXIT
 
 upload() {
 	local local_path="$1" remote_name="${2:-}"

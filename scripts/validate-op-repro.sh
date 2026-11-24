@@ -32,7 +32,9 @@ TOLERANCE="${TOLERANCE:-0.01}"
 OPT_LEVEL="${OPT_LEVEL:-disable}"
 
 BASE_URL="https://${XBOX_IP}:11443"
-CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/wdp-curl-auth.sh"
+wdp_setup_curl_auth
 
 CSRF_TOKEN=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
 	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' | tr -d '\r' | head -n1)
@@ -45,7 +47,7 @@ PFN=$("${DEPLOY}" pfn 2>/dev/null)
 }
 
 TMPDIR_LOCAL=$(mktemp -d)
-trap 'rm -rf "$TMPDIR_LOCAL"' EXIT
+trap 'rm -rf "$TMPDIR_LOCAL"; wdp_curl_auth_cleanup' EXIT
 
 WDP_FILE="${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState"
 

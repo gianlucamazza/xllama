@@ -37,7 +37,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEPLOY="${SCRIPT_DIR}/deploy.sh"
 BASE_URL="https://${XBOX_IP}:11443"
-CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/wdp-curl-auth.sh"
+wdp_setup_curl_auth
 
 OUT_DIR="${REPO_ROOT}/docs/screenshots/store"
 MODEL="lfm25-350m"
@@ -78,7 +80,7 @@ PFN=$("${DEPLOY}" pfn 2>/dev/null)
 }
 
 WORK=$(mktemp -d)
-trap 'rm -rf "$WORK"' EXIT
+trap 'rm -rf "$WORK"; wdp_curl_auth_cleanup' EXIT
 
 FILE_EP="${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState"
 

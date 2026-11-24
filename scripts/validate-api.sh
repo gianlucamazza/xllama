@@ -54,10 +54,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck disable=SC1090,SC1091
+source "${SCRIPT_DIR}/wdp-curl-auth.sh"
+# shellcheck disable=SC1090,SC1091
 source "${SCRIPT_DIR}/wdp-file-upload.sh"
+wdp_setup_curl_auth
 DEPLOY="${SCRIPT_DIR}/deploy.sh"
 BASE_URL="https://${XBOX_IP}:11443"
-CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
 
 PORT="${API_PORT:-11434}"
 MODEL="${MODEL:-lfm25-350m}"
@@ -81,7 +83,7 @@ if [[ -n "${XLLAMA_EXPECTED_PFN:-}" && "$PFN" != "$XLLAMA_EXPECTED_PFN" ]]; then
 fi
 
 TMPDIR_LOCAL=$(mktemp -d)
-trap 'rm -rf "$TMPDIR_LOCAL"' EXIT
+trap 'rm -rf "$TMPDIR_LOCAL"; wdp_curl_auth_cleanup' EXIT
 
 # --- WDP helpers (same idioms as validate-console.sh) ----------------------
 

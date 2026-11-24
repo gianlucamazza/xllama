@@ -51,20 +51,21 @@ done
 : "${XBOX_USER:?Set XBOX_USER}"
 : "${XBOX_PASS:?Set XBOX_PASS}"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/wdp-curl-auth.sh"
+wdp_setup_curl_auth
 BASE="https://${XBOX_IP}:11443"
-AUTH="--basic -u ${XBOX_USER}:${XBOX_PASS}"
-CURL="curl -sS -k ${AUTH}"
 
 # Xbox WDP requires X-CSRF-Token on all POST/DELETE requests (see deploy.sh);
 # without it uploads fail silently and the device keeps the stock config.
-CSRF_TOKEN=$($CURL "${BASE}/" -o /dev/null -D - 2>/dev/null |
+CSRF_TOKEN=$(curl "${CURL_AUTH[@]}" "${BASE}/" -o /dev/null -D - 2>/dev/null |
 	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' |
 	tr -d '\r' | head -n 1)
 if [[ -z "$CSRF_TOKEN" ]]; then
 	echo "ERROR: failed to extract CSRF token — uploads would fail" >&2
 	exit 1
 fi
-CURL_POST="${CURL} -H X-CSRF-Token:${CSRF_TOKEN}"
 
 # Get package full name
 PFN=$(./scripts/deploy.sh pfn 2>/dev/null)
@@ -78,9 +79,9 @@ MODEL_DIR="models\\${MODEL}"
 if [[ "$RESTORE" == "true" ]]; then
 	echo "Restoring original genai_config.json from backup..."
 	# Download backup and re-upload as genai_config.json
-	$CURL "https://${XBOX_IP}:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}&filename=genai_config.json.bak" \
+	curl "${CURL_AUTH[@]}" "https://${XBOX_IP}:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}&filename=genai_config.json.bak" \
 		-o /tmp/genai_config_orig.json
-	$CURL_POST -X POST "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}" \
+	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X POST "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}" \
 		-F "file=@/tmp/genai_config_orig.json;filename=genai_config.json"
 	echo "Restored. Restart the app and check the log."
 	exit 0
@@ -88,19 +89,19 @@ fi
 
 # Backup original
 echo "Backing up current genai_config.json to genai_config.json.bak..."
-$CURL "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}&filename=genai_config.json" \
+curl "${CURL_AUTH[@]}" "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}&filename=genai_config.json" \
 	-o /tmp/genai_config_orig.json
 
-$CURL_POST -X POST "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}" \
+curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X POST "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}" \
 	-F "file=@/tmp/genai_config_orig.json;filename=genai_config.json.bak" 2>/dev/null || true
 
 # Upload DML test config
 echo "Uploading DML config: ${CONFIG} ..."
-$CURL_POST -X POST "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}" \
+curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X POST "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}" \
 	-F "file=@${CONFIG};filename=genai_config.json"
 
 # Verify the swap actually landed — WDP failures here have been silent before.
-$CURL "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}&filename=genai_config.json" \
+curl "${CURL_AUTH[@]}" "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}&filename=genai_config.json" \
 	-o /tmp/genai_config_uploaded.json || true
 if ! cmp -s /tmp/genai_config_uploaded.json "$CONFIG"; then
 	echo "ERROR: on-device genai_config.json does not match ${CONFIG} after upload" >&2
