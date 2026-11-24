@@ -1,0 +1,4 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index,prefill_ms,ttft_ms
+granite40-h-tiny,Q3_K_S,cpu,2048,6,57.41,21.66,3100,9005,0,0,312,96,0,xbox-series-s-declared,2026-11-24T01:40:25Z,2,5434.6,5435.3
+granite40-h-tiny,Q3_K_S,cpu,2048,6,57.34,21.73,3100,9055,0,0,312,96,0,xbox-series-s-declared,2026-11-24T01:41:02Z,3,5441.6,5442.3
+granite40-h-tiny,Q3_K_S,cpu,2048,6,56.94,21.75,3100,8951,0,0,312,96,0,xbox-series-s-declared,2026-11-24T01:41:39Z,4,5479.8,5480.5
