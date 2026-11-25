@@ -1,5 +1,7 @@
 # MoE streaming for every candidate model: implementation plan
 
+**Plan of record:** which architectures are expanded, in which order and under which gate, is milestone **M4** of the [evidence-gated MoE engineering program](2026-11-24-moe-engineering-program.md) (#532). This document keeps the architecture table, pins and per-architecture ladder it relies on; where the two disagree, the program wins.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the optional SSD expert-streaming path model-generic, so every model in the [candidate list](../../research/moe-streaming-candidates.md) can be admitted, verified and measured through one mechanism instead of one hard-coded 24B pin.

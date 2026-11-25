@@ -9,6 +9,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(doctest)
 
 add_executable(xllama-tests
+    test_main.cpp
     test_cli.cpp
     test_utf8.cpp
     test_path.cpp
@@ -23,6 +24,7 @@ add_executable(xllama-tests
     test_sampling.cpp
     test_decode_loop.cpp
     test_inference_progress.cpp
+    test_local_knob.cpp
     test_chat_prompt.cpp
     test_prompt_budget.cpp
     test_session_spec.cpp

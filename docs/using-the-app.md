@@ -205,8 +205,9 @@ are not routed per conversation.
   including a turn that changes only the last few tokens of the previous
   prompt) are on by default; `hybrid-prefix-snapshots.txt` = `0` opts out.
 - **Thread count:** `gguf_n_threads.txt` in LocalState sets llama.cpp threads
-  for interactive GGUF chat (GUI and LAN API). Absent, `0`, or an invalid
-  value keeps auto-detect (capped at 6 on UWP). This does not change
+  for interactive GGUF chat (GUI and LAN API). Absent, `0`, an invalid
+  value, or one above 512 keeps auto-detect (capped at 6 on UWP); a valid
+  value is not capped at 6. This does not change
   GPU-layer placement. Headless bench still uses `bench_threads.txt`.
 
 Settings persist to `LocalState\settings.json` and take effect on the next

@@ -3,6 +3,10 @@
 
 #include <doctest/doctest.h>
 
+#include <cmath>
+
+#include "llama.h"
+
 #include "xllama/api_policy.h"
 #include "xllama/prompt_budget.h"
 #include "xllama/routing_policy.h"
@@ -724,4 +728,137 @@ TEST_CASE("a grammar-constrained tool call stops at its end marker (opt-in: XLLA
         CHECK(parsed.calls[0].name == "ping");
         CHECK(r.n_eval < gp.n_predict); // stopped at the call, not at the cap
     }
+}
+
+// #563: with tool_choice required or a named function the reply must be a call.
+// The template grammar decides that, not the sampler: before the fix the LFM2
+// REQUIRED grammar was content(until <|tool_call_start|>) + calls, so free text
+// was a legal start. On the console lfm25-1.2b-instruct then spent max_tokens
+// 60 on "Ho controllato la directory…" and returned no call (2 of 4 named
+// requests), while host CPU logits happened to start with the call. This
+// checks the grammar itself: after the generation prompt, a text token must be
+// rejected and the call marker accepted. Vocabulary only, no weights.
+TEST_CASE("a required or named tool choice admits no text before the call (opt-in: "
+          "XLLAMA_TOOL_MODEL)") {
+    const char* model_env = std::getenv("XLLAMA_TOOL_MODEL");
+    if (!model_env)
+        return;
+    llama_model_params mp = llama_model_default_params();
+    mp.vocab_only = true;
+    llama_model* vocab_model = llama_model_load_from_file(model_env, mp);
+    REQUIRE(vocab_model);
+    const llama_vocab* vocab = llama_model_get_vocab(vocab_model);
+    const char* tmpl = llama_model_chat_template(vocab_model, nullptr);
+    REQUIRE(tmpl);
+    const std::string jinja = tmpl;
+    const auto token_of = [&](const std::string& text) {
+        std::vector<llama_token> toks(8);
+        const int n = llama_tokenize(vocab, text.c_str(), static_cast<int32_t>(text.size()),
+                                     toks.data(), static_cast<int32_t>(toks.size()), false, true);
+        REQUIRE(n >= 1);
+        return toks[0];
+    };
+    const std::vector<xllama::ChatMessage> msgs{
+        message(xllama::ChatRole::System, "Reply in Italian."),
+        message(xllama::ChatRole::User, "quali file ci sono qui?")};
+    const std::vector<xllama::ToolSpec> tools{ping_tool()};
+    for (const auto choice : {xllama::ToolChoice::Required, xllama::ToolChoice::Named}) {
+        const auto rendered =
+            xllama::render_tool_prompt(nullptr, jinja, msgs, tools, choice, "ping");
+        REQUIRE_MESSAGE(rendered.ok, rendered.error);
+        REQUIRE_FALSE(rendered.grammar.lazy);
+        REQUIRE(rendered.preserved_tokens.size() >= 1);
+        llama_sampler* grammar =
+            llama_sampler_init_grammar(vocab, rendered.grammar.gbnf.c_str(), "root");
+        REQUIRE(grammar);
+        std::vector<llama_token> prefix(64);
+        const std::string& gen = rendered.grammar.generation_prompt;
+        const int n =
+            llama_tokenize(vocab, gen.c_str(), static_cast<int32_t>(gen.size()), prefix.data(),
+                           static_cast<int32_t>(prefix.size()), false, true);
+        REQUIRE(n >= 0);
+        for (int i = 0; i < n; ++i)
+            llama_sampler_accept(grammar, prefix[static_cast<size_t>(i)]);
+        const llama_token text = token_of("Ho");
+        const llama_token call = token_of(rendered.preserved_tokens.front());
+        std::vector<llama_token_data> cand{{text, 1.0f, 0.0f}, {call, 1.0f, 0.0f}};
+        llama_token_data_array arr{cand.data(), cand.size(), -1, false};
+        llama_sampler_apply(grammar, &arr);
+        CHECK_MESSAGE(std::isinf(cand[0].logit), "text token admitted before the call");
+        CHECK_FALSE(std::isinf(cand[1].logit));
+        llama_sampler_free(grammar);
+    }
+    llama_model_free(vocab_model);
+}
+
+// The console reproduction from #563 run end to end on host (lfm25-1.2b-instruct,
+// temperature 0.1, max_tokens 60, two Italian chat turns). Host logits start
+// with the call either way; this guards the pipeline (render, grammar, parse).
+TEST_CASE("tool_choice required or named returns a call, not text first (opt-in: "
+          "XLLAMA_TOOL_MODEL)") {
+    const char* model_env = std::getenv("XLLAMA_TOOL_MODEL");
+    if (!model_env)
+        return;
+    xllama::SessionParams sp;
+    sp.model_path = model_env;
+    sp.n_ctx = 2048;
+    std::string err;
+    auto session = xllama::Session::create(sp, &err);
+    REQUIRE_MESSAGE(session, err);
+    auto tool = [](const char* name, const char* desc, const char* params) {
+        xllama::ToolSpec t;
+        t.name = name;
+        t.description = desc;
+        t.parameters_json = params;
+        return t;
+    };
+    const std::vector<xllama::ToolSpec> tools{
+        tool("list_dir", "List a directory.",
+             R"({"type":"object","properties":{"path":{"type":"string","description":)"
+             R"("directory path, default ."}},"required":[]})"),
+        tool("read_file", "Read a text file. Returns numbered lines.",
+             R"({"type":"object","properties":{"path":{"type":"string"},"offset":)"
+             R"({"type":"integer"}},"required":["path"]})")};
+    const std::string system = "You are xlr, a helpful assistant. Use tools only when the request "
+                               "needs files or commands; otherwise just answer. Reply in Italian.";
+    const std::vector<std::vector<xllama::ChatMessage>> transcripts{
+        {message(xllama::ChatRole::System, system),
+         message(xllama::ChatRole::User, "quali file ci sono qui?")},
+        {message(xllama::ChatRole::System, system), message(xllama::ChatRole::User, "ciao"),
+         message(xllama::ChatRole::Assistant, "Ciao! Come posso aiutarti oggi?"),
+         message(xllama::ChatRole::User, "quali file ci sono qui?")}};
+    const void* model = session->resident_llama_model();
+    int calls = 0, runs = 0;
+    for (const auto& msgs : transcripts) {
+        for (const auto choice : {xllama::ToolChoice::Required, xllama::ToolChoice::Named}) {
+            const auto rendered =
+                xllama::render_tool_prompt(model, "", msgs, tools, choice, "list_dir");
+            REQUIRE_MESSAGE(rendered.ok, rendered.error);
+            for (uint32_t seed = 1; seed <= 4; ++seed) {
+                xllama::GenerateParams gp;
+                gp.prompt = rendered.prompt;
+                gp.n_predict = 60;
+                gp.temperature = 0.1f;
+                gp.seed = seed;
+                gp.stop_sequences = rendered.stop_sequences;
+                gp.preserved_tokens = rendered.preserved_tokens;
+                gp.grammar = rendered.grammar;
+                const auto r = session->generate(gp);
+                REQUIRE_MESSAGE(r.success, r.error_msg);
+                const bool cap = r.n_eval >= gp.n_predict;
+                const auto parsed = xllama::parse_tool_generation(model, "", msgs, tools, choice,
+                                                                  "list_dir", r.output_text, cap);
+                ++runs;
+                if (!parsed.calls.empty())
+                    ++calls;
+                else
+                    MESSAGE("no call (" << msgs.size() << " messages, seed " << seed
+                                        << "): " << r.output_text);
+                if (choice == xllama::ToolChoice::Named && !parsed.calls.empty())
+                    CHECK(parsed.calls[0].name == "list_dir");
+            }
+        }
+    }
+    MESSAGE("calls " << calls << "/" << runs);
+    CHECK(calls == runs);
 }

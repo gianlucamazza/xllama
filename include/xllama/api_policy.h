@@ -126,14 +126,4 @@ inline std::string validate_api_number(const char* key, double v, double lo, dou
     return std::string();
 }
 
-// Clamp a JSON number into [lo, hi] before converting it, for fields whose
-// contract is "clamped, never rejected" (image steps and seed). NaN takes `lo`.
-inline int clamp_api_int(double v, int lo, int hi) {
-    if (!(v >= lo))
-        return lo;
-    if (v > hi)
-        return hi;
-    return static_cast<int>(v);
-}
-
 } // namespace xllama

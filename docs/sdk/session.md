@@ -104,7 +104,8 @@ Configuration for creating a persistent session.
 
 On UWP, interactive GGUF chat (GUI and LAN API) reads
 `LocalState\gguf_n_threads.txt` through `resolve_session_params`. Absent, 0,
-or an invalid value keeps `n_threads` at 0 (auto). `bench_threads.txt`
+an invalid value, or one above `kGgufNThreadsMax` (ggml's thread-array size)
+keeps `n_threads` at 0 (auto). `bench_threads.txt`
 remains bench-only. Threads are a tuning knob, not load identity
 ([ADR 0007](../adr/0007-session-spec.md)).
 

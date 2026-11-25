@@ -52,6 +52,21 @@ set(LLAMA_BUILD_SERVER    OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_COMMON    ON  CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_TOOLS     ON  CACHE BOOL "" FORCE)
 
+# Every build compiles the patched pin (patches/README.md): host tests must run
+# the llama.cpp source the console ships. Configure checks, never applies, so
+# the submodule is only modified by an explicit scripts/apply-llama-patches.sh.
+file(GLOB XLLAMA_LLAMA_PATCHES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/patches/0*-*.patch")
+execute_process(
+    COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/scripts/apply-llama-patches.sh" --check
+    RESULT_VARIABLE XLLAMA_PATCH_CHECK
+    OUTPUT_VARIABLE XLLAMA_PATCH_CHECK_OUT
+    ERROR_VARIABLE XLLAMA_PATCH_CHECK_OUT)
+if(NOT XLLAMA_PATCH_CHECK EQUAL 0)
+    message(FATAL_ERROR "${XLLAMA_PATCH_CHECK_OUT}"
+                        "llama.cpp patches are not applied. Run: scripts/apply-llama-patches.sh")
+endif()
+message(STATUS "${XLLAMA_PATCH_CHECK_OUT}")
+
 add_subdirectory(llama.cpp)
 
 # ------------------------------------------------------------------
@@ -65,6 +80,7 @@ add_library(xllama STATIC
     src/bridge/bench.cpp
     src/bridge/platform.cpp
     src/bridge/path_utils.cpp
+    src/bridge/local_knob.cpp
     src/bridge/utf8_utils.cpp
     src/bridge/chat_prompt.cpp
     src/bridge/prompt_budget.cpp

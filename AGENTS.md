@@ -19,7 +19,8 @@ under `#ifdef XLLAMA_USE_ORT` (`src/bridge/inference.cpp`), with RAII for the
 OGA handles in `include/xllama/ort_raii.h`.
 
 `llama.cpp/` is a git submodule. Do not commit edits inside it. AppContainer
-fixes belong in `patches/` and are applied by `scripts/apply-uwp-patches.sh`.
+fixes and backports of upstream fixes belong in `patches/` and are applied by
+`scripts/apply-llama-patches.sh`, for the Linux build as well as UWP.
 
 ## Setup
 
@@ -27,6 +28,7 @@ Linux host toolchain (Ubuntu packages match CI):
 
 ```bash
 git submodule update --init --recursive
+./scripts/apply-llama-patches.sh   # CMake configure refuses an unpatched pin
 sudo apt-get install -y cmake build-essential libcurl4-openssl-dev
 ```
 
@@ -97,10 +99,10 @@ Where to put a change:
 ## Testing
 
 Host suite is one doctest binary, `xllama-tests` (doctest v2.4.11, fetched by
-CMake). Case counts live in
-[docs/architecture.md](docs/architecture.md) (Unit test map). If the count
-changes, update every doc that cites it — CI prints the total and does not
-pin the number.
+CMake). Which file covers what is the Unit test map in
+[docs/architecture.md](docs/architecture.md); register a new `test_*.cpp`
+there too. No doc keeps a case count: CI prints the case and assertion totals
+and does not pin them.
 
 ```bash
 ctest --test-dir build/linux-test --output-on-failure
@@ -139,7 +141,8 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
   tests/test_diffusion_export.py \
   tests/test_redact_recorded_path.py tests/test_host_model_trust.py \
   tests/test_dependency_monitoring.py tests/test_host_training_env.py \
-  tests/test_d3d12_layer_log.py
+  tests/test_d3d12_layer_log.py tests/test_ort_profile.py \
+  tests/test_bench_kv_driver.py
 ```
 
 The numerical comparator tests need numpy (and `pyyaml` for gguf-py in `test_make_moe_fixture.py`), which CI installs for them:
@@ -170,7 +173,8 @@ part of the Linux CI job. Procedure:
 
 ```bash
 source ~/.config/xllama/xbox-env
-# gates: routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|store|all
+# gates: routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|store|cleanup|all
+# (all excludes store, a separate SKU; cleanup removes the gates' temporary chats)
 ./scripts/validate-console.sh <gate|all>
 # modes: serve|rate|serve-stale|rate-stale|lora-rt|device-train|all
 ./scripts/validate-console-training.sh <mode>
@@ -243,6 +247,10 @@ Load-bearing headers agents usually touch:
 | Header                               | Role                                                           |
 | ------------------------------------ | -------------------------------------------------------------- |
 | `session.h` / `session_hub.h`        | `Session` API; the one process-wide resident session           |
+| `session_spec.h`                     | Catalogue → `SessionParams`; hub reuse rule (ADR 0007)         |
+| `prefix_snapshot.h`                  | Hybrid-cache prefix plan: keep, rewind, restore or clear       |
+| `context_shift.h`                    | #169 context-shift admission predicate                         |
+| `platform.h` / `path_utils.h`        | Threads, logging, LocalState and model path resolution         |
 | `compute_admission.h`                | Process-wide RAII permit for resource-heavy GUI and API jobs   |
 | `api_connection.h`                   | Bounded LAN slots and HTTP 200/503 mapping for a compute admit |
 | `debug_dashboard.h`                  | Optional debug dashboard snapshot (real readings)              |
@@ -262,6 +270,8 @@ Load-bearing headers agents usually touch:
 | `training.h` / `device_train.h`      | Job validation and Lane B device train                         |
 | `personalize.h`                      | In-app personalize helpers                                     |
 | `json_utils.h`                       | JSON escape / parse (header-only)                              |
+| `local_knob.h`                       | LocalState knob/input files: read, write, strict int parse     |
+| `diffusion/request.h`                | Image request contract: steps and seed on every surface        |
 | `stability_attribution.h`            | Image-dialog Stability §IV.a credit predicate                  |
 | `catalog_trust.h`                    | UWP-only catalogue signature types                             |
 
@@ -357,6 +367,7 @@ If you change a contract, update the owning doc in the same PR
 
 | Change                                            | Update                                                                                                                                 |
 | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| MoE milestone, sequence or gate                   | `docs/superpowers/plans/2026-11-24-moe-engineering-program.md` (plan of record)                                                        |
 | SSD MoE contribution stage or acceptance evidence | `docs/research/moe-upstream-readiness.md`, corresponding `ROADMAP.md` stage and #479–#481 tracker; preserve revision-specific evidence |
 | Product intent / public positioning               | `docs/positioning.md` and `docs/reuse-in-a-game.md`                                                                                    |
 | Module boundaries, routing, session ownership     | `docs/architecture.md`                                                                                                                 |
