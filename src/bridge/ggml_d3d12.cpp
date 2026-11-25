@@ -6,6 +6,7 @@
 #ifdef XLLAMA_USE_LLAMA
 
     #include "xllama/ggml_d3d12.h"
+    #include "xllama/d3d12_quant_cache.h"
 
     #include "ggml-cpu.h"
 
@@ -1748,14 +1749,7 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
     // share one quantized copy.
     std::vector<Op> ops;
     std::vector<const ggml_tensor*> produced; // outputs of `ops`
-    struct Quantized {
-        const void* data;
-        ggml_type type;
-        std::size_t off;
-        std::uint32_t row;
-        int ncols;
-    };
-    std::vector<Quantized> done;
+    D3d12QuantCache done;
     struct RopeTable { // a cos/sin table staged in this submission
         const void* pos;
         std::int64_t n;
@@ -1907,10 +1901,11 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
         const int k = static_cast<int>(x->ne[0]);
         const int ncols = static_cast<int>(x->ne[1]);
         const std::uint32_t row = static_cast<std::uint32_t>(ggml_row_size(at, k));
-        const Quantized* q = nullptr;
-        for (const Quantized& d : done)
-            if (d.data == x->data && d.type == at && d.row == row && d.ncols >= ncols)
-                q = &d;
+        // Keyed by tensor identity (owner, data, stride, type, row), not address
+        // alone. The cache is correct on its own; it does not rely on flush()
+        // when a MUL_MAT consumes a tensor in `produced`.
+        const D3d12QuantKey qk{xb, x->data, x->nb[1], at, row};
+        std::optional<D3d12QuantHit> q = done.find(qk, ncols);
         if (!q) {
             const std::size_t bytes = static_cast<std::size_t>(row) * ncols;
             if (used + bytes > g.xq_bytes && !flush())
@@ -1923,8 +1918,7 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
             g.phase.quant_ms +=
                 std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - tq)
                     .count();
-            done.push_back({x->data, at, used, row, ncols});
-            q = &done.back();
+            q = done.insert(qk, used, ncols);
             used += (bytes + 255) & ~std::size_t(255); // root UAV addresses stay aligned
         }
         ops.push_back({node, q->off, q->row, true});

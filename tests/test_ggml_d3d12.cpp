@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "xllama/d3d12_quant_cache.h"
 #include "xllama/ggml_d3d12.h"
 
 #include "ggml-cpu.h"
@@ -886,4 +887,107 @@ TEST_CASE("ggml_d3d12: ROPE cache + mul/sub matches ggml-cpu rope") {
         rope_parity(mode, 8, 3, 5, 8, 10000.0f, 1.0f, 1.3f);      // attn_factor
         rope_parity(mode, 2, 1, 3, 2, 10000.0f, 0.5f, 0.9f);      // one pair
     }
+}
+
+namespace {
+
+D3d12QuantKey dummy_key(const void* owner, const void* data, std::size_t stride, ggml_type type,
+                        std::uint32_t row) {
+    return {owner, data, stride, type, row};
+}
+
+} // namespace
+
+TEST_CASE("d3d12 quant cache: allocator reuse at the same address misses") {
+    char storage = 0, owner_a = 0, owner_b = 0;
+    const void* P = &storage;
+    const void* base_a = &owner_a;
+    const void* base_b = &owner_b;
+    const std::size_t stride = 64;
+    const ggml_type type = GGML_TYPE_Q8_0;
+    const std::uint32_t row = 32;
+    const int ncols = 4;
+
+    // Legacy lookup used by backend_graph_compute: address, type, row, ncols.
+    // Owner and stride were ignored, so allocator reuse at P would hit.
+    auto legacy_hit = [](const D3d12QuantKey& cached, int cached_ncols, const D3d12QuantKey& query,
+                         int query_ncols) {
+        return cached.data == query.data && cached.type == query.type && cached.row == query.row &&
+               cached_ncols >= query_ncols;
+    };
+
+    D3d12QuantCache cache;
+    const D3d12QuantKey a = dummy_key(base_a, P, stride, type, row);
+    const D3d12QuantKey b = dummy_key(base_b, P, stride, type, row);
+    cache.insert(a, 128, ncols);
+    CHECK(legacy_hit(a, ncols, b, ncols));
+    CHECK_FALSE(cache.find(b, ncols).has_value());
+}
+
+TEST_CASE("d3d12 quant cache: same tensor still hits, including fewer columns") {
+    char storage = 0, owner = 0;
+    const D3d12QuantKey k = dummy_key(&owner, &storage, 64, GGML_TYPE_Q8_0, 32);
+    D3d12QuantCache cache;
+    const D3d12QuantHit inserted = cache.insert(k, 200, 8);
+    const auto hit = cache.find(k, 8);
+    REQUIRE(hit.has_value());
+    CHECK(hit->off == inserted.off);
+    CHECK(hit->row == 32);
+    CHECK(hit->ncols == 8);
+    const auto fewer = cache.find(k, 3);
+    REQUIRE(fewer.has_value());
+    CHECK(fewer->off == 200);
+    CHECK(fewer->row == 32);
+    CHECK(fewer->ncols == 8);
+}
+
+TEST_CASE("d3d12 quant cache: different stride, type or row misses") {
+    char storage = 0, owner = 0;
+    const D3d12QuantKey k = dummy_key(&owner, &storage, 64, GGML_TYPE_Q8_0, 32);
+    D3d12QuantCache cache;
+    cache.insert(k, 0, 4);
+    D3d12QuantKey stride_diff = k;
+    stride_diff.stride = k.stride + 8;
+    CHECK_FALSE(cache.find(stride_diff, 4).has_value());
+    D3d12QuantKey type_diff = k;
+    type_diff.type = GGML_TYPE_Q8_K;
+    CHECK_FALSE(cache.find(type_diff, 4).has_value());
+    D3d12QuantKey row_diff = k;
+    row_diff.row = k.row + 1;
+    CHECK_FALSE(cache.find(row_diff, 4).has_value());
+    CHECK(cache.find(k, 4).has_value());
+}
+
+TEST_CASE("d3d12 quant cache: more columns than cached misses") {
+    char storage = 0, owner = 0;
+    const D3d12QuantKey k = dummy_key(&owner, &storage, 64, GGML_TYPE_Q8_0, 32);
+    D3d12QuantCache cache;
+    cache.insert(k, 16, 4);
+    CHECK_FALSE(cache.find(k, 5).has_value());
+    const auto hit = cache.find(k, 4);
+    REQUIRE(hit.has_value());
+    CHECK(hit->off == 16);
+    CHECK(hit->ncols == 4);
+}
+
+TEST_CASE("d3d12 quant cache: clear empties; later inserts survive") {
+    char storage_a = 0, storage_b = 0, owner_a = 0, owner_b = 0;
+    const D3d12QuantKey k1 = dummy_key(&owner_a, &storage_a, 64, GGML_TYPE_Q8_0, 32);
+    const D3d12QuantKey k2 = dummy_key(&owner_b, &storage_b, 80, GGML_TYPE_Q8_K, 48);
+    D3d12QuantCache cache;
+    const D3d12QuantHit first = cache.insert(k1, 10, 2);
+    auto found = cache.find(k1, 2);
+    REQUIRE(found.has_value());
+    CHECK(found->off == first.off);
+    cache.clear();
+    CHECK_FALSE(cache.find(k1, 2).has_value());
+    CHECK(found->off == 10); // returned by value: not a pointer into the vector
+    cache.insert(k2, 20, 3);
+    cache.insert(k1, 30, 2);
+    const auto still_k2 = cache.find(k2, 3);
+    REQUIRE(still_k2.has_value());
+    CHECK(still_k2->off == 20);
+    const auto still_k1 = cache.find(k1, 2);
+    REQUIRE(still_k1.has_value());
+    CHECK(still_k1->off == 30);
 }
