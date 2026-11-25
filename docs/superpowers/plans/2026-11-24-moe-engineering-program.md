@@ -15,7 +15,7 @@
 
 xLlama has an opportunity to make Mixture-of-Experts (MoE) inference practical on constrained unified-memory devices. A successful program is not measured by the largest checkpoint that emits a token, but by the set of models that deliver useful quality, acceptable interactive latency and reliable lifecycle behavior within a measured memory budget.
 
-The immediate opportunity is Granite-4.0-H-Tiny (approximately 7B total / 1B active). The merged [#527](https://github.com/gianlucamazza/xllama/pull/527) reports a CPU-only decode result of 21.73 tok/s versus 14.06 tok/s for Llama 3.2 3B (approximately +54.6%), with the preliminary Series S speed, TTFT and memory gate passing. Equal-quality comparison is not yet measured. The result is not a GPU speedup or catalogue admission.
+The immediate opportunity is Granite-4.0-H-Tiny (approximately 7B total / 1B active). The merged [#527](https://github.com/gianlucamazza/xllama/pull/527) reports a CPU-only decode result of 21.73 tok/s versus 14.06 tok/s for Llama 3.2 3B (approximately +54.6%), with the preliminary Series S speed, TTFT and memory gate passing. The paired H9 same-quality bar is PASS (7/8 vs 6/8); receipts in [2026-11-24-moe-m0-granite-quality.md](2026-11-24-moe-m0-granite-quality.md). The result is not a GPU speedup or catalogue admission. #273 is pending owner decision.
 
 In parallel, [#479](https://github.com/gianlucamazza/xllama/issues/479)–[#481](https://github.com/gianlucamazza/xllama/issues/481) track the existing contributor-led SSD expert streaming work. A 24B fork CPU run has been independently reproduced, but full native resident-versus-streamed numerical parity and upstream activation remain separate acceptance stages.
 
@@ -347,7 +347,7 @@ Disable detailed tracing by default; cap size/time and calibrate overhead. No cr
 Execute after baseline preflight. This is a dependency-driven queue, not a calendar estimate or a contributor commitment.
 
 - [ ] **E0** — Reconcile #524 and #395 with #527 results; update proposed program links, no duplicate umbrella. Proposed GitHub text: [2026-11-24-moe-m0-issue-alignment.md](2026-11-24-moe-m0-issue-alignment.md) (not posted).
-- [ ] **E1** — Complete Granite quality campaign (#525/#273) using existing bar; record PASS/FAIL separately from T3 speed/memory. Host-prepared protocol: [2026-11-24-moe-m0-granite-quality.md](2026-11-24-moe-m0-granite-quality.md) (console H9 NOT_RUN).
+- [x] **E1** — Granite quality campaign (#525/#273): H9 PASS (7/8 vs 6/8), recorded separately from T3 speed/memory. Protocol and receipts: [2026-11-24-moe-m0-granite-quality.md](2026-11-24-moe-m0-granite-quality.md). #273 pending owner decision.
 - [ ] **E2** — Investigate Mamba2 `can_shift=1` and cold/continuation parity; open narrowly scoped follow-up if needed. Findings: [2026-11-24-moe-m0-e2-can-shift.md](2026-11-24-moe-m0-e2-can-shift.md).
 - [ ] **E3** — Prepare resident expert graph/profile capture and freeze `MUL_MAT_ID`/Q3_K design experiment under #421.
 - [ ] **E4** — In parallel, agree #479 contributor review boundary; reuse cache harness and prepare actual-candidate test binding. No unapproved handoff.

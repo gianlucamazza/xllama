@@ -13,8 +13,9 @@ ids, templates, licenses, and campaign notes** — not runtime contracts.
 | Catalogue data                                                 | [`../uwp/models/manifest.json`](../uwp/models/manifest.json) |
 | Tok/s tables                                                   | [benchmarks.md](./benchmarks.md) only                        |
 
-Last updated: **2026-11-24**. F0 desk and T3 receipts for Granite-4.0-H-Tiny
-(#525) are in §I1 (no catalogue id). The #275 new fact is in §I3.
+Last updated: **2026-11-25**. H9 same-quality bar for Granite-4.0-H-Tiny
+(#525) is PASS in §I1 (no catalogue id; #273 pending owner decision).
+F0 desk and T3 receipts remain in §I1. The #275 new fact is in §I3.
 `qwen25-coder-3b` is withdrawn from the
 downloadable catalogue
 ([Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE));
@@ -439,10 +440,12 @@ Receipts: `t3-series-s.csv` and `t3-llama32-3b.csv` in
 
 Every Granite run `peak_ws_mb` 3100 ≤ 3584 (**PASS**). Decode 21.73 > 14.06
 and TTFT 5442.3 ms is not several× worse than 7950.9 ms: **speed+memory gate
-PASS**. The #273 “same quality bar” (Llama-3.2-3B / Phi-4-mini class) is
-**NOT MEASURED** (open). Overall reopen verdict pending quality. Do not add a
-catalogue id from this row. Host T1 and the #512 snapshot receipt sit in the
-same directory; LocalState override: `manifest.override.json`.
+PASS**. H9 same-quality bar: **PASS** (receipts:
+[`h9-20261125/`](../bench/results/2026-11-24-granite40-h-tiny/h9-20261125/),
+paired granite40-h-tiny 7/8 vs llama32-3b 6/8). Overall #273 reopen is
+pending owner decision. Do not add a catalogue id from this row. Host T1
+and the #512 snapshot receipt sit in the same directory; LocalState
+override: `manifest.override.json`.
 
 ### I2. BitNet 1.58 (post H5 NO-GO)
 
@@ -524,7 +527,8 @@ November 2026 Series S tracking:
 [#521](https://github.com/gianlucamazza/xllama/issues/521) Granite 4.2-3B,
 [#522](https://github.com/gianlucamazza/xllama/issues/522) (blocked on a llama.cpp pin bump),
 [#525](https://github.com/gianlucamazza/xllama/issues/525) Granite-4.0-H-Tiny
-(resident MoE vs #273; T3 in §I1; no catalogue id).
+(resident MoE vs #273; T3 and H9 PASS in §I1; no catalogue id; #273
+pending owner decision).
 These are not catalogue entries. This page records no reopen verdict for them.
 
 ---

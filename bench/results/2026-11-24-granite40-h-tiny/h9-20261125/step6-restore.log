@@ -1,0 +1,27 @@
+# step6 restore 2026-11-25T01:31:32+01:00
+Stopped GianlucaMazza.xllama_1.8.1.1764_x64__<pub>.
+rc=0
+Deleted manifest.json.
+rc=0
+chat diff (pre vs post):
+chats: identical names/sizes
+post top-level vs pre:
+41c41
+< F xllama.log 2247286
+---
+> F xllama.log 2257340
+training:
+F base-f16.gguf 725553632
+F dataset.jsonl 4092
+F job.json 564
+F progress.json 80
+F result.done 4
+F samples.jsonl 512
+D out 
+same-as-24/11-backup model.txt
+same-as-24/11-backup settings.json
+same-as-24/11-backup api.flag
+same-as-24/11-backup autopilot.json
+same-as-24/11-backup prompt.txt
+apps: [('Dev Home', True), ('<user> Guide', False)]
+xllama processes: none

@@ -1,19 +1,18 @@
-# M0 / E1 — Granite quality campaign (host-prepared, console NOT_RUN)
+# M0 / E1 — Granite quality campaign (H9 PASS)
 
-**Disposition:** **NOT_RUN** for the #273 same-quality bar.  
-No PASS or FAIL is recorded here. Console H9 was not run (no Device Portal
-/ console access in this slice). Host-side H9 is not supported by the
-existing harness.
+**Disposition:** **H9 PASS** (granite40-h-tiny 7/8 vs llama32-3b 6/8 on
+the paired Series S run). Receipts:
+[`bench/results/2026-11-24-granite40-h-tiny/h9-20261125/`](../../../bench/results/2026-11-24-granite40-h-tiny/h9-20261125/).
+The #273 decision is pending owner decision. No catalogue id.
 
-**Date:** 2026-11-24  
+**Date:** 2026-11-24 (protocol); H9 recorded 2026-11-25  
 **Issues:** [#525](https://github.com/gianlucamazza/xllama/issues/525),
 [#273](https://github.com/gianlucamazza/xllama/issues/273)  
 **Already on `main` (not re-measured):** T3 speed+memory PASS in
 [model-matrix.md](../../model-matrix.md) §I1 and
 `bench/results/2026-11-24-granite40-h-tiny/`.
 
-This file is the repo-side preparation: the frozen protocol, the peer
-score that already exists, and a ready-to-run console command list. It
+This file is the frozen H9 protocol plus the recorded E1 result. It
 does not add a catalogue id, change defaults, or invent numbers.
 
 ## Frozen quality bar (do not retune after seeing results)
@@ -81,7 +80,8 @@ There is no host CLI path in that script and no other in-tree H9 runner
 that scores `phase7-h9.json` against `xllama-cli`.
 
 A homemade host loop would not be the product bar (different process,
-no LAN admission, host tok/s are never product numbers). **Not run.**
+no LAN admission, host tok/s are never product numbers). Host H9 remains
+**not run**. The product bar is the console pair below.
 
 The existing Granite host artefacts remain T1 / snapshot only:
 
@@ -90,12 +90,13 @@ The existing Granite host artefacts remain T1 / snapshot only:
 
 Those logs are not H9 and are not used as a quality verdict.
 
-## Ready-to-run console list (NOT_RUN)
+## Console command list (run 2026-11-25)
 
 Operator machine with `xbox-env` and a current unified `xllama-appx`.
 Override recipe already in
 `bench/results/2026-11-24-granite40-h-tiny/README.md`. New tests in this
-program run on **Series S only**.
+program run on **Series S only**. Recorded receipts:
+[`h9-20261125/`](../../../bench/results/2026-11-24-granite40-h-tiny/h9-20261125/).
 
 ```bash
 source ~/.config/xllama/xbox-env
@@ -120,9 +121,13 @@ PFN=$(./scripts/deploy.sh pfn)
   --out bench/results/2026-11-24-granite40-h-tiny/h9-series-s.jsonl
 ```
 
-After a real run: commit the jsonl, record each task PASS/FAIL, compare
-totals, and write the #273 quality verdict in §I1. Do not add a catalogue
-id from this file.
+Recorded run (25 Nov 2026, 01:30–01:31 Rome, head
+`cc482024206b7a549ef46b9b113a7063ec9eef1b`, package `1.8.1.1764`):
+`h9-series-s.jsonl` is granite40-h-tiny 7/8 vs llama32-3b 6/8. Per-task
+table: [`h9-20261125/README.md`](../../../bench/results/2026-11-24-granite40-h-tiny/h9-20261125/README.md).
+Compare-totals (stricter reading: Granite total ≥ peer total, and no task
+where the peer passes and Granite fails) is **H9 PASS**. Do not add a
+catalogue id from this file. The #273 decision is pending owner decision.
 
 Optional context/template note for the operator (not a second bar):
 Granite uses `ChatFormatKind::Granite`; `llama32-3b` uses Llama-3. The
@@ -131,13 +136,13 @@ expected and must be recorded, not "fixed" after seeing scores.
 
 ## Verdict table
 
-| Gate                                | Disposition                   | Evidence                                     |
-| ----------------------------------- | ----------------------------- | -------------------------------------------- |
-| T3 speed (decode > peer)            | PASS (prior #527, not re-run) | §I1; `t3-series-s.csv` / `t3-llama32-3b.csv` |
-| T3 memory (peak ≤ 3584 MiB)         | PASS (prior #527, not re-run) | same                                         |
-| T3 TTFT not several× worse          | PASS (prior #527, not re-run) | same                                         |
-| H9 same-quality bar vs `llama32-3b` | **NOT_RUN**                   | no jsonl from this slice                     |
-| #273 overall reopen                 | **NOT_RUN** (blocked on H9)   | —                                            |
-| Catalogue id                        | not requested                 | —                                            |
+| Gate                                | Disposition                   | Evidence                                                                                               |
+| ----------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------ |
+| T3 speed (decode > peer)            | PASS (prior #527, not re-run) | §I1; `t3-series-s.csv` / `t3-llama32-3b.csv`                                                           |
+| T3 memory (peak ≤ 3584 MiB)         | PASS (prior #527, not re-run) | same                                                                                                   |
+| T3 TTFT not several× worse          | PASS (prior #527, not re-run) | same                                                                                                   |
+| H9 same-quality bar vs `llama32-3b` | **PASS** (7/8 vs 6/8)         | `h9-series-s.jsonl`; [`h9-20261125/`](../../../bench/results/2026-11-24-granite40-h-tiny/h9-20261125/) |
+| #273 overall reopen                 | pending owner decision        | H9 no longer blocks                                                                                    |
+| Catalogue id                        | not requested                 | —                                                                                                      |
 
-**E1 disposition: NOT_RUN.**
+**E1 disposition: H9 PASS (7/8 vs 6/8).**
