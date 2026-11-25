@@ -213,6 +213,9 @@ A non-empty `tools` array, or a legacy `functions` array on its own, is a propos
 (`tools and functions cannot be combined`). `tool_choice` accepts `"auto"`,
 `"none"`, `"required"`, and `{"type":"function","function":{"name":"..."}}`.
 `"none"` stays on the plain path. A named choice offers only that function.
+`"required"` and a named choice constrain the reply to start with the call (reasoning
+first, for a thinking model): no text can come before it (`patches/0005`, #563). A reply
+that reaches `max_tokens` before the call completes is `finish_reason` `length`.
 Content may be a string, null, or an array of `{type:"text",text}` parts joined
 with no separator. Anything else, including an image part, is `400`. A `tool`
 message requires `tool_call_id`. The last message must be `user` or `tool`.
@@ -419,7 +422,10 @@ job — use Settings / autopilot `start_train` for that.
 
 ### Images (`POST /v1/images/generations`)
 
-In-process SD-Turbo with the same clamps as the Image dialog (`steps` 1–4).
+In-process SD-Turbo with the same contract as the Image dialog
+(`include/xllama/diffusion/request.h`): `steps` clamped to 1–4, `seed` any
+uint32 (above it clamps; a negative seed keeps 42). The same seed reproduces the
+same image from the dialog, the API and autopilot.
 Shares process-wide compute admission with chat → `503` when busy.
 
 ```bash

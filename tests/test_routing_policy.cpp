@@ -174,6 +174,18 @@ TEST_CASE("max_prompt_tokens_for_n_ctx tracks session size") {
     CHECK(max_prompt_tokens_for_n_ctx(4096) < 4096);
 }
 
+TEST_CASE("routing_prompt_tokens: routing sees what will be prefilled, not what was typed") {
+    // A long history is trimmed by fit_prompt to the context; routing must not
+    // send it to the GPU for tokens that will never be prefilled.
+    CHECK(routing_prompt_tokens(100, 0) == 100);
+    CHECK(routing_prompt_tokens(kMaxPromptTokens, 0) == kMaxPromptTokens);
+    CHECK(routing_prompt_tokens(50000, 0) == kMaxPromptTokens);
+    CHECK(routing_prompt_tokens(50000, 4096) == max_prompt_tokens_for_n_ctx(4096));
+    // The ceiling stays above the auto threshold, so trimming never hides a
+    // long prompt from GPU routing (#133).
+    CHECK(routing_prompt_tokens(50000, 0) > RoutingSettings{}.token_threshold);
+}
+
 TEST_CASE("routing: the reply's reserve must not shrink the estimate ceiling") {
     // The one that bit. Charging fit_prompt's reply reserve to this ceiling put it
     // at 1536 for the shipping n_predict of 512 — under token_threshold (1550) —
