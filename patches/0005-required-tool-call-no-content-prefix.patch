@@ -1,0 +1,71 @@
+xllama #563: a required (or named) tool choice admits no content before the
+call. The pinned LFM2 parser and the template autoparser build the REQUIRED
+grammar as content(until <call marker>) + calls, so free text is a legal start:
+lfm25-1.2b-instruct on the Series S spent max_tokens 60 on "Ho controllato la
+directory…" and returned no call in 2 of 4 named requests. gemma4.cpp already
+builds REQUIRED as reasoning + calls only; this applies the same rule to
+common/parsers/lfm2.cpp and to both tool builders in
+common/chat-auto-parser-generator.cpp (JSON-native and tagged). Reasoning stays
+allowed before the call. Not upstream yet: drop it when a pin bump contains an
+equivalent change (apply-llama-patches.sh then fails on this patch).
+
+diff --git i/common/chat-auto-parser-generator.cpp w/common/chat-auto-parser-generator.cpp
+index b78789d8c..7140f4847 100644
+--- i/common/chat-auto-parser-generator.cpp
++++ w/common/chat-auto-parser-generator.cpp
+@@ -222,6 +222,12 @@ common_peg_parser analyze_tools::build_tool_parser_json_native(parser_build_cont
+     }
+ 
+     // Handle content wrappers if present
++    // A required call admits no content before it (as gemma4): with a free
++    // prefix the model could spend its whole budget on text and never call.
++    if (inputs.tool_choice == COMMON_CHAT_TOOL_CHOICE_REQUIRED) {
++        return ctx.reasoning_parser + tools_parser + p.end();
++    }
++
+     if (ctx.content && ctx.content->is_always_wrapped()) {
+         auto wrapped_content = ctx.content->build_optional_wrapped(ctx);
+         return ctx.reasoning_parser + wrapped_content + tools_parser + p.end();
+@@ -351,6 +357,12 @@ common_peg_parser analyze_tools::build_tool_parser_tag_json(parser_build_context
+         tool_calls = p.optional(tool_calls);
+     }
+ 
++    // A required call admits no content before it (as gemma4): with a free
++    // prefix the model could spend its whole budget on text and never call.
++    if (inputs.tool_choice == COMMON_CHAT_TOOL_CHOICE_REQUIRED) {
++        return ctx.reasoning_parser + tool_calls + p.end();
++    }
++
+     std::string trigger_marker       = !format.section_start.empty() ? format.section_start : format.per_call_start;
+     auto        content_before_tools = trigger_marker.empty() ? p.eps() : p.until(trigger_marker);
+     return ctx.reasoning_parser + p.optional(p.content(content_before_tools)) + tool_calls + p.end();
+@@ -470,6 +482,12 @@ common_peg_parser analyze_tools::build_tool_parser_tag_tagged(parser_build_conte
+         tool_calls = p.optional(tool_calls);
+     }
+ 
++    // A required call admits no content before it (as gemma4): with a free
++    // prefix the model could spend its whole budget on text and never call.
++    if (inputs.tool_choice == COMMON_CHAT_TOOL_CHOICE_REQUIRED) {
++        return ctx.reasoning_parser + tool_calls + p.end();
++    }
++
+     std::string trigger_marker       = !format.section_start.empty() ? format.section_start : format.per_call_start;
+     auto        content_before_tools = trigger_marker.empty() ? p.eps() : p.until(trigger_marker);
+     return ctx.reasoning_parser + p.optional(p.content(content_before_tools)) + tool_calls + p.end();
+diff --git i/common/parsers/lfm2.cpp w/common/parsers/lfm2.cpp
+index 280788509..50f429408 100644
+--- i/common/parsers/lfm2.cpp
++++ w/common/parsers/lfm2.cpp
+@@ -88,6 +88,12 @@ common_chat_params common_chat_params_init_lfm2(const common_chat_template &
+             )
+         );
+ 
++        // A required call admits no content before it (as gemma4): with a free
++        // prefix the model could spend its whole budget on text and never call.
++        if (inputs.tool_choice == COMMON_CHAT_TOOL_CHOICE_REQUIRED) {
++            return generation_prompt + reasoning + tool_calls + end;
++        }
++
+         auto content = p.content(p.until(TOOL_CALL_START));
+ 
+         return generation_prompt + reasoning + content + tool_calls + end;
