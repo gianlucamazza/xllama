@@ -44,13 +44,3 @@ TEST_CASE("validate_api_number: range before any cast") {
     CHECK(validate_api_number("temperature", std::nan(""), 0, 2, false) ==
           "temperature must be a finite number");
 }
-
-TEST_CASE("clamp_api_int: clamped on the double, never an out-of-range cast") {
-    using xllama::clamp_api_int;
-    CHECK(clamp_api_int(3, 1, 4) == 3);
-    CHECK(clamp_api_int(0, 1, 4) == 1);
-    CHECK(clamp_api_int(1e300, 1, 4) == 4);
-    CHECK(clamp_api_int(-1e300, 1, 4) == 1);
-    CHECK(clamp_api_int(std::nan(""), 1, 4) == 1);
-    CHECK(clamp_api_int(2.9, 1, 4) == 2);
-}

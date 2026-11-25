@@ -63,6 +63,10 @@ TEST_CASE("resolve_gguf_n_threads: absent, 0, or invalid keep auto") {
     CHECK(resolve_gguf_n_threads(1) == 1);
     CHECK(resolve_gguf_n_threads(0) == 0);
     CHECK(resolve_gguf_n_threads(-5) == 0);
+    // Above ggml's thread-array size the CPU backend overruns its fixed arrays.
+    CHECK(resolve_gguf_n_threads(xllama::kGgufNThreadsMax) == xllama::kGgufNThreadsMax);
+    CHECK(resolve_gguf_n_threads(xllama::kGgufNThreadsMax + 1) == 0);
+    CHECK(resolve_gguf_n_threads(100000) == 0);
     CatalogueLoad g;
     g.found = true;
     g.gguf = true;

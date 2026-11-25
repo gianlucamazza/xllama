@@ -17,8 +17,10 @@
     #include "xllama/chat_prompt.h"
     #include "xllama/compute_admission.h"
     #include "xllama/debug_dashboard.h"
+    #include "xllama/diffusion/request.h"
     #include "xllama/json_utils.h"
     #include "xllama/kv_store.h"
+    #include "xllama/local_knob.h"
     #include "xllama/model_file_plan.h"
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
@@ -84,29 +86,6 @@ static std::wstring local_wpath(const wchar_t* filename_w) {
 // save path; every reader tolerates its absence.
 static ::xllama::KvStore kv_store() {
     return ::xllama::KvStore{::xllama::wstring_to_utf8(local_wpath(L"kv"))};
-}
-
-static std::string read_local_text_file(const wchar_t* name) {
-    FILE* fp = _wfopen(local_wpath(name).c_str(), L"rb");
-    if (!fp)
-        return {};
-    std::string s;
-    char buf[256];
-    size_t n;
-    while ((n = fread(buf, 1, sizeof(buf), fp)) > 0)
-        s.append(buf, n);
-    fclose(fp);
-    while (!s.empty() && (s.back() == '\n' || s.back() == '\r'))
-        s.pop_back();
-    return s;
-}
-
-static void write_local_bytes(const wchar_t* name, const std::string& bytes) {
-    FILE* fp = _wfopen(local_wpath(name).c_str(), L"wb");
-    if (!fp)
-        return;
-    fwrite(bytes.data(), 1, bytes.size(), fp);
-    fclose(fp);
 }
 
 static std::wstring format_diffuse_stage(const std::string& stage) {
@@ -815,88 +794,34 @@ winrt::fire_and_forget MainPageController::ShowCorrectionDialog(size_t assistant
 
 MainPageController::PromptPlan
 MainPageController::BuildPromptPlan(const std::string& user_text) const {
-    // Estimate token count from characters — no tokenizer is loaded at this
-    // point — and trim oldest turns if over budget. Both the estimator and the
-    // budget live in routing_policy.h next to token_threshold: the trimmer runs
-    // before routing, so its ceiling silently bounds what routing can ever see
-    // (#133). Collect turns (skip system which always stays).
-    //
-    // Catalogue coding models open a larger n_ctx and use a denser
-    // chars-per-token estimate so long source/diff pastes trim earlier rather
-    // than overflowing generate().
-    //
-    // This is the ESTIMATE, and it exists for one reason: routing needs a token
-    // count before a model — hence a tokenizer — has been chosen, and its ceiling
-    // has to stay coherent with the threshold (#133). It deliberately errs
-    // optimistic (drops fewer turns): the exact pass in the worker can only drop
-    // more, so nothing routing saw can reappear behind its back.
-    //
-    // The ceiling is a CONTEXT bound and knows nothing about n_predict: the reply's
-    // room belongs to fit_prompt, exactly, in the worker. Charging it here put the
-    // ceiling under token_threshold and killed auto GPU routing for every default
-    // install (see kReservedGenerationTokens).
-    int session_n_ctx = ::xllama::kDefaultNCtx;
-    int max_estimated_tokens = ::xllama::max_prompt_tokens_for_n_ctx(session_n_ctx);
+    // The whole conversation, oldest first, as (user, assistant) exchanges plus
+    // the new user_text. What fits n_ctx is fit_prompt's decision, in the worker,
+    // in tokens: a chars-per-token estimate may size the prompt for routing but
+    // must not decide what the user receives (AGENTS.md invariants).
+    PromptPlan plan;
+    plan.n_ctx = ::xllama::kDefaultNCtx;
     std::string role;
     {
         const auto& manifest = CachedManifest();
         if (const auto* e = ::xllama::FindManifestEntry(manifest, m_model_filename)) {
-            session_n_ctx = ::xllama::resolve_n_ctx(e->n_ctx);
-            max_estimated_tokens = ::xllama::max_prompt_tokens_for_n_ctx(e->n_ctx);
+            plan.n_ctx = ::xllama::resolve_n_ctx(e->n_ctx);
             role = ::xllama::wstring_to_utf8(e->role);
         }
     }
-    const double chars_per_token = ::xllama::chars_per_token_for_role(role);
-    std::vector<size_t> turn_starts; // index of first User message in each turn
+    plan.chars_per_token = ::xllama::chars_per_token_for_role(role);
+    std::size_t chars = m_system_prompt.size() + user_text.size();
     for (size_t i = 0; i < m_current.messages.size(); ++i) {
-        if (m_current.messages[i].role == xllama::ui::MessageRole::User)
-            turn_starts.push_back(i);
-    }
-
-    // Build prompt starting from oldest turn; drop turns if over token budget.
-    // Per-turn char sizes are computed once and the running total is reduced as
-    // turns drop (the previous shape re-walked every surviving turn for each
-    // candidate — O(turns²) per prompt build).
-    std::vector<int> turn_chars(turn_starts.size(), 0);
-    long long chars =
-        static_cast<long long>(m_system_prompt.size()) + static_cast<long long>(user_text.size());
-    for (size_t ti = 0; ti < turn_starts.size(); ++ti) {
-        size_t i = turn_starts[ti];
-        int c = (int)m_current.messages[i].content.size(); // user
-        if (i + 1 < m_current.messages.size() &&
-            m_current.messages[i + 1].role == xllama::ui::MessageRole::Assistant)
-            c += (int)m_current.messages[i + 1].content.size(); // assistant
-        turn_chars[ti] = c;
-        chars += c;
-    }
-
-    size_t first_turn = 0;
-    while (first_turn < turn_starts.size() &&
-           ::xllama::estimate_tokens_from_chars(static_cast<size_t>(chars), chars_per_token) >
-               max_estimated_tokens)
-        chars -= turn_chars[first_turn++];
-
-    // Complete (user, assistant) exchanges surviving the token budget; the new
-    // user_text is the trailing turn. The chat format applies the per-model
-    // template (ChatML default, Gemma, ...) and the generation suffix.
-    std::vector<::xllama::ChatTurn> turns;
-    for (size_t ti = first_turn; ti < turn_starts.size(); ++ti) {
-        size_t i = turn_starts[ti];
+        if (m_current.messages[i].role != xllama::ui::MessageRole::User)
+            continue;
         std::string assistant;
         if (i + 1 < m_current.messages.size() &&
-            m_current.messages[i + 1].role == xllama::ui::MessageRole::Assistant) {
+            m_current.messages[i + 1].role == xllama::ui::MessageRole::Assistant)
             assistant = m_current.messages[i + 1].content;
-        }
-        turns.push_back({m_current.messages[i].content, std::move(assistant)});
+        chars += m_current.messages[i].content.size() + assistant.size();
+        plan.turns.push_back({m_current.messages[i].content, std::move(assistant)});
     }
-    PromptPlan plan;
-    plan.n_ctx = session_n_ctx;
-    plan.dropped = static_cast<int>(first_turn);
-    plan.prompt = chat_format().render_prompt(m_system_prompt, turns, user_text);
-    plan.turns = std::move(turns);
-    if (first_turn > 0)
-        log_output("[xllama] context trimmed (estimate): dropped " + std::to_string(first_turn) +
-                   " old turn(s)\n");
+    plan.estimated_tokens = ::xllama::estimate_tokens_from_chars(chars, plan.chars_per_token);
+    plan.prompt = chat_format().render_prompt(m_system_prompt, plan.turns, user_text);
     return plan;
 }
 
@@ -1437,20 +1362,8 @@ void MainPageController::LoadSettings() {
 
     // Back-compat: also read model.txt if model not set via settings.json
     if (m_model_filename.empty()) {
-        auto model_path = local_wpath(L"model.txt");
-        FILE* mf = _wfopen(model_path.c_str(), L"r");
-        if (mf) {
-            wchar_t mbuf[512] = {};
-            if (fgetws(mbuf, 511, mf)) {
-                size_t len = wcslen(mbuf);
-                while (len > 0 &&
-                       (mbuf[len - 1] == L'\n' || mbuf[len - 1] == L'\r' || mbuf[len - 1] == L' '))
-                    mbuf[--len] = L'\0';
-                if (len > 0)
-                    m_model_filename = mbuf;
-            }
-            fclose(mf);
-        }
+        // UTF-8, read the same way as the headless bench (local_knob.h).
+        m_model_filename = ::xllama::utf8_to_wstring(::xllama::read_local_text("model.txt"));
         if (m_model_filename.empty())
             m_model_filename = DefaultChatModelId();
     }
@@ -1522,12 +1435,11 @@ void MainPageController::StopDebugDashboardTimer() {
 void MainPageController::ApplyDebugDashboard(bool enabled, bool persist_flag) {
     m_debug_dashboard = enabled;
     if (persist_flag) {
-        const std::wstring flag_w =
-            ::xllama::utf8_to_wstring(std::string(::xllama::kDebugDashboardFlagName));
+        const std::string flag(::xllama::kDebugDashboardFlagName);
         if (enabled)
-            write_local_bytes(flag_w.c_str(), "enabled");
+            ::xllama::write_local_text(flag, "enabled");
         else
-            _wremove(local_wpath(flag_w.c_str()).c_str());
+            _wremove(local_wpath(::xllama::utf8_to_wstring(flag).c_str()).c_str());
     }
     if (!m_debugDashboardPanel)
         return;
@@ -1719,8 +1631,8 @@ void MainPageController::RefreshApiPanel() {
 
 void MainPageController::ApplyApiSettings(bool enabled, int port) {
     if (enabled) {
-        write_local_bytes(L"api-port.txt", std::to_string(port));
-        write_local_bytes(L"api.flag", "enabled");
+        ::xllama::write_local_text("api-port.txt", std::to_string(port));
+        ::xllama::write_local_text("api.flag", "enabled");
     } else {
         _wremove(local_wpath(L"api.flag").c_str());
     }
@@ -1780,7 +1692,7 @@ winrt::fire_and_forget MainPageController::ShowDisclaimerIfNeeded() {
     dlg.XamlRoot(m_root.XamlRoot());
     ApTrackDialog(dlg);
     co_await dlg.ShowAsync();
-    write_local_bytes(L"disclaimer.accepted", "1\n");
+    ::xllama::write_local_text("disclaimer.accepted", "1\n");
 }
 
 winrt::fire_and_forget MainPageController::ShowSettings() {
@@ -1890,14 +1802,9 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
 
     #ifndef XLLAMA_STORE_SKU
     const bool api_enabled = std::filesystem::exists(local_wpath(L"api.flag"));
-    int api_port = 11434;
-    try {
-        const std::string configured_port = read_local_text_file(L"api-port.txt");
-        if (!configured_port.empty())
-            api_port = std::stoi(configured_port);
-    } catch (...) {
-        api_port = 11434;
-    }
+    // The port the server binds (api-server.h), not the raw file text.
+    const int api_port =
+        ::xllama::api::configured_api_port(::xllama::read_local_text("api-port.txt"));
     winrt::Windows::UI::Xaml::Controls::ToggleSwitch apiToggle;
     apiToggle.Header(winrt::box_value(L"LAN API (OpenAI-compatible)"));
     apiToggle.OnContent(winrt::box_value(L"On"));
@@ -2162,7 +2069,7 @@ bool MainPageController::PublishPersonalizedModel(const std::string& merged_gguf
     // If an override already exists, re-read its models array is complex without
     // a full JSON rewriter; the per-entry merge means a same-name replace is
     // enough, and a one-entry override still keeps all bundled models.
-    write_local_bytes(L"manifest.json", override_json);
+    ::xllama::write_local_text("manifest.json", override_json);
     InvalidateManifestCache(); // catalogue changed — StartInference reads the cache
     return true;
 }
@@ -2206,10 +2113,10 @@ void MainPageController::StartPersonalizeTrain() {
 
     // Persist job.json for harness parity / debugging.
     CreateDirectoryW(local_wpath(L"training").c_str(), nullptr);
-    write_local_bytes(L"training\\job.json", ::xllama::format_personalize_job_json(job));
+    ::xllama::write_local_text("training\\job.json", ::xllama::format_personalize_job_json(job));
     _wremove(local_wpath(L"training\\result.done").c_str());
-    write_local_bytes(L"training\\progress.json",
-                      ::xllama::format_train_progress_json("prepare", 0, job.epochs, 0, 0, 0));
+    ::xllama::write_local_text("training\\progress.json", ::xllama::format_train_progress_json(
+                                                              "prepare", 0, job.epochs, 0, 0, 0));
 
     // Free chat RSS before train (Phase 10 peak gate ~1.2 GB).
     {
@@ -2246,13 +2153,7 @@ void MainPageController::StartPersonalizeTrain() {
             const ::xllama::TrainingResult r = ::xllama::bridge::run_train_job_localized(job, cb);
 
             // result.done for API / autopilot pollers
-            {
-                FILE* done = _wfopen(local_wpath(L"training\\result.done").c_str(), L"w");
-                if (done) {
-                    fputs(r.success ? "ok\n" : "fail\n", done);
-                    fclose(done);
-                }
-            }
+            ::xllama::write_local_text("training\\result.done", r.success ? "ok\n" : "fail\n");
 
             if (r.success) {
                 std::string pub_err;
@@ -2352,7 +2253,7 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
 
     winrt::Windows::UI::Xaml::Controls::TextBlock lastSeed;
     lastSeed.Opacity(0.7);
-    const std::string previous_seed = read_local_text_file(L"diffuse-seed.txt");
+    const std::string previous_seed = ::xllama::read_local_text("diffuse-seed.txt");
     lastSeed.Text(previous_seed.empty()
                       ? L"Last seed: none"
                       : L"Last seed: " + ::xllama::utf8_to_wstring(previous_seed));
@@ -2367,7 +2268,7 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     // pixel-art robot with "a red sports car on a mountain road at sunset"
     // underneath, and pressing Generate would have produced neither.
     {
-        const std::string last = read_local_text_file(L"prompt.txt");
+        const std::string last = ::xllama::read_local_text("prompt.txt");
         promptBox.Text(last.empty() ? L"a red sports car on a mountain road at sunset"
                                     : ::xllama::utf8_to_wstring(last).c_str());
     }
@@ -2377,10 +2278,10 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     panel.Children().Append(promptBox);
 
     winrt::Windows::UI::Xaml::Controls::Slider stepsSlider;
-    stepsSlider.Minimum(1);
-    stepsSlider.Maximum(4);
+    stepsSlider.Minimum(::xllama::diffusion::kStepsMin);
+    stepsSlider.Maximum(::xllama::diffusion::kStepsInteractiveMax);
     stepsSlider.StepFrequency(1);
-    stepsSlider.Value(1);
+    stepsSlider.Value(::xllama::diffusion::kDefaultSteps);
     stepsSlider.Header(winrt::box_value(L"Steps (SD-Turbo: 1 is enough)"));
     panel.Children().Append(stepsSlider);
 
@@ -2557,7 +2458,7 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
         self->SetStatus(L"Enter an image prompt first", StatusKind::Error);
         co_return;
     }
-    const int steps = (int)stepsSlider.Value();
+    const int steps = ::xllama::diffusion::interactive_steps(stepsSlider.Value());
     const uint32_t seed = self->m_diffuse_seed == 0
                               ? static_cast<uint32_t>(GetTickCount64() % 1'000'000'000ULL) + 1
                               : self->m_diffuse_seed;
@@ -2572,10 +2473,10 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
         self->SetStatus(L"Busy — another compute job is active", StatusKind::Error);
         co_return;
     }
-    write_local_bytes(L"prompt.txt", prompt_utf8);
-    write_local_bytes(L"diffuse-steps.txt", std::to_string(steps));
-    write_local_bytes(L"diffuse-seed.txt", std::to_string(seed));
-    write_local_bytes(L"diffuse-model.txt", "sd-turbo-fp16");
+    ::xllama::write_local_text("prompt.txt", prompt_utf8);
+    ::xllama::write_local_text("diffuse-steps.txt", std::to_string(steps));
+    ::xllama::write_local_text("diffuse-seed.txt", std::to_string(seed));
+    ::xllama::write_local_text("diffuse-model.txt", "sd-turbo-fp16");
 
     self->StartDiffusion(std::move(compute_permit));
 }
@@ -2603,7 +2504,7 @@ void MainPageController::StartDiffusion(::xllama::ComputeJobAdmission::Handle pe
     // the new run at the first UNet-step check, and a leftover "done"/"error"
     // progress line would flash in the status bar before the worker's first write.
     _wremove(local_wpath(L"diffuse-cancel.flag").c_str());
-    write_local_bytes(L"diffuse-progress.txt", "start");
+    ::xllama::write_local_text("diffuse-progress.txt", "start");
 
     auto self = shared_from_this();
     auto dispatcher = m_root.Dispatcher();
@@ -2638,7 +2539,7 @@ void MainPageController::StartDiffusion(::xllama::ComputeJobAdmission::Handle pe
 }
 
 void MainPageController::PollDiffuseProgress() {
-    const std::string stage = read_local_text_file(L"diffuse-progress.txt");
+    const std::string stage = ::xllama::read_local_text("diffuse-progress.txt");
     if (stage.empty())
         return;
     SetStatus(format_diffuse_stage(stage),
@@ -2653,7 +2554,7 @@ void MainPageController::FinishDiffusion() {
     }
     m_diffuse_running.store(false);
 
-    const std::string stage = read_local_text_file(L"diffuse-progress.txt");
+    const std::string stage = ::xllama::read_local_text("diffuse-progress.txt");
     if (stage == "done") {
         SetStatus(L"Image ready — open [*] Image to view", StatusKind::Success);
     } else if (stage == "cancelled") {
@@ -2916,12 +2817,8 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                                            .c_str());
                             // Cache USB root (drive_path without trailing \) for
                             // resolve_model_path() sync path.
-                            auto cache_path = local_wpath(L"usb_model_root.txt");
-                            FILE* fp = _wfopen(cache_path.c_str(), L"w");
-                            if (fp) {
-                                fputws(drive_path.c_str(), fp);
-                                fclose(fp);
-                            }
+                            ::xllama::write_local_text("usb_model_root.txt",
+                                                       ::xllama::wstring_to_utf8(drive_path));
                             usb_found = true;
                         }
                     } catch (...) {
@@ -3278,12 +3175,8 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
         m_current.id = xllama::ui::ChatHistory::NewId();
     if (m_current.title.empty())
         m_current.title = xllama::ui::ChatHistory::TitleFrom(user_text);
-    int n_dropped = 0;
     const PromptPlan plan = BuildPromptPlan(user_text);
-    n_dropped = plan.dropped;
     std::string full_prompt = plan.prompt;
-    if (n_dropped > 0)
-        SetStatus(L"Context trimmed — " + std::to_wstring(n_dropped) + L" old turn(s) dropped");
 
     // Is the base model a GGUF (llama.cpp backend)? On Xbox llama.cpp is CPU-only
     // (no ggml GPU backend), so EP routing is meaningless and stays gated off for
@@ -3359,17 +3252,18 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
             // name-compare no-op). The previous shape loaded the CPU model
             // just to tokenize — ON THE UI THREAD — and then could tear it
             // down for the DML model (+1.2 s, uwp-constraints §5, 2786 ms vs
-            // 1570 ms). With no session resident the chars/5.0 estimator
-            // decides — the same estimator whose ceiling already bounds this
-            // prompt in BuildPrompt, so routing and trimming stay coherent.
+            // 1570 ms). With no session resident the role's chars-per-token
+            // estimate sizes it. Either way routing sees at most the context
+            // ceiling, which is what fit_prompt will prefill (#133).
             // try_lock: if the hub is busy (LAN API mid-turn) fall back to the
             // estimator rather than blocking the UI thread.
             auto& hub = ::xllama::session_hub();
             std::unique_lock<std::mutex> hub_lk(hub.mtx, std::try_to_lock);
-            if (hub_lk.owns_lock() && hub.session && hub.model == rs.cpu_model)
-                n_tok = hub.session->count_tokens(full_prompt);
-            else
-                n_tok = ::xllama::estimate_tokens_from_chars(full_prompt.size());
+            const int counted = (hub_lk.owns_lock() && hub.session && hub.model == rs.cpu_model)
+                                    ? hub.session->count_tokens(full_prompt)
+                                    : ::xllama::estimate_tokens_from_chars(full_prompt.size(),
+                                                                           plan.chars_per_token);
+            n_tok = ::xllama::routing_prompt_tokens(counted, plan.n_ctx);
         }
 
         // #91/#95: for a gpu_model that is not a parity-validated DML text asset,
@@ -3420,10 +3314,12 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
     }
 
     // KV-cache reuse decision (continuous decoding). Reuse only when enabled, the
-    // persistent generator already holds this conversation (m_kv_valid), and no
-    // turn was evicted this round (RewindTo cannot drop from the head, so eviction
-    // forces a full re-prefill). A reuse turn appends only the delta; otherwise we
-    // (re)prefill the full prompt — which also (re)seeds the persistent generator.
+    // persistent generator already holds this conversation (m_kv_valid), and the
+    // conversation is not expected to outgrow the context this round (RewindTo
+    // cannot drop from the head, so an overflowing delta forces a full re-prefill).
+    // The estimate only decides whether to ATTEMPT reuse; a wrong guess costs the
+    // fail-fast retry below, never the reply's content. A reuse turn appends only the delta;
+    // otherwise we (re)prefill the full prompt — which also (re)seeds the persistent generator.
     const std::string routed_model =
         ::xllama::wstring_to_utf8(m_active_model.empty() ? m_model_filename : m_active_model);
     // KV reuse now works for both backends: ORT-GenAI (persistent generator) and
@@ -3436,7 +3332,9 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
     // reuse regime. If the arch cannot shift, the continuation fail-fasts
     // (#173) and the retry below re-seeds with the trimmed full prompt.
     const bool shift_capable = ::xllama::model_uses_llama_backend(routed_model);
-    bool do_reuse = m_kv_reuse && m_kv_valid && (n_dropped == 0 || shift_capable) && ep_kv_ok;
+    const bool expect_overflow =
+        plan.estimated_tokens > ::xllama::max_prompt_tokens_for_n_ctx(plan.n_ctx);
+    bool do_reuse = m_kv_reuse && m_kv_valid && (!expect_overflow || shift_capable) && ep_kv_ok;
     bool kv_reuse = m_kv_reuse && ep_kv_ok;
     std::string delta_prompt = do_reuse ? BuildDeltaPrompt(user_text) : std::string();
 
@@ -3470,13 +3368,12 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
     // m_system_prompt / m_n_predict are UI-thread state, read here.
     const std::vector<::xllama::ChatTurn> plan_turns = plan.turns;
     const std::string system_prompt = m_system_prompt;
-    const int plan_n_ctx = plan.n_ctx;
+    int plan_n_ctx = plan.n_ctx; // replaced by the loaded session's n_ctx in the worker
     const int plan_n_predict = m_n_predict;
-    const int plan_dropped = plan.dropped;
 
     std::thread([self, full_prompt, delta_prompt, do_reuse, kv_reuse, ep_kv_ok, model, fmt,
                  sys_prefix, kv_path, dispatcher, plan_turns, user_text, system_prompt, plan_n_ctx,
-                 plan_n_predict, plan_dropped, compute_permit, prompt_w]() mutable {
+                 plan_n_predict, compute_permit, prompt_w]() mutable {
         try {
             if (!compute_permit) {
                 compute_permit = ::xllama::try_acquire_compute_job_while_preloading(
@@ -3534,6 +3431,10 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
                 });
                 return;
             }
+            // Budget against the context the resident session was loaded with
+            // (same_load pins n_ctx), not the UI-thread manifest cache, which a
+            // LocalState manifest override can leave stale.
+            plan_n_ctx = hub.params.n_ctx;
 
             // #170b: this conversation's KV is not resident (switched away and
             // back, or the app was restarted). Restoring the snapshot does not
@@ -3615,11 +3516,18 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
                                          });
                 char fb[192];
                 snprintf(fb, sizeof(fb),
-                         "[xllama] prompt budget: %d tok exact, dropped %d (estimate had %d), "
+                         "[xllama] prompt budget: %d tok exact, dropped %d old turn(s), "
                          "n_ctx %d, reply %d%s\n",
-                         fit.n_tokens, fit.dropped, plan_dropped, plan_n_ctx, plan_n_predict,
+                         fit.n_tokens, fit.dropped, plan_n_ctx, plan_n_predict,
                          fit.fits ? "" : " — DOES NOT FIT");
                 ::xllama::log_output(fb);
+                if (fit.dropped > 0) {
+                    const int dropped = fit.dropped;
+                    dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, dropped]() {
+                        self->SetStatus(L"Context trimmed — " + std::to_wstring(dropped) +
+                                        L" old turn(s) dropped");
+                    });
+                }
                 full_prompt = fit.prompt;
                 return full_prompt;
             };
@@ -3780,7 +3688,7 @@ void MainPageController::OnCancelClick(IInspectable const&, RoutedEventArgs cons
     switch (::xllama::cancel_target(m_diffuse_running.load(), m_train_running.load(),
                                     m_is_running.load())) {
     case ::xllama::CancelTarget::Image:
-        write_local_bytes(L"diffuse-cancel.flag", "cancel");
+        ::xllama::write_local_text("diffuse-cancel.flag", "cancel");
         SetStatus(L"Cancelling image...");
         m_cancelButton.IsEnabled(false);
         return;
@@ -3854,8 +3762,12 @@ bool MainPageController::ApParseScript(const std::string& json_utf8, std::vector
                 break;
             }
         }
-        a.steps = (int)obj.GetNamedNumber(L"steps", 1);
-        a.seed = (unsigned)obj.GetNamedNumber(L"seed", 42);
+        // Same contract as the Image dialog and the LAN API; clamped before any
+        // double->int conversion (xllama/diffusion/request.h).
+        a.steps = ::xllama::diffusion::interactive_steps(
+            obj.GetNamedNumber(L"steps", ::xllama::diffusion::kDefaultSteps));
+        a.seed = ::xllama::diffusion::request_seed(
+            obj.GetNamedNumber(L"seed", ::xllama::diffusion::kDefaultSeed));
         a.has_enabled = obj.HasKey(L"enabled");
         a.has_text = obj.HasKey(L"text");
         a.enabled = obj.GetNamedBoolean(L"enabled", false);
@@ -3947,7 +3859,7 @@ void MainPageController::StartAutopilotIfRequested() {
         winrt::init_apartment(); // MTA (same as the diffuse worker)
         std::string result = "ok";
         try {
-            std::string json = read_local_text_file(L"autopilot.json");
+            std::string json = ::xllama::read_local_text("autopilot.json");
             if (json.empty())
                 throw std::runtime_error("autopilot.json missing or empty");
             std::vector<ApAction> actions;
@@ -3968,7 +3880,7 @@ void MainPageController::StartAutopilotIfRequested() {
         // before we get here); only write it if it didn't.
         if (GetFileAttributesW(local_wpath(L"autopilot-done.txt").c_str()) ==
             INVALID_FILE_ATTRIBUTES)
-            write_local_bytes(L"autopilot-done.txt", result);
+            ::xllama::write_local_text("autopilot-done.txt", result);
         log_output("[autopilot] driver exit: " + result + "\n");
     }).detach();
 }
@@ -4001,7 +3913,7 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
     // the other, and always silently.
     auto rendezvous = [&](const std::string& label, std::chrono::seconds timeout) {
         const std::wstring mark_path = local_wpath(L"autopilot-mark.txt");
-        write_local_bytes(L"autopilot-mark.txt", label);
+        ::xllama::write_local_text("autopilot-mark.txt", label);
         // The wait below reads "file gone" as "the host has taken its shot". A
         // write that failed produces the same absence, so without this check the
         // action would sail through and the log would claim a release that never
@@ -4189,22 +4101,22 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             // it is the defect class already paid for in the bench (#205): the
             // run succeeds and produces a real-looking image nobody asked for.
             // validate_autopilot_script guarantees a non-empty prompt.
-            write_local_bytes(L"prompt.txt", ::xllama::wstring_to_utf8(a.arg));
-            write_local_bytes(L"diffuse-steps.txt", std::to_string(a.steps));
-            write_local_bytes(L"diffuse-seed.txt", std::to_string(a.seed));
-            write_local_bytes(L"diffuse-model.txt", "sd-turbo-fp16");
+            ::xllama::write_local_text("prompt.txt", ::xllama::wstring_to_utf8(a.arg));
+            ::xllama::write_local_text("diffuse-steps.txt", std::to_string(a.steps));
+            ::xllama::write_local_text("diffuse-seed.txt", std::to_string(a.seed));
+            ::xllama::write_local_text("diffuse-model.txt", "sd-turbo-fp16");
             ApDispatchSync([this, seed = a.seed, compute_permit]() {
                 m_last_diffuse_seed = seed;
                 StartDiffusion(compute_permit);
             });
             auto t = a.timeout.count() > 0 ? a.timeout : std::chrono::seconds{600};
             if (!ApWaitAtomic(m_diffuse_running, false, t)) {
-                write_local_bytes(L"diffuse-cancel.flag", "cancel");
+                ::xllama::write_local_text("diffuse-cancel.flag", "cancel");
                 ApWaitAtomic(m_diffuse_running, false, kGrace);
                 throw std::runtime_error("action " + std::to_string(i) +
                                          " generate_image: timeout");
             }
-            std::string stage = read_local_text_file(L"diffuse-progress.txt");
+            std::string stage = ::xllama::read_local_text("diffuse-progress.txt");
             if (stage != "done")
                 throw std::runtime_error("action " + std::to_string(i) +
                                          " generate_image: stage=" + stage);
@@ -4234,13 +4146,13 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                     _wremove(local_wpath(L"d3d12be-result.csv").c_str());
                     ::xllama::bridge::run_d3d12_selftest();
                 } else {
-                    write_local_bytes(L"model.txt", probe_model);
-                    write_local_bytes(L"prompt.txt", ::xllama::wstring_to_utf8(a.arg));
+                    ::xllama::write_local_text("model.txt", probe_model);
+                    ::xllama::write_local_text("prompt.txt", ::xllama::wstring_to_utf8(a.arg));
                     _wremove(local_wpath(L"logits.done").c_str());
                     _wremove(local_wpath(L"logits.bin").c_str());
                     _wremove(local_wpath(L"logits.bin.json").c_str());
                     ::xllama::bridge::run_logits();
-                    if (read_local_text_file(L"logits.done") != "ok")
+                    if (::xllama::read_local_text("logits.done") != "ok")
                         throw std::runtime_error("GPU logit diagnostic failed");
                 }
             } catch (...) {
@@ -4282,7 +4194,7 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             ApDispatchSync([this]() { StartPersonalizeTrain(); });
             if (!m_train_running.load()) {
                 // StartPersonalizeTrain failed preflight synchronously on UI thread.
-                const std::string done = read_local_text_file(L"training\\result.done");
+                const std::string done = ::xllama::read_local_text("training\\result.done");
                 throw std::runtime_error("action " + std::to_string(i) +
                                          " start_train: did not start (preflight)");
             }
@@ -4292,21 +4204,21 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                 ApWaitAtomic(m_train_running, false, kGrace);
                 throw std::runtime_error("action " + std::to_string(i) + " start_train: timeout");
             }
-            const std::string done = read_local_text_file(L"training\\result.done");
+            const std::string done = ::xllama::read_local_text("training\\result.done");
             if (::xllama::parse_train_result_done(done) != "ok")
                 throw std::runtime_error("action " + std::to_string(i) +
                                          " start_train: result.done=" + done);
         } else if (a.op == "train_status") {
-            const std::string done = read_local_text_file(L"training\\result.done");
-            const std::string prog = read_local_text_file(L"training\\progress.json");
+            const std::string done = ::xllama::read_local_text("training\\result.done");
+            const std::string prog = ::xllama::read_local_text("training\\progress.json");
             const std::string state = m_train_running.load()
                                           ? "running"
                                           : (::xllama::parse_train_result_done(done).empty()
                                                  ? "idle"
                                                  : ::xllama::parse_train_result_done(done));
-            write_local_bytes(L"autopilot-train-status.txt", "state=" + state +
-                                                                 "\nresult_done=" + done +
-                                                                 "\nprogress=" + prog + "\n");
+            ::xllama::write_local_text("autopilot-train-status.txt",
+                                       "state=" + state + "\nresult_done=" + done +
+                                           "\nprogress=" + prog + "\n");
             log_output("[autopilot] train_status state=" + state + "\n");
         } else if (a.op == "mark") {
             if (!not_running())
@@ -4362,7 +4274,7 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             log_output("[autopilot] show_pane '" + pane + "' closed\n");
         } else if (a.op == "quit") {
             log_output("[autopilot] action " + std::to_string(i) + " quit\n");
-            write_local_bytes(L"autopilot-done.txt", "ok");
+            ::xllama::write_local_text("autopilot-done.txt", "ok");
             ApDispatchSync([]() { winrt::Windows::UI::Xaml::Application::Current().Exit(); });
             return;
         } else {
@@ -4376,7 +4288,7 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
         log_output("[autopilot] action " + std::to_string(i) + " " + a.op + " end\n");
     }
     // Fell off the end without an explicit quit: still a success.
-    write_local_bytes(L"autopilot-done.txt", "ok");
+    ::xllama::write_local_text("autopilot-done.txt", "ok");
 }
 
 } // namespace xllama
