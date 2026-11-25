@@ -1,0 +1,27 @@
+# step5 paired H9 2026-11-25T01:30:19+01:00 head=cc482024206b7a549ef46b9b113a7063ec9eef1b
+$ ./scripts/eval-xbox-models.sh --models granite40-h-tiny,llama32-3b --out bench/results/2026-11-24-granite40-h-tiny/h9-series-s.jsonl
+=== H9: granite40-h-tiny ===
+{"model":"granite40-h-tiny","task_id":"it_exact_capital","pass":true,"latency_ms":5140,"usage":{"prompt_tokens":39,"completion_tokens":2,"total_tokens":41},"content":"ROMA"}
+{"model":"granite40-h-tiny","task_id":"arithmetic_multistep","pass":false,"latency_ms":1917,"usage":{"prompt_tokens":68,"completion_tokens":2,"total_tokens":70},"content":"1008"}
+{"model":"granite40-h-tiny","task_id":"json_extraction","pass":true,"latency_ms":3112,"usage":{"prompt_tokens":68,"completion_tokens":29,"total_tokens":97},"content":"{\n  \"name\": \"Ada Lovelace\",\n  \"year\": 1843,\n  \"city\": \"Londra\"\n}"}
+{"model":"granite40-h-tiny","task_id":"grounded_qa","pass":true,"latency_ms":2448,"usage":{"prompt_tokens":66,"completion_tokens":16,"total_tokens":82},"content":"Il dispositivo Falco usa 4 core CPU e occupa 730 MB."}
+{"model":"granite40-h-tiny","task_id":"constrained_summary","pass":true,"latency_ms":4028,"usage":{"prompt_tokens":73,"completion_tokens":49,"total_tokens":122},"content":"- Progetto sviluppato in C++17\n- Funziona in modalità offline su <user> Series S\n- I modelli non sono inclusi nel pacchetto, ma vengono scaricati al primo avvio"}
+{"model":"granite40-h-tiny","task_id":"translation_fidelity","pass":true,"latency_ms":2582,"usage":{"prompt_tokens":64,"completion_tokens":23,"total_tokens":87},"content":"The test starts on Tuesday at 09:30, lasts 45 minutes and does not require an internet connection."}
+{"model":"granite40-h-tiny","task_id":"multi_turn_memory","pass":true,"latency_ms":1976,"usage":{"prompt_tokens":74,"completion_tokens":3,"total_tokens":77},"content":"AZ-417"}
+{"model":"granite40-h-tiny","task_id":"unknown_from_context","pass":true,"latency_ms":2010,"usage":{"prompt_tokens":68,"completion_tokens":6,"total_tokens":74},"content":"NON DISPONIBILE."}
+=== H9: llama32-3b ===
+{"model":"llama32-3b","task_id":"it_exact_capital","pass":true,"latency_ms":4333,"usage":{"prompt_tokens":41,"completion_tokens":3,"total_tokens":44},"content":"Roma."}
+{"model":"llama32-3b","task_id":"arithmetic_multistep","pass":false,"latency_ms":2068,"usage":{"prompt_tokens":70,"completion_tokens":1,"total_tokens":71},"content":"61"}
+{"model":"llama32-3b","task_id":"json_extraction","pass":true,"latency_ms":3606,"usage":{"prompt_tokens":70,"completion_tokens":24,"total_tokens":94},"content":"{\"name\": \"Ada Lovelace\", \"year\": 1843, \"city\": \"Londra\"}"}
+{"model":"llama32-3b","task_id":"grounded_qa","pass":true,"latency_ms":3068,"usage":{"prompt_tokens":68,"completion_tokens":16,"total_tokens":84},"content":"Il dispositivo Falco usa 4 core CPU e occupa 730 MB."}
+{"model":"llama32-3b","task_id":"constrained_summary","pass":true,"latency_ms":6961,"usage":{"prompt_tokens":75,"completion_tokens":68,"total_tokens":143},"content":"Ecco tre punti di riassunto del progetto:\n\n1. Il progetto utilizza C++17 come linguaggio di programmazione.\n2. Il progetto gira offline su <user> Series S.\n3. I modelli non sono inclusi nel pacchetto e vengono scaricati al primo avvio."}
+{"model":"llama32-3b","task_id":"translation_fidelity","pass":true,"latency_ms":3985,"usage":{"prompt_tokens":66,"completion_tokens":30,"total_tokens":96},"content":"Here is the translation:\n\n\"The test begins on Tuesday at 9:30am, lasts 45 minutes, and does not require an internet connection.\""}
+{"model":"llama32-3b","task_id":"multi_turn_memory","pass":false,"latency_ms":2812,"usage":{"prompt_tokens":76,"completion_tokens":12,"total_tokens":88},"content":"Non posso ricordare codici di sessione."}
+{"model":"llama32-3b","task_id":"unknown_from_context","pass":true,"latency_ms":2619,"usage":{"prompt_tokens":70,"completion_tokens":4,"total_tokens":74},"content":"Non disponibile."}
+
+=== Summary ===
+granite40-h-tiny: 7/8 pass
+llama32-3b: 6/8 pass
+Results: bench/results/2026-11-24-granite40-h-tiny/h9-series-s.jsonl
+rc=0
+# end 2026-11-25T01:31:12+01:00

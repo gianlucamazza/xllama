@@ -33,6 +33,8 @@ are not product numbers. The §I1 row is filled from the CSVs only
 | `hybrid-snapshot.log`    | #512 host test on this checkpoint (strict-prefix restore, pure extension, non-prefix drop)  |
 | `t3-series-s.csv`        | Series S T3, granite40-h-tiny Q3_K_S, 3 recorded runs after warmup                          |
 | `t3-llama32-3b.csv`      | Series S T3, dense peer `llama32-3b` Q3_K_S, same settings                                  |
+| `h9-series-s.jsonl`      | Paired Series S H9 (`granite40-h-tiny` 7/8, `llama32-3b` 6/8)                               |
+| `h9-20261125/`           | H9 operator logs, README, SHA256SUMS (25 Nov 2026)                                          |
 | `manifest.override.json` | LocalState override to load Q3_K_S on Series S                                              |
 
 Logs are redacted with `scripts/redact_recorded_path.py` (no hostnames, IPs,
@@ -66,4 +68,5 @@ PFN=$(./scripts/deploy.sh pfn)
 
 `--runs 4` drops run 1 as warmup and records three `run_index` rows. Gate:
 every run `peak_ws_mb` ≤ 3584; decode strictly above the dense peer; TTFT not
-several× worse. The #273 same-quality bar is a separate measurement.
+several× worse. H9 same-quality bar: PASS (receipts in
+[`h9-20261125/`](h9-20261125/)). The #273 decision is pending owner decision.
