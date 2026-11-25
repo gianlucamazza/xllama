@@ -1043,10 +1043,8 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
             // Nothing older left to drop: the final user message alone does not fit.
             // That is the client's input, hence 400.
             status = "400 Bad Request";
-            return error_json("prompt too long: the final user message needs " +
-                              std::to_string(fit.n_tokens) + " tokens plus " +
-                              std::to_string(gp.n_predict) + " for the reply, but n_ctx is " +
-                              std::to_string(policy_n_ctx));
+            return error_json(::xllama::prompt_too_long_message("final user message", fit.n_tokens,
+                                                                gp.n_predict, policy_n_ctx));
         }
         if (fit.dropped > 0)
             ::xllama::log_output("[xllama] api: dropped " + std::to_string(fit.dropped) +

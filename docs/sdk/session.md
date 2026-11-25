@@ -125,6 +125,7 @@ Parameters for a single generation turn.
 | `reuse_kv`           | false      | Enable KV-cache reuse (continuous decoding) |
 | `reset_kv`           | false      | Reset KV cache for this turn                |
 | `n_keep`             | 0          | Tokens pinned across context shifts         |
+| `expected_kv_epoch`  | 0          | Continuation guard (`kv_epoch()`); 0 = off  |
 | `on_token`           | —          | Callback per generated token                |
 | `on_status`          | —          | Callback for status changes                 |
 | `abort_flag`         | —          | Atomic flag for early termination           |
@@ -136,6 +137,15 @@ Parameters for a single generation turn.
 | `false`    | —          | Stateless turn: full context prefill                                    |
 | `true`     | `false`    | Reuse supported prefix; hybrid tails restore a saved prefix if possible |
 | `true`     | `true`     | Reset: full context prefill, subsequent turns reuse                     |
+
+`Session::kv_epoch()` identifies the resident KV content. It is unique across
+sessions, changes on every KV change that is not a continuation, and stays the
+same across successful continuations. A caller that shares the session (the GUI
+next to the LAN API) records it after its turn and passes it as
+`expected_kv_epoch` on the next continuation: on a mismatch `generate` returns
+`success=false, n_eval=0` before touching the KV, and the caller retries with
+the full prompt. A full prompt that cannot fit `n_ctx` is refused before the
+KV is rewound, so it never costs the resident conversation.
 
 A full-prompt turn (LAN API, regenerate) diffs the new tokens against the
 resident KV. Non-hybrid caches rewind the divergent tail (#170a). Hybrid

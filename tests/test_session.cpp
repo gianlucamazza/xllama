@@ -687,3 +687,120 @@ TEST_CASE("Session: hybrid head/tail prefill matches the opt-out greedy output "
         CHECK(r_on.output_text == r_off.output_text);
     }
 }
+
+namespace {
+struct EpochProbeSession final : xllama::Session {
+    xllama::InferenceResult generate(const xllama::GenerateParams&) override {
+        return {};
+    }
+    int count_tokens(const std::string&) override {
+        return 0;
+    }
+    void rewrite() {
+        touch_kv();
+    }
+};
+} // namespace
+
+TEST_CASE("Session::kv_epoch: unique per instance, renewed on every rewrite") {
+    EpochProbeSession a;
+    EpochProbeSession b;
+    CHECK(a.kv_epoch() != 0);
+    CHECK(a.kv_epoch() != b.kv_epoch()); // a reloaded session never matches the old one
+    const uint64_t before = a.kv_epoch();
+    a.rewrite();
+    CHECK(a.kv_epoch() != before);
+    CHECK(a.kv_epoch() != b.kv_epoch());
+}
+
+namespace {
+xllama::GenerateParams greedy_turn(const std::string& prompt, bool reuse, bool reset) {
+    xllama::GenerateParams gp;
+    gp.prompt = prompt;
+    gp.n_predict = 8;
+    gp.temperature = 0.0f;
+    gp.reuse_kv = reuse;
+    gp.reset_kv = reset;
+    return gp;
+}
+} // namespace
+
+TEST_CASE("Session: a continuation on a KV another caller rewrote is refused (opt-in: "
+          "XLLAMA_TEST_MODEL)") {
+    // The GUI continues its own conversation with a delta; the LAN API sends a
+    // stateless full prompt on the same resident session in between. Appending
+    // the GUI delta to the API's KV would continue the API conversation.
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    xllama::SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 1024;
+    std::string error;
+    auto s = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(s, error);
+
+    const std::string sys = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n";
+    const std::string gui1 = sys + "<|im_start|>user\nMy name is Ada.<|im_end|>\n"
+                                   "<|im_start|>assistant\n";
+    const auto r1 = s->generate(greedy_turn(gui1, true, true));
+    REQUIRE_MESSAGE(r1.success, r1.error_msg);
+    const uint64_t gui_epoch = s->kv_epoch();
+
+    // Same owner: a continuation keeps the epoch.
+    const std::string delta = "<|im_end|>\n<|im_start|>user\nSay it again.<|im_end|>\n"
+                              "<|im_start|>assistant\n";
+    xllama::GenerateParams own = greedy_turn(delta, true, false);
+    own.expected_kv_epoch = gui_epoch;
+    const auto r_own = s->generate(own);
+    REQUIRE_MESSAGE(r_own.success, r_own.error_msg);
+    CHECK(s->kv_epoch() == gui_epoch);
+
+    // Another caller's full prompt rewrites the KV.
+    const std::string api = sys + "<|im_start|>user\nList three colours.<|im_end|>\n"
+                                  "<|im_start|>assistant\n";
+    const auto r_api = s->generate(greedy_turn(api, false, false));
+    REQUIRE_MESSAGE(r_api.success, r_api.error_msg);
+    CHECK(s->kv_epoch() != gui_epoch);
+
+    // The GUI's next continuation is refused before anything is touched.
+    xllama::GenerateParams stale = greedy_turn(delta, true, false);
+    stale.expected_kv_epoch = gui_epoch;
+    const uint64_t api_epoch = s->kv_epoch();
+    const auto r_stale = s->generate(stale);
+    CHECK_FALSE(r_stale.success);
+    CHECK(r_stale.n_eval == 0);
+    CHECK(r_stale.error_msg.find("changed since the last turn") != std::string::npos);
+    CHECK(s->kv_epoch() == api_epoch);
+}
+
+TEST_CASE("Session: a full prompt past n_ctx leaves the resident KV and its epoch intact "
+          "(opt-in: XLLAMA_TEST_MODEL)") {
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    xllama::SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 512;
+    std::string error;
+    auto s = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(s, error);
+    const std::string turn = "<|im_start|>user\nHello.<|im_end|>\n<|im_start|>assistant\n";
+    REQUIRE(s->generate(greedy_turn(turn, true, true)).success);
+    const uint64_t epoch = s->kv_epoch();
+
+    std::string huge;
+    for (int i = 0; i < 400; ++i)
+        huge += "token " + std::to_string(i) + " ";
+    const auto r = s->generate(greedy_turn(huge, false, false));
+    CHECK_FALSE(r.success);
+    CHECK(r.error_msg.find("prompt too long") != std::string::npos);
+    CHECK(s->kv_epoch() == epoch); // rejected before the #170a rewind
+
+    // ...so the conversation still continues on its own KV.
+    xllama::GenerateParams cont = greedy_turn(
+        "<|im_end|>\n<|im_start|>user\nAgain.<|im_end|>\n<|im_start|>assistant\n", true, false);
+    cont.expected_kv_epoch = epoch;
+    const auto r_cont = s->generate(cont);
+    CHECK_MESSAGE(r_cont.success, r_cont.error_msg);
+}

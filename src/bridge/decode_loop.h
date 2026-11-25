@@ -71,14 +71,6 @@ inline bool prefill_chunked(llama_context* ctx, const llama_token* tokens, int n
     return true;
 }
 
-// The message for a prompt that cannot fit the context at all. Chunking makes an
-// oversized BATCH safe, not an oversized CONTEXT — without this the run would
-// fail somewhere inside the loop with a bare "decode failed".
-inline std::string prompt_too_long_message(int n_tokens, int n_ctx) {
-    return "prompt too long: " + std::to_string(n_tokens) +
-           " tokens exceed n_ctx=" + std::to_string(n_ctx);
-}
-
 struct DecodeLoopParams {
     llama_context* ctx = nullptr;
     llama_sampler* sampler = nullptr;

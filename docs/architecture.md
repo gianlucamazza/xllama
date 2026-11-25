@@ -270,8 +270,13 @@ owner shared by the chat UI and the LAN API — "avoid 2× model in RAM" (the CP
 and DML working sets, ~1.3 GB and ~2.9 GB, do not coexist in the budget) is now
 a process-wide invariant instead of a per-surface convention the API silently
 violated. `EnsureSession` swaps the resident model through the hub under its
-mutex; `hub.generation` lets the UI drop its KV-reuse state when the API
-swapped models between turns. The routing token-count no longer loads a model
+mutex. Who owns the resident KV is `Session::kv_epoch()`: it changes on every
+KV change that is not a continuation (an API full prompt on the same model, a
+reload, an embedding, a disk-snapshot load), so the GUI's next delta passes the
+epoch it left as `expected_kv_epoch` and a rewritten KV refuses the continuation
+instead of appending to another conversation; the turn then re-prefills its own
+context, cheaply through the #170a diff. The same check gates the #170b disk
+save. `hub.generation` still counts resident-session swaps. The routing token-count no longer loads a model
 at all: it uses the exact count only when the CPU session is already resident,
 else the same chars/5.0 estimator that bounds the prompt in `BuildPrompt` (the
 old shape loaded the CPU model on the UI thread just to tokenize, then could

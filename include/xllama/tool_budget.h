@@ -20,9 +20,6 @@ struct ToolBudgetError {
     const char* code = kContextLengthExceeded;
 };
 
-// Exact prefix that validate-api.sh and the docs grep for. Do not change.
-std::string tool_prompt_too_long_prefix(int n_tokens, int n_predict, int n_ctx);
-
 // The baseline is the same transcript rendered without tools. A negative
 // baseline leaves the contribution and parameter unknown.
 ToolBudgetError tool_prompt_too_long(int n_tokens, int n_tokens_without_tools, int n_predict,

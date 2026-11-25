@@ -10,6 +10,7 @@
 #include "xllama/inference_params.h"
 
 #include <atomic>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -128,6 +129,15 @@ struct GenerateParams {
     bool reuse_kv = false;
     bool reset_kv = false;
 
+    // Continuation guard: the Session::kv_epoch() the caller saw when it last
+    // left the KV. A continuation turn whose session reports another epoch
+    // fails before touching the KV (success=false, n_eval=0, the caller's
+    // usual full-prompt retry), because another caller — the LAN API, a
+    // reload, an embedding or a disk-snapshot load — rewrote the resident
+    // context in between, and appending this delta would continue THEIR
+    // conversation. 0 = no guard (callers that do not continue).
+    uint64_t expected_kv_epoch = 0;
+
     // #169: number of leading prompt tokens pinned across context shifts —
     // the system prompt (plus BOS), which must survive any eviction. 0 = no
     // pinned head. Callers compute it once per conversation via
@@ -167,6 +177,16 @@ struct Session {
     static std::unique_ptr<Session> create(const SessionParams& params, std::string* err = nullptr);
 
     virtual InferenceResult generate(const GenerateParams& params) = 0;
+
+    // Identity of the resident KV content. It changes on every KV change that
+    // is not a continuation of the current content (full-prompt turns, clears,
+    // embeddings, load_state, a rebuilt generator) and never on a successful
+    // continuation, so "same epoch" means "the KV is still the one I left".
+    // Unique across Session instances: a reloaded session never reuses an
+    // epoch. Read it under the same lock that serialises generate().
+    uint64_t kv_epoch() const {
+        return m_kv_epoch;
+    }
 
     // Token count for routing/heuristics (encode-only; no generation).
     virtual int count_tokens(const std::string& prompt) = 0;
@@ -225,6 +245,14 @@ struct Session {
     }
 
     virtual ~Session() = default;
+
+  protected:
+    Session();
+    // Mark the resident KV as new content (see kv_epoch()).
+    void touch_kv();
+
+  private:
+    uint64_t m_kv_epoch;
 };
 
 } // namespace xllama

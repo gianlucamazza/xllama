@@ -11,6 +11,7 @@
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
 #include "xllama/prefix_snapshot.h"
+#include "xllama/prompt_budget.h"
 #include "xllama/routing_policy.h"
 #include "xllama/session_hub.h"
 #include "xllama/utf8_utils.h"
@@ -95,6 +96,7 @@ class OrtSession final : public Session {
         m_chat_params.reset();
         m_chat_stream.reset();
         m_chat_valid = false;
+        touch_kv(); // the chat generator, i.e. the resident KV, is gone
     }
 
     bool sampling_matches(const GenerateParams& gp) const {
@@ -213,6 +215,13 @@ class OrtSession final : public Session {
     // persistent generator; on reset_kv or a sampling change, rebuild it first
     // (then `gp.prompt` is the full context).
     void generate_chat(const GenerateParams& gp, InferenceResult& res) {
+        if (!gp.reset_kv && gp.expected_kv_epoch != 0 && gp.expected_kv_epoch != kv_epoch()) {
+            // The persistent generator is not the one the caller left (see
+            // GenerateParams::expected_kv_epoch); the caller retries in full.
+            res.error_msg = "the resident context changed since the last turn";
+            log_output("[xllama] session generate: " + res.error_msg + " — continuation refused\n");
+            return;
+        }
         const bool reuse = !gp.reset_kv && sampling_matches(gp);
         if (!reuse) {
             reset_chat_state();
@@ -617,6 +626,15 @@ class LlamaSession final : public Session {
         // (#170a) instead of always clearing. add_bos only on a full prompt —
         // a delta must not carry a BOS mid-conversation.
         const bool full_prompt = gp.reset_kv || !gp.reuse_kv;
+        if (!full_prompt && gp.expected_kv_epoch != 0 && gp.expected_kv_epoch != kv_epoch()) {
+            // Someone else rewrote the resident context since the caller's last
+            // turn (kv_epoch). Appending this delta would continue THEIR
+            // conversation; refuse before touching anything so the caller's
+            // full-prompt retry rebuilds its own context.
+            res.error_msg = "the resident context changed since the last turn";
+            log_output("[xllama] session generate: " + res.error_msg + " — continuation refused\n");
+            return res;
+        }
 
         const llama_vocab* vocab = llama_model_get_vocab(m_model.get());
 
@@ -646,6 +664,17 @@ class LlamaSession final : public Session {
         }
         tokens.resize(static_cast<size_t>(n_tokens));
 
+        if (full_prompt && static_cast<int>(tokens.size()) + 1 > m_n_ctx) {
+            // A full prompt has nothing older to evict: fit_prompt in the caller
+            // owns that. Refuse BEFORE the #170a rewind below, so a rejected
+            // request leaves the resident KV (and its owner) as it was. Reaching
+            // llama_decode with more tokens than the context is not an error
+            // code but a GGML_ASSERT abort.
+            res.error_msg = context_overflow_message(static_cast<int>(tokens.size()), m_n_ctx);
+            log_output("[xllama] session generate: " + res.error_msg + "\n");
+            return res;
+        }
+
         // #170a: on a full prompt, rewind the resident KV to the common token
         // prefix and prefill only the divergent tail. Capped at size-1 so at
         // least one token is prefilled — the last token's logits seed the first
@@ -663,6 +692,7 @@ class LlamaSession final : public Session {
         llama_memory_t mem = llama_get_memory(ctx);
         size_t kv_keep = 0;
         if (full_prompt) {
+            touch_kv(); // new content from here on, whatever the planner keeps
             const size_t common = common_kv_prefix(m_kv_tokens, tokens);
             bool can_rewind = true;
             if (common > 0 && common < m_kv_tokens.size()) {
@@ -759,18 +789,6 @@ class LlamaSession final : public Session {
             log_output("[xllama] session generate: nothing to prefill\n");
             return res;
         }
-        if (full_prompt && kv_len + n_pf + 1 > m_n_ctx) {
-            // A full prompt has nothing older to evict — the UI trimmer
-            // (kMaxPromptTokens / max_prompt_tokens_for_n_ctx) owns that, and
-            // its char-based estimate can undershoot on dense code or CJK.
-            // Fail here: reaching llama_decode with more tokens than the
-            // context is not an error code but a GGML_ASSERT abort.
-            res.error_msg = "prompt too long: " + std::to_string(n_pf) +
-                            " tokens exceed n_ctx=" + std::to_string(m_n_ctx) +
-                            " — shorten the message or start a new chat";
-            log_output(("[xllama] session generate: " + res.error_msg + "\n").c_str());
-            return res;
-        }
         if (!full_prompt && kv_len + n_pf + 1 > m_n_ctx) {
             // #169: context shift — evict the oldest tokens past the pinned
             // head (gp.n_keep, the system prompt) and RoPE-shift the survivors
@@ -857,6 +875,7 @@ class LlamaSession final : public Session {
             m_kv_tokens.clear();
             drop_prefix_snapshot();
             llama_memory_clear(mem, true);
+            touch_kv();
             return res;
         };
 
@@ -1000,6 +1019,7 @@ class LlamaSession final : public Session {
             drop_prefix_snapshot();
             if (m_ctx)
                 llama_memory_clear(llama_get_memory(m_ctx.get()), /*data=*/true);
+            touch_kv();
             res.success = false;
             res.error_msg =
                 "speculative KV rewind unsupported (disable prompt_lookup for this model)";
@@ -1114,6 +1134,7 @@ class LlamaSession final : public Session {
         m_kv_tokens.clear();
         drop_prefix_snapshot();
         llama_memory_clear(llama_get_memory(ctx), true);
+        touch_kv();
         llama_set_embeddings(ctx, true);
         struct EmbeddingContextReset {
             llama_context* ctx;
@@ -1415,6 +1436,7 @@ class LlamaSession final : public Session {
             if (err)
                 *err = std::string("state_seq_set_data threw: ") + e.what();
         }
+        touch_kv(); // the cells are the file's now, or cleared below
         if (used == 0) {
             // The pin rolls its own read back, but the bookkeeping is ours.
             llama_memory_clear(llama_get_memory(m_ctx.get()), true);
@@ -1497,6 +1519,17 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
 // Public factory: dispatch to the compiled backend(s).
 // ---------------------------------------------------------------------------
 namespace xllama {
+
+namespace {
+// Process-wide so an epoch is never reused by a later Session instance.
+std::atomic<uint64_t> g_next_kv_epoch{1};
+} // namespace
+
+Session::Session() : m_kv_epoch(g_next_kv_epoch.fetch_add(1, std::memory_order_relaxed)) {}
+
+void Session::touch_kv() {
+    m_kv_epoch = g_next_kv_epoch.fetch_add(1, std::memory_order_relaxed);
+}
 
 Backend Session::backend_for(const SessionParams& sp) {
 #if defined(XLLAMA_USE_ORT) && defined(XLLAMA_USE_LLAMA)

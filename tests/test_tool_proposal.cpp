@@ -429,8 +429,8 @@ TEST_CASE("a generated 39-tool fixture overflows with the schema kept and param 
     const xllama::ToolBudgetError err =
         xllama::tool_prompt_too_long(overflow.n_tokens, overflow.n_tokens_without_tools,
                                      xllama::kReservedGenerationTokens, n_ctx);
-    const std::string prefix = xllama::tool_prompt_too_long_prefix(
-        overflow.n_tokens, xllama::kReservedGenerationTokens, n_ctx);
+    const std::string prefix = xllama::prompt_too_long_message(
+        "request", overflow.n_tokens, xllama::kReservedGenerationTokens, n_ctx);
     CHECK(err.message.compare(0, prefix.size(), prefix) == 0);
     CHECK(std::string(err.param) == xllama::kToolBudgetParamTools);
     CHECK(std::string(err.code) == xllama::kContextLengthExceeded);

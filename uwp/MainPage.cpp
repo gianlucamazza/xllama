@@ -987,16 +987,17 @@ void MainPageController::SaveKvSnapshotAsync() {
     const std::string path = store.path_for(m_current.id);
     if (path.empty())
         return;
-    const uint64_t gen = m_hub_generation;
+    const uint64_t epoch = m_kv_epoch.load();
     // Finish any previous save before scheduling another (same path possible).
     WaitKvSnapshotSave();
     {
         std::lock_guard<std::mutex> lk(m_kv_save_mutex);
-        m_kv_save_future = std::async(std::launch::async, [store, path, gen]() {
+        m_kv_save_future = std::async(std::launch::async, [store, path, epoch]() {
             auto& hub = ::xllama::session_hub();
             std::lock_guard<std::mutex> hub_lk(hub.mtx);
-            if (!hub.session || hub.generation != gen)
-                return; // a different model is resident now — nothing of ours to save
+            if (!hub.session || hub.session->kv_epoch() != epoch)
+                return; // the resident KV is not this conversation's any more
+                        // (the API, a reload or another model) — nothing to save
             std::string err;
             if (hub.session->save_state(path, &err))
                 store.prune(::xllama::kKvStoreMaxFiles, ::xllama::kKvStoreMaxBytes);
@@ -3517,14 +3518,6 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
                     self->SetStatus(L"Loading model...", StatusKind::Working);
                 });
             }
-            // The other surface may have swapped the resident model between
-            // our turns — the persistent generator the KV flag refers to is
-            // gone. Fall back to a full prefill (no user-visible failure).
-            if (do_reuse && hub.generation != self->m_hub_generation) {
-                ::xllama::log_output(
-                    "[xllama] KV reuse skipped: resident session changed between turns\n");
-                do_reuse = false;
-            }
             std::string load_err;
             if (!self->EnsureSession(model, &load_err)) {
                 dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, load_err]() {
@@ -3588,6 +3581,10 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
                 gp.stop_sequences = fmt.stop_sequences;
                 gp.reuse_kv = reuse;
                 gp.reset_kv = reset;
+                // A continuation is only valid on the KV this conversation left;
+                // the session refuses it otherwise and the caller retries in full.
+                if (reuse && !reset)
+                    gp.expected_kv_epoch = self->m_kv_epoch.load();
                 // count_tokens matches generate()'s full-prompt tokenization
                 // (BOS included), and the system block ends on a special
                 // token, so the boundary is exact. Ignored unless a context
@@ -3604,6 +3601,7 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
             // behind the user's back (xllama::fit_prompt). Lazy: a reuse turn sends
             // only the delta and never needs it — but its retry does.
             bool fitted = false;
+            std::string fit_error; // set when even the final message cannot fit
             auto fit_full_prompt = [&]() -> const std::string& {
                 if (fitted)
                     return full_prompt;
@@ -3620,8 +3618,23 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
                          fit.n_tokens, fit.dropped, plan_dropped, plan_n_ctx, plan_n_predict,
                          fit.fits ? "" : " — DOES NOT FIT");
                 ::xllama::log_output(fb);
+                if (!fit.fits)
+                    fit_error = ::xllama::prompt_too_long_message(
+                        "final user message", fit.n_tokens, plan_n_predict, plan_n_ctx);
                 full_prompt = fit.prompt;
                 return full_prompt;
+            };
+            // A full-prompt turn, or the same refusal the LAN API gives (400)
+            // when the final message alone plus the reply's room exceeds n_ctx —
+            // never a silently shortened reply.
+            auto run_full_turn = [&](bool reuse, bool reset) {
+                const std::string& prompt = fit_full_prompt();
+                if (!fit_error.empty()) {
+                    xllama::InferenceResult refused;
+                    refused.error_msg = fit_error;
+                    return refused;
+                }
+                return run_turn(prompt, reuse, reset);
             };
 
             xllama::InferenceResult res;
@@ -3632,18 +3645,17 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
                 // were streamed yet, so the UI stays clean.
                 if (!res.success && res.n_eval == 0) {
                     ::xllama::log_output("[xllama] KV reuse failed, retrying with full prefill\n");
-                    res = run_turn(fit_full_prompt(), /*reuse=*/kv_reuse, /*reset=*/true);
+                    res = run_full_turn(/*reuse=*/kv_reuse, /*reset=*/true);
                 }
             } else {
                 // First turn / post-reset: seed the persistent generator (reuse+reset)
                 // when KV reuse is enabled, else a pure stateless turn.
-                res = run_turn(fit_full_prompt(), /*reuse=*/kv_reuse, /*reset=*/kv_reuse);
+                res = run_full_turn(/*reuse=*/kv_reuse, /*reset=*/kv_reuse);
             }
 
-            // Stamp the resident-session generation this turn's KV state was
-            // built on (still under hub.mtx); the next turn's reuse check
-            // compares against it.
-            self->m_hub_generation = hub.generation;
+            // The KV this conversation now owns (still under hub.mtx); the next
+            // continuation must find the session at this epoch.
+            self->m_kv_epoch = self->m_turn_session->kv_epoch();
 
             std::wstring metrics;
             if (res.success) {
