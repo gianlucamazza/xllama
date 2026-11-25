@@ -17,6 +17,7 @@
     #include "xllama/chat_prompt.h"
     #include "xllama/compute_admission.h"
     #include "xllama/debug_dashboard.h"
+    #include "xllama/diffusion/request.h"
     #include "xllama/json_utils.h"
     #include "xllama/kv_store.h"
     #include "xllama/local_knob.h"
@@ -2331,10 +2332,10 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     panel.Children().Append(promptBox);
 
     winrt::Windows::UI::Xaml::Controls::Slider stepsSlider;
-    stepsSlider.Minimum(1);
-    stepsSlider.Maximum(4);
+    stepsSlider.Minimum(::xllama::diffusion::kStepsMin);
+    stepsSlider.Maximum(::xllama::diffusion::kStepsInteractiveMax);
     stepsSlider.StepFrequency(1);
-    stepsSlider.Value(1);
+    stepsSlider.Value(::xllama::diffusion::kDefaultSteps);
     stepsSlider.Header(winrt::box_value(L"Steps (SD-Turbo: 1 is enough)"));
     panel.Children().Append(stepsSlider);
 
@@ -2511,7 +2512,7 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
         self->SetStatus(L"Enter an image prompt first", StatusKind::Error);
         co_return;
     }
-    const int steps = (int)stepsSlider.Value();
+    const int steps = ::xllama::diffusion::interactive_steps(stepsSlider.Value());
     const uint32_t seed = self->m_diffuse_seed == 0
                               ? static_cast<uint32_t>(GetTickCount64() % 1'000'000'000ULL) + 1
                               : self->m_diffuse_seed;
@@ -3804,8 +3805,12 @@ bool MainPageController::ApParseScript(const std::string& json_utf8, std::vector
                 break;
             }
         }
-        a.steps = (int)obj.GetNamedNumber(L"steps", 1);
-        a.seed = (unsigned)obj.GetNamedNumber(L"seed", 42);
+        // Same contract as the Image dialog and the LAN API; clamped before any
+        // double->int conversion (xllama/diffusion/request.h).
+        a.steps = ::xllama::diffusion::interactive_steps(
+            obj.GetNamedNumber(L"steps", ::xllama::diffusion::kDefaultSteps));
+        a.seed = ::xllama::diffusion::request_seed(
+            obj.GetNamedNumber(L"seed", ::xllama::diffusion::kDefaultSeed));
         a.has_enabled = obj.HasKey(L"enabled");
         a.has_text = obj.HasKey(L"text");
         a.enabled = obj.GetNamedBoolean(L"enabled", false);
