@@ -645,3 +645,45 @@ TEST_CASE("Session: divergent restored snapshot matches cold prefill (opt-in: XL
     std::error_code ec;
     std::filesystem::remove(path, ec);
 }
+
+TEST_CASE("Session: hybrid head/tail prefill matches the opt-out greedy output "
+          "(opt-in: XLLAMA_TEST_MODEL)") {
+    // With snapshots on, a hybrid full prefill longer than the tail slack runs as
+    // head (captured) + tail. That must not change what a cold turn generates
+    // compared with hybrid-prefix-snapshots=0 (one prefill).
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    xllama::SessionParams on;
+    on.model_path = model;
+    on.n_ctx = 1024;
+    on.n_threads = 2;
+    xllama::SessionParams off = on;
+    off.prefix_snapshots = false;
+
+    const std::string stem = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
+                             "<|im_start|>user\n";
+    const std::vector<std::string> prompts = {
+        stem + "Name one colour.<|im_end|>\n<|im_start|>assistant\n",
+        stem + "Explain in two sentences why the sky looks blue during the day and red at "
+               "sunset.<|im_end|>\n<|im_start|>assistant\n",
+    };
+    for (const std::string& p : prompts) {
+        xllama::GenerateParams gp;
+        gp.prompt = p;
+        gp.n_predict = 32;
+        gp.temperature = 0.0f;
+        std::string error;
+        auto s_on = xllama::Session::create(on, &error);
+        REQUIRE_MESSAGE(s_on, error);
+        const auto r_on = s_on->generate(gp);
+        REQUIRE_MESSAGE(r_on.success, r_on.error_msg);
+        s_on.reset();
+        auto s_off = xllama::Session::create(off, &error);
+        REQUIRE_MESSAGE(s_off, error);
+        const auto r_off = s_off->generate(gp);
+        REQUIRE_MESSAGE(r_off.success, r_off.error_msg);
+        CHECK(r_on.n_p_eval == r_off.n_p_eval);
+        CHECK(r_on.output_text == r_off.output_text);
+    }
+}

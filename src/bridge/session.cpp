@@ -879,7 +879,7 @@ class LlamaSession final : public Session {
                 log_output(cb);
             }
             const int n_tail = static_cast<int>(prompt_n - capture_at);
-            if (!prefill_chunked(ctx, tokens.data() + capture_at, n_tail, &wd))
+            if (!prefill_chunked(ctx, tokens.data() + capture_at, n_tail, &wd, n_head))
                 return fail_prefill();
         } else if (n_pf > 0) {
             n_prefilled = n_pf;

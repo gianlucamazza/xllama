@@ -201,8 +201,9 @@ are not routed per conversation.
 - **Other GGUF models** run on the CPU.
 - **Operator override:** `gguf_gpu_layers.txt` in LocalState overrides this
   (`0` forces the CPU; see [gguf-gpu-decode.md](gguf-gpu-decode.md)). There is
-  no Settings option for it. Hybrid prefix snapshots (LFM2 API prefill reuse)
-  are on by default; `hybrid-prefix-snapshots.txt` = `0` opts out.
+  no Settings option for it. Hybrid prefix snapshots (LFM2 API prefill reuse,
+  including a turn that changes only the last few tokens of the previous
+  prompt) are on by default; `hybrid-prefix-snapshots.txt` = `0` opts out.
 - **Thread count:** `gguf_n_threads.txt` in LocalState sets llama.cpp threads
   for interactive GGUF chat (GUI and LAN API). Absent, `0`, or an invalid
   value keeps auto-detect (capped at 6 on UWP). This does not change

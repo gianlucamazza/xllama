@@ -60,7 +60,9 @@ TEST_CASE("Session: granitehybrid prefix snapshot restore (#512/#525, "
     REQUIRE(fmt.kind == ChatFormatKind::Granite);
     const std::string sys = "You are a helpful assistant.";
     const std::string p1 = fmt.render_prompt(sys, {}, "Name a colour.");
-    const std::string p_other = fmt.render_prompt(sys, {}, "Say hi.");
+    // Diverges inside the system turn, before any slacked head of p1 ends, so
+    // the saved snapshot is not a prefix of it whatever the slack.
+    const std::string p_other = fmt.render_prompt("You are a terse assistant.", {}, "Say hi.");
     // Strict extension of the saved prefix (p1) that is not an extension of a
     // generated tail. Same suffix covers KeepResident (prefill-only pin) and
     // RestoreSnapshot (after a decode that left a colour-name tail).
@@ -104,10 +106,7 @@ TEST_CASE("Session: granitehybrid prefix snapshot restore (#512/#525, "
     REQUIRE_FALSE(r1.output_text.empty());
     const auto r_drop = warm_drop->generate(greedy(p_other, fmt));
     REQUIRE_MESSAGE(r_drop.success, r_drop.error_msg);
-    // A slacked snapshot of p1 may share the Granite system/role prefix with
-    // p_other, so this can restore a head instead of a full prefill.
-    CHECK(r_drop.n_p_eval >= 1);
-    CHECK(r_drop.n_p_eval <= r_drop.n_prompt);
+    CHECK(r_drop.n_p_eval == r_drop.n_prompt);
     CHECK_FALSE(r_drop.output_text.empty());
     warm_drop.reset();
 

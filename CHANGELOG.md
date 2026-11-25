@@ -7,7 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-- **Hybrid prefix snapshots may start a few tokens before the prompt end.** On a long hybrid/recurrent full-prompt prefill the session captures the head, then prefills the tail, so a later prompt that diverges only in those last tokens can restore instead of prefilling from scratch. Exact regenerate of the same prompt still Clears and prefills the whole prompt so the last token reseeds logits. The opt-out knob and non-hybrid rewind are unchanged.
+- **Hybrid prefix snapshots may start a few tokens before the prompt end.** On a long hybrid/recurrent full-prompt prefill the session captures the head, then prefills the tail, so a later prompt that diverges only in those last tokens can restore instead of prefilling from scratch. Exact regenerate of the same prompt still Clears and prefills the whole prompt so the last token reseeds logits. The opt-out knob and non-hybrid rewind are unchanged. On host (LFM2.5-1.2B, CPU) the head/tail split produces the same greedy output as `hybrid-prefix-snapshots=0`; an opt-in `XLLAMA_TEST_MODEL` case guards it. Watchdog prompt progress stays absolute across the split.
 
 - **D3D12 shared-activation cache keyed by tensor identity.** Hardening of the d3d12 shared-activation cache: lookups use tensor owner, data pointer, column stride, type and row size, not address alone. Latent hazard; no known failure on main.
 

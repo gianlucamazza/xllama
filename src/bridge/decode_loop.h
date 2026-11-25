@@ -52,8 +52,11 @@ namespace xllama {
 // coding session's trimmer ceiling is 3846, so a long paste used to kill the
 // process. This is the LOGICAL batch only; the physical ubatch stays at the #172
 // optimum of 512, which is what every published prefill rate was measured on.
+// |done_base| is how many prompt tokens of this prefill were already decoded by
+// an earlier call (hybrid head/tail split), so the watchdog's prompt progress
+// stays absolute and monotonic across calls.
 inline bool prefill_chunked(llama_context* ctx, const llama_token* tokens, int n_tokens,
-                            InferenceWatchdog* wd = nullptr) {
+                            InferenceWatchdog* wd = nullptr, int done_base = 0) {
     const int n_batch = std::max(1, static_cast<int>(llama_n_batch(ctx)));
     for (int off = 0; off < n_tokens; off += n_batch) {
         if (wd && wd->aborted())
@@ -63,7 +66,7 @@ inline bool prefill_chunked(llama_context* ctx, const llama_token* tokens, int n
         if (llama_decode(ctx, batch) != 0)
             return false;
         if (wd)
-            wd->note_prefill_chunk(off + chunk);
+            wd->note_prefill_chunk(done_base + off + chunk);
     }
     return true;
 }
