@@ -441,10 +441,14 @@ std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err) {
     #include "llama_gpu.h"
     #include "sampler_chain.h" // shared sampler chain (#125); needs llama.h
     #include "xllama/llama_raii.h"
+    #include "xllama/session_spec.h"
 
     #include <vector>
 
 namespace xllama {
+
+static_assert(kGgufNThreadsMax == GGML_MAX_N_THREADS,
+              "session_spec.h kGgufNThreadsMax must track the llama.cpp pin");
 
 class LlamaSession final : public Session {
   public:
