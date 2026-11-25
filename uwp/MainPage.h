@@ -104,16 +104,19 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     bool SubmitFeedback(size_t assistant_index, const std::string& label,
                         const std::string& preferred_assistant = {}, std::string* err = nullptr);
     winrt::fire_and_forget ShowCorrectionDialog(size_t assistant_index);
-    // Everything a turn needs to build its prompt. `prompt` is trimmed by the
-    // chars-per-token ESTIMATE and exists so routing can count something before a
-    // model is chosen; the real budget is enforced once, in the worker, with the
-    // tokenizer of the model that will generate (xllama::fit_prompt) — which is
-    // why the surviving turns travel with it.
+    // Everything a turn needs to build its prompt: the whole conversation. The
+    // worker decides what fits, once, with the tokenizer of the model that will
+    // generate (xllama::fit_prompt); nothing here drops a turn. The estimates
+    // only bound work before a model is chosen: `chars_per_token` sizes the
+    // prompt for routing (routing_prompt_tokens) and `estimated_tokens` (message
+    // text only) predicts whether a backend that cannot shift its context would
+    // overflow on a KV-reuse attempt.
     struct PromptPlan {
         std::string prompt;
         std::vector<xllama::ChatTurn> turns;
-        int dropped = 0;
         int n_ctx = 0;
+        double chars_per_token = 0.0;
+        int estimated_tokens = 0;
     };
     PromptPlan BuildPromptPlan(const std::string& user_text) const;
     // Only the new turn's tokens, appended to the reused KV cache.

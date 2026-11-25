@@ -963,7 +963,12 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
         }
 
         model_is_coding = policy.coding;
-        policy_n_ctx = policy.n_ctx;
+        // ADR 0007: the GUI's resolver, adapter included (audit F03). Its n_ctx is
+        // what the session loads with (same_load pins it), so the reply limit and
+        // fit_prompt below budget against the real context, not the per-process
+        // manifest cache in catalogue_session_policy.
+        const ::xllama::SessionParams sp = ::xllama::CatalogueSessionParams(model);
+        policy_n_ctx = sp.n_ctx;
         const ::xllama::ApiTokenLimit limit = read_max_tokens(root, policy_n_ctx);
         if (!limit.error.empty()) {
             status = "400 Bad Request";
@@ -975,8 +980,6 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
             status = "400 Bad Request";
             return error_json(sampling_error);
         }
-        // ADR 0007: the GUI's resolver, adapter included (audit F03).
-        const ::xllama::SessionParams sp = ::xllama::CatalogueSessionParams(model);
         if (proposal && ::xllama::Session::backend_for(sp) != ::xllama::Backend::LlamaCpp) {
             status = "400 Bad Request";
             return error_json(
