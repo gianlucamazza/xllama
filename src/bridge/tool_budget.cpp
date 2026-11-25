@@ -10,15 +10,10 @@
 
 namespace xllama {
 
-std::string tool_prompt_too_long_prefix(int n_tokens, int n_predict, int n_ctx) {
-    return "prompt too long: the request needs " + std::to_string(n_tokens) + " tokens plus " +
-           std::to_string(n_predict) + " for the reply, but n_ctx is " + std::to_string(n_ctx);
-}
-
 ToolBudgetError tool_prompt_too_long(int n_tokens, int n_tokens_without_tools, int n_predict,
                                      int n_ctx) {
     ToolBudgetError out;
-    out.message = tool_prompt_too_long_prefix(n_tokens, n_predict, n_ctx);
+    out.message = prompt_too_long_message("request", n_tokens, n_predict, n_ctx);
     out.message += ". " + std::to_string(prompt_reply_reserve(n_predict)) +
                    " tokens are reserved for generation.";
     if (!budget_fits(0, n_predict, n_ctx)) {

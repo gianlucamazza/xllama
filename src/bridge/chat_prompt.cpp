@@ -81,6 +81,12 @@ bool model_is_granite(const std::string& model_id) {
     return to_lower(model_basename(model_id)).find("granite") != std::string::npos;
 }
 
+bool model_is_olmoe(const std::string& model_id) {
+    const std::string b = to_lower(model_basename(model_id));
+    return b.find("olmoe") != std::string::npos || b.find("olmo-e") != std::string::npos ||
+           b.find("olmo_e") != std::string::npos;
+}
+
 bool model_is_smollm3(const std::string& model_id) {
     const std::string b = to_lower(model_basename(model_id));
     return b.find("smollm3") != std::string::npos || b.find("smol-lm3") != std::string::npos ||
@@ -214,7 +220,8 @@ ChatFormat chat_format_for(const std::string& model_id) {
         f.system_style = SystemStyle::MergeIntoFirstUser;
         f.stop_sequences = {"<end_of_turn>"};
         f.gen_suffix = {};
-    } else if (model_is_llama(model_id) && !model_is_granite(model_id)) {
+    } else if (model_is_llama(model_id) && !model_is_granite(model_id) &&
+               !model_is_olmoe(model_id)) {
         // Meta Llama-3 / 3.1 / 3.2 instruct template.
         f.kind = ChatFormatKind::Llama3;
         f.turn_open = "<|start_header_id|>";
@@ -227,7 +234,7 @@ ChatFormat chat_format_for(const std::string& model_id) {
         f.system_style = SystemStyle::DedicatedTurn;
         f.stop_sequences = {"<|eot_id|>"};
         f.gen_suffix = {};
-    } else if (model_is_phi(model_id) && !model_is_granite(model_id)) {
+    } else if (model_is_phi(model_id) && !model_is_granite(model_id) && !model_is_olmoe(model_id)) {
         // Microsoft Phi-3 / 3.5 instruct: <|role|>\n content <|end|>\n
         f.kind = ChatFormatKind::Phi3;
         f.turn_open = "<|";
@@ -255,6 +262,20 @@ ChatFormat chat_format_for(const std::string& model_id) {
         f.system_sep = "";
         f.system_style = SystemStyle::DedicatedTurn;
         f.stop_sequences = {"<|end_of_text|>"};
+        f.gen_suffix = {};
+    } else if (model_is_olmoe(model_id)) {
+        f.kind = ChatFormatKind::Olmoe;
+        f.turn_open = "<|";
+        f.turn_close = "\n";
+        f.assistant_turn_close = "<|endoftext|>\n";
+        f.role_sep = "|>\n";
+        f.user_tag = "user";
+        f.assistant_tag = "assistant";
+        f.system_tag = "system";
+        f.system_sep = "";
+        f.system_style = SystemStyle::DedicatedTurn;
+        f.bos = "<|endoftext|>";
+        f.stop_sequences = {"<|endoftext|>"};
         f.gen_suffix = {};
     } else if (model_is_smollm3(model_id)) {
         f.kind = ChatFormatKind::SmolLM3;
@@ -338,10 +359,12 @@ std::string ChatFormat::render_prompt(const std::string& system,
 
     for (const ChatTurn& t : history) {
         p += turn_open + user_tag + role_sep + user_content(t.user) + turn_close;
-        // History carries gen_suffix only when requested: SmolLM3 puts its
-        // empty-think block there, and the KV cache already holds it.
+        // History assistant turns use assistant_close() (OLMoE ends those
+        // turns with the end-of-text token). They also carry gen_suffix when
+        // gen_suffix_in_history is set (SmolLM3 puts its empty-think block
+        // there, and the KV cache already holds it).
         p += turn_open + assistant_tag + role_sep + (gen_suffix_in_history ? gen_suffix : "") +
-             t.assistant + turn_close;
+             t.assistant + assistant_close();
     }
 
     p += turn_open + user_tag + role_sep + user_content(final_user) + turn_close;
@@ -352,18 +375,19 @@ std::string ChatFormat::render_prompt(const std::string& system,
 std::string ChatFormat::render_delta(const std::string& user, bool prev_ended_with_stop) const {
     // The reused KV already holds the previous assistant tokens. If generation
     // stopped on the stop token, that token is in the KV — emit only any trailing
-    // glue of turn_close beyond the stop (ChatML/Gemma: "\n"; Llama-3: empty).
-    // Otherwise close the turn with the full turn_close.
+    // glue of assistant_close() beyond the stop (ChatML/Gemma: "\n"; Llama-3: empty).
+    // Otherwise close the turn with the full assistant_close().
     std::string d;
     if (prev_ended_with_stop) {
         if (!stop_sequences.empty() && !stop_sequences.front().empty() &&
-            turn_close.compare(0, stop_sequences.front().size(), stop_sequences.front()) == 0) {
-            d = turn_close.substr(stop_sequences.front().size());
+            assistant_close().compare(0, stop_sequences.front().size(), stop_sequences.front()) ==
+                0) {
+            d = assistant_close().substr(stop_sequences.front().size());
         } else {
             d = "\n"; // defensive fallback for misconfigured formats
         }
     } else {
-        d = turn_close;
+        d = assistant_close();
     }
     d += turn_open + user_tag + role_sep + user + turn_close;
     d += turn_open + assistant_tag + role_sep + gen_suffix;

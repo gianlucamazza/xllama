@@ -45,6 +45,10 @@ bool model_is_phi(const std::string& model_id);
 // dir named "granite" must not select this template.
 bool model_is_granite(const std::string& model_id);
 
+// True for OLMoE ids or filenames containing "olmoe", "olmo-e", or
+// "olmo_e", case-insensitive and basename only.
+bool model_is_olmoe(const std::string& model_id);
+
 // True for SmolLM3 ids or filenames ("smollm3", "smol-lm3" or "smol_lm3",
 // case-insensitive, basename only).
 bool model_is_smollm3(const std::string& model_id);
@@ -94,7 +98,7 @@ bool apply_stop_sequences(std::string& output, const std::vector<std::string>& s
 // a per-model generation suffix. Built via chat_format_for().
 // ---------------------------------------------------------------------------
 
-enum class ChatFormatKind { ChatML, Gemma, Llama3, Phi3, Granite, SmolLM3 };
+enum class ChatFormatKind { ChatML, Gemma, Llama3, Phi3, Granite, Olmoe, SmolLM3 };
 
 // How the system prompt is emitted.
 // - DedicatedTurn: its own turn (ChatML / Llama-3 / Gemma 4 system role).
@@ -113,8 +117,13 @@ struct ChatFormat {
     // Delimiters / role labels.
     // Layout: turn_open + role_tag + role_sep + content + turn_close
     // Gemma 4 uses "<|turn>" and "<turn|>\n" with the Gemma 3 role layout.
-    std::string turn_open;     // "<|im_start|>" | "<start_of_turn>" | "<|start_header_id|>"
-    std::string turn_close;    // "<|im_end|>\n" | "<end_of_turn>\n" | "<|eot_id|>"
+    std::string turn_open;  // "<|im_start|>" | "<start_of_turn>" | "<|start_header_id|>"
+    std::string turn_close; // "<|im_end|>\n" | "<end_of_turn>\n" | "<|eot_id|>"
+    // Empty means assistant turns use turn_close.
+    std::string assistant_turn_close;
+    const std::string& assistant_close() const {
+        return assistant_turn_close.empty() ? turn_close : assistant_turn_close;
+    }
     std::string role_sep;      // "\n" | "\n" | "<|end_header_id|>\n\n"
     std::string user_tag;      // "user"
     std::string assistant_tag; // "assistant" | "model"
@@ -122,7 +131,7 @@ struct ChatFormat {
     std::string system_sep;    // ""          | "\n\n" (merge separator)
     SystemStyle system_style = SystemStyle::DedicatedTurn;
 
-    std::vector<std::string> stop_sequences; // stop token(s); may be a prefix of turn_close
+    std::vector<std::string> stop_sequences; // stop token(s); may be a prefix of assistant_close()
     std::string gen_suffix;                  // Qwen/MiniCPM5 no-think prefill; else ""
 
     // Include the generation prefill in completed assistant turns when required.

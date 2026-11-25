@@ -208,11 +208,15 @@ TEST_CASE("model detection ignores directory names (full-path ids)") {
     CHECK(chat_format_for("models/smollm3-cache/lfm25-350m.gguf").kind == ChatFormatKind::ChatML);
     CHECK_FALSE(model_is_granite("/srv/granite-store/lfm25-350m.gguf"));
     CHECK(model_is_granite("/srv/cache/granite-4.0-h-tiny-Q3_K_S.gguf"));
+    CHECK(chat_format_for("models/olmoe-cache/lfm25-350m.gguf").kind == ChatFormatKind::ChatML);
+    CHECK(chat_format_for("models/OLMoE-1B-7B-0125-Instruct-Q3_K_S.gguf").kind ==
+          ChatFormatKind::Olmoe);
 }
 
 TEST_CASE("chat format selection") {
     CHECK(chat_format_for("smollm2-360m-cpu-int4").kind == ChatFormatKind::ChatML);
     CHECK(chat_format_for("lfm25-350m").kind == ChatFormatKind::ChatML);
+    CHECK(chat_format_for("qwen25-coder-1.5b").kind == ChatFormatKind::ChatML);
     CHECK(chat_format_for("lfm25-1.2b-instruct").kind == ChatFormatKind::ChatML);
     CHECK(chat_format_for("lfm2-2.6b").kind == ChatFormatKind::ChatML);
     CHECK(chat_format_for("gemma3-270m").kind == ChatFormatKind::Gemma);
@@ -469,6 +473,7 @@ TEST_CASE("kv-reuse invariant holds for chatml, gemma, llama3, phi3, and granite
     check_kv_reuse_invariant(chat_format_for("llama32-3b"));
     check_kv_reuse_invariant(chat_format_for("phi35-mini"));
     check_kv_reuse_invariant(chat_format_for("granite40-h-tiny"));
+    check_kv_reuse_invariant(chat_format_for("olmoe-1b-7b"));
 }
 
 TEST_CASE("render_system_prefix is the exact head of render_prompt (#169)") {
@@ -477,7 +482,7 @@ TEST_CASE("render_system_prefix is the exact head of render_prompt (#169)") {
     // render_prompt emits before the first user turn — a context shift pins
     // exactly its token count.
     for (const char* id : {"smollm2-360m-cpu-int4", "llama32-3b", "phi35-mini", "gemma4-e2b",
-                           "granite40-h-tiny", "smollm3-3b"}) {
+                           "granite40-h-tiny", "olmoe-1b-7b", "smollm3-3b"}) {
         const ChatFormat f = chat_format_for(id);
         const std::string prefix = f.render_system_prefix(sys);
         CHECK(!prefix.empty());
@@ -567,8 +572,6 @@ TEST_CASE("smollm3 chat golden and history prefill") {
     CHECK_FALSE(f.strip_thinking_content);
     CHECK(f.stop_sequences == std::vector<std::string>{"<|im_end|>"});
     CHECK(f.bos.empty());
-    CHECK(f.render_prompt("", {}, "hi") == f.render_prompt("", {}, "hi"));
-    CHECK(f.render_system_prefix("sys") == f.render_system_prefix("sys"));
     CHECK(f.render_system_prefix("sys").find("Today Date: 15 June 2025") != std::string::npos);
     for (const char* sys :
          {"Be concise. /think", "Be concise. /no_think", "Be concise. /system_override"}) {
@@ -604,4 +607,34 @@ TEST_CASE("smollm3 detection and existing chat formats") {
     CHECK(chat_format_for("phi35-mini").kind == ChatFormatKind::Phi3);
     CHECK(chat_format_for("granite40-h-tiny").kind == ChatFormatKind::Granite);
     CHECK(chat_format_for("qwen25-coder-1.5b").kind == ChatFormatKind::ChatML);
+}
+
+TEST_CASE("olmoe detection and chat template") {
+    for (const char* id :
+         {"olmoe-1b-7b", "OLMoE-1B-7B-0125-Instruct-Q3_K_S.gguf", "olmo-e-1b", "olmo_e-1b",
+          "models/olmoe-1b-7b", "models/OLMoE-1B-7B-0125-Instruct-Q3_K_S.gguf", "models/olmo-e-1b",
+          "models/olmo_e-1b"}) {
+        CHECK(model_is_olmoe(id));
+    }
+    for (const char* id :
+         {"olmo-2-1124-7b", "olmo2", "olmo", "lfm25-350m", "models/olmoe-cache/lfm25-350m.gguf"}) {
+        CHECK_FALSE(model_is_olmoe(id));
+    }
+    const ChatFormat f = chat_format_for("OLMoE-1B-7B-0125-Instruct-Q3_K_S.gguf");
+    CHECK(f.kind == ChatFormatKind::Olmoe);
+    CHECK(chat_format_for("olmoe-1b-7b-llamacpp.gguf").kind == ChatFormatKind::Olmoe);
+    CHECK(chat_format_for("olmoe-1b-7b-phi.gguf").kind == ChatFormatKind::Olmoe);
+    CHECK(f.stop_sequences == std::vector<std::string>{"<|endoftext|>"});
+    CHECK(f.gen_suffix.empty());
+    CHECK(f.render_prompt("Be concise.", {}, "Hello") ==
+          "<|endoftext|><|system|>\nBe concise.\n<|user|>\nHello\n<|assistant|>\n");
+    CHECK(f.render_prompt("Be concise.", {{"hi", "hello"}}, "how are you?") ==
+          "<|endoftext|><|system|>\nBe concise.\n<|user|>\nhi\n"
+          "<|assistant|>\nhello<|endoftext|>\n<|user|>\nhow are you?\n<|assistant|>\n");
+    // The Jinja without a system message differs by design, as with Granite.
+    CHECK(f.render_prompt("", {}, "How are you doing?") ==
+          "<|endoftext|><|system|>\n\n<|user|>\nHow are you doing?\n<|assistant|>\n");
+    CHECK(f.render_system_prefix("Be concise.") == "<|endoftext|><|system|>\nBe concise.\n");
+    CHECK(f.render_delta("X", true) == "\n<|user|>\nX\n<|assistant|>\n");
+    CHECK(f.render_delta("X", false) == "<|endoftext|>\n<|user|>\nX\n<|assistant|>\n");
 }

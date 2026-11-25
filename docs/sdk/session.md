@@ -126,6 +126,7 @@ Parameters for a single generation turn.
 | `reuse_kv`           | false      | Enable KV-cache reuse (continuous decoding) |
 | `reset_kv`           | false      | Reset KV cache for this turn                |
 | `n_keep`             | 0          | Tokens pinned across context shifts         |
+| `expected_kv_epoch`  | 0          | Continuation guard (`kv_epoch()`); 0 = off  |
 | `on_token`           | —          | Callback per generated token                |
 | `on_status`          | —          | Callback for status changes                 |
 | `abort_flag`         | —          | Atomic flag for early termination           |
@@ -138,17 +139,29 @@ Parameters for a single generation turn.
 | `true`     | `false`    | Reuse supported prefix; hybrid tails restore a saved prefix if possible |
 | `true`     | `true`     | Reset: full context prefill, subsequent turns reuse                     |
 
+`Session::kv_epoch()` identifies the resident KV content. It is unique across
+sessions, changes on every KV change that is not a continuation, and stays the
+same across successful continuations. A caller that shares the session (the GUI
+next to the LAN API) records it after its turn and passes it as
+`expected_kv_epoch` on the next continuation: on a mismatch `generate` returns
+`success=false, n_eval=0` before touching the KV, and the caller retries with
+the full prompt. A full prompt that cannot fit `n_ctx` is refused before the
+KV is rewound, so it never costs the resident conversation.
+
 A full-prompt turn (LAN API, regenerate) diffs the new tokens against the
 resident KV. Non-hybrid caches rewind the divergent tail (#170a). Hybrid
-caches (LFM2) cannot always rewind: after each successful prefill the session
-keeps an in-memory prefix snapshot (logits + memory). If the new prompt is a
-strict extension of that saved prefix, the snapshot is restored and only the
-suffix prefills. An exact regenerate Clears and re-prefills the whole prompt
-so the last token reseeds logits (a full-state restore is not bit-identical
-to a fresh hybrid prefill). A snapshot that is not a prefix of the new prompt
-is dropped and the full prompt prefills. `SessionParams::prefix_snapshots`
-defaults on; `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. Disk
-`load_state` is still not a delta-prefill guarantee — it includes generated
-tokens, so a hybrid tail that cannot rewind falls back to a full prefill. See
+caches (LFM2) cannot always rewind: after the prompt head the session keeps
+an in-memory prefix checkpoint, the partial state that `seq_rm` cannot rebuild
+(the recurrent cells only; `PARTIAL_ONLY`). On a long prompt the checkpoint
+sits a few tokens before the prompt end, then that tail prefills. If the new
+prompt extends the checkpoint's tokens and the attention cells up to it are
+still resident, the recurrent state is restored, the attention KV is truncated
+to the checkpoint and only the suffix prefills — including an exact
+regenerate, whose output matches a cold run. A checkpoint that does not apply
+is dropped and the full prompt prefills; a context shift drops it too.
+`SessionParams::prefix_snapshots` defaults on;
+`LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. Disk `load_state` is
+still not a delta-prefill guarantee — it includes generated tokens, so a
+hybrid tail that cannot rewind falls back to a full prefill. See
 [KV architecture](../architecture.md#kv-cache-reuse-both-backends)
 and the separate prefix-reuse/fallback [console probes](../console-validation-runbook.md#controlled-model-writer-and-kv-fallback-probes).

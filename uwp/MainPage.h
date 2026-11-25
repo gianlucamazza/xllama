@@ -197,12 +197,14 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     // The persistent inference session lives in xllama::session_hub() — one
     // process-wide owner shared with the LAN API ("never 2× model in RAM").
     // m_turn_session is a non-owning view set by EnsureSession, valid ONLY
-    // while the current worker turn holds hub.mtx. m_hub_generation records
-    // the resident-session generation the KV-reuse state was built on; a
-    // mismatch at the next turn means the API swapped models in between and
-    // the persistent generator is gone (worker-thread only).
+    // while the current worker turn holds hub.mtx. m_kv_epoch is the
+    // Session::kv_epoch() this conversation left the resident KV at: the next
+    // continuation passes it as GenerateParams::expected_kv_epoch, so a KV that
+    // the LAN API, a reload or a snapshot load rewrote in between is refused and
+    // the turn re-prefills its own context. Written by the worker under hub.mtx,
+    // read by SaveKvSnapshotAsync on the UI thread.
     ::xllama::Session* m_turn_session{nullptr};
-    uint64_t m_hub_generation{0};
+    std::atomic<uint64_t> m_kv_epoch{0};
 
     // KV-cache reuse (continuous decoding) state.
     //   m_kv_reuse: feature toggle (settings.json "kv_reuse", default true).
