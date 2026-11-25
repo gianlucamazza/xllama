@@ -805,7 +805,7 @@ MainPageController::BuildPromptPlan(const std::string& user_text) const {
     {
         const auto& manifest = CachedManifest();
         if (const auto* e = ::xllama::FindManifestEntry(manifest, m_model_filename)) {
-            plan.n_ctx = ::xllama::resolve_n_ctx(e->n_ctx);
+            plan.n_ctx = ::xllama::catalogue_n_ctx(e->n_ctx, e->kind == L"gguf");
             role = ::xllama::wstring_to_utf8(e->role);
         }
     }

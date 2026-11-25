@@ -369,7 +369,8 @@ std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err) {
                      gpu.budget_mb);
             log_output(gpu_buf);
         }
-        int n_ctx = sp.n_ctx > 0 ? sp.n_ctx : 2048;
+        // No memory admission on ORT: the fixed cap is its KV bound (#570).
+        const int n_ctx = bound_ort_n_ctx(sp.n_ctx);
 
         // #130: DirectML pays a large one-time per-process cost on the first
         // generate (§5e: cold→warm prefill 1.64-1.72×; CPU control 1.00× —
@@ -1657,7 +1658,8 @@ struct LlamaLoadPlan {
     llama_model_params mparams;
     int gpu_layers = 0;
     int n_threads = 0;
-    int n_ctx = 0;
+    int n_ctx = 0;                     // bound_gguf_n_ctx(request, n_ctx_train)
+    int n_ctx_train = 0;               // the model's trained context; 0 when unknown
     llama_context_params chat_cparams; // the context ensure_ctx() will create
 };
 
@@ -1679,7 +1681,13 @@ std::optional<LlamaLoadPlan> plan_llama_load(const SessionParams& sp, std::strin
     plan.mparams = llama_model_default_params();
     plan.gpu_layers = apply_gguf_gpu_layers(sp.n_gpu_layers, plan.mparams, plan.path);
     plan.n_threads = sp.n_threads > 0 ? sp.n_threads : detect_threads_llama();
-    plan.n_ctx = sp.n_ctx > 0 ? sp.n_ctx : kDefaultNCtx;
+    // #570: the model's trained context bounds n_ctx; memory is the
+    // admission's decision (admit_memory, below in create_llama).
+    plan.n_ctx_train = gguf_context_length(plan.path);
+    plan.n_ctx = bound_gguf_n_ctx(sp.n_ctx, plan.n_ctx_train);
+    if (plan.n_ctx < resolve_n_ctx(sp.n_ctx))
+        log_output("[xllama] Session: n_ctx " + std::to_string(resolve_n_ctx(sp.n_ctx)) +
+                   " capped at the model's trained context " + std::to_string(plan.n_ctx) + "\n");
     plan.chat_cparams =
         make_context_params(plan.n_ctx, plan.n_threads, sp.n_batch, sp.n_ubatch, plan.gpu_layers,
                             sp.kv_q8, sp.prompt_lookup, /*for_embedding=*/false);
@@ -1714,7 +1722,8 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
             estimate_session_memory(abs_path, mparams, plan->chat_cparams);
         if (need)
             log_output("[xllama] Session: memory estimate n_ctx=" + std::to_string(n_ctx) +
-                       " host " + std::to_string(need->host_mb()) + " MB (weights " +
+                       " (n_ctx_train " + std::to_string(plan->n_ctx_train) + ") host " +
+                       std::to_string(need->host_mb()) + " MB (weights " +
                        std::to_string(need->host_model_mb) + ", context " +
                        std::to_string(need->host_context_mb) + ", compute " +
                        std::to_string(need->host_compute_mb) + "), device " +

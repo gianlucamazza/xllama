@@ -89,7 +89,7 @@ Configuration for creating a persistent session.
 | Field              | Default | Description                                                      |
 | ------------------ | ------- | ---------------------------------------------------------------- |
 | `model_path`       | —       | Path to model                                                    |
-| `n_ctx`            | 2048    | Context size                                                     |
+| `n_ctx`            | 2048    | Context size; GGUF caps it at the model's trained context        |
 | `n_threads`        | 0       | Thread count (0=auto)                                            |
 | `n_batch`          | 0       | llama.cpp logical prefill batch (0=default 2048)                 |
 | `n_ubatch`         | 0       | llama.cpp physical prefill chunk (0=default 512)                 |

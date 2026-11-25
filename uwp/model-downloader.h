@@ -87,7 +87,7 @@ struct ManifestEntry {
     std::wstring lora;
     double lora_scale = 1.0;
     // Optional session context size (0 = kDefaultNCtx). Coding models use 4096.
-    // Clamped by resolve_n_ctx() at session open (routing_policy.h).
+    // Bounded per backend by catalogue_n_ctx() / bound_gguf_n_ctx() (routing_policy.h).
     int n_ctx = 0;
     // Optional Max-new-tokens default when the user (or autopilot) selects this
     // model (0 = leave the UI/settings value alone). Thinking models ship 1024

@@ -592,10 +592,10 @@ CatalogueSessionPolicy catalogue_session_policy(const std::string& model) {
     }
     CatalogueSessionPolicy p;
     if (entry) {
-        p.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
+        p.gguf = entry->kind == L"gguf";
+        p.n_ctx = ::xllama::catalogue_n_ctx(entry->n_ctx, p.gguf);
         p.coding = ::xllama::role_is_coding(::xllama::wstring_to_utf8(entry->role));
         p.embedding = ::xllama::role_is_embedding(::xllama::wstring_to_utf8(entry->role));
-        p.gguf = entry->kind == L"gguf";
     }
     return p;
 }

@@ -13,6 +13,8 @@
 #include "xllama/platform.h"
 #include "xllama/speculative.h"
 
+#include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <mutex>
 #include <string>
@@ -71,6 +73,42 @@ inline bool gguf_embedding_info(const std::string& path, ggml_type* embd_type, b
     }
     gguf_free(g);
     return ok;
+}
+
+// The model's trained context (`<arch>.context_length`), read from the GGUF
+// header only. 0 when the header or the key cannot be read.
+inline int gguf_context_length(const std::string& path) {
+    gguf_init_params gp = {};
+    gp.no_alloc = true;
+    gp.ctx = nullptr;
+    gguf_context* g = gguf_init_from_file(path.c_str(), gp);
+    if (!g)
+        return 0;
+    int n = 0;
+    const int64_t arch = gguf_find_key(g, "general.architecture");
+    if (arch >= 0 && gguf_get_kv_type(g, arch) == GGUF_TYPE_STRING) {
+        const std::string key = std::string(gguf_get_val_str(g, arch)) + ".context_length";
+        const int64_t k = gguf_find_key(g, key.c_str());
+        if (k >= 0) {
+            uint64_t v = 0;
+            switch (gguf_get_kv_type(g, k)) {
+            case GGUF_TYPE_UINT32:
+                v = gguf_get_val_u32(g, k);
+                break;
+            case GGUF_TYPE_UINT64:
+                v = gguf_get_val_u64(g, k);
+                break;
+            case GGUF_TYPE_INT32:
+                v = static_cast<uint64_t>(std::max<int32_t>(0, gguf_get_val_i32(g, k)));
+                break;
+            default:
+                break;
+            }
+            n = static_cast<int>(std::min<uint64_t>(v, static_cast<uint64_t>(INT32_MAX)));
+        }
+    }
+    gguf_free(g);
+    return n;
 }
 
 // Sets mparams.devices / n_gpu_layers and returns the layers actually

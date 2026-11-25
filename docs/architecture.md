@@ -408,10 +408,10 @@ Optional per-entry fields used at **session open** (not only download). Helpers
 live next to the prompt budget in `routing_policy.h` so the routing ceiling and
 `kDefaultNCtx` cannot drift independently (#171 / #133 class):
 
-| Field       | Contract                                                                                                                                                                                                                                                                     |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`n_ctx`** | `0`/omit → `kDefaultNCtx` (2048). Else clamped by `resolve_n_ctx` to **[512, 8192]**. Applied in `EnsureSession` and the LAN chat handler when opening the hub session. Coding catalogue entries use **4096**.                                                               |
-| **`role`**  | `""` (default chat) or **`"coding"`**. Effects only: (1) the UI routing estimate uses `kEstimatedCharsPerTokenCoding` (3.5) instead of prose 5.0; (2) LAN `POST /v1/chat/completions` with **empty** `system` fills `kCodingSystemPrompt` instead of `kDefaultSystemPrompt`. |
+| Field       | Contract                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`n_ctx`** | `0`/omit → `kDefaultNCtx` (2048). Else at least 512 (`resolve_n_ctx`). Bounded per backend (`catalogue_n_ctx`): ORT GenAI keeps the fixed **8192** cap (no memory admission), GGUF opens at most at the model's trained context (`bound_gguf_n_ctx`, GGUF `<arch>.context_length`) and the session memory admission decides whether that KV fits (#570). Applied in `EnsureSession` and the LAN chat handler when opening the hub session. Coding catalogue entries use **4096**. |
+| **`role`**  | `""` (default chat) or **`"coding"`**. Effects only: (1) the UI routing estimate uses `kEstimatedCharsPerTokenCoding` (3.5) instead of prose 5.0; (2) LAN `POST /v1/chat/completions` with **empty** `system` fills `kCodingSystemPrompt` instead of `kDefaultSystemPrompt`.                                                                                                                                                                                                      |
 
 **Explicit non-effects (do not re-introduce):**
 
@@ -561,6 +561,14 @@ whole input, is admitted again for its own context and compute buffers. Every
 load logs the estimate beside the `ws after model load / after context` lines,
 which is the console calibration of the margin. Not `common/fit.h`: it drops
 non-host CPU buffers (CPU_REPACK) and swaps the process-wide llama logger.
+
+The admission is the GGUF context's memory bound, so `n_ctx` has no fixed
+maximum on that backend (#570). `plan_llama_load` reads the model's trained
+context from the GGUF header and caps the request there (`bound_gguf_n_ctx`).
+Above that cap llama.cpp only warns, and the model runs past what it was trained
+on. ORT GenAI sessions have no admission and keep the 8192 cap
+(`bound_ort_n_ctx`). Catalogue `n_ctx` values change only with console evidence
+("measured is not shipped").
 
 ### Embedding residency
 
@@ -1024,19 +1032,19 @@ non-empty line of the first user message (truncated at 60 chars). IDs use
 
 `ManifestEntry` (`uwp/model-downloader.h`) schema:
 
-| Field         | Type          | Default       | Effect                                                     |
-| ------------- | ------------- | ------------- | ---------------------------------------------------------- |
-| `name`        | `wstring`     | —             | Catalogue identifier                                       |
-| `display`     | `wstring`     | —             | User-facing name                                           |
-| `kind`        | `wstring`     | `"ort-genai"` | `"ort-genai"` / `"diffusion"` / `"gguf"`                   |
-| `hf_base_url` | `wstring`     | —             | Download source (GitHub Release / HF)                      |
-| `files`       | `ModelFile[]` | —             | `{filename, remote, approx_bytes, sha256, role}`           |
-| `lora`        | `wstring`     | —             | GGUF LoRA relative to model dir                            |
-| `lora_scale`  | `double`      | `1.0`         | LoRA scale factor                                          |
-| `n_ctx`       | `int`         | `0`           | `0` → `kDefaultNCtx` (2048); else clamped [512, 8192]      |
-| `n_predict`   | `int`         | `0`           | `0` → keep Settings value; applied on model select         |
-| `role`        | `wstring`     | `""`          | `""` (chat) or `"coding"` (4096 ctx, coding system prompt) |
-| `gpu_layers`  | `int`         | `0`           | GGUF layers on the d3d12 backend by default (0 = CPU)      |
+| Field         | Type          | Default       | Effect                                                                      |
+| ------------- | ------------- | ------------- | --------------------------------------------------------------------------- |
+| `name`        | `wstring`     | —             | Catalogue identifier                                                        |
+| `display`     | `wstring`     | —             | User-facing name                                                            |
+| `kind`        | `wstring`     | `"ort-genai"` | `"ort-genai"` / `"diffusion"` / `"gguf"`                                    |
+| `hf_base_url` | `wstring`     | —             | Download source (GitHub Release / HF)                                       |
+| `files`       | `ModelFile[]` | —             | `{filename, remote, approx_bytes, sha256, role}`                            |
+| `lora`        | `wstring`     | —             | GGUF LoRA relative to model dir                                             |
+| `lora_scale`  | `double`      | `1.0`         | LoRA scale factor                                                           |
+| `n_ctx`       | `int`         | `0`           | `0` → `kDefaultNCtx` (2048); else ≥ 512; GGUF ≤ trained context, ORT ≤ 8192 |
+| `n_predict`   | `int`         | `0`           | `0` → keep Settings value; applied on model select                          |
+| `role`        | `wstring`     | `""`          | `""` (chat) or `"coding"` (4096 ctx, coding system prompt)                  |
+| `gpu_layers`  | `int`         | `0`           | GGUF layers on the d3d12 backend by default (0 = CPU)                       |
 
 `IsModelProvisioned(name, expected_files)` runs in dual mode: **expected-aware**
 requires the manifest's `files[].filename` to be present (case-insensitive),

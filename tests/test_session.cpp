@@ -977,3 +977,27 @@ TEST_CASE("Session::estimate_memory covers the real load (opt-in: XLLAMA_TEST_MO
         CHECK(grown <= est->host_mb() + xllama::kSessionMemoryMarginMb);
     }
 }
+
+TEST_CASE("Session::estimate_memory: a GGUF n_ctx above the trained context is capped there "
+          "(opt-in: XLLAMA_TEST_MODEL)") {
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    // Dry runs only (no_alloc): both requests are far above any catalogue
+    // model's trained context, so both open at it and size the same KV (#570).
+    // Without the cap the second would size twice the context of the first.
+    std::size_t context_mb[2] = {};
+    int i = 0;
+    for (int n_ctx : {1 << 24, 1 << 25}) {
+        xllama::SessionParams sp;
+        sp.model_path = model;
+        sp.n_ctx = n_ctx;
+        std::string error;
+        const auto est = xllama::Session::estimate_memory(sp, &error);
+        REQUIRE_MESSAGE(est, error);
+        context_mb[i++] = est->host_context_mb;
+    }
+    MESSAGE("context at the trained n_ctx: " << context_mb[0] << " MB");
+    CHECK(context_mb[0] > 0);
+    CHECK(context_mb[0] == context_mb[1]);
+}

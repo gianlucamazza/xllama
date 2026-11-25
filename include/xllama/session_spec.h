@@ -7,7 +7,7 @@
 // side only copies its wide-string manifest entry into CatalogueLoad.
 #pragma once
 
-#include "xllama/routing_policy.h" // resolve_n_ctx, resolve_gguf_gpu_layers
+#include "xllama/routing_policy.h" // catalogue_n_ctx, resolve_gguf_gpu_layers
 #include "xllama/session.h"
 
 #include <string>
@@ -18,7 +18,7 @@ namespace xllama {
 struct CatalogueLoad {
     bool found = false; // false: not in the catalogue, load with the defaults
     bool gguf = false;  // kind "gguf" (llama.cpp); else ORT GenAI
-    int n_ctx = 0;      // raw catalogue value, clamped by resolve_n_ctx
+    int n_ctx = 0;      // raw catalogue value, bounded by catalogue_n_ctx
     int gpu_layers = 0; // catalogue default; the operator knob may override it
     std::string lora;   // adapter file relative to the model directory
     float lora_scale = 1.0f;
@@ -52,7 +52,7 @@ inline SessionParams resolve_session_params(const std::string& model, const Cata
     sp.n_threads = resolve_gguf_n_threads(threads_knob);
     if (!c.found)
         return sp;
-    sp.n_ctx = resolve_n_ctx(c.n_ctx);
+    sp.n_ctx = catalogue_n_ctx(c.n_ctx, c.gguf);
     if (!c.gguf)
         return sp;
     sp.backend = Backend::LlamaCpp;

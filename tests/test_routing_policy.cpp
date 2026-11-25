@@ -161,7 +161,33 @@ TEST_CASE("resolve_n_ctx clamps and defaults") {
     CHECK(resolve_n_ctx(-1) == kDefaultNCtx);
     CHECK(resolve_n_ctx(4096) == 4096);
     CHECK(resolve_n_ctx(kMinSessionNCtx - 1) == kMinSessionNCtx);
-    CHECK(resolve_n_ctx(kMaxSessionNCtx + 1) == kMaxSessionNCtx);
+    // No fixed maximum: each backend bounds the context when the session opens.
+    CHECK(resolve_n_ctx(32768) == 32768);
+}
+
+TEST_CASE("bound_gguf_n_ctx caps at the trained context, not at a constant") {
+    CHECK(bound_gguf_n_ctx(0, 32768) == kDefaultNCtx);
+    CHECK(bound_gguf_n_ctx(16384, 32768) == 16384); // below n_ctx_train
+    CHECK(bound_gguf_n_ctx(32768, 32768) == 32768); // at n_ctx_train
+    CHECK(bound_gguf_n_ctx(65536, 32768) == 32768); // above: capped
+    CHECK(bound_gguf_n_ctx(131072, 0) == 131072);   // unknown: admission decides
+    CHECK(bound_gguf_n_ctx(131072, -1) == 131072);
+    CHECK(bound_gguf_n_ctx(2048, 256) == kMinSessionNCtx); // floor wins over a tiny train ctx
+    CHECK(bound_gguf_n_ctx(kMinSessionNCtx - 1, 32768) == kMinSessionNCtx);
+}
+
+TEST_CASE("bound_ort_n_ctx keeps the fixed ORT cap") {
+    CHECK(bound_ort_n_ctx(0) == kDefaultNCtx);
+    CHECK(bound_ort_n_ctx(4096) == 4096);
+    CHECK(bound_ort_n_ctx(kMaxOrtSessionNCtx) == kMaxOrtSessionNCtx);
+    CHECK(bound_ort_n_ctx(kMaxOrtSessionNCtx + 1) == kMaxOrtSessionNCtx);
+}
+
+TEST_CASE("catalogue_n_ctx applies the backend's pre-load bound") {
+    CHECK(catalogue_n_ctx(0, true) == kDefaultNCtx);
+    CHECK(catalogue_n_ctx(32768, true) == 32768); // GGUF: bounded at load
+    CHECK(catalogue_n_ctx(32768, false) == kMaxOrtSessionNCtx);
+    CHECK(catalogue_n_ctx(4096, false) == 4096);
 }
 
 TEST_CASE("max_prompt_tokens_for_n_ctx tracks session size") {
