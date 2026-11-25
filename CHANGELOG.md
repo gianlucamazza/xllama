@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **`tool_choice` `required` or a named function always starts with the call (#563).** The template grammar allowed free text before the call marker, so a model could fill `max_tokens` with prose ("Ho controllato la directory…") and return no call. `patches/0005` makes a required choice admit only reasoning, then calls, as llama.cpp's Gemma 4 parser already does, for LFM2 and every autoparsed template (ADR 0005 amendment).
+
 - **OLMoE-1B-7B-0125-Instruct chat renderer.** Added `ChatFormatKind::Olmoe` with host goldens; no catalogue entry.
 
 - **A NaN in a recurrent state no longer sticks.** `patches/0004-recurrent-state-fill-zero.patch` backports upstream llama.cpp #31913: clearing a recurrent state multiplied it by 0, which keeps a NaN, instead of writing 0. Affects LFM2 and Granite-4.0-H sessions; a single bad value would otherwise poison every later token of the conversation.

@@ -367,6 +367,7 @@ If you change a contract, update the owning doc in the same PR
 
 | Change                                            | Update                                                                                                                                 |
 | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| MoE milestone, sequence or gate                   | `docs/superpowers/plans/2026-11-24-moe-engineering-program.md` (plan of record)                                                        |
 | SSD MoE contribution stage or acceptance evidence | `docs/research/moe-upstream-readiness.md`, corresponding `ROADMAP.md` stage and #479–#481 tracker; preserve revision-specific evidence |
 | Product intent / public positioning               | `docs/positioning.md` and `docs/reuse-in-a-game.md`                                                                                    |
 | Module boundaries, routing, session ownership     | `docs/architecture.md`                                                                                                                 |

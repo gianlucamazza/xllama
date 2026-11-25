@@ -364,6 +364,13 @@ The program is complete when every accepted milestone has a documented PASS, FAI
 
 ## 11. Source and decision notes
 
+**Related documents.** This program is the plan of record for MoE sequencing, gates and milestones. It builds on:
+
+- [2026-11-16-ssd-moe-upstream.md](2026-11-16-ssd-moe-upstream.md): proposed PR boundaries for the SSD streamed-expert contribution (M2).
+- [2026-11-16-moe-streaming-all-models.md](2026-11-16-moe-streaming-all-models.md): architecture table, pins and per-architecture ladder (M4).
+- [moe-streaming-candidates.md](../../research/moe-streaming-candidates.md): which checkpoints to validate, and in what order.
+- [moe-upstream-readiness.md](../../research/moe-upstream-readiness.md): current contribution stage and revision-specific evidence.
+
 Primary sources are the repository issues and PRs linked above, especially [#524](https://github.com/gianlucamazza/xllama/issues/524), [#273](https://github.com/gianlucamazza/xllama/issues/273), [#527](https://github.com/gianlucamazza/xllama/pull/527), [#513](https://github.com/gianlucamazza/xllama/pull/513), [#479](https://github.com/gianlucamazza/xllama/issues/479)–[#481](https://github.com/gianlucamazza/xllama/issues/481), and [#421](https://github.com/gianlucamazza/xllama/issues/421)–[#422](https://github.com/gianlucamazza/xllama/issues/422). Existing streamed architecture plan: `docs/superpowers/plans/2026-11-16-moe-streaming-all-models.md`; consult current revision before editing. Research leads for a later source audit include activation-aware caching, predictive prefetch, grouped expert execution, and upstream llama.cpp expert-cache changes; no specific external paper performance claim is a dependency of this plan.
 
 **Planning limitations:** based on the GitHub issue/PR and fork inspection already performed on 2026-11-24; no device execution was performed for this document. Exact implementation interfaces, tolerance declarations, sample counts, available hardware and contributor assignments are intentionally not fabricated. Repository paths, baseline and pending issues must be revalidated at execution. GitHub issues are not edited from this document; proposed issue text for M0/E0 lives in `2026-11-24-moe-m0-issue-alignment.md`.

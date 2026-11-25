@@ -2,6 +2,8 @@
 
 **Status:** Proposed; planning only. No runtime integration or console acceptance is delivered by this document.
 
+**Plan of record:** sequencing, gates and acceptance for this work are milestone **M2** of the [evidence-gated MoE engineering program](2026-11-24-moe-engineering-program.md) (#532). This document keeps the proposed PR boundaries; where the two disagree, the program wins.
+
 **Goal:** Bring the existing demand-loaded expert implementation into xLlama through independently reviewable contributions, beginning with the CPU foundation.
 
 **Architecture:** Reuse Stan's Reader, cache leases and native provider. Keep shared weights resident and selected expert matrices in a bounded cache. Separate the portable cache, native loader/execution integration, UWP activation and GPU bridge so each has its own acceptance evidence.
