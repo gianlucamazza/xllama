@@ -185,3 +185,15 @@ TEST_CASE("fit_prompt: an INT_MAX reply does not fit and does not overflow (F01)
     CHECK_FALSE(fit.fits);
     CHECK(fit.n_tokens == 10);
 }
+
+TEST_CASE("prompt-too-long messages: one wording for every surface") {
+    // validate-api.sh, validate-console.sh and the docs grep for these texts.
+    CHECK(xllama::prompt_too_long_message("final user message", 3000, 512, 2048) ==
+          "prompt too long: the final user message needs 3000 tokens plus 512 for the reply, "
+          "but n_ctx is 2048");
+    CHECK(xllama::prompt_too_long_message("request", 8123, 512, 2048) ==
+          "prompt too long: the request needs 8123 tokens plus 512 for the reply, but n_ctx is "
+          "2048");
+    CHECK(xllama::context_overflow_message(600, 512) ==
+          "prompt too long: 600 tokens exceed n_ctx=512");
+}

@@ -239,10 +239,12 @@ the history. If re-rendered history diverges inside the saved tail, a hybrid
 recurrent cache can refuse the rewind. For an in-session API or multi-turn
 full prompt, `LlamaSession` then restores a saved post-prefill prefix snapshot
 (`prefix_snapshot.h`) when that prefix is a strict prefix of the new prompt,
-so only the suffix prefills; an exact regenerate clears and re-prefills so
-logits match a cold run. `LocalState\hybrid-prefix-snapshots.txt` = `0` opts
-out. Disk snapshot restoration alone is not a delta-reuse guarantee (the file
-includes generated tokens). The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
+so only the suffix prefills. On a long prompt the snapshot starts a few tokens
+before the prompt end, so a later turn that diverges only in that tail can
+still restore; an exact regenerate clears and re-prefills so logits match a
+cold run. `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. Disk
+snapshot restoration alone is not a delta-reuse guarantee (the file includes
+generated tokens). The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
 
 - **Fingerprinted** (model, n_ctx, KV quant, LoRA) — stale snapshots are
   harmless by construction (they fall back to a normal prefill).
@@ -268,8 +270,13 @@ owner shared by the chat UI and the LAN API — "avoid 2× model in RAM" (the CP
 and DML working sets, ~1.3 GB and ~2.9 GB, do not coexist in the budget) is now
 a process-wide invariant instead of a per-surface convention the API silently
 violated. `EnsureSession` swaps the resident model through the hub under its
-mutex; `hub.generation` lets the UI drop its KV-reuse state when the API
-swapped models between turns. The routing token-count no longer loads a model
+mutex. Who owns the resident KV is `Session::kv_epoch()`: it changes on every
+KV change that is not a continuation (an API full prompt on the same model, a
+reload, an embedding, a disk-snapshot load), so the GUI's next delta passes the
+epoch it left as `expected_kv_epoch` and a rewritten KV refuses the continuation
+instead of appending to another conversation; the turn then re-prefills its own
+context, cheaply through the #170a diff. The same check gates the #170b disk
+save. `hub.generation` still counts resident-session swaps. The routing token-count no longer loads a model
 at all: it uses the exact count only when the CPU session is already resident,
 else the role's chars-per-token estimate, both clamped to the context ceiling
 by `routing_prompt_tokens` (the old shape loaded the CPU model on the UI thread just to tokenize, then could
@@ -894,7 +901,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_path.cpp`                    | `path_utils.h`                                                                                                 |
 | `test_personalize.cpp`             | `personalize.h`                                                                                                |
 | `test_preference_capture.cpp`      | `preference_capture.h`                                                                                         |
-| `test_prefix_snapshot.cpp`         | `prefix_snapshot.h` — extension keeps snapshot; non-extension restores/clears; regenerate Clears               |
+| `test_prefix_snapshot.cpp`         | `prefix_snapshot.h` — extension keeps; slack restore; regenerate Clears                                        |
 | `test_context_shift.cpp`           | `context_shift.h` — #169 shift admission (`memory_can_shift`, SWA guard)                                       |
 | `test_granite_hybrid_snapshot.cpp` | #512 restore on Granite-4.0-H-Tiny (opt-in `XLLAMA_GRANITE_H_TINY`; skips in CI)                               |
 | `test_prompt_budget.cpp`           | `prompt_budget.h`                                                                                              |

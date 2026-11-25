@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "xllama/path_utils.h"
+#include "xllama/prefix_snapshot.h"
 #include "xllama/session.h"
 #include "xllama/session_hub.h"
 
@@ -542,6 +543,69 @@ TEST_CASE(
     CHECK(r_other.n_p_eval <= r_other.n_prompt);
 }
 
+TEST_CASE("Session: hybrid prefix snapshot slack and exact regenerate "
+          "(opt-in: XLLAMA_TEST_MODEL)") {
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    xllama::SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 512;
+    sp.n_threads = 2;
+    std::string error;
+    auto sess = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(sess, error);
+
+    auto mkgp = [](const std::string& p) {
+        xllama::GenerateParams gp;
+        gp.prompt = p;
+        gp.n_predict = 8;
+        gp.temperature = 0.0f;
+        return gp;
+    };
+    const std::string stem = "<|im_start|>system\nYou are a helpful assistant. "
+                             "Answer with one word only.\n<|im_end|>\n"
+                             "<|im_start|>user\nPlease name one item from this category: ";
+    const std::string p1 = stem + "colour.<|im_end|>\n<|im_start|>assistant\n";
+    const std::string p2 = stem + "fruit.<|im_end|>\n<|im_start|>assistant\n";
+    REQUIRE(sess->count_tokens(p1) > static_cast<int>(xllama::kPrefixSnapshotTailSlack));
+    REQUIRE(p1 != p2);
+
+    const auto r1 = sess->generate(mkgp(p1));
+    REQUIRE_MESSAGE(r1.success, r1.error_msg);
+    REQUIRE(r1.n_p_eval > 0);
+
+    const auto r_regen = sess->generate(mkgp(p1));
+    REQUIRE_MESSAGE(r_regen.success, r_regen.error_msg);
+    CHECK(r_regen.n_prompt == r1.n_prompt);
+    CHECK(r_regen.output_text == r1.output_text);
+    // Hybrid Clears the whole prompt; attention rewinds to the last token.
+    CHECK(r_regen.n_p_eval >= 1);
+    CHECK(r_regen.n_p_eval <= r_regen.n_prompt);
+    const bool hybrid_clear = r_regen.n_p_eval == r_regen.n_prompt;
+
+    auto cold1 = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(cold1, error);
+    const auto c1 = cold1->generate(mkgp(p1));
+    REQUIRE_MESSAGE(c1.success, c1.error_msg);
+    CHECK(r_regen.output_text == c1.output_text);
+    if (hybrid_clear)
+        CHECK(r_regen.n_p_eval == c1.n_p_eval);
+    cold1.reset();
+
+    const auto r_div = sess->generate(mkgp(p2));
+    REQUIRE_MESSAGE(r_div.success, r_div.error_msg);
+    CHECK(r_div.n_p_eval < r_div.n_prompt);
+    CHECK(r_div.n_p_eval >= 1);
+    CHECK_FALSE(r_div.output_text.empty());
+
+    auto cold2 = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(cold2, error);
+    const auto c2 = cold2->generate(mkgp(p2));
+    REQUIRE_MESSAGE(c2.success, c2.error_msg);
+    CHECK(r_div.output_text == c2.output_text);
+}
+
 // Snapshot restoration is not a promise that a hybrid recurrent state can
 // rewind to edited/re-rendered history. Compare its fallback with a fresh run.
 TEST_CASE("Session: divergent restored snapshot matches cold prefill (opt-in: XLLAMA_TEST_MODEL)") {
@@ -580,4 +644,163 @@ TEST_CASE("Session: divergent restored snapshot matches cold prefill (opt-in: XL
         CHECK(actual.output_text == expected.output_text);
     std::error_code ec;
     std::filesystem::remove(path, ec);
+}
+
+TEST_CASE("Session: hybrid head/tail prefill matches the opt-out greedy output "
+          "(opt-in: XLLAMA_TEST_MODEL)") {
+    // With snapshots on, a hybrid full prefill longer than the tail slack runs as
+    // head (captured) + tail. That must not change what a cold turn generates
+    // compared with hybrid-prefix-snapshots=0 (one prefill).
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    xllama::SessionParams on;
+    on.model_path = model;
+    on.n_ctx = 1024;
+    on.n_threads = 2;
+    xllama::SessionParams off = on;
+    off.prefix_snapshots = false;
+
+    const std::string stem = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
+                             "<|im_start|>user\n";
+    const std::vector<std::string> prompts = {
+        stem + "Name one colour.<|im_end|>\n<|im_start|>assistant\n",
+        stem + "Explain in two sentences why the sky looks blue during the day and red at "
+               "sunset.<|im_end|>\n<|im_start|>assistant\n",
+    };
+    for (const std::string& p : prompts) {
+        xllama::GenerateParams gp;
+        gp.prompt = p;
+        gp.n_predict = 32;
+        gp.temperature = 0.0f;
+        std::string error;
+        auto s_on = xllama::Session::create(on, &error);
+        REQUIRE_MESSAGE(s_on, error);
+        const auto r_on = s_on->generate(gp);
+        REQUIRE_MESSAGE(r_on.success, r_on.error_msg);
+        s_on.reset();
+        auto s_off = xllama::Session::create(off, &error);
+        REQUIRE_MESSAGE(s_off, error);
+        const auto r_off = s_off->generate(gp);
+        REQUIRE_MESSAGE(r_off.success, r_off.error_msg);
+        CHECK(r_on.n_p_eval == r_off.n_p_eval);
+        CHECK(r_on.output_text == r_off.output_text);
+    }
+}
+
+namespace {
+struct EpochProbeSession final : xllama::Session {
+    xllama::InferenceResult generate(const xllama::GenerateParams&) override {
+        return {};
+    }
+    int count_tokens(const std::string&) override {
+        return 0;
+    }
+    void rewrite() {
+        touch_kv();
+    }
+};
+} // namespace
+
+TEST_CASE("Session::kv_epoch: unique per instance, renewed on every rewrite") {
+    EpochProbeSession a;
+    EpochProbeSession b;
+    CHECK(a.kv_epoch() != 0);
+    CHECK(a.kv_epoch() != b.kv_epoch()); // a reloaded session never matches the old one
+    const uint64_t before = a.kv_epoch();
+    a.rewrite();
+    CHECK(a.kv_epoch() != before);
+    CHECK(a.kv_epoch() != b.kv_epoch());
+}
+
+namespace {
+xllama::GenerateParams greedy_turn(const std::string& prompt, bool reuse, bool reset) {
+    xllama::GenerateParams gp;
+    gp.prompt = prompt;
+    gp.n_predict = 8;
+    gp.temperature = 0.0f;
+    gp.reuse_kv = reuse;
+    gp.reset_kv = reset;
+    return gp;
+}
+} // namespace
+
+TEST_CASE("Session: a continuation on a KV another caller rewrote is refused (opt-in: "
+          "XLLAMA_TEST_MODEL)") {
+    // The GUI continues its own conversation with a delta; the LAN API sends a
+    // stateless full prompt on the same resident session in between. Appending
+    // the GUI delta to the API's KV would continue the API conversation.
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    xllama::SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 1024;
+    std::string error;
+    auto s = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(s, error);
+
+    const std::string sys = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n";
+    const std::string gui1 = sys + "<|im_start|>user\nMy name is Ada.<|im_end|>\n"
+                                   "<|im_start|>assistant\n";
+    const auto r1 = s->generate(greedy_turn(gui1, true, true));
+    REQUIRE_MESSAGE(r1.success, r1.error_msg);
+    const uint64_t gui_epoch = s->kv_epoch();
+
+    // Same owner: a continuation keeps the epoch.
+    const std::string delta = "<|im_end|>\n<|im_start|>user\nSay it again.<|im_end|>\n"
+                              "<|im_start|>assistant\n";
+    xllama::GenerateParams own = greedy_turn(delta, true, false);
+    own.expected_kv_epoch = gui_epoch;
+    const auto r_own = s->generate(own);
+    REQUIRE_MESSAGE(r_own.success, r_own.error_msg);
+    CHECK(s->kv_epoch() == gui_epoch);
+
+    // Another caller's full prompt rewrites the KV.
+    const std::string api = sys + "<|im_start|>user\nList three colours.<|im_end|>\n"
+                                  "<|im_start|>assistant\n";
+    const auto r_api = s->generate(greedy_turn(api, false, false));
+    REQUIRE_MESSAGE(r_api.success, r_api.error_msg);
+    CHECK(s->kv_epoch() != gui_epoch);
+
+    // The GUI's next continuation is refused before anything is touched.
+    xllama::GenerateParams stale = greedy_turn(delta, true, false);
+    stale.expected_kv_epoch = gui_epoch;
+    const uint64_t api_epoch = s->kv_epoch();
+    const auto r_stale = s->generate(stale);
+    CHECK_FALSE(r_stale.success);
+    CHECK(r_stale.n_eval == 0);
+    CHECK(r_stale.error_msg.find("changed since the last turn") != std::string::npos);
+    CHECK(s->kv_epoch() == api_epoch);
+}
+
+TEST_CASE("Session: a full prompt past n_ctx leaves the resident KV and its epoch intact "
+          "(opt-in: XLLAMA_TEST_MODEL)") {
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    xllama::SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 512;
+    std::string error;
+    auto s = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(s, error);
+    const std::string turn = "<|im_start|>user\nHello.<|im_end|>\n<|im_start|>assistant\n";
+    REQUIRE(s->generate(greedy_turn(turn, true, true)).success);
+    const uint64_t epoch = s->kv_epoch();
+
+    std::string huge;
+    for (int i = 0; i < 400; ++i)
+        huge += "token " + std::to_string(i) + " ";
+    const auto r = s->generate(greedy_turn(huge, false, false));
+    CHECK_FALSE(r.success);
+    CHECK(r.error_msg.find("prompt too long") != std::string::npos);
+    CHECK(s->kv_epoch() == epoch); // rejected before the #170a rewind
+
+    // ...so the conversation still continues on its own KV.
+    xllama::GenerateParams cont = greedy_turn(
+        "<|im_end|>\n<|im_start|>user\nAgain.<|im_end|>\n<|im_start|>assistant\n", true, false);
+    cont.expected_kv_epoch = epoch;
+    const auto r_cont = s->generate(cont);
+    CHECK_MESSAGE(r_cont.success, r_cont.error_msg);
 }

@@ -89,6 +89,60 @@ TEST_CASE("prefix snapshot: hybrid regenerate clears so the last token reseeds")
     CHECK(plan.kv_keep == 0);
 }
 
+TEST_CASE("prefix snapshot: capture_n leaves tail slack on a long prompt") {
+    CHECK(prefix_snapshot_capture_n(3) == 3);
+    CHECK(prefix_snapshot_capture_n(kPrefixSnapshotTailSlack) == kPrefixSnapshotTailSlack);
+    CHECK(prefix_snapshot_capture_n(kPrefixSnapshotTailSlack + 1) == 1);
+    CHECK(prefix_snapshot_capture_n(32) == 32 - kPrefixSnapshotTailSlack);
+    CHECK(prefix_snapshot_capture_n(32, 0) == 32);
+}
+
+TEST_CASE("prefix snapshot: hybrid regenerate with slack still clears") {
+    // Snapshot is a proper prefix of the same prompt (captured with slack).
+    // Without an exact-regenerate check the planner would RestoreSnapshot.
+    const std::vector<int32_t> last_full{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+    const std::vector<int32_t> resident{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
+    const std::vector<int32_t> prompt = last_full;
+    const size_t snap_n = prefix_snapshot_capture_n(last_full.size());
+    REQUIRE(snap_n < last_full.size());
+    const std::vector<int32_t> snapshot(last_full.begin(),
+                                        last_full.begin() + static_cast<std::ptrdiff_t>(snap_n));
+    const size_t common = common_kv_prefix(resident, prompt);
+    CHECK(tokens_are_prefix(snapshot, prompt));
+    CHECK(is_exact_regenerate(last_full, prompt));
+    const auto restored = plan_prefix_snapshot(common, resident.size(), prompt.size(),
+                                               snapshot.size(), true, /*can_rewind=*/false);
+    CHECK(restored.action == PrefixSnapshotAction::RestoreSnapshot);
+    const auto plan = plan_prefix_snapshot(common, resident.size(), prompt.size(), snapshot.size(),
+                                           true, /*can_rewind=*/false,
+                                           /*exact_regenerate=*/true);
+    CHECK(plan.action == PrefixSnapshotAction::Clear);
+    CHECK(plan.kv_keep == 0);
+}
+
+TEST_CASE("prefix snapshot: diverging tail restores a slacked head") {
+    const std::vector<int32_t> last_full{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+    const std::vector<int32_t> resident{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+    const size_t snap_n = prefix_snapshot_capture_n(last_full.size());
+    REQUIRE(snap_n < last_full.size());
+    const std::vector<int32_t> snapshot(last_full.begin(),
+                                        last_full.begin() + static_cast<std::ptrdiff_t>(snap_n));
+    std::vector<int32_t> prompt(snapshot);
+    prompt.insert(prompt.end(), {99, 100, 101});
+    CHECK_FALSE(tokens_are_prefix(last_full, prompt));
+    CHECK(tokens_are_prefix(snapshot, prompt));
+    CHECK_FALSE(is_exact_regenerate(last_full, prompt));
+    const size_t common = common_kv_prefix(resident, prompt);
+    const auto whole = plan_prefix_snapshot(common, resident.size(), prompt.size(),
+                                            last_full.size(), tokens_are_prefix(last_full, prompt),
+                                            /*can_rewind=*/false);
+    CHECK(whole.action == PrefixSnapshotAction::Clear);
+    const auto plan = plan_prefix_snapshot(common, resident.size(), prompt.size(), snapshot.size(),
+                                           true, /*can_rewind=*/false);
+    CHECK(plan.action == PrefixSnapshotAction::RestoreSnapshot);
+    CHECK(plan.kv_keep == snapshot.size());
+}
+
 TEST_CASE("prefix snapshot: opt-out knob") {
     CHECK(prefix_snapshots_enabled(kPrefixSnapshotsKnobAbsent));
     CHECK(prefix_snapshots_enabled(1));

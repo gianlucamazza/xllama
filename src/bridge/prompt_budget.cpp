@@ -21,6 +21,18 @@ bool budget_fits(int prompt_tokens, int n_predict, int n_ctx) {
            std::int64_t{prompt_tokens} + prompt_reply_reserve(n_predict) <= n_ctx;
 }
 
+std::string prompt_too_long_message(std::string_view subject, int n_tokens, int n_predict,
+                                    int n_ctx) {
+    return "prompt too long: the " + std::string(subject) + " needs " + std::to_string(n_tokens) +
+           " tokens plus " + std::to_string(n_predict) + " for the reply, but n_ctx is " +
+           std::to_string(n_ctx);
+}
+
+std::string context_overflow_message(int n_tokens, int n_ctx) {
+    return "prompt too long: " + std::to_string(n_tokens) +
+           " tokens exceed n_ctx=" + std::to_string(n_ctx);
+}
+
 PromptFit fit_prompt(const ChatFormat& fmt, const std::string& system,
                      const std::vector<ChatTurn>& turns, const std::string& user_text, int n_ctx,
                      int n_predict, const TokenCounter& count) {
