@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "xllama/path_utils.h"
+#include "xllama/prefix_snapshot.h"
 #include "xllama/session.h"
 #include "xllama/session_hub.h"
 
@@ -540,6 +541,69 @@ TEST_CASE(
     REQUIRE_MESSAGE(r_other.success, r_other.error_msg);
     CHECK(r_other.n_p_eval >= 1);
     CHECK(r_other.n_p_eval <= r_other.n_prompt);
+}
+
+TEST_CASE("Session: hybrid prefix snapshot slack and exact regenerate "
+          "(opt-in: XLLAMA_TEST_MODEL)") {
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    xllama::SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 512;
+    sp.n_threads = 2;
+    std::string error;
+    auto sess = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(sess, error);
+
+    auto mkgp = [](const std::string& p) {
+        xllama::GenerateParams gp;
+        gp.prompt = p;
+        gp.n_predict = 8;
+        gp.temperature = 0.0f;
+        return gp;
+    };
+    const std::string stem = "<|im_start|>system\nYou are a helpful assistant. "
+                             "Answer with one word only.\n<|im_end|>\n"
+                             "<|im_start|>user\nPlease name one item from this category: ";
+    const std::string p1 = stem + "colour.<|im_end|>\n<|im_start|>assistant\n";
+    const std::string p2 = stem + "fruit.<|im_end|>\n<|im_start|>assistant\n";
+    REQUIRE(sess->count_tokens(p1) > static_cast<int>(xllama::kPrefixSnapshotTailSlack));
+    REQUIRE(p1 != p2);
+
+    const auto r1 = sess->generate(mkgp(p1));
+    REQUIRE_MESSAGE(r1.success, r1.error_msg);
+    REQUIRE(r1.n_p_eval > 0);
+
+    const auto r_regen = sess->generate(mkgp(p1));
+    REQUIRE_MESSAGE(r_regen.success, r_regen.error_msg);
+    CHECK(r_regen.n_prompt == r1.n_prompt);
+    CHECK(r_regen.output_text == r1.output_text);
+    // Hybrid Clears the whole prompt; attention rewinds to the last token.
+    CHECK(r_regen.n_p_eval >= 1);
+    CHECK(r_regen.n_p_eval <= r_regen.n_prompt);
+    const bool hybrid_clear = r_regen.n_p_eval == r_regen.n_prompt;
+
+    auto cold1 = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(cold1, error);
+    const auto c1 = cold1->generate(mkgp(p1));
+    REQUIRE_MESSAGE(c1.success, c1.error_msg);
+    CHECK(r_regen.output_text == c1.output_text);
+    if (hybrid_clear)
+        CHECK(r_regen.n_p_eval == c1.n_p_eval);
+    cold1.reset();
+
+    const auto r_div = sess->generate(mkgp(p2));
+    REQUIRE_MESSAGE(r_div.success, r_div.error_msg);
+    CHECK(r_div.n_p_eval < r_div.n_prompt);
+    CHECK(r_div.n_p_eval >= 1);
+    CHECK_FALSE(r_div.output_text.empty());
+
+    auto cold2 = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(cold2, error);
+    const auto c2 = cold2->generate(mkgp(p2));
+    REQUIRE_MESSAGE(c2.success, c2.error_msg);
+    CHECK(r_div.output_text == c2.output_text);
 }
 
 // Snapshot restoration is not a promise that a hybrid recurrent state can

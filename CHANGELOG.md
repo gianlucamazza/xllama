@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Hybrid prefix snapshots may start a few tokens before the prompt end.** On a long hybrid/recurrent full-prompt prefill the session captures the head, then prefills the tail, so a later prompt that diverges only in those last tokens can restore instead of prefilling from scratch. Exact regenerate of the same prompt still Clears and prefills the whole prompt so the last token reseeds logits. The opt-out knob and non-hybrid rewind are unchanged.
+
 - **D3D12 shared-activation cache keyed by tensor identity.** Hardening of the d3d12 shared-activation cache: lookups use tensor owner, data pointer, column stride, type and row size, not address alone. Latent hazard; no known failure on main.
 
 ## [1.8.1]

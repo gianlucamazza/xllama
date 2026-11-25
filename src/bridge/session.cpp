@@ -477,12 +477,14 @@ class LlamaSession final : public Session {
     // whenever the KV state stops being trustworthy (decode failure).
     std::vector<llama_token> m_kv_tokens;
 
-    // Hybrid/recurrent caches refuse a partial tail erase. After each
-    // successful prefill, a post-prefill llama_state_get_data blob lets the
-    // next full-prompt turn restore that prefix instead of prefilling from
-    // scratch. Unused until llama_model_is_hybrid/is_recurrent is true.
+    // Hybrid/recurrent caches refuse a partial tail erase. After a successful
+    // prefill of the prompt head (a few tokens short of the end when the
+    // prompt is long enough), a llama_state_get_data blob lets the next
+    // full-prompt turn restore that prefix instead of prefilling from scratch.
+    // Unused until llama_model_is_hybrid/is_recurrent is true.
     std::vector<llama_token> m_prefix_tokens;
     std::vector<uint8_t> m_prefix_blob;
+    std::vector<llama_token> m_last_full_prompt;
     bool m_needs_prefix_snapshot = false;
 
     bool m_kv_q8 = false;           // #171: q8_0 KV + forced flash attention
@@ -653,7 +655,9 @@ class LlamaSession final : public Session {
         //
         // Hybrid caches (LFM2) refuse that tail erase. When a post-prefill
         // prefix snapshot is a strict prefix of the new prompt, restore it (no
-        // stale generated tail) and prefill only the suffix. An exact
+        // stale generated tail) and prefill only the suffix. The snapshot may
+        // start a few tokens before the previous prompt end, so a later turn
+        // that diverges only in that tail can still restore. An exact
         // regenerate Clears so the last token reseeds logits like a cold run.
         // Non-hybrid still rewinds.
         llama_memory_t mem = llama_get_memory(ctx);
@@ -665,9 +669,10 @@ class LlamaSession final : public Session {
                 can_rewind = llama_memory_seq_rm(mem, 0, static_cast<llama_pos>(common), -1);
             }
             const bool snap_prefix = tokens_are_prefix(m_prefix_tokens, tokens);
+            const bool exact_regen = is_exact_regenerate(m_last_full_prompt, tokens);
             const PrefixSnapshotPlan plan =
                 plan_prefix_snapshot(common, m_kv_tokens.size(), tokens.size(),
-                                     m_prefix_tokens.size(), snap_prefix, can_rewind);
+                                     m_prefix_tokens.size(), snap_prefix, can_rewind, exact_regen);
             kv_keep = plan.kv_keep;
             switch (plan.action) {
             case PrefixSnapshotAction::KeepResident:
@@ -820,41 +825,93 @@ class LlamaSession final : public Session {
         // session is 3846, so a long paste used to kill the process. This is the
         // LOGICAL batch only — the physical ubatch stays 512 (#172 optimum),
         // which is what the prefill rate was measured on.
+        //
+        // Hybrid snapshots: when the full prompt is long enough, prefill the
+        // head, capture, then prefill the tail. A later prompt that diverges
+        // only in that tail can restore the head. Short prefills, opt-out, and
+        // in-place continuations stay a single prefill.
+        const size_t prompt_n = tokens.size();
+        const size_t capture_at = (full_prompt && m_needs_prefix_snapshot)
+                                      ? prefix_snapshot_capture_n(prompt_n)
+                                      : prompt_n;
+        const bool split_snapshot =
+            full_prompt && m_needs_prefix_snapshot && kv_keep < capture_at && capture_at < prompt_n;
+
         InferenceWatchdog wd(gp.progress(), gp.abort_flag);
         const auto t_prefill0 = std::chrono::steady_clock::now();
-        if (n_pf > 0) {
-            wd.enter_prefill(n_pf);
-            if (!prefill_chunked(ctx, pf, n_pf, &wd)) {
-                if (wd.stalled()) {
-                    res.stalled = true;
-                    res.error_msg = wd.stall_error();
-                } else {
-                    res.error_msg = "prompt decode failed";
-                }
-                log_output("[xllama] session generate: " + res.error_msg + "\n");
-                // The cache now holds a partial batch — nothing about it is
-                // trustworthy, so drop the record AND the cells. Clearing both keeps
-                // a continuation turn (which reads the cache length, not
-                // m_kv_tokens) from decoding on top of half a prefill.
-                m_kv_tokens.clear();
-                drop_prefix_snapshot();
-                llama_memory_clear(mem, true);
-                return res;
+        int n_prefilled = 0;
+        bool captured_head = false;
+
+        auto fail_prefill = [&]() -> InferenceResult {
+            if (wd.stalled()) {
+                res.stalled = true;
+                res.error_msg = wd.stall_error();
+            } else {
+                res.error_msg = "prompt decode failed";
             }
+            log_output("[xllama] session generate: " + res.error_msg + "\n");
+            // The cache now holds a partial batch — nothing about it is
+            // trustworthy, so drop the record AND the cells. Clearing both keeps
+            // a continuation turn (which reads the cache length, not
+            // m_kv_tokens) from decoding on top of half a prefill.
+            m_kv_tokens.clear();
+            drop_prefix_snapshot();
+            llama_memory_clear(mem, true);
+            return res;
+        };
+
+        if (split_snapshot) {
+            n_prefilled = static_cast<int>(prompt_n - kv_keep);
+            wd.enter_prefill(n_prefilled);
+            const int n_head = static_cast<int>(capture_at - kv_keep);
+            if (n_head > 0 && !prefill_chunked(ctx, tokens.data() + kv_keep, n_head, &wd))
+                return fail_prefill();
+            m_kv_tokens.assign(tokens.begin(),
+                               tokens.begin() + static_cast<std::ptrdiff_t>(capture_at));
+            capture_prefix_snapshot();
+            captured_head = true;
+            {
+                char cb[160];
+                snprintf(cb, sizeof(cb),
+                         "[xllama] session: prefix snapshot captured at %zu of %zu "
+                         "tokens (hybrid)\n",
+                         capture_at, prompt_n);
+                log_output(cb);
+            }
+            const int n_tail = static_cast<int>(prompt_n - capture_at);
+            if (!prefill_chunked(ctx, tokens.data() + capture_at, n_tail, &wd))
+                return fail_prefill();
+        } else if (n_pf > 0) {
+            n_prefilled = n_pf;
+            wd.enter_prefill(n_pf);
+            if (!prefill_chunked(ctx, pf, n_pf, &wd))
+                return fail_prefill();
+        }
+        if (n_prefilled > 0) {
             res.t_p_eval_ms = std::chrono::duration<double, std::milli>(
                                   std::chrono::steady_clock::now() - t_prefill0)
                                   .count();
-            wd.prefill_done(n_pf, res.t_p_eval_ms);
+            wd.prefill_done(n_prefilled, res.t_p_eval_ms);
         }
-        res.n_p_eval = n_pf;
-        res.n_prompt = static_cast<int>(tokens.size());
+        res.n_p_eval = n_prefilled;
+        res.n_prompt = static_cast<int>(prompt_n);
 
         // The resident-token record now covers everything prefilled.
         if (full_prompt)
             m_kv_tokens.assign(tokens.begin(), tokens.end());
         else
             m_kv_tokens.insert(m_kv_tokens.end(), tokens.begin(), tokens.end());
-        capture_prefix_snapshot();
+        if (!captured_head) {
+            // A restore/keep already at or past capture_at must not replace the
+            // slacked head with the full prompt. Short prefills and
+            // opt-out/non-hybrid still capture (or drop) as today.
+            const bool keep_slacked_head =
+                full_prompt && m_needs_prefix_snapshot && capture_at < prompt_n;
+            if (!keep_slacked_head)
+                capture_prefix_snapshot();
+        }
+        if (full_prompt)
+            m_last_full_prompt = tokens;
 
         // Shared with run_inference — see src/bridge/sampler_chain.h and #125.
         // SamplingConfig::is_greedy() also covers temperature 0, where the full

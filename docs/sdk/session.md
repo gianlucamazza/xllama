@@ -139,15 +139,18 @@ Parameters for a single generation turn.
 
 A full-prompt turn (LAN API, regenerate) diffs the new tokens against the
 resident KV. Non-hybrid caches rewind the divergent tail (#170a). Hybrid
-caches (LFM2) cannot always rewind: after each successful prefill the session
-keeps an in-memory prefix snapshot (logits + memory). If the new prompt is a
-strict extension of that saved prefix, the snapshot is restored and only the
-suffix prefills. An exact regenerate Clears and re-prefills the whole prompt
-so the last token reseeds logits (a full-state restore is not bit-identical
-to a fresh hybrid prefill). A snapshot that is not a prefix of the new prompt
-is dropped and the full prompt prefills. `SessionParams::prefix_snapshots`
-defaults on; `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. Disk
-`load_state` is still not a delta-prefill guarantee — it includes generated
-tokens, so a hybrid tail that cannot rewind falls back to a full prefill. See
+caches (LFM2) cannot always rewind: after a successful prefill the session
+keeps an in-memory prefix snapshot (logits + memory). On a long prompt the
+snapshot starts a few tokens before the prompt end, then that tail prefills.
+If the new prompt is a strict extension of that saved prefix, the snapshot is
+restored and only the suffix prefills — including a later turn that diverges
+only in the unsaved tail. An exact regenerate Clears and re-prefills the
+whole prompt so the last token reseeds logits (a full-state restore is not
+bit-identical to a fresh hybrid prefill). A snapshot that is not a prefix of
+the new prompt is dropped and the full prompt prefills.
+`SessionParams::prefix_snapshots` defaults on;
+`LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. Disk `load_state` is
+still not a delta-prefill guarantee — it includes generated tokens, so a
+hybrid tail that cannot rewind falls back to a full prefill. See
 [KV architecture](../architecture.md#kv-cache-reuse-both-backends)
 and the separate prefix-reuse/fallback [console probes](../console-validation-runbook.md#controlled-model-writer-and-kv-fallback-probes).

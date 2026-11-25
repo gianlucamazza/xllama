@@ -61,7 +61,9 @@ struct SessionParams {
 
     // Hybrid/recurrent GGUF sessions keep an in-memory post-prefill prefix
     // snapshot (prefix_snapshot.h) so a later full prompt can restore that
-    // prefix instead of prefilling from scratch. Default on; set false (or
+    // prefix instead of prefilling from scratch. On a long prompt the snapshot
+    // starts a few tokens before the end, so a later turn that diverges only
+    // in that tail can still restore. Default on; set false (or
     // LocalState\hybrid-prefix-snapshots.txt = 0) to opt out.
     bool prefix_snapshots = true;
 };
@@ -118,8 +120,9 @@ struct GenerateParams {
     // Hybrid caches (LFM2) cannot always rewind a divergent tail; LlamaSession
     // then restores an in-memory post-prefill prefix snapshot when the new
     // prompt is a strict extension of that saved prefix, so API/multi-turn
-    // turns re-prefill only the suffix (prefix_snapshot.h). An exact
-    // regenerate Clears and re-prefills so logits match a cold run. Set
+    // turns re-prefill only the suffix (prefix_snapshot.h). The snapshot may
+    // start a few tokens before the previous prompt end. An exact regenerate
+    // Clears and re-prefills so logits match a cold run. Set
     // SessionParams::prefix_snapshots false to opt out. Non-hybrid #170a
     // rewind is unchanged.
     bool reuse_kv = false;

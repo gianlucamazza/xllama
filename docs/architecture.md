@@ -239,10 +239,12 @@ the history. If re-rendered history diverges inside the saved tail, a hybrid
 recurrent cache can refuse the rewind. For an in-session API or multi-turn
 full prompt, `LlamaSession` then restores a saved post-prefill prefix snapshot
 (`prefix_snapshot.h`) when that prefix is a strict prefix of the new prompt,
-so only the suffix prefills; an exact regenerate clears and re-prefills so
-logits match a cold run. `LocalState\hybrid-prefix-snapshots.txt` = `0` opts
-out. Disk snapshot restoration alone is not a delta-reuse guarantee (the file
-includes generated tokens). The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
+so only the suffix prefills. On a long prompt the snapshot starts a few tokens
+before the prompt end, so a later turn that diverges only in that tail can
+still restore; an exact regenerate clears and re-prefills so logits match a
+cold run. `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. Disk
+snapshot restoration alone is not a delta-reuse guarantee (the file includes
+generated tokens). The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
 
 - **Fingerprinted** (model, n_ctx, KV quant, LoRA) — stale snapshots are
   harmless by construction (they fall back to a normal prefill).
@@ -888,7 +890,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_path.cpp`                    | `path_utils.h`                                                                                                 |
 | `test_personalize.cpp`             | `personalize.h`                                                                                                |
 | `test_preference_capture.cpp`      | `preference_capture.h`                                                                                         |
-| `test_prefix_snapshot.cpp`         | `prefix_snapshot.h` — extension keeps snapshot; non-extension restores/clears; regenerate Clears               |
+| `test_prefix_snapshot.cpp`         | `prefix_snapshot.h` — extension keeps; slack restore; regenerate Clears                                        |
 | `test_granite_hybrid_snapshot.cpp` | #512 restore on Granite-4.0-H-Tiny (opt-in `XLLAMA_GRANITE_H_TINY`; skips in CI)                               |
 | `test_prompt_budget.cpp`           | `prompt_budget.h`                                                                                              |
 | `test_ramceil.cpp`                 | `ramceil.h`                                                                                                    |
