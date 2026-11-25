@@ -19,7 +19,8 @@ under `#ifdef XLLAMA_USE_ORT` (`src/bridge/inference.cpp`), with RAII for the
 OGA handles in `include/xllama/ort_raii.h`.
 
 `llama.cpp/` is a git submodule. Do not commit edits inside it. AppContainer
-fixes belong in `patches/` and are applied by `scripts/apply-uwp-patches.sh`.
+fixes and backports of upstream fixes belong in `patches/` and are applied by
+`scripts/apply-llama-patches.sh`, for the Linux build as well as UWP.
 
 ## Setup
 
@@ -27,6 +28,7 @@ Linux host toolchain (Ubuntu packages match CI):
 
 ```bash
 git submodule update --init --recursive
+./scripts/apply-llama-patches.sh   # CMake configure refuses an unpatched pin
 sudo apt-get install -y cmake build-essential libcurl4-openssl-dev
 ```
 

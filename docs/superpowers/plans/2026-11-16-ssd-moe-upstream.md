@@ -37,7 +37,7 @@ These are proposed contributions, not assignments or delivery promises from Stan
 - Preserve the default resident path, existing SessionHub ownership and shared compute admission.
 - Keep the feature explicitly opt-in and experimental. No automatic fallback to a full resident load after streamed admission or decode failure.
 - Do not commit edits inside the llama.cpp submodule. Carry native changes as explicit patches against the recorded pin.
-- Do not put optional MoE patches in the unconditional `patches/0*-*.patch` path consumed by `scripts/apply-uwp-patches.sh`.
+- Do not put optional MoE patches in the unconditional `patches/0*-*.patch` path consumed by `scripts/apply-llama-patches.sh`.
 - Reuse existing interfaces and preparation checks; file placement below is the proposed upstream mapping, not an API redesign prerequisite.
 - Preserve attribution and MIT notices. Do not import the whole seventeen-patch application history, signing machinery or generated receipts as the first contribution.
 - Keep fixture math, full-checkpoint parity, console lifecycle, GPU correctness and performance as separate evidence. No performance table is copied into this plan.

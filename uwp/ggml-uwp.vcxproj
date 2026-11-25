@@ -4,7 +4,7 @@
   <!-- =====================================================================
        ggml-uwp — static, CPU-only build of ggml + llama for the AppContainer.
        Compiled from the llama.cpp submodule sources (patched via
-       scripts/apply-uwp-patches.sh — three desktop-only APIs guarded, see
+       scripts/apply-llama-patches.sh — three desktop-only APIs guarded, see
        patches/README.md). No dynamic backend loading (the CPU backend is
        registered statically via GGML_USE_CPU, with the repacked-weight GEMM
        path enabled via GGML_USE_CPU_REPACK — covers Q4_0/Q4_K/Q8_0/IQ4_NL),
