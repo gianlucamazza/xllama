@@ -54,6 +54,7 @@ add_executable(xllama-tests
     test_preference_capture.cpp
     test_prefix_snapshot.cpp
     test_context_shift.cpp
+    test_memory_admission.cpp
     test_granite_hybrid_snapshot.cpp
     test_personalize.cpp
     test_api_config.cpp

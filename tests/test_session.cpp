@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "xllama/path_utils.h"
+#include "xllama/platform.h"
 #include "xllama/prefix_snapshot.h"
 #include "xllama/session.h"
 #include "xllama/session_hub.h"
@@ -10,6 +11,8 @@
 #include <doctest/doctest.h>
 
 #include <climits>
+#include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 
@@ -924,4 +927,53 @@ TEST_CASE("Session: probe for evicted-turn recall after a context shift (opt-in:
                           probe.output_text.find("papaya") != std::string::npos;
     const std::string verdict = recalled ? "YES" : "no";
     MESSAGE("evicted-turn recall: " << verdict << " — reply '" << probe.output_text << "'");
+}
+
+// Private (anonymous) resident memory. The console reads weights into
+// allocated buffers (no mmap, docs/uwp-constraints.md §1), so this, not VmRSS
+// with the mapped GGUF pages, is the host figure that matches it.
+static std::size_t anon_rss_mb() {
+    FILE* fp = std::fopen("/proc/self/status", "r");
+    if (!fp)
+        return 0;
+    char line[256];
+    std::size_t kb = 0;
+    while (std::fgets(line, sizeof(line), fp))
+        if (std::strncmp(line, "RssAnon:", 8) == 0) {
+            kb = static_cast<std::size_t>(std::strtoul(line + 8, nullptr, 10));
+            break;
+        }
+    std::fclose(fp);
+    return kb / 1024;
+}
+
+// Calibration for kSessionMemoryMarginMb: the dry run must cover the private
+// memory a real load and first turn add. Records both numbers.
+TEST_CASE("Session::estimate_memory covers the real load (opt-in: XLLAMA_TEST_MODEL)") {
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    for (int n_ctx : {2048, 8192}) {
+        xllama::SessionParams sp;
+        sp.model_path = model;
+        sp.n_ctx = n_ctx;
+        std::string error;
+        const auto est = xllama::Session::estimate_memory(sp, &error);
+        REQUIRE_MESSAGE(est, error);
+        CHECK(est->host_model_mb > 0);
+        CHECK(est->host_context_mb > 0);
+        const std::size_t ws0 = anon_rss_mb();
+        auto s = xllama::Session::create(sp, &error);
+        REQUIRE_MESSAGE(s, error);
+        REQUIRE(s->generate(greedy_turn("<|im_start|>user\nHi.<|im_end|>\n<|im_start|>assistant\n",
+                                        false, false))
+                    .success);
+        const std::size_t ws1 = anon_rss_mb();
+        const std::size_t grown = ws1 > ws0 ? ws1 - ws0 : 0;
+        MESSAGE("n_ctx " << n_ctx << ": estimate " << est->host_mb() << " MB (weights "
+                         << est->host_model_mb << ", context " << est->host_context_mb
+                         << ", compute " << est->host_compute_mb << "), private memory grew "
+                         << grown << " MB");
+        CHECK(grown <= est->host_mb() + xllama::kSessionMemoryMarginMb);
+    }
 }
