@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Host tests run without the stall watchdog.** `xllama-tests` now has its own `tests/test_main.cpp`, which sets `XLLAMA_INFER_STALL_TIMEOUT_S=0` unless the caller exported a value. A model-backed opt-in case in a Debug or ASan build could outlast the 180 s product watchdog, fail as "stalled" and leave `inference-stall.txt` in the working directory.
+
 - **D3D12 shared-activation cache keyed by tensor identity.** Hardening of the d3d12 shared-activation cache: lookups use tensor owner, data pointer, column stride, type and row size, not address alone. Latent hazard; no known failure on main.
 
 ## [1.8.1]
