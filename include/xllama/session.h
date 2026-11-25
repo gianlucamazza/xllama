@@ -10,6 +10,7 @@
 #include "xllama/inference_params.h"
 
 #include <atomic>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -61,7 +62,9 @@ struct SessionParams {
 
     // Hybrid/recurrent GGUF sessions keep an in-memory post-prefill prefix
     // snapshot (prefix_snapshot.h) so a later full prompt can restore that
-    // prefix instead of prefilling from scratch. Default on; set false (or
+    // prefix instead of prefilling from scratch. On a long prompt the snapshot
+    // starts a few tokens before the end, so a later turn that diverges only
+    // in that tail can still restore. Default on; set false (or
     // LocalState\hybrid-prefix-snapshots.txt = 0) to opt out.
     bool prefix_snapshots = true;
 };
@@ -118,12 +121,23 @@ struct GenerateParams {
     // Hybrid caches (LFM2) cannot always rewind a divergent tail; LlamaSession
     // then restores an in-memory post-prefill prefix snapshot when the new
     // prompt is a strict extension of that saved prefix, so API/multi-turn
-    // turns re-prefill only the suffix (prefix_snapshot.h). An exact
-    // regenerate Clears and re-prefills so logits match a cold run. Set
+    // turns re-prefill only the suffix (prefix_snapshot.h). The snapshot may
+    // start a few tokens before the previous prompt end (a partial-state
+    // checkpoint: the recurrent cells only; the attention prefix stays
+    // resident), so an exact regenerate also re-prefills just that tail. Set
     // SessionParams::prefix_snapshots false to opt out. Non-hybrid #170a
     // rewind is unchanged.
     bool reuse_kv = false;
     bool reset_kv = false;
+
+    // Continuation guard: the Session::kv_epoch() the caller saw when it last
+    // left the KV. A continuation turn whose session reports another epoch
+    // fails before touching the KV (success=false, n_eval=0, the caller's
+    // usual full-prompt retry), because another caller — the LAN API, a
+    // reload, an embedding or a disk-snapshot load — rewrote the resident
+    // context in between, and appending this delta would continue THEIR
+    // conversation. 0 = no guard (callers that do not continue).
+    uint64_t expected_kv_epoch = 0;
 
     // #169: number of leading prompt tokens pinned across context shifts —
     // the system prompt (plus BOS), which must survive any eviction. 0 = no
@@ -164,6 +178,16 @@ struct Session {
     static std::unique_ptr<Session> create(const SessionParams& params, std::string* err = nullptr);
 
     virtual InferenceResult generate(const GenerateParams& params) = 0;
+
+    // Identity of the resident KV content. It changes on every KV change that
+    // is not a continuation of the current content (full-prompt turns, clears,
+    // embeddings, load_state, a rebuilt generator) and never on a successful
+    // continuation, so "same epoch" means "the KV is still the one I left".
+    // Unique across Session instances: a reloaded session never reuses an
+    // epoch. Read it under the same lock that serialises generate().
+    uint64_t kv_epoch() const {
+        return m_kv_epoch;
+    }
 
     // Token count for routing/heuristics (encode-only; no generation).
     virtual int count_tokens(const std::string& prompt) = 0;
@@ -222,6 +246,14 @@ struct Session {
     }
 
     virtual ~Session() = default;
+
+  protected:
+    Session();
+    // Mark the resident KV as new content (see kv_epoch()).
+    void touch_kv();
+
+  private:
+    uint64_t m_kv_epoch;
 };
 
 } // namespace xllama

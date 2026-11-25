@@ -7,6 +7,7 @@
 // bench/results/2026-11-24-granite40-h-tiny/
 
 #include "xllama/chat_prompt.h"
+#include "xllama/prefix_snapshot.h"
 #include "xllama/session.h"
 
 #include <cstdlib>
@@ -59,7 +60,9 @@ TEST_CASE("Session: granitehybrid prefix snapshot restore (#512/#525, "
     REQUIRE(fmt.kind == ChatFormatKind::Granite);
     const std::string sys = "You are a helpful assistant.";
     const std::string p1 = fmt.render_prompt(sys, {}, "Name a colour.");
-    const std::string p_other = fmt.render_prompt(sys, {}, "Say hi.");
+    // Diverges inside the system turn, before any slacked head of p1 ends, so
+    // the saved snapshot is not a prefix of it whatever the slack.
+    const std::string p_other = fmt.render_prompt("You are a terse assistant.", {}, "Say hi.");
     // Strict extension of the saved prefix (p1) that is not an extension of a
     // generated tail. Same suffix covers KeepResident (prefill-only pin) and
     // RestoreSnapshot (after a decode that left a colour-name tail).
@@ -131,6 +134,61 @@ TEST_CASE("Session: granitehybrid prefix snapshot restore (#512/#525, "
     const auto c_restore = cold_restore->generate(greedy(p_ext, fmt));
     REQUIRE_MESSAGE(c_restore.success, c_restore.error_msg);
     CHECK(r_restore.output_text == c_restore.output_text);
+}
+
+TEST_CASE("Session: granitehybrid prefix snapshot slack and exact regenerate "
+          "(opt-in: XLLAMA_GRANITE_H_TINY)") {
+    const char* model = granite_h_tiny_path();
+    if (!model) {
+        MESSAGE("SKIP: XLLAMA_GRANITE_H_TINY is unset — slack/regenerate is "
+                "not exercised in CI.");
+        return;
+    }
+
+    const ChatFormat fmt = chat_format_for(model);
+    REQUIRE(fmt.kind == ChatFormatKind::Granite);
+    const std::string sys = "You are a helpful assistant.";
+    const std::string stem = "Please reply with a single English word. "
+                             "The category you must pick from is";
+    const std::string p1 = fmt.render_prompt(sys, {}, stem + " colour.");
+    const std::string p2 = fmt.render_prompt(sys, {}, stem + " fruit.");
+    REQUIRE(p1 != p2);
+
+    std::string error;
+    auto sess = load_session(model, &error);
+    REQUIRE_MESSAGE(sess, error);
+    REQUIRE(sess->count_tokens(p1) > static_cast<int>(kPrefixSnapshotTailSlack));
+
+    const auto r1 = sess->generate(greedy(p1, fmt));
+    REQUIRE_MESSAGE(r1.success, r1.error_msg);
+    REQUIRE(r1.n_p_eval > 0);
+
+    const auto r_regen = sess->generate(greedy(p1, fmt));
+    REQUIRE_MESSAGE(r_regen.success, r_regen.error_msg);
+    // The checkpoint restores: only the tail after it is prefilled again.
+    CHECK(r_regen.n_p_eval == static_cast<int>(kPrefixSnapshotTailSlack));
+    CHECK(r_regen.n_prompt == r1.n_prompt);
+    CHECK(r_regen.output_text == r1.output_text);
+
+    auto cold1 = load_session(model, &error);
+    REQUIRE_MESSAGE(cold1, error);
+    const auto c1 = cold1->generate(greedy(p1, fmt));
+    REQUIRE_MESSAGE(c1.success, c1.error_msg);
+    CHECK(r_regen.output_text == c1.output_text);
+    cold1.reset();
+
+    const auto r_div = sess->generate(greedy(p2, fmt));
+    REQUIRE_MESSAGE(r_div.success, r_div.error_msg);
+    CHECK(r_div.n_p_eval < r_div.n_prompt);
+    CHECK(r_div.n_p_eval >= 1);
+    CHECK_FALSE(r_div.output_text.empty());
+    sess.reset();
+
+    auto cold2 = load_session(model, &error);
+    REQUIRE_MESSAGE(cold2, error);
+    const auto c2 = cold2->generate(greedy(p2, fmt));
+    REQUIRE_MESSAGE(c2.success, c2.error_msg);
+    CHECK(r_div.output_text == c2.output_text);
 }
 
 // #527: granitehybrid logs can_shift=1. Overflow must take the #169 path

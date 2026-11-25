@@ -4,11 +4,15 @@
 // Hybrid-cache prefix snapshots — plan when a full-prompt turn can keep the
 // resident KV, rewind a tail, restore a saved post-prefill state, or clear.
 //
-// Pure functions, no llama.h. LlamaSession captures the blob with
-// llama_state_get_data after a successful prefill (logits + memory) and
-// restores it with llama_state_set_data when seq_rm refuses a tail rewind.
-// Non-hybrid caches never need the blob: RewindTail is the existing #170a
-// path. Host tests pass can_rewind=false as a hybrid-shaped fixture.
+// Pure functions, no llama.h. LlamaSession captures a partial-state
+// checkpoint (llama_state_seq_get_data_ext with PARTIAL_ONLY: the recurrent
+// cells only, as llama-server's context checkpoints) after the prompt head,
+// leaving a short tail to prefill so a later prompt that diverges only there
+// can restore. A restore puts the recurrent state back and truncates the
+// still-resident attention KV to the checkpoint, so it needs that attention
+// prefix to be intact. Non-hybrid caches never need the blob:
+// RewindTail is the existing #170a path. Host tests pass can_rewind=false
+// as a hybrid-shaped fixture.
 #pragma once
 
 #include <algorithm>
@@ -28,9 +32,9 @@ struct PrefixSnapshotPlan {
     PrefixSnapshotAction action = PrefixSnapshotAction::Clear;
     // Tokens already in cache after applying action. Prefill prompt[kv_keep:].
     // RestoreSnapshot keeps kv_keep < prompt_n so the last token always
-    // prefills and reseeds logits (#170a). An exact regenerate (snapshot
-    // covers the whole prompt) cannot drop that last hybrid cell after a
-    // full-state restore, so the planner Clears instead of restoring.
+    // prefills and reseeds logits (#170a). An exact regenerate restores too:
+    // checkpoint plus tail is the same computation as the cold head/tail
+    // prefill, so it reproduces the cold output.
     size_t kv_keep = 0;
 };
 
@@ -39,8 +43,21 @@ struct PrefixSnapshotPlan {
 // seq_rm refuses, matching pre-snapshot behaviour.
 inline constexpr int kPrefixSnapshotsKnobAbsent = -1;
 
+// Tokens left unsaved at the end of a long hybrid prefill. A later prompt
+// that diverges only in that tail can still restore the saved head. 0 keeps
+// today's capture-the-whole-prompt behaviour.
+inline constexpr size_t kPrefixSnapshotTailSlack = 8;
+
 inline bool prefix_snapshots_enabled(int knob) {
     return knob != 0;
+}
+
+// How many leading tokens of a full prompt the hybrid snapshot should cover.
+// A short prompt (or slack 0) captures the whole sequence — today's behaviour.
+inline size_t prefix_snapshot_capture_n(size_t prompt_n, size_t slack = kPrefixSnapshotTailSlack) {
+    if (slack == 0 || prompt_n <= slack)
+        return prompt_n;
+    return prompt_n - slack;
 }
 
 // Shared leading tokens, capped at prompt.size()-1 so a rewind path always
@@ -91,11 +108,12 @@ inline PrefixSnapshotPlan plan_prefix_snapshot(size_t common, size_t resident_n,
 
     // Hybrid (or empty resident after a failed rewind): restore the saved
     // post-prefill prefix instead of prefilling from scratch. Snapshot tokens
-    // are the last prefilled prompt, not the generated tail. Only restore when
-    // the new prompt is strictly longer — then the suffix prefills and seeds
-    // logits. An exact regenerate would skip that seed (llama_state logits
-    // are not bit-identical to a fresh hybrid prefill).
-    if (snapshot_n > 0 && snapshot_is_prefix && snapshot_n < prompt_n) {
+    // are a prefix of the last prefilled prompt (possibly a few tokens short
+    // of the end), not the generated tail. Only restore when the new prompt
+    // is strictly longer — then the suffix prefills and seeds logits.
+    // The checkpoint holds no attention state: the attention cells [0, n) must
+    // still be resident and equal to the prompt's, i.e. common >= n.
+    if (snapshot_n > 0 && snapshot_is_prefix && snapshot_n < prompt_n && common >= snapshot_n) {
         plan.action = PrefixSnapshotAction::RestoreSnapshot;
         plan.kv_keep = snapshot_n;
         return plan;

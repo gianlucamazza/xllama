@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace xllama {
@@ -44,6 +45,19 @@ std::int64_t prompt_reply_reserve(int n_predict);
 // token — fits |n_ctx|. Computed in 64 bits, so an INT_MAX n_predict cannot
 // overflow it (F01); a negative count (a failed tokenizer) never fits.
 bool budget_fits(int prompt_tokens, int n_predict, int n_ctx);
+
+// The budget refusal every surface reports when |subject| ("final user
+// message" for chat, "request" for a tool proposal) plus the reply's room does
+// not fit: "prompt too long: the <subject> needs N tokens plus M for the reply,
+// but n_ctx is C". The LAN API returns it as a 400; the GUI shows it instead of
+// generating a silently shortened reply. validate-api.sh, validate-console.sh
+// and the docs grep for this exact text: do not reword it.
+std::string prompt_too_long_message(std::string_view subject, int n_tokens, int n_predict,
+                                    int n_ctx);
+
+// The hard refusal when the prompt alone cannot be decoded in the context
+// ("prompt too long: N tokens exceed n_ctx=C"): Session::generate and the CLI.
+std::string context_overflow_message(int n_tokens, int n_ctx);
 
 // Render (system, turns, user_text) through |fmt|, dropping the OLDEST turns
 // until the prompt plus room for the reply fits |n_ctx|. The room reserved is

@@ -6,6 +6,7 @@
 #include "xllama/logit_dump.h"
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
+#include "xllama/prompt_budget.h"
 
 #include <algorithm>
 #include <chrono>
@@ -764,7 +765,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     const int n_prompt_tokens = static_cast<int>(tokens.size());
     const int n_ctx_active = static_cast<int>(llama_n_ctx(ctx.get()));
     if (n_prompt_tokens + 1 > n_ctx_active) {
-        res.error_msg = prompt_too_long_message(n_prompt_tokens, n_ctx_active);
+        res.error_msg = context_overflow_message(n_prompt_tokens, n_ctx_active);
         log_output(("[xllama] " + res.error_msg + "\n").c_str());
         return res;
     }

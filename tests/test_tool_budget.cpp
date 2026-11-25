@@ -13,7 +13,7 @@ using namespace xllama;
 
 TEST_CASE("tool budget error keeps the exact prompt-too-long prefix") {
     const ToolBudgetError err = tool_prompt_too_long(8123, 623, 512, 2048);
-    const std::string prefix = tool_prompt_too_long_prefix(8123, 512, 2048);
+    const std::string prefix = prompt_too_long_message("request", 8123, 512, 2048);
     CHECK(prefix ==
           "prompt too long: the request needs 8123 tokens plus 512 for the reply, but n_ctx is "
           "2048");
@@ -61,7 +61,7 @@ TEST_CASE("tool budget param is tools only when the definitions alone overflow")
 
 TEST_CASE("tool budget omits a fabricated breakdown when the tool count is unknown") {
     const ToolBudgetError err = tool_prompt_too_long(3000, -1, 512, 2048);
-    const std::string prefix = tool_prompt_too_long_prefix(3000, 512, 2048);
+    const std::string prefix = prompt_too_long_message("request", 3000, 512, 2048);
     CHECK(err.message.compare(0, prefix.size(), prefix) == 0);
     CHECK(std::string(err.param).empty());
     CHECK(err.message.find("Tool definitions add") == std::string::npos);

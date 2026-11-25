@@ -1,0 +1,144 @@
+[
+  {
+    "id": "py_eval_sum_range",
+    "messages": [
+      {
+        "role": "user",
+        "content": "The following Python function is complete.\n\n```python\ndef f(n):\n    s = 0\n    for i in range(n):\n        s += i\n    return s\n```\n\nWhat does f(5) return? Reply with only the integer, no words, no punctuation, no code fence."
+      }
+    ],
+    "max_tokens": 16,
+    "required_patterns": [
+      "^10[.!]?$"
+    ],
+    "forbidden_patterns": [],
+    "max_words": 1
+  },
+  {
+    "id": "py_write_is_even",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Write a Python function named is_even that takes a single argument n and returns True if n is even and False otherwise. Use a single return statement. Do not use print, do not add comments, do not add a docstring, and do not add other functions. You may wrap the function in a markdown fence."
+      }
+    ],
+    "max_tokens": 80,
+    "required_patterns": [
+      "def is_even\\(n\\):",
+      "return[[:space:]]+(not[[:space:]]+n[[:space:]]*%[[:space:]]*2|\\(n[[:space:]]*%[[:space:]]*2\\)[[:space:]]*==[[:space:]]*0|n[[:space:]]*%[[:space:]]*2[[:space:]]*==[[:space:]]*0|\\(n[[:space:]]*&[[:space:]]*1\\)[[:space:]]*==[[:space:]]*0)"
+    ],
+    "forbidden_patterns": [
+      "\\bprint\\b",
+      "'''",
+      "\"\"\""
+    ],
+    "max_words": 40
+  },
+  {
+    "id": "c_fix_loop_bound",
+    "messages": [
+      {
+        "role": "user",
+        "content": "The C function below should return the sum 1+2+...+n. It is wrong.\n\n```c\nint sum_to_n(int n) {\n    int s = 0;\n    for (int i = 1; i < n; i++)\n        s += i;\n    return s;\n}\n```\n\nReply with only the corrected for-loop line, no other code, no explanation, no markdown fence."
+      }
+    ],
+    "max_tokens": 48,
+    "required_patterns": [
+      "for[[:space:]]*\\([[:space:]]*int i[[:space:]]*=[[:space:]]*1;[[:space:]]*(i[[:space:]]*<=[[:space:]]*n|i[[:space:]]*<[[:space:]]*\\(?n[[:space:]]*\\+[[:space:]]*1\\)?);[[:space:]]*(\\+\\+i|i\\+\\+)[[:space:]]*\\)"
+    ],
+    "forbidden_patterns": [],
+    "max_words": 20
+  },
+  {
+    "id": "c_sizeof_string",
+    "messages": [
+      {
+        "role": "user",
+        "content": "The following C fragment is compiled and run as a complete program that prints one integer with printf(\"%d\", ...).\n\n```c\nchar s[] = \"ab\";\nprintf(\"%d\", (int)sizeof(s));\n```\n\nWhat integer is printed? Reply with only the integer, no words, no punctuation, no code fence."
+      }
+    ],
+    "max_tokens": 16,
+    "required_patterns": [
+      "^3[.!]?$"
+    ],
+    "forbidden_patterns": [],
+    "max_words": 1
+  },
+  {
+    "id": "py_write_squares",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Write a Python function named squares that takes a single argument n and returns a list of the squares of the integers 0, 1, ..., n-1. Implement the body as a single return that uses a list comprehension over range(n). Do not use a for-loop statement, do not use print, do not add comments or a docstring. You may wrap the function in a markdown fence."
+      }
+    ],
+    "max_tokens": 80,
+    "required_patterns": [
+      "def squares\\(n\\):",
+      "return[[:space:]]*\\[(i|x)[[:space:]]*\\*\\*[[:space:]]*2 for \\1 in range\\(n\\)\\]|return[[:space:]]*\\[(i|x)[[:space:]]*\\*[[:space:]]*\\2 for \\2 in range\\(n\\)\\]"
+    ],
+    "forbidden_patterns": [
+      "\\bprint\\b",
+      "'''",
+      "\"\"\"",
+      "\\.append\\("
+    ],
+    "max_words": 40
+  },
+  {
+    "id": "py_eval_fib",
+    "messages": [
+      {
+        "role": "user",
+        "content": "The following Python function is complete.\n\n```python\ndef f(n):\n    if n < 2:\n        return n\n    return f(n - 1) + f(n - 2)\n```\n\nWhat does f(6) return? Reply with only the integer, no words, no punctuation, no code fence."
+      }
+    ],
+    "max_tokens": 16,
+    "required_patterns": [
+      "^8[.!]?$"
+    ],
+    "forbidden_patterns": [],
+    "max_words": 1
+  },
+  {
+    "id": "py_fix_default_arg",
+    "messages": [
+      {
+        "role": "user",
+        "content": "The Python function below has a mutable default argument bug.\n\n```python\ndef add_item(item, acc=[]):\n    acc.append(item)\n    return acc\n```\n\nReply with only the corrected function signature line, so that a new list is created when acc is omitted. No other code, no explanation, no markdown fence."
+      }
+    ],
+    "max_tokens": 32,
+    "required_patterns": [
+      "def add_item\\(item,[[:space:]]*acc=None\\):"
+    ],
+    "forbidden_patterns": [
+      "acc=\\[\\]",
+      "acc=\\(\\)"
+    ],
+    "max_words": 8
+  },
+  {
+    "id": "py_eval_unique_keep_order",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Here is a Python function. Remember it.\n\n```python\ndef f(xs):\n    out = []\n    for x in xs:\n        if x not in out:\n            out.append(x)\n    return out\n```"
+      },
+      {
+        "role": "assistant",
+        "content": "I have the function f."
+      },
+      {
+        "role": "user",
+        "content": "What does f([1, 2, 1, 3, 2]) return? Reply with only a Python list literal, no words, no trailing comma, no code fence."
+      }
+    ],
+    "max_tokens": 24,
+    "required_patterns": [
+      "^\\[1,[[:space:]]*2,[[:space:]]*3\\]$"
+    ],
+    "forbidden_patterns": [],
+    "max_words": 3
+  }
+]
