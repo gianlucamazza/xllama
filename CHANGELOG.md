@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Granite template wins over a `llama`/`phi` substring.** `chat_format_for` picked Llama-3 for a Granite file named e.g. `granite-4.0-h-tiny-ollama-Q4_K_M.gguf` because the `llama` check ran first. Granite now takes precedence; plain Llama and Phi files are unchanged.
+
 - **D3D12 shared-activation cache keyed by tensor identity.** Hardening of the d3d12 shared-activation cache: lookups use tensor owner, data pointer, column stride, type and row size, not address alone. Latent hazard; no known failure on main.
 
 ## [1.8.1]
