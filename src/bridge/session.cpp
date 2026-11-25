@@ -1254,6 +1254,8 @@ class LlamaSession final : public Session {
 
     static constexpr const char* kStateMagic = "xllama-kv";
     static constexpr int kStateVersion = 1;
+    // Optional trailer after the state blob (format unchanged for old readers).
+    static constexpr const char* kCheckpointMagic = "xllama-ckpt";
     // AppContainer dislikes very large single reads: ORT's 1 GB
     // ReadFileIntoBuffer had to come down to 16 MB before errcode 1450
     // (ERROR_NO_SYSTEM_RESOURCES) stopped appearing (uwp-constraints §9), and
@@ -1342,6 +1344,21 @@ class LlamaSession final : public Session {
         ok = ok && io_chunked(fp, m_kv_tokens.data(), m_kv_tokens.size() * sizeof(llama_token),
                               /*write=*/true);
         ok = ok && io_chunked(fp, blob.data(), n_state, /*write=*/true);
+        // Optional trailer: the hybrid prefix checkpoint (partial state at n
+        // tokens), so a conversation restored from disk can still restore its
+        // head when the next prompt diverges in the tail, instead of
+        // re-prefilling everything (the upstream slot-save pattern, #26004).
+        // Readers that predate it stop after the state blob and never see it.
+        const bool write_ckpt = !m_prefix_blob.empty() && !m_prefix_tokens.empty() &&
+                                tokens_are_prefix(m_prefix_tokens, m_kv_tokens);
+        if (ok && write_ckpt) {
+            char ck[96];
+            const int cn = snprintf(ck, sizeof(ck), "%s\t%zu\t%zu\n", kCheckpointMagic,
+                                    m_prefix_tokens.size(), m_prefix_blob.size());
+            ok = cn > 0 && static_cast<size_t>(cn) < sizeof(ck) &&
+                 std::fwrite(ck, 1, static_cast<size_t>(cn), fp) == static_cast<size_t>(cn) &&
+                 io_chunked(fp, m_prefix_blob.data(), m_prefix_blob.size(), /*write=*/true);
+        }
         ok = (std::fclose(fp) == 0) && ok;
 
         std::error_code ec;
@@ -1461,16 +1478,40 @@ class LlamaSession final : public Session {
             return false;
         }
         m_kv_tokens = std::move(tokens);
-        // Disk state includes generated tokens — not a prefix. The next
-        // prefill recaptures. Restoring this as a hybrid prefix would put
-        // a stale tail back.
+        // The file's state includes generated tokens, so it is not itself a
+        // prefix checkpoint. The optional trailer is: a partial state taken at
+        // n <= n_tokens tokens of this same sequence. A missing or malformed
+        // trailer only means no checkpoint — the load itself stands.
         drop_prefix_snapshot();
-        char lb[160];
+        read_checkpoint_trailer(fp);
+        char lb[200];
         snprintf(lb, sizeof(lb),
-                 "[xllama] session: KV state loaded — %zu tokens, %.1f MB (#170b)\n",
-                 m_kv_tokens.size(), (double)n_state / (1024.0 * 1024.0));
+                 "[xllama] session: KV state loaded — %zu tokens, %.1f MB, checkpoint %zu "
+                 "tokens (#170b)\n",
+                 m_kv_tokens.size(), (double)n_state / (1024.0 * 1024.0), m_prefix_tokens.size());
         log_output(lb);
         return true;
+    }
+
+    // Reads the optional "xllama-ckpt\t<n>\t<bytes>\n" + blob after the state.
+    void read_checkpoint_trailer(FILE* fp) {
+        if (!m_needs_prefix_snapshot)
+            return;
+        char line[96] = {};
+        if (!std::fgets(line, sizeof(line), fp))
+            return; // a file without a checkpoint
+        unsigned long long n = 0, bytes = 0;
+        char magic[16] = {};
+        if (std::sscanf(line, "%15[^\t]\t%llu\t%llu", magic, &n, &bytes) != 3 ||
+            std::string(magic) != kCheckpointMagic || n == 0 || n > m_kv_tokens.size() ||
+            bytes == 0 || bytes > kMaxStateBytes)
+            return;
+        std::vector<uint8_t> blob(static_cast<size_t>(bytes));
+        if (!io_chunked(fp, blob.data(), blob.size(), /*write=*/false))
+            return;
+        m_prefix_blob = std::move(blob);
+        m_prefix_tokens.assign(m_kv_tokens.begin(),
+                               m_kv_tokens.begin() + static_cast<std::ptrdiff_t>(n));
     }
 };
 

@@ -247,9 +247,13 @@ restore puts that state back and truncates the attention KV to it. On a long
 prompt the checkpoint sits a few tokens before the prompt end, so a later turn
 that diverges only in that tail, an exact regenerate included, still restores;
 checkpoint plus tail is the cold head/tail computation, so the output matches
-a cold run. `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. Disk
-snapshot restoration alone is not a delta-reuse guarantee (the file includes
-generated tokens). The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
+a cold run. `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. The disk
+snapshot of a hybrid conversation also carries its prefix checkpoint, as an
+optional `xllama-ckpt` trailer after the state (older readers stop before it;
+upstream persists checkpoints the same way, llama.cpp #26004), so after a load a
+turn that diverges inside the tail, such as an edited reply, restores the head
+instead of prefilling the whole history. A missing or malformed trailer only
+means no checkpoint. The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
 
 - **Fingerprinted** (model, n_ctx, KV quant, LoRA) — stale snapshots are
   harmless by construction (they fall back to a normal prefill).
