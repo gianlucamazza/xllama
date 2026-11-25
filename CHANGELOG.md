@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Host tests run without the stall watchdog.** `xllama-tests` now has its own `tests/test_main.cpp`, which sets `XLLAMA_INFER_STALL_TIMEOUT_S=0` unless the caller exported a value. A model-backed opt-in case in a Debug or ASan build could outlast the 180 s product watchdog, fail as "stalled" and leave `inference-stall.txt` in the working directory.
+
 - **SmolLM3-3B chat renderer.** Added `ChatFormatKind::SmolLM3` with a frozen /no_think metadata header and host goldens; no catalogue entry.
 
 - **`tool_choice` `required` or a named function always starts with the call (#563).** The template grammar allowed free text before the call marker, so a model could fill `max_tokens` with prose ("Ho controllato la directory…") and return no call. `patches/0005` makes a required choice admit only reasoning, then calls, as llama.cpp's Gemma 4 parser already does, for LFM2 and every autoparsed template (ADR 0005 amendment).
