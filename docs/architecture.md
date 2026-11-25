@@ -271,8 +271,8 @@ violated. `EnsureSession` swaps the resident model through the hub under its
 mutex; `hub.generation` lets the UI drop its KV-reuse state when the API
 swapped models between turns. The routing token-count no longer loads a model
 at all: it uses the exact count only when the CPU session is already resident,
-else the same chars/5.0 estimator that bounds the prompt in `BuildPrompt` (the
-old shape loaded the CPU model on the UI thread just to tokenize, then could
+else the role's chars-per-token estimate, both clamped to the context ceiling
+by `routing_prompt_tokens` (the old shape loaded the CPU model on the UI thread just to tokenize, then could
 destroy it for DirectML — the historical "two model loads" cost recorded in
 §5d). When a model becomes Ready the session is **pre-loaded** in a detached
 worker (`PreloadSessionAsync`), so the first send pays prefill+decode only.
@@ -389,13 +389,13 @@ one, a new name is appended, unmentioned entries stay.
 ### Catalogue session policy (`n_ctx`, `role`)
 
 Optional per-entry fields used at **session open** (not only download). Helpers
-live next to the prompt budget in `routing_policy.h` so the trimmer and
+live next to the prompt budget in `routing_policy.h` so the routing ceiling and
 `kDefaultNCtx` cannot drift independently (#171 / #133 class):
 
-| Field       | Contract                                                                                                                                                                                                                                                        |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`n_ctx`** | `0`/omit → `kDefaultNCtx` (2048). Else clamped by `resolve_n_ctx` to **[512, 8192]**. Applied in `EnsureSession` and the LAN chat handler when opening the hub session. Coding catalogue entries use **4096**.                                                  |
-| **`role`**  | `""` (default chat) or **`"coding"`**. Effects only: (1) UI trimmer uses `kEstimatedCharsPerTokenCoding` (3.5) instead of prose 5.0; (2) LAN `POST /v1/chat/completions` with **empty** `system` fills `kCodingSystemPrompt` instead of `kDefaultSystemPrompt`. |
+| Field       | Contract                                                                                                                                                                                                                                                                     |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`n_ctx`** | `0`/omit → `kDefaultNCtx` (2048). Else clamped by `resolve_n_ctx` to **[512, 8192]**. Applied in `EnsureSession` and the LAN chat handler when opening the hub session. Coding catalogue entries use **4096**.                                                               |
+| **`role`**  | `""` (default chat) or **`"coding"`**. Effects only: (1) the UI routing estimate uses `kEstimatedCharsPerTokenCoding` (3.5) instead of prose 5.0; (2) LAN `POST /v1/chat/completions` with **empty** `system` fills `kCodingSystemPrompt` instead of `kDefaultSystemPrompt`. |
 
 **Explicit non-effects (do not re-introduce):**
 
@@ -428,11 +428,15 @@ answer for history dropped that would have fit.
 
 So the estimate keeps exactly one job: **routing**. `decide_routing` needs a token
 count before a model — hence a tokenizer — has been chosen, and its ceiling has to
-stay coherent with `token_threshold` (#133). `BuildPromptPlan` therefore trims by
-`max_prompt_tokens_for_n_ctx(n_ctx)` with the optimistic `kEstimatedCharsPerToken`,
-and being optimistic is the point: it drops _fewer_ turns, so the exact pass can
-only tighten and nothing routing saw reappears behind its back. Getting that
-estimate wrong costs a routing decision, not an answer.
+stay coherent with `token_threshold` (#133). `BuildPromptPlan` therefore passes
+the **whole** conversation to the worker and drops nothing; routing sees
+`routing_prompt_tokens(count, n_ctx)`, the count clamped to
+`max_prompt_tokens_for_n_ctx(n_ctx)`, because that is what `fit_prompt` will
+prefill. The same estimate, on message text only, predicts whether a backend
+that cannot shift its context would overflow on a KV-reuse attempt, and so
+whether to try one. Getting either estimate wrong costs a routing decision or a
+fail-fast retry, never an answer: which turns the model sees is decided once,
+by `fit_prompt`, in tokens.
 
 **The two ceilings are separate on purpose.**
 `max_prompt_tokens_for_n_ctx(n_ctx)` → `n_ctx − 250`, floor 256, with the shipping

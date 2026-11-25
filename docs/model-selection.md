@@ -219,8 +219,8 @@ the existing GGUF/`Session`/`ChatFormat` path with optional catalogue knobs.
 
 | Field            | Effect                                                                                                                                         | Non-effect                                                                  |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `role: "coding"` | Trimmer 3.5 chars/token; LAN empty `system` → `kCodingSystemPrompt`                                                                            | Does **not** rewrite Settings system prompt; does not pick backend/template |
-| `n_ctx: 4096`    | Session + trimmer ceiling (`resolve_n_ctx` / `max_prompt_tokens_for_n_ctx`)                                                                    | Does not change sampling or routing (GGUF has no EP routing)                |
+| `role: "coding"` | Routing estimate 3.5 chars/token; LAN empty `system` → `kCodingSystemPrompt`                                                                   | Does **not** rewrite Settings system prompt; does not pick backend/template |
+| `n_ctx: 4096`    | Session + routing ceiling (`resolve_n_ctx` / `max_prompt_tokens_for_n_ctx`)                                                                    | Does not change sampling or routing (GGUF has no EP routing)                |
 | Chat template    | `chat_format_for` by family — Qwen2.5-Coder = ChatML **without** Qwen3 no-think prefill; Granite 4.x = `ChatFormatKind::Granite` (#525 / #521) | Qwen3 only gets empty-`<think>` via `model_is_qwen3`                        |
 
 **Best practices before shipping a new GGUF (any role):**

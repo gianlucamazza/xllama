@@ -815,88 +815,34 @@ winrt::fire_and_forget MainPageController::ShowCorrectionDialog(size_t assistant
 
 MainPageController::PromptPlan
 MainPageController::BuildPromptPlan(const std::string& user_text) const {
-    // Estimate token count from characters — no tokenizer is loaded at this
-    // point — and trim oldest turns if over budget. Both the estimator and the
-    // budget live in routing_policy.h next to token_threshold: the trimmer runs
-    // before routing, so its ceiling silently bounds what routing can ever see
-    // (#133). Collect turns (skip system which always stays).
-    //
-    // Catalogue coding models open a larger n_ctx and use a denser
-    // chars-per-token estimate so long source/diff pastes trim earlier rather
-    // than overflowing generate().
-    //
-    // This is the ESTIMATE, and it exists for one reason: routing needs a token
-    // count before a model — hence a tokenizer — has been chosen, and its ceiling
-    // has to stay coherent with the threshold (#133). It deliberately errs
-    // optimistic (drops fewer turns): the exact pass in the worker can only drop
-    // more, so nothing routing saw can reappear behind its back.
-    //
-    // The ceiling is a CONTEXT bound and knows nothing about n_predict: the reply's
-    // room belongs to fit_prompt, exactly, in the worker. Charging it here put the
-    // ceiling under token_threshold and killed auto GPU routing for every default
-    // install (see kReservedGenerationTokens).
-    int session_n_ctx = ::xllama::kDefaultNCtx;
-    int max_estimated_tokens = ::xllama::max_prompt_tokens_for_n_ctx(session_n_ctx);
+    // The whole conversation, oldest first, as (user, assistant) exchanges plus
+    // the new user_text. What fits n_ctx is fit_prompt's decision, in the worker,
+    // in tokens: a chars-per-token estimate may size the prompt for routing but
+    // must not decide what the user receives (AGENTS.md invariants).
+    PromptPlan plan;
+    plan.n_ctx = ::xllama::kDefaultNCtx;
     std::string role;
     {
         const auto& manifest = CachedManifest();
         if (const auto* e = ::xllama::FindManifestEntry(manifest, m_model_filename)) {
-            session_n_ctx = ::xllama::resolve_n_ctx(e->n_ctx);
-            max_estimated_tokens = ::xllama::max_prompt_tokens_for_n_ctx(e->n_ctx);
+            plan.n_ctx = ::xllama::resolve_n_ctx(e->n_ctx);
             role = ::xllama::wstring_to_utf8(e->role);
         }
     }
-    const double chars_per_token = ::xllama::chars_per_token_for_role(role);
-    std::vector<size_t> turn_starts; // index of first User message in each turn
+    plan.chars_per_token = ::xllama::chars_per_token_for_role(role);
+    std::size_t chars = m_system_prompt.size() + user_text.size();
     for (size_t i = 0; i < m_current.messages.size(); ++i) {
-        if (m_current.messages[i].role == xllama::ui::MessageRole::User)
-            turn_starts.push_back(i);
-    }
-
-    // Build prompt starting from oldest turn; drop turns if over token budget.
-    // Per-turn char sizes are computed once and the running total is reduced as
-    // turns drop (the previous shape re-walked every surviving turn for each
-    // candidate — O(turns²) per prompt build).
-    std::vector<int> turn_chars(turn_starts.size(), 0);
-    long long chars =
-        static_cast<long long>(m_system_prompt.size()) + static_cast<long long>(user_text.size());
-    for (size_t ti = 0; ti < turn_starts.size(); ++ti) {
-        size_t i = turn_starts[ti];
-        int c = (int)m_current.messages[i].content.size(); // user
-        if (i + 1 < m_current.messages.size() &&
-            m_current.messages[i + 1].role == xllama::ui::MessageRole::Assistant)
-            c += (int)m_current.messages[i + 1].content.size(); // assistant
-        turn_chars[ti] = c;
-        chars += c;
-    }
-
-    size_t first_turn = 0;
-    while (first_turn < turn_starts.size() &&
-           ::xllama::estimate_tokens_from_chars(static_cast<size_t>(chars), chars_per_token) >
-               max_estimated_tokens)
-        chars -= turn_chars[first_turn++];
-
-    // Complete (user, assistant) exchanges surviving the token budget; the new
-    // user_text is the trailing turn. The chat format applies the per-model
-    // template (ChatML default, Gemma, ...) and the generation suffix.
-    std::vector<::xllama::ChatTurn> turns;
-    for (size_t ti = first_turn; ti < turn_starts.size(); ++ti) {
-        size_t i = turn_starts[ti];
+        if (m_current.messages[i].role != xllama::ui::MessageRole::User)
+            continue;
         std::string assistant;
         if (i + 1 < m_current.messages.size() &&
-            m_current.messages[i + 1].role == xllama::ui::MessageRole::Assistant) {
+            m_current.messages[i + 1].role == xllama::ui::MessageRole::Assistant)
             assistant = m_current.messages[i + 1].content;
-        }
-        turns.push_back({m_current.messages[i].content, std::move(assistant)});
+        chars += m_current.messages[i].content.size() + assistant.size();
+        plan.turns.push_back({m_current.messages[i].content, std::move(assistant)});
     }
-    PromptPlan plan;
-    plan.n_ctx = session_n_ctx;
-    plan.dropped = static_cast<int>(first_turn);
-    plan.prompt = chat_format().render_prompt(m_system_prompt, turns, user_text);
-    plan.turns = std::move(turns);
-    if (first_turn > 0)
-        log_output("[xllama] context trimmed (estimate): dropped " + std::to_string(first_turn) +
-                   " old turn(s)\n");
+    plan.estimated_tokens = ::xllama::estimate_tokens_from_chars(chars, plan.chars_per_token);
+    plan.prompt = chat_format().render_prompt(m_system_prompt, plan.turns, user_text);
     return plan;
 }
 
@@ -3278,12 +3224,8 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
         m_current.id = xllama::ui::ChatHistory::NewId();
     if (m_current.title.empty())
         m_current.title = xllama::ui::ChatHistory::TitleFrom(user_text);
-    int n_dropped = 0;
     const PromptPlan plan = BuildPromptPlan(user_text);
-    n_dropped = plan.dropped;
     std::string full_prompt = plan.prompt;
-    if (n_dropped > 0)
-        SetStatus(L"Context trimmed — " + std::to_wstring(n_dropped) + L" old turn(s) dropped");
 
     // Is the base model a GGUF (llama.cpp backend)? On Xbox llama.cpp is CPU-only
     // (no ggml GPU backend), so EP routing is meaningless and stays gated off for
@@ -3359,17 +3301,18 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
             // name-compare no-op). The previous shape loaded the CPU model
             // just to tokenize — ON THE UI THREAD — and then could tear it
             // down for the DML model (+1.2 s, uwp-constraints §5, 2786 ms vs
-            // 1570 ms). With no session resident the chars/5.0 estimator
-            // decides — the same estimator whose ceiling already bounds this
-            // prompt in BuildPrompt, so routing and trimming stay coherent.
+            // 1570 ms). With no session resident the role's chars-per-token
+            // estimate sizes it. Either way routing sees at most the context
+            // ceiling, which is what fit_prompt will prefill (#133).
             // try_lock: if the hub is busy (LAN API mid-turn) fall back to the
             // estimator rather than blocking the UI thread.
             auto& hub = ::xllama::session_hub();
             std::unique_lock<std::mutex> hub_lk(hub.mtx, std::try_to_lock);
-            if (hub_lk.owns_lock() && hub.session && hub.model == rs.cpu_model)
-                n_tok = hub.session->count_tokens(full_prompt);
-            else
-                n_tok = ::xllama::estimate_tokens_from_chars(full_prompt.size());
+            const int counted = (hub_lk.owns_lock() && hub.session && hub.model == rs.cpu_model)
+                                    ? hub.session->count_tokens(full_prompt)
+                                    : ::xllama::estimate_tokens_from_chars(full_prompt.size(),
+                                                                           plan.chars_per_token);
+            n_tok = ::xllama::routing_prompt_tokens(counted, plan.n_ctx);
         }
 
         // #91/#95: for a gpu_model that is not a parity-validated DML text asset,
@@ -3420,10 +3363,12 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
     }
 
     // KV-cache reuse decision (continuous decoding). Reuse only when enabled, the
-    // persistent generator already holds this conversation (m_kv_valid), and no
-    // turn was evicted this round (RewindTo cannot drop from the head, so eviction
-    // forces a full re-prefill). A reuse turn appends only the delta; otherwise we
-    // (re)prefill the full prompt — which also (re)seeds the persistent generator.
+    // persistent generator already holds this conversation (m_kv_valid), and the
+    // conversation is not expected to outgrow the context this round (RewindTo
+    // cannot drop from the head, so an overflowing delta forces a full re-prefill).
+    // The estimate only decides whether to ATTEMPT reuse; a wrong guess costs the
+    // fail-fast retry below, never the reply's content. A reuse turn appends only the delta;
+    // otherwise we (re)prefill the full prompt — which also (re)seeds the persistent generator.
     const std::string routed_model =
         ::xllama::wstring_to_utf8(m_active_model.empty() ? m_model_filename : m_active_model);
     // KV reuse now works for both backends: ORT-GenAI (persistent generator) and
@@ -3436,7 +3381,9 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
     // reuse regime. If the arch cannot shift, the continuation fail-fasts
     // (#173) and the retry below re-seeds with the trimmed full prompt.
     const bool shift_capable = ::xllama::model_uses_llama_backend(routed_model);
-    bool do_reuse = m_kv_reuse && m_kv_valid && (n_dropped == 0 || shift_capable) && ep_kv_ok;
+    const bool expect_overflow =
+        plan.estimated_tokens > ::xllama::max_prompt_tokens_for_n_ctx(plan.n_ctx);
+    bool do_reuse = m_kv_reuse && m_kv_valid && (!expect_overflow || shift_capable) && ep_kv_ok;
     bool kv_reuse = m_kv_reuse && ep_kv_ok;
     std::string delta_prompt = do_reuse ? BuildDeltaPrompt(user_text) : std::string();
 
@@ -3472,11 +3419,10 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
     const std::string system_prompt = m_system_prompt;
     int plan_n_ctx = plan.n_ctx; // replaced by the loaded session's n_ctx in the worker
     const int plan_n_predict = m_n_predict;
-    const int plan_dropped = plan.dropped;
 
     std::thread([self, full_prompt, delta_prompt, do_reuse, kv_reuse, ep_kv_ok, model, fmt,
                  sys_prefix, kv_path, dispatcher, plan_turns, user_text, system_prompt, plan_n_ctx,
-                 plan_n_predict, plan_dropped, compute_permit, prompt_w]() mutable {
+                 plan_n_predict, compute_permit, prompt_w]() mutable {
         try {
             if (!compute_permit) {
                 compute_permit = ::xllama::try_acquire_compute_job_while_preloading(
@@ -3619,11 +3565,18 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
                                          });
                 char fb[192];
                 snprintf(fb, sizeof(fb),
-                         "[xllama] prompt budget: %d tok exact, dropped %d (estimate had %d), "
+                         "[xllama] prompt budget: %d tok exact, dropped %d old turn(s), "
                          "n_ctx %d, reply %d%s\n",
-                         fit.n_tokens, fit.dropped, plan_dropped, plan_n_ctx, plan_n_predict,
+                         fit.n_tokens, fit.dropped, plan_n_ctx, plan_n_predict,
                          fit.fits ? "" : " — DOES NOT FIT");
                 ::xllama::log_output(fb);
+                if (fit.dropped > 0) {
+                    const int dropped = fit.dropped;
+                    dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, dropped]() {
+                        self->SetStatus(L"Context trimmed — " + std::to_wstring(dropped) +
+                                        L" old turn(s) dropped");
+                    });
+                }
                 full_prompt = fit.prompt;
                 return full_prompt;
             };

@@ -30,32 +30,33 @@ namespace xllama {
 // ---------------------------------------------------------------------------
 // Prompt budget
 // ---------------------------------------------------------------------------
-// The context trimmer (MainPageController::BuildPrompt) and auto routing both
-// bound the same quantity — how many tokens a turn may carry — but the trimmer
-// runs first, so its ceiling is the hard limit. If token_threshold ever rises
+// Auto routing sees the prompt bounded by the context ceiling
+// (routing_prompt_tokens), because fit_prompt drops the oldest turns past it
+// before prefill; that ceiling is the hard limit. If token_threshold ever rises
 // above it, decide_routing() can never see a count above the threshold and auto
 // GPU routing becomes unreachable. That is #133: the 600 -> 1550 retune in #129
 // crossed the ceiling and silently disabled the feature, because nothing here
 // related the two numbers. assert in tests/test_routing_policy.cpp now does.
 //
-// The trimmer has no tokenizer available at the point it runs, so it estimates
-// from character count. Measured 2026-07-21 on the console with the SmolLM2
-// tokenizer: 7100 chars of English prose -> 1329 real tokens = 5.34 chars/token
+// Routing has no tokenizer when no CPU session is resident, so it estimates
+// from character count (routing_prompt_tokens). Nothing that decides what the
+// model sees uses this: fit_prompt counts tokens. Measured 2026-07-21 on the console with the
+// SmolLM2 tokenizer: 7100 chars of English prose -> 1329 real tokens = 5.34 chars/token
 // (bench/prompts/standard-512.txt gives 4.84 with its ChatML markup counted).
-// The previous divisor of 4 overestimated tokens by ~30%, so the trimmer cut at
-// ~1348 real tokens while its comment claimed 1800 — that gap is what put the
-// ceiling underneath the threshold.
+// The previous divisor of 4 overestimated tokens by ~30%, so the estimate trimmer
+// this replaced cut at ~1348 real tokens while its comment claimed 1800 — that
+// gap is what put the ceiling underneath the threshold.
 //
 // 5.0 is deliberately below the measured 5.34: underestimating chars-per-token
-// means overestimating tokens, which trims early rather than late. Overflow is
-// caught downstream by the max_length clamp in run_inference, so erring this way
-// costs context, not correctness. Non-Latin scripts tokenize far denser and this
+// means overestimating tokens, so routing and the KV-reuse overflow guess err
+// toward the long-prompt path. Erring this way costs a routing choice or a
+// retry, not correctness. Non-Latin scripts tokenize far denser and this
 // estimate does not model them.
 inline constexpr double kEstimatedCharsPerToken = 5.0;
 
 // Coding workloads (source, diffs, stack traces) tokenize denser / less
-// predictably than prose. A lower chars-per-token overestimates tokens and
-// trims earlier — same safety direction as the prose constant.
+// predictably than prose. A lower chars-per-token overestimates tokens — same
+// direction as the prose constant.
 inline constexpr double kEstimatedCharsPerTokenCoding = 3.5;
 
 // Token budget for the prompt itself, sized against kDefaultNCtx
@@ -164,6 +165,17 @@ inline constexpr int estimate_tokens_from_chars(std::size_t chars, double chars_
 
 inline constexpr int estimate_tokens_from_chars(std::size_t chars) {
     return estimate_tokens_from_chars(chars, kEstimatedCharsPerToken);
+}
+
+// Prompt size routing compares with token_threshold. |counted| is the whole
+// history's size (an exact count when the CPU session is resident, else the
+// estimate); the context ceiling bounds it because fit_prompt will drop the
+// oldest turns past that point, and routing must see what will be prefilled,
+// not what was typed (#133). Routing only: what the user receives is decided
+// by fit_prompt, in tokens.
+inline constexpr int routing_prompt_tokens(int counted, int n_ctx) {
+    const int ceiling = max_prompt_tokens_for_n_ctx(n_ctx);
+    return counted < ceiling ? counted : ceiling;
 }
 
 enum class RoutingMode {
