@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Granite template wins over a `llama`/`phi` substring.** `chat_format_for` picked Llama-3 for a Granite file named e.g. `granite-4.0-h-tiny-ollama-Q4_K_M.gguf` because the `llama` check ran first. Granite now takes precedence; plain Llama and Phi files are unchanged.
 - **GGUF thread knob bounded.** `gguf_n_threads.txt` above 512 (`GGML_MAX_N_THREADS`, where ggml-cpu's fixed thread arrays end) now keeps auto-detect instead of reaching llama.cpp. Values from 1 to 512 still pass through uncapped.
 - **One image-request contract.** `include/xllama/diffusion/request.h` sets steps and seed for the Image dialog, `/v1/images/generations`, autopilot `generate_image` and the pipeline that reads `diffuse-*.txt`. Before, the pipeline accepted seeds only up to 1e9 and silently used 42 for a larger one, while the dialog accepted any uint32 and the API up to `INT_MAX`, so a typed seed did not reproduce. Autopilot cast JSON numbers to int unclamped. Seeds are now any uint32 end to end, and `diffuse-result.csv` prints them unsigned.
 
