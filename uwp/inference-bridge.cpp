@@ -15,6 +15,7 @@
 #endif
 #include "xllama/inference.h"
 #include "xllama/json_utils.h"
+#include "xllama/local_knob.h"
 #include "xllama/membw.h"
 #include "xllama/path_utils.h"
 #include "xllama/personalize.h"
@@ -61,28 +62,6 @@ namespace xllama::bridge {
 
 #ifdef XLLAMA_UWP
 namespace {
-
-std::string read_local_file(const char* name) {
-    std::string out;
-    std::string p = resolve_local_path(name);
-    FILE* f = _wfopen(utf8_to_wstring(p).c_str(), L"r");
-    if (!f)
-        return out;
-    char buf[8192];
-    size_t n;
-    while ((n = fread(buf, 1, sizeof(buf), f)) > 0)
-        out.append(buf, n);
-    fclose(f);
-    while (!out.empty() && (out.back() == '\n' || out.back() == '\r' || out.back() == ' '))
-        out.pop_back();
-    return out;
-}
-
-// Small integer knob from a LocalState file; |fallback| when absent or unparsable.
-int read_local_int(const char* name, int fallback) {
-    const std::string s = read_local_file(name);
-    return s.empty() ? fallback : std::atoi(s.c_str());
-}
 
 // Multi-turn TTFT bench: measures turn-2 prefill with KV reuse (append only the
 // new turn) against the cold baseline (full re-prefill of the 2-turn context),
@@ -164,15 +143,16 @@ void run_kv_bench(const std::string& model_name, const std::string& sys, const s
 } // namespace
 
 int gguf_gpu_layers_knob() {
-    return read_local_int("gguf_gpu_layers.txt", ::xllama::kGgufGpuLayersKnobAbsent);
+    return ::xllama::read_local_int("gguf_gpu_layers.txt", ::xllama::kGgufGpuLayersKnobAbsent);
 }
 
 int hybrid_prefix_snapshots_knob() {
-    return read_local_int("hybrid-prefix-snapshots.txt", ::xllama::kPrefixSnapshotsKnobAbsent);
+    return ::xllama::read_local_int("hybrid-prefix-snapshots.txt",
+                                    ::xllama::kPrefixSnapshotsKnobAbsent);
 }
 
 int gguf_n_threads_knob() {
-    return read_local_int("gguf_n_threads.txt", ::xllama::kGgufNThreadsKnobAbsent);
+    return ::xllama::read_local_int("gguf_n_threads.txt", ::xllama::kGgufNThreadsKnobAbsent);
 }
 #endif // XLLAMA_UWP
 
@@ -197,10 +177,10 @@ void main_loop() {
     // class as the invented quant label: a benchmark that guesses its own inputs
     // produces evidence indistinguishable from the genuine kind.
     //
-    // read_local_file reads to EOF; the hand-rolled reader this replaced used a
-    // fixed char buf[8192] and truncated silently at ~2k tokens — exactly the
-    // range a prompt-length sweep needs.
-    std::string user_prompt = read_local_file("prompt.txt");
+    // read_local_text reads to EOF; an earlier hand-rolled reader used a fixed
+    // char buf[8192] and truncated silently at ~2k tokens — exactly the range a
+    // prompt-length sweep needs.
+    std::string user_prompt = ::xllama::read_local_text("prompt.txt");
     if (user_prompt.empty()) {
         log_output("[xllama] bench: prompt.txt missing or empty — refusing to bench a prompt "
                    "nobody asked for. Upload it and retry.\n");
@@ -208,23 +188,7 @@ void main_loop() {
     }
     log_output("[xllama] bench: prompt.txt " + std::to_string(user_prompt.size()) + " bytes\n");
 
-    std::string model_name;
-    {
-        std::string model_cfg = resolve_local_path("model.txt");
-        FILE* mf = _wfopen(utf8_to_wstring(model_cfg).c_str(), L"r");
-        if (mf) {
-            char buf[512] = {};
-            size_t n = fread(buf, 1, sizeof(buf) - 1, mf);
-            fclose(mf);
-            if (n > 0) {
-                model_name = buf;
-                while (!model_name.empty() &&
-                       (model_name.back() == '\n' || model_name.back() == '\r' ||
-                        model_name.back() == ' '))
-                    model_name.pop_back();
-            }
-        }
-    }
+    const std::string model_name = ::xllama::read_local_text("model.txt");
     if (model_name.empty()) {
         log_output("[xllama] bench: model.txt missing or empty — refusing to pick a model. "
                    "Upload it and retry.\n");
@@ -236,50 +200,51 @@ void main_loop() {
     // bench_npredict.txt exist because #130 needs to vary n_ctx and n_predict:
     // the DirectML prefill band's edges sit near n_ctx/2 and n_ctx - n_predict,
     // and that hypothesis is only falsifiable if both are controllable here.
-    const int bench_threads = read_local_int("bench_threads.txt", 0);
-    const int bench_ctx = read_local_int("bench_ctx.txt", 0);
-    const int bench_npredict = read_local_int("bench_npredict.txt", 0);
+    const int bench_threads = ::xllama::read_local_int("bench_threads.txt", 0);
+    const int bench_ctx = ::xllama::read_local_int("bench_ctx.txt", 0);
+    const int bench_npredict = ::xllama::read_local_int("bench_npredict.txt", 0);
     // #130: max_length is the variable that governs DirectML prefill, and it is
     // normally derived from n_predict. This decouples them. 0 = derive,
     // -1 = saturate to n_ctx (what the shipping app does).
-    const int bench_maxlen = read_local_int("bench_maxlen.txt", 0);
+    const int bench_maxlen = ::xllama::read_local_int("bench_maxlen.txt", 0);
     // #172: llama.cpp physical prefill chunk (n_ubatch). 0 = llama default
     // (512). Labeled in the host column (-uN) because the CSV has no ubatch
     // column — a row that does not carry the variable under study is not
     // interpretable (the Phase 12 lesson, twice).
-    const int bench_ubatch = read_local_int("bench_ubatch.txt", 0);
+    const int bench_ubatch = ::xllama::read_local_int("bench_ubatch.txt", 0);
     // #171: q8_0 KV cache + flash attention A/B. Host-column tag -kvq8, same
     // rationale as -uN (the CSV schema carries no cache-type column).
-    const int bench_kvq8 = read_local_int("bench_kvq8.txt", 0);
+    const int bench_kvq8 = ::xllama::read_local_int("bench_kvq8.txt", 0);
     // Phase 15 W2 (#210): draft-free prompt-lookup speculative decoding.
     // 0 = off (default); 1 = on. Host-column tag -plookup (CSV has no dedicated
     // column — same pattern as -kvq8 / -uN).
-    const int bench_prompt_lookup = read_local_int("bench_prompt_lookup.txt", 0);
+    const int bench_prompt_lookup = ::xllama::read_local_int("bench_prompt_lookup.txt", 0);
     // GGUF GPU decode D2b: layers on the d3d12 backend. 0 = CPU. Host tag -gN.
-    const int bench_gpu_layers = read_local_int("bench_gpu_layers.txt", 0);
+    const int bench_gpu_layers = ::xllama::read_local_int("bench_gpu_layers.txt", 0);
     // D2b: decode exactly n_predict tokens (no EOG / stop sequence). Host tag -noeog.
-    const int bench_ignore_eog = read_local_int("bench_ignore_eog.txt", 0);
+    const int bench_ignore_eog = ::xllama::read_local_int("bench_ignore_eog.txt", 0);
     // Operator campaigns can hold the decode trajectory fixed across arms.
     // Missing/invalid values preserve the normal sampler defaults.
-    const bool bench_greedy = read_local_int("bench_greedy.txt", 0) == 1;
+    const bool bench_greedy = ::xllama::read_local_int("bench_greedy.txt", 0) == 1;
     // W1.1: which repetition this run is, written by the bench driver before each
     // iteration. Echoed into the CSV run_index column so the driver can append
     // every repeat and the summary generator can report a spread. 0 = single run.
-    const int bench_run_index = read_local_int("bench_run_index.txt", 0);
+    const int bench_run_index = ::xllama::read_local_int("bench_run_index.txt", 0);
     // Progress / stall watchdog. Missing file (-1) keeps the portable default
     // (after env overlay); a present 0 disables that knob, same as the CLI.
-    const int bench_decode_every_n = read_local_int("bench_decode_progress_every.txt", -1);
-    const int bench_decode_every_ms = read_local_int("bench_decode_progress_ms.txt", -1);
-    const int bench_stall_timeout = read_local_int("bench_stall_timeout.txt", -1);
+    const int bench_decode_every_n =
+        ::xllama::read_local_int("bench_decode_progress_every.txt", -1);
+    const int bench_decode_every_ms = ::xllama::read_local_int("bench_decode_progress_ms.txt", -1);
+    const int bench_stall_timeout = ::xllama::read_local_int("bench_stall_timeout.txt", -1);
 
     // Multi-turn TTFT bench (Stage 2b): if bench_turns.txt is present it holds the
     // turn-2 user prompt; prompt.txt supplies turn 1. Measures the KV-reuse win
     // and skips the normal single-turn bench.
     {
-        std::string turn2 = read_local_file("bench_turns.txt");
+        std::string turn2 = ::xllama::read_local_text("bench_turns.txt");
         if (!turn2.empty()) {
             std::string kv_host =
-                ::xllama::declared_benchmark_host(read_local_file("bench_hardware.txt"));
+                ::xllama::declared_benchmark_host(::xllama::read_local_text("bench_hardware.txt"));
             if (bench_threads > 0)
                 kv_host += "-t" + std::to_string(bench_threads);
             if (bench_gpu_layers > 0)
@@ -335,7 +300,7 @@ void main_loop() {
     }
 
     const std::string hardware_host =
-        ::xllama::declared_benchmark_host(read_local_file("bench_hardware.txt"));
+        ::xllama::declared_benchmark_host(::xllama::read_local_text("bench_hardware.txt"));
     char host_buf[112];
     int host_len = snprintf(host_buf, sizeof(host_buf), "%s", hardware_host.c_str());
     if (bench_threads > 0)
@@ -380,14 +345,14 @@ void run_logits() {
 
     // Raw prompt (NOT chat-templated): parity feeds the identical string to both
     // backends so scripts/compare-logits.py can diff the resulting distributions.
-    std::string prompt = read_local_file("prompt.txt");
+    std::string prompt = ::xllama::read_local_text("prompt.txt");
     if (prompt.empty())
         prompt = "Hello from Xbox Series S. Tell me about your architecture.";
     // An operator can probe an already provisioned research model without
     // selecting or downloading it through the chat catalogue.
-    std::string model_name = read_local_file("logits_model.txt");
+    std::string model_name = ::xllama::read_local_text("logits_model.txt");
     if (model_name.empty())
-        model_name = read_local_file("model.txt");
+        model_name = ::xllama::read_local_text("model.txt");
     if (model_name.empty())
         model_name = "smollm2-360m-cpu-int4";
 
@@ -402,16 +367,16 @@ void run_logits() {
     // Dedicated logit-probe knobs: a missing file remains the historical CPU
     // control. The actual resolved layer count is logged below, not inferred
     // from the requested setting.
-    params.n_gpu_layers = read_local_int("logits_gpu_layers.txt", 0);
-    params.n_ubatch = read_local_int("logits_ubatch.txt", 0);
+    params.n_gpu_layers = ::xllama::read_local_int("logits_gpu_layers.txt", 0);
+    params.n_ubatch = ::xllama::read_local_int("logits_ubatch.txt", 0);
     params.dump_logits_path = resolve_local_path("logits.bin");
     // ADR 0010 part 2: logits_stride.txt = N also writes every Nth prompt
     // position to logits.bin.positions.bin. Absent = last token only.
-    params.dump_logits_stride = std::max(0, read_local_int("logits_stride.txt", 0));
+    params.dump_logits_stride = std::max(0, ::xllama::read_local_int("logits_stride.txt", 0));
     // #420: optional intermediate tensor capture. The spec file holds the
     // pattern list (tensor_capture.h); records go to LocalState\tensor-capture,
     // which is emptied first so a stale capture can never be read as fresh.
-    const std::string capture_spec = read_local_file("tensor-capture.txt");
+    const std::string capture_spec = ::xllama::read_local_text("tensor-capture.txt");
     if (!capture_spec.empty()) {
         const std::string dir = resolve_local_path("tensor-capture");
         std::error_code ec;
@@ -1140,11 +1105,7 @@ void run_train() {
     err = "built without XLLAMA_DEVICE_TRAIN";
     log_output(("[xllama] train FAIL: " + err + "\n").c_str());
     #endif
-    FILE* done = _wfopen(utf8_to_wstring(resolve_local_path("training/result.done")).c_str(), L"w");
-    if (done) {
-        fputs(ok ? "ok\n" : "fail\n", done);
-        fclose(done);
-    }
+    ::xllama::write_local_text("training/result.done", ok ? "ok\n" : "fail\n");
 #endif
 }
 
