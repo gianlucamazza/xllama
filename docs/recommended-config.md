@@ -140,9 +140,10 @@ of length.
 
 Two caveats on that number, both live:
 
-- It sits under the context trimmer's budget by design (#133). The trimmer runs
-  first and drops turns over its own limit, so a threshold above that ceiling
-  makes auto routing unreachable for every input — which is what happened
+- It sits under the routing ceiling by design (#133). Routing never sees more
+  than `max_prompt_tokens_for_n_ctx` (`routing_prompt_tokens`), because that is
+  what `fit_prompt` will prefill, so a threshold above that ceiling makes auto
+  routing unreachable for every input — which is what happened
   between the 600 → 1550 retune and its fix. The usable band is roughly 1550 to
   1685 real tokens, about 135 wide.
 - It was calibrated against a DirectML slowdown believed to track prompt length.
