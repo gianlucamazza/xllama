@@ -779,9 +779,8 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
         #include "ggml_d3d12_mmv_q6_k_t64_dxil.h"
         #include "ggml_d3d12_rope_f32_dxil.h"
         #include "xllama/d3d12_dyn.h"
-        #include "xllama/path_utils.h"
+        #include "xllama/local_knob.h"
         #include "xllama/platform.h"
-        #include "xllama/utf8_utils.h"
 
 namespace xllama {
 namespace {
@@ -945,12 +944,7 @@ bool init_gpu(Gpu& g) {
     g.cl->Close();
     if (!g.fence.init(g.device.Get(), &err))
         return false;
-    if (FILE* f = _wfopen(utf8_to_wstring(resolve_local_path("d3d12-rope.txt")).c_str(), L"rb")) {
-        char config[16] = {};
-        const std::size_t bytes = std::fread(config, 1, sizeof(config), f);
-        std::fclose(f);
-        g.rope = d3d12_flag_enabled(std::string_view(config, bytes));
-    }
+    g.rope = d3d12_flag_enabled(read_local_text("d3d12-rope.txt"));
     g.root = make_root_sig(g.device.Get(), g.rope, &err);
     if (!g.root && g.rope) {
         // The opt-in must not take the backend down: fall back to the
@@ -1018,13 +1012,7 @@ bool init_gpu(Gpu& g) {
             return false;
         }
     }
-    if (FILE* f =
-            _wfopen(utf8_to_wstring(resolve_local_path("d3d12-bias-add.txt")).c_str(), L"rb")) {
-        char config[16] = {};
-        const std::size_t bytes = std::fread(config, 1, sizeof(config), f);
-        std::fclose(f);
-        g.bias_add = d3d12_flag_enabled(std::string_view(config, bytes));
-    }
+    g.bias_add = d3d12_flag_enabled(read_local_text("d3d12-bias-add.txt"));
     if (g.bias_add) {
         D3D12_COMPUTE_PIPELINE_STATE_DESC pd = {};
         pd.pRootSignature = g.root.Get();
@@ -1065,15 +1053,8 @@ bool init_gpu(Gpu& g) {
             err.clear();
         }
     }
-    if (g.ts) {
-        if (FILE* f = _wfopen(
-                utf8_to_wstring(resolve_local_path("d3d12-dispatch-timing.txt")).c_str(), L"rb")) {
-            char config[16] = {};
-            const std::size_t bytes = std::fread(config, 1, sizeof(config), f);
-            std::fclose(f);
-            g.dispatch_timing = d3d12_flag_enabled(std::string_view(config, bytes));
-        }
-    }
+    if (g.ts)
+        g.dispatch_timing = d3d12_flag_enabled(read_local_text("d3d12-dispatch-timing.txt"));
     log_output(std::string("[xllama] d3d12: dispatch_timing=") + (g.dispatch_timing ? "1" : "0") +
                "\n");
     g.staging = d3d12c::create_buffer(g.device.Get(), kStagingBytes, D3D12_HEAP_TYPE_UPLOAD,
