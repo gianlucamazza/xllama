@@ -51,6 +51,7 @@ add_executable(xllama-tests
     test_training.cpp
     test_device_train.cpp
     test_json_utils.cpp
+    test_app_settings.cpp
     test_preference_capture.cpp
     test_prefix_snapshot.cpp
     test_context_shift.cpp

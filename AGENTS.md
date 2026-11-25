@@ -270,6 +270,7 @@ Load-bearing headers agents usually touch:
 | `api_policy.h`                       | Classifies a tool proposal; does not execute tools             |
 | `training.h` / `device_train.h`      | Job validation and Lane B device train                         |
 | `personalize.h`                      | In-app personalize helpers                                     |
+| `app_settings.h`                     | settings.json model: parse, format, ranges the dialog uses     |
 | `json_utils.h`                       | JSON escape / parse (header-only)                              |
 | `local_knob.h`                       | LocalState knob/input files: read, write, strict int parse     |
 | `diffusion/request.h`                | Image request contract: steps and seed on every surface        |

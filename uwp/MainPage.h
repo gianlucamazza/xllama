@@ -9,6 +9,7 @@
     #include "inference-bridge.h"
     #include "model-downloader.h"
     #include "pch.h"
+    #include "xllama/app_settings.h"
     #include "xllama/autopilot.h"
     #include "xllama/chat_prompt.h"
     #include "xllama/compute_admission.h"
@@ -126,6 +127,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     xllama::ChatFormat chat_format() const;
     void LoadSettings();
     void SaveSettings();
+    xllama::AppSettings CurrentSettings() const;
     void ApplyDebugDashboard(bool enabled, bool persist_flag = true);
     void RefreshDebugDashboard();
     void StartDebugDashboardTimer();
@@ -229,7 +231,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     // only, 2 = auto (route by first-prompt length). m_active_model holds the
     // routed model dir for the current conversation.
     int m_routing{0};
-    std::string m_gpu_model{"smollm2-360m-dml-fp16-v2"};
+    std::string m_gpu_model{::xllama::kDefaultGpuModel};
     std::wstring m_active_model;
 
     // Model-catalogue cache: LoadModelManifest re-reads and parses JSON from
@@ -288,7 +290,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     float m_top_p{::xllama::sampling_defaults::kTopP};
     int m_top_k{::xllama::sampling_defaults::kTopK};
     float m_repetition_penalty{::xllama::sampling_defaults::kRepetitionPenalty};
-    int m_n_predict{512};
+    int m_n_predict{::xllama::kDefaultNPredict};
 
     // Optional debug dashboard (Settings + LocalState\debug-dashboard.flag).
     // Off by default; the chat layout is unchanged while the panel is collapsed.

@@ -211,7 +211,8 @@ are not routed per conversation.
   GPU-layer placement. Headless bench still uses `bench_threads.txt`.
 
 Settings persist to `LocalState\settings.json` and take effect on the next
-inference call. Exception: changing the **model** loads it eagerly as soon as
+inference call. A value in that file that is invalid or out of the dialog's
+range falls back to its default and is noted in `xllama.log`. Exception: changing the **model** loads it eagerly as soon as
 it is Ready (the session pre-loads in the background), so the first send after
 a model switch pays only prompt reading + generation.
 

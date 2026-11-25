@@ -13,13 +13,13 @@
     #endif
     #include "chat-history.h"
     #include "inference-bridge.h"
+    #include "xllama/app_settings.h"
     #include "xllama/cancel_policy.h"
     #include "xllama/chat_prompt.h"
     #include "xllama/compute_admission.h"
     #include "xllama/debug_dashboard.h"
     #include "xllama/diffusion/request.h"
     #include "xllama/diffusion/residency.h"
-    #include "xllama/json_utils.h"
     #include "xllama/kv_store.h"
     #include "xllama/local_knob.h"
     #include "xllama/model_file_plan.h"
@@ -891,7 +891,8 @@ void MainPageController::ApplyCatalogueModelKnobs(const std::wstring& model) {
     const auto* e = ::xllama::FindManifestEntry(manifest, model);
     if (!e || e->n_predict <= 0)
         return;
-    m_n_predict = std::clamp(e->n_predict, 16, 2048);
+    m_n_predict = std::clamp(e->n_predict, ::xllama::settings_limits::kNPredictMin,
+                             ::xllama::settings_limits::kNPredictMax);
 }
 
 void MainPageController::SaveKvSnapshotAsync() {
@@ -1220,149 +1221,48 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
     self->LoadConversation(index[static_cast<size_t>(sel)].id);
 }
 
-// Escape a UTF-8 string for inline JSON — delegate to xllama::json_escape.
-// json_escape is in xllama::json_utils.h — included above.
-
-// Read a quoted JSON string starting after the opening '"'. Returns "" on failure.
-static std::string settings_read_string(const std::string& json, size_t& pos) {
-    std::string out;
-    if (!json_read_string(json, pos, out))
-        return {};
-    return out;
-}
-
-// Read a JSON number/token (up to next `,`, `}`, `]`, or whitespace). Returns "".
-static std::string settings_read_token(const std::string& json, size_t& pos) {
-    while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t' || json[pos] == '\n'))
-        ++pos;
-    std::string out;
-    while (pos < json.size()) {
-        char c = json[pos];
-        if (c == ',' || c == '}' || c == ']' || c == ' ' || c == '\t' || c == '\n')
-            break;
-        out += c;
-        ++pos;
-    }
-    return out;
+// settings.json is xllama::AppSettings (app_settings.h): one parser, one writer,
+// host-tested. These two functions only bind it to the controller's members.
+xllama::AppSettings MainPageController::CurrentSettings() const {
+    xllama::AppSettings s;
+    s.system_prompt = m_system_prompt;
+    s.model = ::xllama::wstring_to_utf8(std::wstring(m_model_filename));
+    s.kv_reuse = m_kv_reuse;
+    s.debug_dashboard = m_debug_dashboard;
+    s.routing = m_routing;
+    s.gpu_model = m_gpu_model;
+    s.diffuse_taesd_vae = m_diffuse_taesd;
+    s.diffuse_seed = m_diffuse_seed;
+    s.temperature = m_temperature;
+    s.top_p = m_top_p;
+    s.top_k = m_top_k;
+    s.repetition_penalty = m_repetition_penalty;
+    s.n_predict = m_n_predict;
+    return s;
 }
 
 void MainPageController::LoadSettings() {
-    auto folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
-    std::wstring wpath(folder.Path().c_str());
-    wpath += L"\\settings.json";
-    FILE* f = _wfopen(wpath.c_str(), L"r");
-    if (!f)
-        return;
-    std::string json;
-    char buf[16384];
-    while (size_t n = fread(buf, 1, sizeof(buf) - 1, f)) {
-        buf[n] = 0;
-        json += buf;
-    }
-    fclose(f);
-
-    // Parse flat keys: "system_prompt", "model", and "sampling" object
-    auto read_key = [&](size_t& pos) -> std::string {
-        while (pos < json.size() && json[pos] != '"' && json[pos] != '}')
-            ++pos;
-        if (pos >= json.size() || json[pos] == '}')
-            return "";
-        ++pos; // skip opening "
-        return settings_read_string(json, pos);
-    };
-
-    auto seek_colon_and_advance = [&](size_t& pos) {
-        while (pos < json.size() && json[pos] != ':')
-            ++pos;
-        ++pos;
-    };
-
-    size_t pos = 0;
-    while (pos < json.size()) {
-        std::string key = read_key(pos);
-        if (key.empty())
-            break;
-        seek_colon_and_advance(pos);
-        while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t' || json[pos] == '\n'))
-            ++pos;
-
-        if (key == "system_prompt") {
-            if (pos < json.size() && json[pos] == '"') {
-                ++pos;
-                m_system_prompt = settings_read_string(json, pos);
-            }
-        } else if (key == "model") {
-            if (pos < json.size() && json[pos] == '"') {
-                ++pos;
-                std::string m = settings_read_string(json, pos);
-                if (!m.empty())
-                    m_model_filename = ::xllama::utf8_to_wstring(m);
-            }
-        } else if (key == "kv_reuse") {
-            std::string v = settings_read_token(json, pos);
-            m_kv_reuse = (v == "true" || v == "1");
-        } else if (key == ::xllama::kDebugDashboardSettingsKey) {
-            std::string v = settings_read_token(json, pos);
-            m_debug_dashboard = (v == "true" || v == "1");
-        } else if (key == "routing") {
-            std::string v = settings_read_token(json, pos);
-            if (!v.empty())
-                m_routing = std::stoi(v);
-        } else if (key == "gpu_model") {
-            if (pos < json.size() && json[pos] == '"') {
-                ++pos;
-                std::string g = settings_read_string(json, pos);
-                if (!g.empty())
-                    m_gpu_model = g;
-            }
-        } else if (key == "diffuse_taesd_vae") {
-            std::string v = settings_read_token(json, pos);
-            m_diffuse_taesd = (v == "true" || v == "1");
-        } else if (key == "diffuse_seed") {
-            std::string v = settings_read_token(json, pos);
-            if (!v.empty()) {
-                try {
-                    const auto seed = std::stoull(v);
-                    if (seed <= std::numeric_limits<uint32_t>::max())
-                        m_diffuse_seed = static_cast<uint32_t>(seed);
-                } catch (...) {
-                    m_diffuse_seed = 0;
-                }
-            }
-        } else if (key == "sampling") {
-            // Parse nested object {"temperature":0.8, ...}
-            if (pos < json.size() && json[pos] == '{') {
-                ++pos;
-                while (pos < json.size()) {
-                    while (pos < json.size() && json[pos] != '"' && json[pos] != '}')
-                        ++pos;
-                    if (pos >= json.size() || json[pos] == '}') {
-                        ++pos;
-                        break;
-                    }
-                    ++pos;
-                    std::string sk = settings_read_string(json, pos);
-                    seek_colon_and_advance(pos);
-                    std::string sv = settings_read_token(json, pos);
-                    if (sk == "temperature" && !sv.empty())
-                        m_temperature = std::stof(sv);
-                    else if (sk == "top_p" && !sv.empty())
-                        m_top_p = std::stof(sv);
-                    else if (sk == "top_k" && !sv.empty())
-                        m_top_k = std::stoi(sv);
-                    else if (sk == "repetition_penalty" && !sv.empty())
-                        m_repetition_penalty = std::stof(sv);
-                    else if (sk == "n_predict" && !sv.empty())
-                        m_n_predict = std::stoi(sv);
-                    // skip comma
-                    while (pos < json.size() && (json[pos] == ',' || json[pos] == ' '))
-                        ++pos;
-                }
-            }
-        } else {
-            // Unknown key: skip value
-            settings_read_token(json, pos);
-        }
+    if (const auto text = ::xllama::read_local_file(::xllama::kSettingsFileName)) {
+        const ::xllama::AppSettingsLoad loaded = ::xllama::parse_app_settings(*text);
+        if (!loaded.error.empty())
+            log_output("[xllama] settings: " + loaded.error + " — using defaults\n");
+        for (const std::string& key : loaded.rejected)
+            log_output("[xllama] settings: invalid " + key + " — using its default\n");
+        const xllama::AppSettings& s = loaded.settings;
+        m_system_prompt = s.system_prompt;
+        if (!s.model.empty())
+            m_model_filename = ::xllama::utf8_to_wstring(s.model);
+        m_kv_reuse = s.kv_reuse;
+        m_debug_dashboard = s.debug_dashboard;
+        m_routing = s.routing;
+        m_gpu_model = s.gpu_model;
+        m_diffuse_taesd = s.diffuse_taesd_vae;
+        m_diffuse_seed = s.diffuse_seed;
+        m_temperature = s.temperature;
+        m_top_p = s.top_p;
+        m_top_k = s.top_k;
+        m_repetition_penalty = s.repetition_penalty;
+        m_n_predict = s.n_predict;
     }
 
     // Back-compat: also read model.txt if model not set via settings.json
@@ -1380,37 +1280,9 @@ void MainPageController::LoadSettings() {
 }
 
 void MainPageController::SaveSettings() {
-    auto folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
-    std::wstring wpath(folder.Path().c_str());
-    wpath += L"\\settings.json";
-    FILE* f = _wfopen(wpath.c_str(), L"w");
-    if (!f)
-        return;
-    std::string model_utf8 = ::xllama::wstring_to_utf8(std::wstring(m_model_filename));
-    fprintf(f,
-            "{\n"
-            "  \"system_prompt\": \"%s\",\n"
-            "  \"model\": \"%s\",\n"
-            "  \"kv_reuse\": %s,\n"
-            "  \"debug_dashboard\": %s,\n"
-            "  \"routing\": %d,\n"
-            "  \"gpu_model\": \"%s\",\n"
-            "  \"diffuse_taesd_vae\": %s,\n"
-            "  \"diffuse_seed\": %u,\n"
-            "  \"sampling\": {\n"
-            "    \"temperature\": %.2f,\n"
-            "    \"top_p\": %.2f,\n"
-            "    \"top_k\": %d,\n"
-            "    \"repetition_penalty\": %.2f,\n"
-            "    \"n_predict\": %d\n"
-            "  }\n"
-            "}\n",
-            xllama::json_escape(m_system_prompt).c_str(), xllama::json_escape(model_utf8).c_str(),
-            m_kv_reuse ? "true" : "false", m_debug_dashboard ? "true" : "false", m_routing,
-            xllama::json_escape(m_gpu_model).c_str(), m_diffuse_taesd ? "true" : "false",
-            m_diffuse_seed, static_cast<double>(m_temperature), static_cast<double>(m_top_p),
-            m_top_k, static_cast<double>(m_repetition_penalty), m_n_predict);
-    fclose(f);
+    if (!::xllama::write_local_text(::xllama::kSettingsFileName,
+                                    ::xllama::format_app_settings(CurrentSettings())))
+        log_output("[xllama] settings: cannot write settings.json\n");
     // Any settings change (system prompt, model, sampling) invalidates the KV
     // cache bound to the old settings — force a fresh generator next turn.
     m_kv_valid = false;
@@ -1775,13 +1647,17 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
         s.HorizontalAlignment(HorizontalAlignment::Stretch);
         return s;
     };
-    auto tempSlider = make_slider(m_temperature, 0.0, 2.0, 0.05, L"Temperature (0–2)");
-    auto topPSlider = make_slider(m_top_p, 0.0, 1.0, 0.05, L"Top-p (0–1)");
-    auto repSlider = make_slider(m_repetition_penalty, 1.0, 2.0, 0.05, L"Repetition penalty (1–2)");
+    namespace lim = ::xllama::settings_limits; // the ranges settings.json enforces
+    auto tempSlider = make_slider(m_temperature, lim::kTemperatureMin, lim::kTemperatureMax, 0.05,
+                                  L"Temperature (0–2)");
+    auto topPSlider = make_slider(m_top_p, lim::kTopPMin, lim::kTopPMax, 0.05, L"Top-p (0–1)");
+    auto repSlider = make_slider(m_repetition_penalty, lim::kRepetitionPenaltyMin,
+                                 lim::kRepetitionPenaltyMax, 0.05, L"Repetition penalty (1–2)");
 
     // top_k and n_predict as simple Sliders (NumberBox not available in older SDK targets)
-    auto topKSlider = make_slider(m_top_k, 1.0, 200.0, 1.0, L"Top-k (1–200)");
-    auto nPredSlider = make_slider(m_n_predict, 16.0, 2048.0, 16.0, L"Max new tokens (16–2048)");
+    auto topKSlider = make_slider(m_top_k, lim::kTopKMin, lim::kTopKMax, 1.0, L"Top-k (1–200)");
+    auto nPredSlider = make_slider(m_n_predict, lim::kNPredictMin, lim::kNPredictMax, 16.0,
+                                   L"Max new tokens (16–2048)");
 
     // --- KV-cache reuse toggle (continuous decoding) ---
     winrt::Windows::UI::Xaml::Controls::ToggleSwitch kvToggle;
@@ -1973,13 +1849,13 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     #ifndef XLLAMA_STORE_SKU
     int selected_api_port = api_port;
     if (apiToggle.IsOn()) {
-        try {
-            selected_api_port =
-                std::stoi(::xllama::wstring_to_utf8(std::wstring(apiPortBox.Text().c_str())));
-        } catch (...) {
+        const std::optional<int> typed = ::xllama::parse_knob_int(
+            ::xllama::wstring_to_utf8(std::wstring(apiPortBox.Text().c_str())));
+        if (!typed) {
             self->SetStatus(L"Invalid LAN API port", StatusKind::Error);
             co_return;
         }
+        selected_api_port = *typed;
         if (!::xllama::api::port_bindable(selected_api_port)) {
             self->SetStatus(L"LAN API port must be 1025–49151 and not 11443", StatusKind::Error);
             co_return;
@@ -1987,7 +1863,10 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     }
     #endif
     int ri = routingBox.SelectedIndex();
-    self->m_routing = (ri >= 0 && ri <= 2) ? ri : 0;
+    self->m_routing = (ri >= ::xllama::settings_limits::kRoutingMin &&
+                       ri <= ::xllama::settings_limits::kRoutingMax)
+                          ? ri
+                          : 0;
     // Routing is per-conversation: a change applies from the next new/loaded chat
     // (m_active_model stays fixed for the conversation in progress).
     self->SaveSettings();
@@ -2348,18 +2227,19 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
         co_return;
 
     const std::string seed_text = ::xllama::wstring_to_utf8(std::wstring(seedBox.Text().c_str()));
-    uint64_t requested_seed = 0;
-    try {
-        requested_seed = seed_text.empty() ? 0 : std::stoull(seed_text);
-    } catch (...) {
+    // Empty = 0 = random. Otherwise a whole number in uint32, the seed domain of
+    // the pipeline (diffusion/request.h); "12abc" is rejected, not read as 12.
+    const std::optional<long long> requested_seed =
+        seed_text.empty() ? std::optional<long long>(0) : ::xllama::parse_knob_i64(seed_text);
+    if (!requested_seed) {
         self->SetStatus(L"Invalid image seed", StatusKind::Error);
         co_return;
     }
-    if (requested_seed > std::numeric_limits<uint32_t>::max()) {
+    if (*requested_seed < 0 || *requested_seed > std::numeric_limits<uint32_t>::max()) {
         self->SetStatus(L"Image seed must fit uint32", StatusKind::Error);
         co_return;
     }
-    self->m_diffuse_seed = static_cast<uint32_t>(requested_seed);
+    self->m_diffuse_seed = static_cast<uint32_t>(*requested_seed);
     self->m_diffuse_taesd = taesdToggle.IsOn();
     self->SaveSettings();
 
