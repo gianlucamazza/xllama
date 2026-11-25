@@ -24,10 +24,11 @@
 #   ./scripts/measure-nctx-sweep.sh --hardware <label> <out-dir> \
 #       lfm25-350m:16384:14000 llama32-3b:32768:0 ...
 #
-# Models must already be on the console (scripts/provision-models.sh). An
-# existing LocalState manifest.json is saved first and restored at the end.
+# Models must already be on the console (scripts/provision-models.sh). The
+# LocalState files the sweep overwrites (manifest.json, model.txt, api.flag) are
+# saved first and restored at the end, so the LAN API setting and the GUI's model
+# survive the run. If api.flag was present the app is started again at the end.
 # Writes <out-dir>/cells.csv, <out-dir>/<cell>.log and <out-dir>/<cell>.ttfb.json.
-# Leaves api.flag removed.
 set -euo pipefail
 
 : "${XBOX_IP:?XBOX_IP not set — run: source ~/.config/xllama/xbox-env}"
@@ -74,6 +75,8 @@ PACKAGE_FAMILY=$(echo "$PFN" | sed 's/_[0-9][0-9.]*_[^_]*__/_/')
 TMP=$(mktemp -d)
 SAMPLER_PID=""
 SAVED_MANIFEST=""
+SAVED_MODEL=""
+HAD_API_FLAG=0
 
 upload_file() { # <local> [remote-name]
 	wdp_upload_file_request \
@@ -192,6 +195,12 @@ cleanup() {
 	delete_file api.flag
 	delete_file manifest.json
 	[[ -n "$SAVED_MANIFEST" ]] && upload_file "$SAVED_MANIFEST" manifest.json
+	[[ -n "$SAVED_MODEL" ]] && upload_file "$SAVED_MODEL" model.txt
+	# The LAN API was on before the sweep: bring the server back up as it was.
+	if ((HAD_API_FLAG)); then
+		upload_file "${TMP}/api.flag.saved" api.flag
+		start_app
+	fi
 	rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -201,6 +210,15 @@ fetch_file manifest.json "${TMP}/manifest.saved"
 if [[ -s "${TMP}/manifest.saved" ]]; then
 	SAVED_MANIFEST="${TMP}/manifest.saved"
 	echo "saved the existing LocalState manifest.json; it is restored at the end"
+fi
+fetch_file model.txt "${TMP}/model.saved"
+[[ -s "${TMP}/model.saved" ]] && SAVED_MODEL="${TMP}/model.saved"
+# App.cpp starts the LAN API when the flag exists; keep the file as it was.
+if curl "${CURL_AUTH[@]}" -f -o "${TMP}/api.flag.saved" \
+	"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState&filename=api.flag" \
+	2>/dev/null; then
+	HAD_API_FLAG=1
+	echo "api.flag is present; it is restored at the end"
 fi
 
 printf 'cell,model,n_ctx,target_tokens,load_status,prompt_status,prompt_tokens,first_content_ms,done_ms,max_private_ws_mb,detail\n' >"${OUT}/cells.csv"
