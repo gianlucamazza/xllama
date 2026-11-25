@@ -460,6 +460,9 @@ static_assert(kGgufNThreadsMax == GGML_MAX_N_THREADS,
               "session_spec.h kGgufNThreadsMax must track the llama.cpp pin");
 
 class LlamaSession final : public Session {
+    // Prefix checkpoints hold only the partial (recurrent / SWA) state.
+    static constexpr llama_state_seq_flags kPartialState = LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY;
+
   public:
     LlamaModelPtr m_model;
     LlamaAdapterLoraPtr m_adapter; // optional runtime LoRA (freed before model)
@@ -497,7 +500,6 @@ class LlamaSession final : public Session {
     // Unused until llama_model_is_hybrid/is_recurrent is true.
     std::vector<llama_token> m_prefix_tokens;
     std::vector<uint8_t> m_prefix_blob;
-    std::vector<llama_token> m_last_full_prompt;
     bool m_needs_prefix_snapshot = false;
 
     bool m_kv_q8 = false;           // #171: q8_0 KV + forced flash attention
@@ -686,13 +688,13 @@ class LlamaSession final : public Session {
         // last message keeps everything before the edit; an unrelated prompt
         // diverges immediately and degrades to the old full clear.
         //
-        // Hybrid caches (LFM2) refuse that tail erase. When a post-prefill
-        // prefix snapshot is a strict prefix of the new prompt, restore it (no
-        // stale generated tail) and prefill only the suffix. The snapshot may
-        // start a few tokens before the previous prompt end, so a later turn
-        // that diverges only in that tail can still restore. An exact
-        // regenerate Clears so the last token reseeds logits like a cold run.
-        // Non-hybrid still rewinds.
+        // Hybrid caches (LFM2) refuse that tail erase. When the prefix
+        // checkpoint (partial state at n tokens) is a strict prefix of the new
+        // prompt and the attention cells [0, n) are still resident, restore
+        // the recurrent state, truncate the attention to n and prefill only
+        // the suffix. The checkpoint sits a few tokens before the previous
+        // prompt end, so a turn that diverges only in that tail — an exact
+        // regenerate included — still restores. Non-hybrid still rewinds.
         llama_memory_t mem = llama_get_memory(ctx);
         size_t kv_keep = 0;
         if (full_prompt) {
@@ -703,10 +705,9 @@ class LlamaSession final : public Session {
                 can_rewind = llama_memory_seq_rm(mem, 0, static_cast<llama_pos>(common), -1);
             }
             const bool snap_prefix = tokens_are_prefix(m_prefix_tokens, tokens);
-            const bool exact_regen = is_exact_regenerate(m_last_full_prompt, tokens);
             const PrefixSnapshotPlan plan =
                 plan_prefix_snapshot(common, m_kv_tokens.size(), tokens.size(),
-                                     m_prefix_tokens.size(), snap_prefix, can_rewind, exact_regen);
+                                     m_prefix_tokens.size(), snap_prefix, can_rewind);
             kv_keep = plan.kv_keep;
             switch (plan.action) {
             case PrefixSnapshotAction::KeepResident:
@@ -719,7 +720,7 @@ class LlamaSession final : public Session {
                 break;
             }
             case PrefixSnapshotAction::RestoreSnapshot: {
-                if (restore_prefix_snapshot()) {
+                if (restore_prefix_snapshot(kv_keep)) {
                     char rb[192];
                     snprintf(rb, sizeof(rb),
                              "[xllama] session: KV prefix snapshot restored — %zu of %zu "
@@ -813,6 +814,9 @@ class LlamaSession final : public Session {
                 if (n_discard > 0 && kv_len + n_pf + 1 - n_discard <= m_n_ctx &&
                     llama_memory_seq_rm(mem, 0, keep, keep + n_discard)) {
                     llama_memory_seq_add(mem, 0, keep + n_discard, -1, -n_discard);
+                    // Positions moved: a checkpoint of the old layout no longer
+                    // lines up with the attention cells it would be restored on.
+                    drop_prefix_snapshot();
                     m_kv_tokens.erase(m_kv_tokens.begin() + keep,
                                       m_kv_tokens.begin() + keep + n_discard);
                     kv_len -= n_discard;
@@ -896,9 +900,9 @@ class LlamaSession final : public Session {
             {
                 char cb[160];
                 snprintf(cb, sizeof(cb),
-                         "[xllama] session: prefix snapshot captured at %zu of %zu "
-                         "tokens (hybrid)\n",
-                         capture_at, prompt_n);
+                         "[xllama] session: prefix checkpoint captured at %zu of %zu "
+                         "tokens (hybrid, %zu KiB partial state)\n",
+                         capture_at, prompt_n, m_prefix_blob.size() / 1024);
                 log_output(cb);
             }
             const int n_tail = static_cast<int>(prompt_n - capture_at);
@@ -933,8 +937,6 @@ class LlamaSession final : public Session {
             if (!keep_slacked_head)
                 capture_prefix_snapshot();
         }
-        if (full_prompt)
-            m_last_full_prompt = tokens;
 
         // Shared with run_inference — see src/bridge/sampler_chain.h and #125.
         // SamplingConfig::is_greedy() also covers temperature 0, where the full
@@ -1199,15 +1201,21 @@ class LlamaSession final : public Session {
         m_prefix_blob.clear();
     }
 
+    // A partial-state checkpoint (llama-server's "context checkpoint"): only the
+    // state seq_rm cannot rebuild — the recurrent / conv cells of a hybrid —
+    // at the current end of the KV. The attention KV is not copied: it stays
+    // resident, and a restore truncates it back to the checkpoint instead.
+    // For LFM2 that is a few hundred KiB instead of a copy of the whole KV.
     void capture_prefix_snapshot() {
         if (!m_needs_prefix_snapshot || !m_ctx || m_kv_tokens.empty()) {
             drop_prefix_snapshot();
             return;
         }
         try {
-            const size_t n = llama_state_get_size(m_ctx.get());
+            const size_t n = llama_state_seq_get_size_ext(m_ctx.get(), 0, kPartialState);
             m_prefix_blob.resize(n);
-            const size_t used = llama_state_get_data(m_ctx.get(), m_prefix_blob.data(), n);
+            const size_t used = llama_state_seq_get_data_ext(m_ctx.get(), m_prefix_blob.data(), n,
+                                                             0, kPartialState);
             if (used == 0) {
                 drop_prefix_snapshot();
                 return;
@@ -1219,16 +1227,22 @@ class LlamaSession final : public Session {
         }
     }
 
-    bool restore_prefix_snapshot() {
-        if (!m_ctx || m_prefix_blob.empty() || m_prefix_tokens.empty())
+    // Put the recurrent state back to the checkpoint at |n| tokens, then drop
+    // the attention cells from |n| on. Requires the attention KV [0, n) to be
+    // the checkpoint's (plan_prefix_snapshot checks common >= n). Once the
+    // recurrent cell sits at n-1, the hybrid seq_rm(n, -1) is a plain tail
+    // erase and succeeds; a false return means the cache is not what the
+    // checkpoint assumed, and the caller clears and re-prefills.
+    bool restore_prefix_snapshot(size_t n) {
+        if (!m_ctx || m_prefix_blob.empty() || m_prefix_tokens.size() != n)
             return false;
         try {
-            // Drop leftover hybrid cells from a refused seq_rm so set_data
-            // cannot mix a generated tail with the saved prefix.
-            llama_memory_clear(llama_get_memory(m_ctx.get()), true);
-            const size_t used =
-                llama_state_set_data(m_ctx.get(), m_prefix_blob.data(), m_prefix_blob.size());
-            return used > 0;
+            const size_t used = llama_state_seq_set_data_ext(
+                m_ctx.get(), m_prefix_blob.data(), m_prefix_blob.size(), 0, kPartialState);
+            if (used == 0)
+                return false;
+            return llama_memory_seq_rm(llama_get_memory(m_ctx.get()), 0, static_cast<llama_pos>(n),
+                                       -1);
         } catch (const std::exception&) {
             return false;
         }

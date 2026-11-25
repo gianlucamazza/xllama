@@ -4,11 +4,13 @@
 // Hybrid-cache prefix snapshots — plan when a full-prompt turn can keep the
 // resident KV, rewind a tail, restore a saved post-prefill state, or clear.
 //
-// Pure functions, no llama.h. LlamaSession captures the blob with
-// llama_state_get_data after a successful prefill of the prompt head
-// (logits + memory), leaving a short tail to prefill so a later prompt
-// that diverges only there can restore. Restores with llama_state_set_data
-// when seq_rm refuses a tail rewind. Non-hybrid caches never need the blob:
+// Pure functions, no llama.h. LlamaSession captures a partial-state
+// checkpoint (llama_state_seq_get_data_ext with PARTIAL_ONLY: the recurrent
+// cells only, as llama-server's context checkpoints) after the prompt head,
+// leaving a short tail to prefill so a later prompt that diverges only there
+// can restore. A restore puts the recurrent state back and truncates the
+// still-resident attention KV to the checkpoint, so it needs that attention
+// prefix to be intact. Non-hybrid caches never need the blob:
 // RewindTail is the existing #170a path. Host tests pass can_rewind=false
 // as a hybrid-shaped fixture.
 #pragma once
@@ -30,10 +32,9 @@ struct PrefixSnapshotPlan {
     PrefixSnapshotAction action = PrefixSnapshotAction::Clear;
     // Tokens already in cache after applying action. Prefill prompt[kv_keep:].
     // RestoreSnapshot keeps kv_keep < prompt_n so the last token always
-    // prefills and reseeds logits (#170a). An exact regenerate cannot drop
-    // that last hybrid cell after a full-state restore, so the planner
-    // Clears instead of restoring — even when a slacked snapshot is a
-    // proper prefix of the same prompt.
+    // prefills and reseeds logits (#170a). An exact regenerate restores too:
+    // checkpoint plus tail is the same computation as the cold head/tail
+    // prefill, so it reproduces the cold output.
     size_t kv_keep = 0;
 };
 
@@ -57,11 +58,6 @@ inline size_t prefix_snapshot_capture_n(size_t prompt_n, size_t slack = kPrefixS
     if (slack == 0 || prompt_n <= slack)
         return prompt_n;
     return prompt_n - slack;
-}
-
-template <typename T>
-inline bool is_exact_regenerate(const std::vector<T>& last_full, const std::vector<T>& prompt) {
-    return !last_full.empty() && last_full == prompt;
 }
 
 // Shared leading tokens, capped at prompt.size()-1 so a rewind path always
@@ -90,7 +86,7 @@ inline bool tokens_are_prefix(const std::vector<T>& prefix, const std::vector<T>
 // refused seq_rm; tests pass false as the hybrid-shaped fixture.
 inline PrefixSnapshotPlan plan_prefix_snapshot(size_t common, size_t resident_n, size_t prompt_n,
                                                size_t snapshot_n, bool snapshot_is_prefix,
-                                               bool can_rewind, bool exact_regenerate = false) {
+                                               bool can_rewind) {
     PrefixSnapshotPlan plan;
     if (prompt_n == 0)
         return plan;
@@ -110,22 +106,14 @@ inline PrefixSnapshotPlan plan_prefix_snapshot(size_t common, size_t resident_n,
         return plan;
     }
 
-    // Exact regenerate of the last full prompt: a slacked snapshot is still a
-    // prefix, but restoring it and prefilling only the tail would not match a
-    // cold full prefill. Clear so the last token reseeds from scratch. The
-    // six-argument call (exact_regenerate false) keeps today's behaviour:
-    // snapshot covering the whole prompt already fails snapshot_n < prompt_n.
-    if (exact_regenerate) {
-        plan.action = PrefixSnapshotAction::Clear;
-        return plan;
-    }
-
     // Hybrid (or empty resident after a failed rewind): restore the saved
     // post-prefill prefix instead of prefilling from scratch. Snapshot tokens
     // are a prefix of the last prefilled prompt (possibly a few tokens short
     // of the end), not the generated tail. Only restore when the new prompt
     // is strictly longer — then the suffix prefills and seeds logits.
-    if (snapshot_n > 0 && snapshot_is_prefix && snapshot_n < prompt_n) {
+    // The checkpoint holds no attention state: the attention cells [0, n) must
+    // still be resident and equal to the prompt's, i.e. common >= n.
+    if (snapshot_n > 0 && snapshot_is_prefix && snapshot_n < prompt_n && common >= snapshot_n) {
         plan.action = PrefixSnapshotAction::RestoreSnapshot;
         plan.kv_keep = snapshot_n;
         return plan;

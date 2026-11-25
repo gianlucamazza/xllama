@@ -237,12 +237,17 @@ Leaving a conversation writes its KV to `LocalState\kv\<id>.kv` and the first
 turn back restores it. A matching token prefix costs a delta prefill instead of
 the history. If re-rendered history diverges inside the saved tail, a hybrid
 recurrent cache can refuse the rewind. For an in-session API or multi-turn
-full prompt, `LlamaSession` then restores a saved post-prefill prefix snapshot
-(`prefix_snapshot.h`) when that prefix is a strict prefix of the new prompt,
-so only the suffix prefills. On a long prompt the snapshot starts a few tokens
-before the prompt end, so a later turn that diverges only in that tail can
-still restore; an exact regenerate clears and re-prefills so logits match a
-cold run. `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. Disk
+full prompt, `LlamaSession` then restores a prefix checkpoint
+(`prefix_snapshot.h`) when that prefix is a strict prefix of the new prompt
+and its attention cells are still resident, so only the suffix prefills. The
+checkpoint is partial state (`llama_state_seq_*_ext` with `PARTIAL_ONLY`, as
+llama-server's context checkpoints): only the recurrent cells, 160 KiB for
+LFM2.5-1.2B and 55 MiB for Granite-4.0-H-Tiny, independent of `n_ctx`. A
+restore puts that state back and truncates the attention KV to it. On a long
+prompt the checkpoint sits a few tokens before the prompt end, so a later turn
+that diverges only in that tail, an exact regenerate included, still restores;
+checkpoint plus tail is the cold head/tail computation, so the output matches
+a cold run. `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. Disk
 snapshot restoration alone is not a delta-reuse guarantee (the file includes
 generated tokens). The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
 
@@ -901,7 +906,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_path.cpp`                    | `path_utils.h`                                                                                                 |
 | `test_personalize.cpp`             | `personalize.h`                                                                                                |
 | `test_preference_capture.cpp`      | `preference_capture.h`                                                                                         |
-| `test_prefix_snapshot.cpp`         | `prefix_snapshot.h` — extension keeps; slack restore; regenerate Clears                                        |
+| `test_prefix_snapshot.cpp`         | `prefix_snapshot.h` — extension keeps; slack restore; regenerate restores; attention prefix required           |
 | `test_context_shift.cpp`           | `context_shift.h` — #169 shift admission (`memory_can_shift`, SWA guard)                                       |
 | `test_granite_hybrid_snapshot.cpp` | #512 restore on Granite-4.0-H-Tiny (opt-in `XLLAMA_GRANITE_H_TINY`; skips in CI)                               |
 | `test_prompt_budget.cpp`           | `prompt_budget.h`                                                                                              |
