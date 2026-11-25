@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **OLMoE-1B-7B-0125-Instruct chat renderer.** Added `ChatFormatKind::Olmoe` with host goldens; no catalogue entry.
+
 - **A NaN in a recurrent state no longer sticks.** `patches/0004-recurrent-state-fill-zero.patch` backports upstream llama.cpp #31913: clearing a recurrent state multiplied it by 0, which keeps a NaN, instead of writing 0. Affects LFM2 and Granite-4.0-H sessions; a single bad value would otherwise poison every later token of the conversation.
 
 - **Context shift no longer aborts on models without RoPE.** Granite-4.0-H (`rope.scaling.finetuned=false`, so no layer uses RoPE) hit `GGML_ASSERT(buffer)` in llama.cpp's K-shift when a #169 context shift ran. `patches/0003-kv-cache-k-shift-unallocated-input.patch` backports the upstream guard (`3e4dfa8f39f9`). `scripts/apply-uwp-patches.sh` is now `scripts/apply-llama-patches.sh` and applies to the Linux build too: CMake configure refuses an unpatched pin, so host tests run the llama.cpp source the console ships.

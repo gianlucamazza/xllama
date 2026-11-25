@@ -144,7 +144,7 @@ std::string render_sample(const ChatFormat& fmt, const ChatSample& sample) {
     // Same default system prompt as the chat UI / API endpoint.
     std::string doc = fmt.render_prompt("You are a helpful AI assistant.", history, final_user);
     doc += final_assistant;
-    doc += fmt.turn_close;
+    doc += fmt.assistant_close();
     return doc;
 }
 
