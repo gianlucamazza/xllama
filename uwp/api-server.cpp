@@ -27,6 +27,7 @@
     #include "xllama/api_pull_policy.h"
     #include "xllama/chat_prompt.h"
     #include "xllama/compute_admission.h"
+    #include "xllama/diffusion/request.h"
     #include "xllama/http_framing.h"
     #include "xllama/local_knob.h"
     #include "xllama/model_provision.h"
@@ -1612,16 +1613,15 @@ std::string handle_images_locked(const std::string& body, const char*& status) {
         status = "400 Bad Request";
         return error_json("missing 'prompt'");
     }
-    // Clamped, never rejected (UI Image dialog max is 4 steps); clamped on the
-    // double, since casting an out-of-range double to int is undefined (F01).
-    int steps = 1;
+    // Clamped, never rejected, by the contract the Image dialog and the pipeline
+    // share (xllama/diffusion/request.h): steps 1-4, any uint32 seed.
+    namespace diff = ::xllama::diffusion;
+    int steps = diff::kDefaultSteps;
     if (root.HasKey(L"steps"))
-        steps = ::xllama::clamp_api_int(root.GetNamedNumber(L"steps", 1), 1, 4);
-    int seed = 42;
-    if (root.HasKey(L"seed")) {
-        const double raw = root.GetNamedNumber(L"seed", 42);
-        seed = raw < 0 ? 42 : ::xllama::clamp_api_int(raw, 0, INT_MAX);
-    }
+        steps = diff::interactive_steps(root.GetNamedNumber(L"steps", diff::kDefaultSteps));
+    std::uint32_t seed = diff::kDefaultSeed;
+    if (root.HasKey(L"seed"))
+        seed = diff::request_seed(root.GetNamedNumber(L"seed", diff::kDefaultSeed));
 
     // Drive the same LocalState knobs as the Image dialog / autopilot.
     {

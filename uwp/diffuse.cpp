@@ -25,7 +25,7 @@
 // embeddings + guidance blend), out of scope for the console demo.
 //
 // Inputs (LocalState): prompt.txt, diffuse-model.txt (model dir name),
-// diffuse-steps.txt (default 1), diffuse-seed.txt (default 42);
+// diffuse-steps.txt and diffuse-seed.txt (contract: xllama/diffusion/request.h);
 // diffuse-lcm.txt (`1` selects the LCM scheduler; absent keeps Euler);
 // diffuse-cancel.flag aborts between UNet steps (consumed).
 // Outputs: diffuse-out.png (+ .done), diffuse-result.csv with per-stage ms,
@@ -52,6 +52,7 @@
     #include "xllama/diffusion/half.h"
     #include "xllama/diffusion/lcm_scheduler.h"
     #include "xllama/diffusion/png_writer.h"
+    #include "xllama/diffusion/request.h"
     #include "xllama/local_knob.h"
     #include "xllama/path_utils.h"
     #include "xllama/platform.h"
@@ -211,8 +212,8 @@ void run_diffuse() {
     const std::string dir = read_local_text_or("diffuse-model.txt", "sd-turbo-fp16");
     const std::string prompt =
         read_local_text_or("prompt.txt", "a red sports car on a mountain road at sunset");
-    const int steps = read_local_int_in("diffuse-steps.txt", 1, 1, 50);
-    const int seed = read_local_int_in("diffuse-seed.txt", 42, 0, 1'000'000'000);
+    const int steps = diffusion::steps_from_knob(read_local_text("diffuse-steps.txt"));
+    const std::uint32_t seed = diffusion::seed_from_knob(read_local_text("diffuse-seed.txt"));
     const bool use_lcm = diffusion::lcm_scheduler_requested(read_local_text("diffuse-lcm.txt"));
     log_output("[xllama] diffuse: model='" + dir + "' steps=" + std::to_string(steps) +
                " seed=" + std::to_string(seed) + " scheduler=" + (use_lcm ? "lcm" : "euler") +
@@ -283,7 +284,7 @@ void run_diffuse() {
         // ---- Scheduler + init latent ---------------------------------------
         // Default remains EulerDiscreteScheduler (SD-Turbo). LocalState
         // diffuse-lcm.txt = 1 selects LCM; otherwise this type is unused.
-        std::mt19937 rng((unsigned)seed);
+        std::mt19937 rng(seed);
         std::normal_distribution<float> gauss(0.0f, 1.0f);
         const size_t latent_n = (size_t)kLatentC * kLatentHW * kLatentHW;
         std::vector<float> latent;
@@ -460,9 +461,9 @@ void run_diffuse() {
             fputs("model,steps,seed,te_ms,unet_ms,unet_ms_per_step,vae_ms,total_ms,resolution,"
                   "date,process_peak_ws_mb\n",
                   fp);
-            fprintf(fp, "%s,%d,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%dx%d,%s,%zu\n", dir.c_str(), steps,
-                    seed, te_ms, unet_ms, unet_ms / (double)n_sched_steps, vae_ms, total_ms,
-                    kImageHW, kImageHW, date_buf, process_peak_ws_mb);
+            fprintf(fp, "%s,%d,%u,%.1f,%.1f,%.1f,%.1f,%.1f,%dx%d,%s,%zu\n", dir.c_str(), steps,
+                    static_cast<unsigned>(seed), te_ms, unet_ms, unet_ms / (double)n_sched_steps,
+                    vae_ms, total_ms, kImageHW, kImageHW, date_buf, process_peak_ws_mb);
             fclose(fp);
         }
         if (pf) {

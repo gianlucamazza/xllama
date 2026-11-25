@@ -868,7 +868,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_inference_progress.cpp`      | `inference_progress.h` cadence, stall policy, watchdog                                                         |
 | `test_local_knob.cpp`              | `local_knob.h` LocalState file read/write, CRLF/trim normalisation, strict integer knobs                       |
 | `test_device_train.cpp`            | `device_train.h`                                                                                               |
-| `test_diffusion.cpp`               | `diffusion/` (Euler golden vectors, LCM step table, LCM-off = Euler)                                           |
+| `test_diffusion.cpp`               | `diffusion/` (Euler golden vectors, LCM step table, LCM-off = Euler, request contract)                         |
 | `test_diskbw.cpp`                  | `diskbw.h`                                                                                                     |
 | `test_embedding.cpp`               | `embedding.h`                                                                                                  |
 | `test_ggml_d3d12.cpp`              | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`; optional MMV fallback; IQ3 55 GB/s measured decode floor; others 100 |
