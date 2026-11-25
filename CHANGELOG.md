@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **GGUF thread knob bounded.** `gguf_n_threads.txt` above 512 (`GGML_MAX_N_THREADS`, where ggml-cpu's fixed thread arrays end) now keeps auto-detect instead of reaching llama.cpp. Values from 1 to 512 still pass through uncapped.
+
 - **D3D12 shared-activation cache keyed by tensor identity.** Hardening of the d3d12 shared-activation cache: lookups use tensor owner, data pointer, column stride, type and row size, not address alone. Latent hazard; no known failure on main.
 
 ## [1.8.1]
