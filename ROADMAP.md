@@ -38,9 +38,10 @@ performance belongs in `docs/benchmarks.md`.
   latest app tag (`v*`) on the [releases page](https://github.com/gianlucamazza/xllama/releases)
   identifies the exact MSVC artifact and its validation. See
   [the console build paths](docs/crossbuild-console.md).
-- **Latest evidence:** the Dev Series S capture is committed in
-  `bench/results/2026-09-30-catalogue-gates.csv` (LFM2.5-350M QAD Q4_0 on CI
-  package 1.6.0.1072, 101.6 tok/s median, 796.5 ms TTFT, 311 MiB peak). Catalogue signing
+- **Latest evidence:** current Series S numbers are in
+  [docs/benchmarks.md](docs/benchmarks.md), generated from `bench/results/`. The
+  catalogue-gates capture for this phase is
+  `bench/results/2026-09-30-catalogue-gates.csv` (CI package 1.6.0.1072). Catalogue signing
   and runtime verification passed in CI run `32963270335`; this does not equal
   external power/thermal evidence.
 - **Demo capture is on the v1.5.6 assets** (381 measured stills; raw MP4 plus a
@@ -110,6 +111,11 @@ The next prerequisites are the upstream PR 1 extraction and matched streamed
 row exports for the 8B comparison.
 Historical H2 FAIL and the #273 catalogue gates remain unchanged. Completing
 cache/tool checks does not close runtime, console or GPU acceptance tasks.
+
+A separate out-of-core inference research plan (OOC-0..OOC-5) is proposed, not
+approved, in #536. It extends the M3–M5 research parked in the MoE program
+merged with #532. This entry unblocks no milestone. M1 still needs its own
+owner approval and comes after the #522 regression and bump.
 
 ## Research / XAB release
 
@@ -700,7 +706,7 @@ the supported install path.
 - [~] Phase 2 — privacy URL
   <https://gianlucamazza.github.io/xllama/privacy.html>; public description +
   age notes in `release-readiness.md`; 5 screenshots (2026-07-30). Benchmark
-  claim aligned to the latest 101.6 tok/s capture (QAD Q4_0, 2026-09-30).
+  claim follows the generated [docs/benchmarks.md](docs/benchmarks.md).
   Trailer still open.
 
 ## Upstream and vendor lifecycle

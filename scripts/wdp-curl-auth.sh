@@ -27,14 +27,16 @@ wdp_curl_auth_cleanup() {
 	unset WDP_CURL_CONFIG_DIR WDP_CURL_CONFIG
 }
 
+_wdp_print_first() { printf '%s' "$1"; }
+
+# Body of the trap currently set for $1, unquoted. `trap -p` prints
+# `trap -- '<body>' SIG` with shell quoting (embedded ' become '\''), so let
+# the shell itself undo the quoting instead of stripping it by hand.
 _wdp_trap_body() {
 	local sig="$1" spec
 	spec=$(trap -p "$sig" 2>/dev/null || true)
-	[[ -n "$spec" ]] || return 0
-	spec="${spec#trap -- \'}"
-	local suffix="\' ${sig}"
-	spec="${spec%"$suffix"}"
-	printf '%s' "$spec"
+	[[ "$spec" == "trap -- "* ]] || return 0
+	eval "_wdp_print_first ${spec#trap -- }"
 }
 
 wdp_setup_curl_auth() {
