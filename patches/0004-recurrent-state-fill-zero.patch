@@ -1,0 +1,20 @@
+From upstream ggml-org/llama.cpp PR #31913 ("llama : fix sticky NaN in recurrent state",
+merged 2026-11-18), the llm_graph_context::build_rs hunk only. The reset of a
+cleared recurrent state multiplied it by 0, so a NaN anywhere in the state stayed
+NaN forever; writing 0 clears it. Affects every recurrent and hybrid model (LFM2,
+Granite-4.0-H). Drop at the #522 pin bump (the pin will contain it;
+apply-llama-patches.sh then fails on this patch).
+
+diff --git a/src/llama-graph.cpp b/src/llama-graph.cpp
+index 1112ad8..247fd57 100644
+--- a/src/llama-graph.cpp
++++ b/src/llama-graph.cpp
+@@ -3602,7 +3602,7 @@ ggml_tensor * llm_graph_context::build_rs(
+     // Clear a single state which will then be copied to the other cleared states.
+     // Note that this is a no-op when the view is zero-sized.
+     ggml_tensor * state_zero = ggml_view_1d(ctx0, states, state_size*(rs_zero >= 0), rs_zero*states->nb[1]*(rs_zero >= 0));
+-    ggml_build_forward_expand(gf, ggml_scale_inplace(ctx0, state_zero, 0));
++    ggml_build_forward_expand(gf, ggml_fill_inplace(ctx0, state_zero, 0.0f));
+ 
+     // copy states
+     // NOTE: assuming the copy destinations are ALL contained between rs_head and rs_head + n_rs
