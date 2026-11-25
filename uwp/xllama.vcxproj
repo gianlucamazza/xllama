@@ -412,6 +412,7 @@
     <ClCompile Include="mainpage-debug.cpp" />
     <ClCompile Include="mainpage-history.cpp" />
     <ClCompile Include="mainpage-image.cpp" />
+    <ClCompile Include="mainpage-model.cpp" />
     <ClCompile Include="mainpage-personalize.cpp" />
     <ClCompile Include="mainpage-settings.cpp" />
     <ClCompile Include="model-downloader.cpp" />
