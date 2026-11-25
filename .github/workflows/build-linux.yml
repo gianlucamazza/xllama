@@ -158,6 +158,9 @@ jobs:
       - name: Verify code/project/doc coherence (SSOT audit)
         run: python3 scripts/check-coherence.py
 
+      - name: Apply llama.cpp patches
+        run: bash scripts/apply-llama-patches.sh
+
       - name: Configure (with tests)
         run: cmake --preset linux-test
 
@@ -233,6 +236,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake build-essential libcurl4-openssl-dev
+
+      - name: Apply llama.cpp patches
+        run: bash scripts/apply-llama-patches.sh
 
       - name: Configure (ASan + tests)
         run: cmake --preset linux-asan

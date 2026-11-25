@@ -45,7 +45,7 @@ You only need a terminal for the checksum step ([full guide](docs/install-releas
 
 > The browser steps follow Microsoft's documentation but have not yet been walked end to end on a console. If something doesn't match, [open an issue](https://github.com/gianlucamazza/xllama/issues).
 
-**Command line:** `./scripts/deploy.sh` path in [docs/install-release.md](docs/install-release.md#install-from-the-command-line) · **Build from source:** [docs/crossbuild-console.md](docs/crossbuild-console.md) · **Linux CLI:** `cmake --preset linux-release && cmake --build build/linux-release -j`
+**Command line:** `./scripts/deploy.sh` path in [docs/install-release.md](docs/install-release.md#install-from-the-command-line) · **Build from source:** [docs/crossbuild-console.md](docs/crossbuild-console.md) · **Linux CLI:** `./scripts/apply-llama-patches.sh && cmake --preset linux-release && cmake --build build/linux-release -j`
 
 ## Demo
 

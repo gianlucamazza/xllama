@@ -66,6 +66,7 @@ Inside the Windows VM:
 
 ```powershell
 git submodule update --init --recursive
+bash scripts/apply-llama-patches.sh   # Git Bash; unified and llamacpp compile the patched pin
 .\scripts\build-uwp.ps1 -Configuration Release -Platform x64
 ```
 
