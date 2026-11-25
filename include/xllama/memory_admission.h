@@ -48,10 +48,12 @@ inline bool is_memory_refusal(const std::string& error) {
     return error.rfind(kMemoryRefusalPrefix, 0) == 0;
 }
 
-// Allocations the dry run does not see (tokenizer, sampler, decode scratch,
-// the allocator's own overhead). Calibrated on host against the measured
-// working-set growth of a real load: every load logs the estimate next to
-// the "ws after model load / after context" lines (console calibration).
+// Headroom for allocations the dry run does not see (tokenizer, sampler,
+// decode scratch, allocator overhead). On the Series S the estimate alone
+// already covered the working-set growth of five catalogue loads, GPU and
+// lfm25-8b-a1b included (bench/results/2026-11-25-context-architecture).
+// Every load logs the estimate and the working set in use beside the
+// "ws after model load / after context" lines, so this can be re-measured.
 inline constexpr std::size_t kSessionMemoryMarginMb = 192;
 
 // |host_in_use_mb| is the process working set before the load (the previous
