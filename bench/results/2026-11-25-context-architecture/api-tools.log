@@ -1,0 +1,16 @@
+=== spike: LAN bind + HTTP 200 ===
+  Waiting for http://<console-ip>:11434/ (timeout 120s)...
+  Endpoint up after 0s.
+  GET / -> {"status":"ok","service":"xllama"}
+spike: PASS
+=== tools: client-side tool proposal (ADR 0004) ===
+  A ok: get_weather({"city":"Paris"})
+  B ok: tool result answered
+  C ok: tools+functions is 400
+  D ok: tool_choice none answered as plain chat
+  E skipped: set ORT_MODEL to check the ONNX 400
+  F ok: oversized tools are 400 context_length_exceeded param tools (stream=false)
+  F ok: oversized tools are 400 context_length_exceeded param tools (stream=true)
+  G ok: SSE returned indexed get_weather and tool_calls finish
+  H ok: SSE answered the returned tool call ID and ended with DONE
+tools: PASS

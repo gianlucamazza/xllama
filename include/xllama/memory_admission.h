@@ -18,11 +18,15 @@
 
 namespace xllama {
 
+// host_* is everything in the process's system memory, including buffers on
+// an integrated GPU that uses host memory (D3D12 on the Series S: its weights
+// occupy the same working set, measured in docs/gguf-gpu-decode.md D2-r2).
+// device_mb is what GPU devices hold, checked against the GPU budget too.
 struct SessionMemory {
-    std::size_t host_model_mb = 0;   // weights kept in host memory
-    std::size_t host_context_mb = 0; // KV cache + recurrent state in host memory
-    std::size_t host_compute_mb = 0; // compute buffers in host memory
-    std::size_t device_mb = 0;       // everything placed on GPU devices (D3D12)
+    std::size_t host_model_mb = 0;   // weights in system memory
+    std::size_t host_context_mb = 0; // KV cache + recurrent state in system memory
+    std::size_t host_compute_mb = 0; // compute buffers in system memory
+    std::size_t device_mb = 0;       // buffers on GPU devices (D3D12)
 
     std::size_t host_mb() const {
         return host_model_mb + host_context_mb + host_compute_mb;

@@ -525,14 +525,19 @@ std::optional<SessionMemory> estimate_session_memory(const std::string& path,
     std::size_t model_b = 0, context_b = 0, compute_b = 0, device_b = 0;
     for (const auto& [buft, mb] : llama_get_memory_breakdown(ctx.get())) {
         const ggml_backend_dev_t dev = ggml_backend_buft_get_device(buft);
-        const bool host = ggml_backend_buft_is_host(buft) || !dev ||
-                          ggml_backend_dev_type(dev) == GGML_BACKEND_DEVICE_TYPE_CPU;
-        if (host) {
+        const enum ggml_backend_dev_type type =
+            dev ? ggml_backend_dev_type(dev) : GGML_BACKEND_DEVICE_TYPE_CPU;
+        const bool on_device =
+            !ggml_backend_buft_is_host(buft) &&
+            (type == GGML_BACKEND_DEVICE_TYPE_GPU || type == GGML_BACKEND_DEVICE_TYPE_IGPU);
+        if (on_device)
+            device_b += mb.model + mb.context + mb.compute;
+        // System memory: CPU buffer types, host buffers, and an integrated GPU's
+        // buffers (it uses host memory; D3D12 reports IGPU).
+        if (!on_device || type == GGML_BACKEND_DEVICE_TYPE_IGPU) {
             model_b += mb.model;
             context_b += mb.context;
             compute_b += mb.compute;
-        } else {
-            device_b += mb.model + mb.context + mb.compute;
         }
     }
     SessionMemory m;
@@ -1713,7 +1718,8 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
                        std::to_string(need->host_model_mb) + ", context " +
                        std::to_string(need->host_context_mb) + ", compute " +
                        std::to_string(need->host_compute_mb) + "), device " +
-                       std::to_string(need->device_mb) + " MB\n");
+                       std::to_string(need->device_mb) + " MB, " +
+                       std::to_string(working_set_mb()) + " MB in use\n");
         else
             log_output("[xllama] Session: memory dry run failed; loading without admission\n");
         const ::xllama::MemoryVerdict v = admit_memory(need, n_ctx);

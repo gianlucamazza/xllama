@@ -1,0 +1,11 @@
+=== spike: LAN bind + HTTP 200 ===
+  Waiting for http://<console-ip>:11434/ (timeout 120s)...
+  Endpoint up after 0s.
+  GET / -> {"status":"ok","service":"xllama"}
+spike: PASS
+=== chat: /v1/chat/completions ===
+  ok: assistant replied: Hello!
+  checking single-slot 503 (two concurrent requests)...
+  concurrent codes: 200 503
+  ok: single-slot 503 observed
+chat: PASS
