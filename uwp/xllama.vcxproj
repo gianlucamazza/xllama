@@ -409,6 +409,7 @@
     <ClCompile Include="MainPage.cpp" />
     <ClCompile Include="mainpage-api.cpp" />
     <ClCompile Include="mainpage-debug.cpp" />
+    <ClCompile Include="mainpage-personalize.cpp" />
     <ClCompile Include="mainpage-settings.cpp" />
     <ClCompile Include="model-downloader.cpp" />
     <!-- module.cpp includes Generated Files\module.g.cpp (cppwinrt 2.0 factory
