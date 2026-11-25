@@ -283,8 +283,8 @@ instead of appending to another conversation; the turn then re-prefills its own
 context, cheaply through the #170a diff. The same check gates the #170b disk
 save. `hub.generation` still counts resident-session swaps. The routing token-count no longer loads a model
 at all: it uses the exact count only when the CPU session is already resident,
-else the same chars/5.0 estimator that bounds the prompt in `BuildPrompt` (the
-old shape loaded the CPU model on the UI thread just to tokenize, then could
+else the role's chars-per-token estimate, both clamped to the context ceiling
+by `routing_prompt_tokens` (the old shape loaded the CPU model on the UI thread just to tokenize, then could
 destroy it for DirectML — the historical "two model loads" cost recorded in
 §5d). When a model becomes Ready the session is **pre-loaded** in a detached
 worker (`PreloadSessionAsync`), so the first send pays prefill+decode only.
@@ -401,13 +401,13 @@ one, a new name is appended, unmentioned entries stay.
 ### Catalogue session policy (`n_ctx`, `role`)
 
 Optional per-entry fields used at **session open** (not only download). Helpers
-live next to the prompt budget in `routing_policy.h` so the trimmer and
+live next to the prompt budget in `routing_policy.h` so the routing ceiling and
 `kDefaultNCtx` cannot drift independently (#171 / #133 class):
 
-| Field       | Contract                                                                                                                                                                                                                                                        |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`n_ctx`** | `0`/omit → `kDefaultNCtx` (2048). Else clamped by `resolve_n_ctx` to **[512, 8192]**. Applied in `EnsureSession` and the LAN chat handler when opening the hub session. Coding catalogue entries use **4096**.                                                  |
-| **`role`**  | `""` (default chat) or **`"coding"`**. Effects only: (1) UI trimmer uses `kEstimatedCharsPerTokenCoding` (3.5) instead of prose 5.0; (2) LAN `POST /v1/chat/completions` with **empty** `system` fills `kCodingSystemPrompt` instead of `kDefaultSystemPrompt`. |
+| Field       | Contract                                                                                                                                                                                                                                                                     |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`n_ctx`** | `0`/omit → `kDefaultNCtx` (2048). Else clamped by `resolve_n_ctx` to **[512, 8192]**. Applied in `EnsureSession` and the LAN chat handler when opening the hub session. Coding catalogue entries use **4096**.                                                               |
+| **`role`**  | `""` (default chat) or **`"coding"`**. Effects only: (1) the UI routing estimate uses `kEstimatedCharsPerTokenCoding` (3.5) instead of prose 5.0; (2) LAN `POST /v1/chat/completions` with **empty** `system` fills `kCodingSystemPrompt` instead of `kDefaultSystemPrompt`. |
 
 **Explicit non-effects (do not re-introduce):**
 
@@ -440,11 +440,15 @@ answer for history dropped that would have fit.
 
 So the estimate keeps exactly one job: **routing**. `decide_routing` needs a token
 count before a model — hence a tokenizer — has been chosen, and its ceiling has to
-stay coherent with `token_threshold` (#133). `BuildPromptPlan` therefore trims by
-`max_prompt_tokens_for_n_ctx(n_ctx)` with the optimistic `kEstimatedCharsPerToken`,
-and being optimistic is the point: it drops _fewer_ turns, so the exact pass can
-only tighten and nothing routing saw reappears behind its back. Getting that
-estimate wrong costs a routing decision, not an answer.
+stay coherent with `token_threshold` (#133). `BuildPromptPlan` therefore passes
+the **whole** conversation to the worker and drops nothing; routing sees
+`routing_prompt_tokens(count, n_ctx)`, the count clamped to
+`max_prompt_tokens_for_n_ctx(n_ctx)`, because that is what `fit_prompt` will
+prefill. The same estimate, on message text only, predicts whether a backend
+that cannot shift its context would overflow on a KV-reuse attempt, and so
+whether to try one. Getting either estimate wrong costs a routing decision or a
+fail-fast retry, never an answer: which turns the model sees is decided once,
+by `fit_prompt`, in tokens.
 
 **The two ceilings are separate on purpose.**
 `max_prompt_tokens_for_n_ctx(n_ctx)` → `n_ctx − 250`, floor 256, with the shipping
@@ -875,11 +879,13 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_capture_probe.cpp`           | `capture_probe.h`                                                                                              |
 | `test_chat_history.cpp`            | `uwp/chat-history.h`                                                                                           |
 | `test_chat_prompt.cpp`             | `chat_prompt.h`                                                                                                |
+| `test_main.cpp`                    | doctest entry point; stall watchdog off unless `XLLAMA_INFER_STALL_TIMEOUT_S` is exported                      |
 | `test_cli.cpp`                     | `cli.h`                                                                                                        |
 | `test_decode_loop.cpp`             | `decode_loop.h` via `run_inference` (opt-in model)                                                             |
 | `test_inference_progress.cpp`      | `inference_progress.h` cadence, stall policy, watchdog                                                         |
+| `test_local_knob.cpp`              | `local_knob.h` LocalState file read/write, CRLF/trim normalisation, strict integer knobs                       |
 | `test_device_train.cpp`            | `device_train.h`                                                                                               |
-| `test_diffusion.cpp`               | `diffusion/` (Euler golden vectors, LCM step table, LCM-off = Euler)                                           |
+| `test_diffusion.cpp`               | `diffusion/` (Euler golden vectors, LCM step table, LCM-off = Euler, request contract)                         |
 | `test_diskbw.cpp`                  | `diskbw.h`                                                                                                     |
 | `test_embedding.cpp`               | `embedding.h`                                                                                                  |
 | `test_ggml_d3d12.cpp`              | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`; optional MMV fallback; IQ3 55 GB/s measured decode floor; others 100 |
@@ -901,6 +907,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_personalize.cpp`             | `personalize.h`                                                                                                |
 | `test_preference_capture.cpp`      | `preference_capture.h`                                                                                         |
 | `test_prefix_snapshot.cpp`         | `prefix_snapshot.h` — extension keeps; slack restore; regenerate restores; attention prefix required           |
+| `test_context_shift.cpp`           | `context_shift.h` — #169 shift admission (`memory_can_shift`, SWA guard)                                       |
 | `test_granite_hybrid_snapshot.cpp` | #512 restore on Granite-4.0-H-Tiny (opt-in `XLLAMA_GRANITE_H_TINY`; skips in CI)                               |
 | `test_prompt_budget.cpp`           | `prompt_budget.h`                                                                                              |
 | `test_ramceil.cpp`                 | `ramceil.h`                                                                                                    |

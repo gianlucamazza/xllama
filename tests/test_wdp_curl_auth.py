@@ -46,7 +46,7 @@ curl "${CURL_AUTH[@]}" --fail "https://example.invalid/api/app/packagemanager/pa
 
 
 class WdpCurlAuthTests(unittest.TestCase):
-    def _run_helper(self, extra_env=None, bash_args=None, driver=DRIVER):
+    def _run_helper(self, extra_env=None, bash_args=None, driver=DRIVER, keep_marker=False):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             stub_dir = tmp_path / "bin"
@@ -86,6 +86,9 @@ class WdpCurlAuthTests(unittest.TestCase):
             mode = cfg_mode.read_text(encoding="utf-8").strip() if cfg_mode.is_file() else ""
             config_dir = dir_out.read_text(encoding="utf-8").strip() if dir_out.is_file() else ""
             config_gone = bool(config_dir) and not Path(config_dir).exists()
+            if keep_marker:
+                marker = Path(str(dir_out) + ".prev")
+                self.prev_marker = marker.read_text(encoding="utf-8") if marker.is_file() else ""
             return result, recorded, cfg, mode, config_dir, config_gone
 
     def test_password_not_on_curl_argv_and_temp_gone(self):
@@ -104,6 +107,31 @@ class WdpCurlAuthTests(unittest.TestCase):
         self.assertEqual(mode, "600")
         self.assertTrue(config_dir, "helper did not report its temp dir")
         self.assertTrue(config_gone, "curl -K temp dir was not removed on EXIT")
+
+    def test_prior_exit_trap_still_runs(self):
+        # A caller that sets its own EXIT trap before setup (install-latest-build.sh)
+        # must keep it: the helper chains it after removing the curl config.
+        driver = (
+            "set -euo pipefail\n"
+            "cleanup() { printf 'prev ran\\n' >\"$DIR_OUT.prev\"; }\n"
+            "trap cleanup EXIT\n" + DRIVER.split("set -euo pipefail\n", 1)[1]
+        )
+        result, *_rest, config_gone = self._run_helper(driver=driver, keep_marker=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(config_gone, "curl -K temp dir was not removed on EXIT")
+        self.assertEqual(self.prev_marker, "prev ran\n", result.stderr)
+
+    def test_prior_exit_trap_with_quotes_still_runs(self):
+        # trap -p re-quotes embedded single quotes as '\''; the chained body must
+        # survive that round trip.
+        driver = (
+            "set -euo pipefail\n"
+            "trap \"printf '%s\\n' 'it'\\''s here' >\\\"\\$DIR_OUT.prev\\\"\" EXIT\n"
+            + DRIVER.split("set -euo pipefail\n", 1)[1]
+        )
+        result, *_ = self._run_helper(driver=driver, keep_marker=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.prev_marker, "it's here\n", result.stderr)
 
     def test_set_x_does_not_echo_credentials(self):
         result, recorded, *_ = self._run_helper(bash_args=["-x"])

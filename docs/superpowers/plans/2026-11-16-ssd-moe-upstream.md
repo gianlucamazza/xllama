@@ -2,6 +2,8 @@
 
 **Status:** Proposed; planning only. No runtime integration or console acceptance is delivered by this document.
 
+**Plan of record:** sequencing, gates and acceptance for this work are milestone **M2** of the [evidence-gated MoE engineering program](2026-11-24-moe-engineering-program.md) (#532). This document keeps the proposed PR boundaries; where the two disagree, the program wins.
+
 **Goal:** Bring the existing demand-loaded expert implementation into xLlama through independently reviewable contributions, beginning with the CPU foundation.
 
 **Architecture:** Reuse Stan's Reader, cache leases and native provider. Keep shared weights resident and selected expert matrices in a bounded cache. Separate the portable cache, native loader/execution integration, UWP activation and GPU bridge so each has its own acceptance evidence.
@@ -37,7 +39,7 @@ These are proposed contributions, not assignments or delivery promises from Stan
 - Preserve the default resident path, existing SessionHub ownership and shared compute admission.
 - Keep the feature explicitly opt-in and experimental. No automatic fallback to a full resident load after streamed admission or decode failure.
 - Do not commit edits inside the llama.cpp submodule. Carry native changes as explicit patches against the recorded pin.
-- Do not put optional MoE patches in the unconditional `patches/0*-*.patch` path consumed by `scripts/apply-uwp-patches.sh`.
+- Do not put optional MoE patches in the unconditional `patches/0*-*.patch` path consumed by `scripts/apply-llama-patches.sh`.
 - Reuse existing interfaces and preparation checks; file placement below is the proposed upstream mapping, not an API redesign prerequisite.
 - Preserve attribution and MIT notices. Do not import the whole seventeen-patch application history, signing machinery or generated receipts as the first contribution.
 - Keep fixture math, full-checkpoint parity, console lifecycle, GPU correctness and performance as separate evidence. No performance table is copied into this plan.
