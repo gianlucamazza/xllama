@@ -25,12 +25,17 @@ struct CatalogueLoad {
 };
 
 // Operator override for llama.cpp thread count on interactive GGUF sessions
-// (GUI and LAN API). Absent, 0, or any non-positive value keeps
-// SessionParams::n_threads at 0 (auto). A positive count is used as-is.
+// (GUI and LAN API). Absent, 0, any non-positive value, or a value above
+// kGgufNThreadsMax keeps SessionParams::n_threads at 0 (auto). Any other count
+// is used as-is: the UWP auto cap of 6 (platform.cpp) is deliberately not
+// applied, so an operator can measure past it.
 inline constexpr int kGgufNThreadsKnobAbsent = -1;
+// GGML_MAX_N_THREADS at the pinned llama.cpp; ggml-cpu sizes fixed arrays by
+// it. session.cpp static_asserts the two agree.
+inline constexpr int kGgufNThreadsMax = 512;
 
 inline constexpr int resolve_gguf_n_threads(int knob) {
-    return knob < 1 ? 0 : knob;
+    return (knob < 1 || knob > kGgufNThreadsMax) ? 0 : knob;
 }
 
 // `model_dir` is where the model's files live (resolve_model_path on the bare
