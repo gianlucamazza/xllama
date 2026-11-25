@@ -58,7 +58,8 @@ live XAML chat UI.
 - **Port:** `LocalState\api-port.txt` if present, else **11434** (Ollama's default port).
   Xbox silently drops traffic for ports in **[57344, 65535]** and reserves **11443** for the
   Device Portal, so the server only honors an override in the bindable app range
-  **[1025, 49151]** (and not 11443); anything else falls back to 11434 with a log line.
+  **[1025, 49151]** (and not 11443); anything else, including text that is not a whole
+  number, falls back to 11434 with a log line. Settings shows that same effective port.
 - **Model:** taken from the request's `"model"` field; if absent, falls back to
   `LocalState\model.txt`. The resident Session may already exist before any
   request — the GUI pre-loads it when a model becomes Ready — and it is
@@ -421,7 +422,10 @@ job — use Settings / autopilot `start_train` for that.
 
 ### Images (`POST /v1/images/generations`)
 
-In-process SD-Turbo with the same clamps as the Image dialog (`steps` 1–4).
+In-process SD-Turbo with the same contract as the Image dialog
+(`include/xllama/diffusion/request.h`): `steps` clamped to 1–4, `seed` any
+uint32 (above it clamps; a negative seed keeps 42). The same seed reproduces the
+same image from the dialog, the API and autopilot.
 Shares process-wide compute admission with chat → `503` when busy.
 
 ```bash

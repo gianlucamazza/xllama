@@ -177,9 +177,10 @@ bool apply_stop_sequences(std::string& output, const std::vector<std::string>& s
 
 ChatFormat chat_format_for(const std::string& model_id) {
     ChatFormat f;
-    // Gemma / Llama-3 / Phi-3 before the ChatML default. Substrings do not
-    // collide with smollm2 / lfm2 / qwen ids. BOS is added by the tokenizer
-    // (add_bos) for Gemma and Llama-3 GGUF — not emitted in the template string.
+    // Gemma / Llama-3 / Phi-3 / Granite before the ChatML default. Substrings do
+    // not collide with smollm2 / lfm2 / qwen ids. Granite file names often carry
+    // a runtime tag ("-ollama", "-llamacpp"), so "llama"/"phi" yield to it. BOS is added by the
+    // tokenizer (add_bos) for Gemma and Llama-3 GGUF — not emitted in the template string.
     if (model_is_gemma4(model_id)) {
         // Gemma 4 canonical template: new turn tokens and a dedicated system
         // turn. Thinking stays off, so generation starts at the model header.
@@ -206,7 +207,7 @@ ChatFormat chat_format_for(const std::string& model_id) {
         f.system_style = SystemStyle::MergeIntoFirstUser;
         f.stop_sequences = {"<end_of_turn>"};
         f.gen_suffix = {};
-    } else if (model_is_llama(model_id)) {
+    } else if (model_is_llama(model_id) && !model_is_granite(model_id)) {
         // Meta Llama-3 / 3.1 / 3.2 instruct template.
         f.kind = ChatFormatKind::Llama3;
         f.turn_open = "<|start_header_id|>";
@@ -219,7 +220,7 @@ ChatFormat chat_format_for(const std::string& model_id) {
         f.system_style = SystemStyle::DedicatedTurn;
         f.stop_sequences = {"<|eot_id|>"};
         f.gen_suffix = {};
-    } else if (model_is_phi(model_id)) {
+    } else if (model_is_phi(model_id) && !model_is_granite(model_id)) {
         // Microsoft Phi-3 / 3.5 instruct: <|role|>\n content <|end|>\n
         f.kind = ChatFormatKind::Phi3;
         f.turn_open = "<|";

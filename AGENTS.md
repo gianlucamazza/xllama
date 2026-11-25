@@ -99,10 +99,10 @@ Where to put a change:
 ## Testing
 
 Host suite is one doctest binary, `xllama-tests` (doctest v2.4.11, fetched by
-CMake). Case counts live in
-[docs/architecture.md](docs/architecture.md) (Unit test map). If the count
-changes, update every doc that cites it — CI prints the total and does not
-pin the number.
+CMake). Which file covers what is the Unit test map in
+[docs/architecture.md](docs/architecture.md); register a new `test_*.cpp`
+there too. No doc keeps a case count: CI prints the case and assertion totals
+and does not pin them.
 
 ```bash
 ctest --test-dir build/linux-test --output-on-failure
@@ -141,7 +141,8 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
   tests/test_diffusion_export.py \
   tests/test_redact_recorded_path.py tests/test_host_model_trust.py \
   tests/test_dependency_monitoring.py tests/test_host_training_env.py \
-  tests/test_d3d12_layer_log.py
+  tests/test_d3d12_layer_log.py tests/test_ort_profile.py \
+  tests/test_bench_kv_driver.py
 ```
 
 The numerical comparator tests need numpy (and `pyyaml` for gguf-py in `test_make_moe_fixture.py`), which CI installs for them:
@@ -172,7 +173,8 @@ part of the Linux CI job. Procedure:
 
 ```bash
 source ~/.config/xllama/xbox-env
-# gates: routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|store|all
+# gates: routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|store|cleanup|all
+# (all excludes store, a separate SKU; cleanup removes the gates' temporary chats)
 ./scripts/validate-console.sh <gate|all>
 # modes: serve|rate|serve-stale|rate-stale|lora-rt|device-train|all
 ./scripts/validate-console-training.sh <mode>
@@ -245,6 +247,10 @@ Load-bearing headers agents usually touch:
 | Header                               | Role                                                           |
 | ------------------------------------ | -------------------------------------------------------------- |
 | `session.h` / `session_hub.h`        | `Session` API; the one process-wide resident session           |
+| `session_spec.h`                     | Catalogue → `SessionParams`; hub reuse rule (ADR 0007)         |
+| `prefix_snapshot.h`                  | Hybrid-cache prefix plan: keep, rewind, restore or clear       |
+| `context_shift.h`                    | #169 context-shift admission predicate                         |
+| `platform.h` / `path_utils.h`        | Threads, logging, LocalState and model path resolution         |
 | `compute_admission.h`                | Process-wide RAII permit for resource-heavy GUI and API jobs   |
 | `api_connection.h`                   | Bounded LAN slots and HTTP 200/503 mapping for a compute admit |
 | `debug_dashboard.h`                  | Optional debug dashboard snapshot (real readings)              |
@@ -264,6 +270,8 @@ Load-bearing headers agents usually touch:
 | `training.h` / `device_train.h`      | Job validation and Lane B device train                         |
 | `personalize.h`                      | In-app personalize helpers                                     |
 | `json_utils.h`                       | JSON escape / parse (header-only)                              |
+| `local_knob.h`                       | LocalState knob/input files: read, write, strict int parse     |
+| `diffusion/request.h`                | Image request contract: steps and seed on every surface        |
 | `stability_attribution.h`            | Image-dialog Stability §IV.a credit predicate                  |
 | `catalog_trust.h`                    | UWP-only catalogue signature types                             |
 
