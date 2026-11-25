@@ -1,0 +1,68 @@
+// Copyright (c) 2024 Gianluca Mazza
+// SPDX-License-Identifier: MIT
+#include "xllama/api_discovery.h"
+
+#include <doctest/doctest.h>
+#include <nlohmann/json.hpp>
+
+using nlohmann::json;
+
+TEST_CASE("health_json keeps the original fields first and adds version, api, capabilities") {
+    xllama::ApiCapabilities caps;
+    caps.tools = true;
+    caps.images = false;
+    const std::string body = xllama::health_json("1.8.1.1805", caps);
+    CHECK(body.rfind("{\"status\":\"ok\",\"service\":\"xllama\",", 0) == 0);
+    const json j = json::parse(body);
+    CHECK(j["version"] == "1.8.1.1805");
+    CHECK(j["api"] == xllama::kApiContractVersion);
+    CHECK(j["capabilities"]["tools"] == true);
+    CHECK(j["capabilities"]["images"] == false);
+    CHECK(j["capabilities"]["reasoning_content"] == false);
+    CHECK(j["capabilities"].size() == 8);
+}
+
+TEST_CASE("build_api_capabilities follows the compiled backends") {
+    const xllama::ApiCapabilities caps = xllama::build_api_capabilities();
+#ifdef XLLAMA_USE_LLAMA
+    CHECK(caps.tools);
+    CHECK(caps.embeddings);
+#endif
+#ifndef XLLAMA_USE_ORT
+    CHECK_FALSE(caps.images);
+#endif
+    CHECK(caps.pull);
+}
+
+TEST_CASE("models_list_json is an OpenAI list with xllama's per-model fields") {
+    xllama::ModelInfo chat;
+    chat.id = "lfm25-1.2b-instruct";
+    chat.display = "LFM2.5 1.2B \"Instruct\"";
+    chat.kind = "gguf";
+    chat.n_ctx = 4096;
+    chat.active = true;
+    chat.tools = true;
+    xllama::ModelInfo raw;
+    raw.id = "C:\\models\\x.gguf"; // a model.txt path outside the catalogue
+    const json j = json::parse(xllama::models_list_json({chat, raw}, 1700000000));
+    CHECK(j["object"] == "list");
+    REQUIRE(j["data"].size() == 2);
+    const json& a = j["data"][0];
+    CHECK(a["id"] == "lfm25-1.2b-instruct");
+    CHECK(a["object"] == "model");
+    CHECK(a["created"] == 1700000000);
+    CHECK(a["owned_by"] == "xllama");
+    CHECK(a["active"] == true);
+    CHECK(a["display"] == "LFM2.5 1.2B \"Instruct\"");
+    CHECK(a["kind"] == "gguf");
+    CHECK(a["role"] == "");
+    CHECK(a["n_ctx"] == 4096);
+    CHECK(a["capabilities"]["tools"] == true);
+    CHECK(a["capabilities"]["reasoning"] == false);
+    const json& b = j["data"][1];
+    CHECK(b["id"] == "C:\\models\\x.gguf");
+    CHECK_FALSE(b.contains("active"));
+    CHECK_FALSE(b.contains("display"));
+    CHECK_FALSE(b.contains("n_ctx"));
+    CHECK(b["capabilities"]["tools"] == false);
+}

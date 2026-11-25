@@ -138,8 +138,8 @@ xllama has no `/api/version` or `/api/chat`.
 
 | Method    | Path                     | Behaviour                                                                                                                                                                           |
 | --------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`     | `/` or `/health`         | `200 {"status":"ok","service":"xllama"}` — the spike/liveness probe.                                                                                                                |
-| `GET`     | `/v1/models`             | OpenAI model discovery — every servable on-device model; non-standard `"active": true` marks the one currently loaded.                                                              |
+| `GET`     | `/` or `/health`         | `200 {"status":"ok","service":"xllama",…}` plus build `version`, contract `api` and route `capabilities` ([Discovery](#discovery-health-and-v1models)).                             |
+| `GET`     | `/v1/models`             | OpenAI model discovery: every servable on-device model, with `active`, `kind`, `role`, `n_ctx` and `capabilities` ([Discovery](#discovery-health-and-v1models)).                    |
 | `GET`     | `/api/tags`              | Ollama model discovery — same list, Ollama shape.                                                                                                                                   |
 | `POST`    | `/api/pull`              | Download a trusted chat or embedding model from the built-in model list (Ollama-style NDJSON progress), then load it.                                                               |
 | `POST`    | `/v1/chat/completions`   | OpenAI-compatible chat completion; one JSON body, or **SSE** chunk events when `stream: true`.                                                                                      |
@@ -150,6 +150,51 @@ xllama has no `/api/version` or `/api/chat`.
 | `GET`     | `/v1/training/status`    | `result.done` / `progress.json` / last personalized `result.json` + usable sample count (#118).                                                                                     |
 | `POST`    | `/v1/images/generations` | SD-Turbo image gen (`prompt`, `steps` 1–4, `seed`); returns OpenAI-ish `{data:[{b64_json,path}]}` (#118). Shares process-wide compute admission with chat, embeddings and training. |
 | `OPTIONS` | _any_                    | CORS preflight (`204` + `Allow-Methods/Headers`) for browser clients.                                                                                                               |
+
+### Discovery (`/health` and `/v1/models`)
+
+`GET /health` keeps its original two fields first and adds what a client needs
+to branch on (`include/xllama/api_discovery.h`):
+
+```json
+{
+  "status": "ok",
+  "service": "xllama",
+  "version": "1.8.1.1805",
+  "api": 1,
+  "capabilities": {
+    "tools": true,
+    "tools_stream": true,
+    "embeddings": true,
+    "images": true,
+    "pull": true,
+    "preferences": true,
+    "training_status": true,
+    "reasoning_content": false
+  }
+}
+```
+
+`version` is the package identity (the CI build stamps the fourth part). `api`
+is the contract version; it increases when a documented response shape or
+status mapping changes in a way a client must branch on. `capabilities` lists
+what the installed build serves: the llama.cpp-only package reports
+`images: false`.
+
+Each `/v1/models` entry keeps OpenAI's `id`, `object`, `created` and `owned_by`
+and adds non-standard fields that clients may ignore:
+
+| Field          | Meaning                                                                                                                |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `active`       | `true` on the model the resident session holds (absent otherwise)                                                      |
+| `display`      | Catalogue display name (absent for a model outside the catalogue)                                                      |
+| `kind`         | `gguf`, `ort-genai` or `diffusion`                                                                                     |
+| `role`         | Catalogue role: `""`, `coding` or `embedding`                                                                          |
+| `n_ctx`        | Context the session uses: the resident session's for the active model, else the catalogue's                            |
+| `capabilities` | `tools` (the GGUF chat template renders a tool schema, the same check a tool proposal makes), `reasoning`, `embedding` |
+
+`tools` is read from the GGUF header's chat template without loading weights,
+and cached per file, size and write time.
 
 ### Model download (`POST /api/pull`)
 
@@ -497,7 +542,7 @@ curl -sS -o /tmp/xllama-gui-busy.json -w '%{http_code}\n' \
 
 ## Validation
 
-See `scripts/validate-api.sh` (`spike|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all`). Run it **from another host on the LAN**,
+See `scripts/validate-api.sh` (`spike|discovery|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all`). Run it **from another host on the LAN**,
 not from a client on the console itself — cross-device inbound needs no loopback exemption,
 but a same-host localhost client would (`CheckNetIsolation`). Spike gate first (`GET /` → 200
 proves the bind survives the Series S firewall/PLM), then chat / prefs / train as needed. `tools` checks the tool-proposal contract:

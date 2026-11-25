@@ -60,6 +60,7 @@ add_executable(xllama-tests
     test_personalize.cpp
     test_api_config.cpp
     test_api_activity.cpp
+    test_api_discovery.cpp
     test_debug_dashboard.cpp
     test_compute_admission.cpp
     test_api_connection.cpp

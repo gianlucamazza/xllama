@@ -14,6 +14,7 @@
 // guard). Sockets + Json are the WinRT namespaces pch.h does not already pull in.
 #include "pch.h"
 #include <atomic>
+#include <winrt/Windows.ApplicationModel.h>
 #include <winrt/Windows.Data.Json.h>
 #include <winrt/Windows.Networking.Sockets.h>
 #include <winrt/Windows.System.Threading.h>
@@ -23,6 +24,7 @@
     #include "model-downloader.h"
     #include "xllama/api_activity.h"
     #include "xllama/api_connection.h"
+    #include "xllama/api_discovery.h"
     #include "xllama/api_policy.h"
     #include "xllama/api_pull_policy.h"
     #include "xllama/chat_prompt.h"
@@ -62,6 +64,7 @@
     #include <mutex>
     #include <optional>
     #include <string>
+    #include <unordered_map>
     #include <vector>
 
 namespace xllama::api {
@@ -1222,28 +1225,87 @@ std::vector<std::string> servable_model_ids() {
     return ids;
 }
 
-// OpenAI GET /v1/models — {"object":"list","data":[{id,object,created,owned_by}]}
-// listing every servable on-device model. The non-standard "active" flag marks
-// the model the lazily-owned Session currently has loaded (clients ignore
-// unknown fields); any listed id is valid for POST "model" — the server
-// switches Sessions on demand.
-std::string models_json() {
-    JsonArray data;
-    const std::string current = current_model_id();
-    for (const std::string& id : servable_model_ids()) {
-        JsonObject m;
-        m.Insert(L"id", JsonValue::CreateStringValue(winrt::to_hstring(id)));
-        m.Insert(L"object", JsonValue::CreateStringValue(L"model"));
-        m.Insert(L"created", JsonValue::CreateNumberValue(static_cast<double>(time(nullptr))));
-        m.Insert(L"owned_by", JsonValue::CreateStringValue(L"xllama"));
-        if (id == current)
-            m.Insert(L"active", JsonValue::CreateBooleanValue(true));
-        data.Append(m);
+// The package version (Major.Minor.Build.Revision; CI stamps the revision).
+std::string package_version() {
+    try {
+        const auto v = winrt::Windows::ApplicationModel::Package::Current().Id().Version();
+        return std::to_string(v.Major) + "." + std::to_string(v.Minor) + "." +
+               std::to_string(v.Build) + "." + std::to_string(v.Revision);
+    } catch (...) {
+        return "unknown";
     }
-    JsonObject root;
-    root.Insert(L"object", JsonValue::CreateStringValue(L"list"));
-    root.Insert(L"data", data);
-    return winrt::to_string(root.Stringify());
+}
+
+// Whether |id|'s GGUF chat template renders tools, read from the file header
+// and cached per file, size and write time: a pull or import that replaces
+// the file is re-read, an unchanged one is not re-parsed on every listing.
+bool gguf_model_renders_tools(const std::string& id) {
+    const std::string path = ::xllama::first_gguf_in_dir(::xllama::resolve_model_path(id));
+    if (path.empty())
+        return false;
+    std::error_code ec;
+    const auto size = std::filesystem::file_size(path, ec);
+    const auto written = std::filesystem::last_write_time(path, ec);
+    if (ec)
+        return false;
+    const std::string key = path + "|" + std::to_string(size) + "|" +
+                            std::to_string(written.time_since_epoch().count());
+    static std::mutex mtx;
+    static std::unordered_map<std::string, bool> cache;
+    {
+        std::lock_guard<std::mutex> lk(mtx);
+        const auto hit = cache.find(key);
+        if (hit != cache.end())
+            return hit->second;
+    }
+    const bool renders = ::xllama::chat_template_renders_tools(::xllama::gguf_chat_template(path));
+    std::lock_guard<std::mutex> lk(mtx);
+    cache[key] = renders;
+    return renders;
+}
+
+// OpenAI GET /v1/models: every servable on-device model, with xllama's
+// non-standard fields (api_discovery.h; clients ignore unknown keys). Any
+// listed id is valid for POST "model" — the server switches Sessions on
+// demand. n_ctx is the resident session's when it is the active model, else
+// the catalogue's.
+std::string models_json() {
+    const std::vector<::xllama::ManifestEntry> manifest = ::xllama::LoadModelManifest();
+    std::string active;
+    int active_n_ctx = 0;
+    {
+        auto& hub = ::xllama::session_hub();
+        std::unique_lock<std::mutex> lk(hub.mtx, std::try_to_lock);
+        if (lk.owns_lock() && hub.session) {
+            active = hub.model;
+            active_n_ctx = hub.params.n_ctx;
+        }
+    }
+    if (active.empty())
+        active = current_model_id();
+    std::vector<::xllama::ModelInfo> models;
+    for (const std::string& id : servable_model_ids()) {
+        ::xllama::ModelInfo m;
+        m.id = id;
+        m.active = id == active;
+        const ::xllama::ManifestEntry* entry =
+            ::xllama::FindManifestEntry(manifest, ::xllama::utf8_to_wstring(id));
+        if (entry) {
+            m.display = ::xllama::wstring_to_utf8(entry->display);
+            m.kind = ::xllama::wstring_to_utf8(entry->kind);
+            m.role = ::xllama::wstring_to_utf8(entry->role);
+            m.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
+        } else if (::xllama::model_uses_llama_backend(id)) {
+            m.kind = "gguf";
+        }
+        if (m.active && active_n_ctx > 0)
+            m.n_ctx = active_n_ctx;
+        m.embedding = ::xllama::role_is_embedding(m.role);
+        m.reasoning = ::xllama::model_is_thinking(id);
+        m.tools = m.kind == "gguf" && !m.embedding && gguf_model_renders_tools(id);
+        models.push_back(std::move(m));
+    }
+    return ::xllama::models_list_json(models, static_cast<std::int64_t>(time(nullptr)));
 }
 
 // Ollama GET /api/tags — {"models":[{name,model}]} for Ollama-probing clients.
@@ -1985,7 +2047,9 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
 
         // Health probe (also the spike gate: curl http://<ip>:<port>/ -> 200).
         if (req.method == "GET" && (req.path == "/" || req.path == "/health")) {
-            write_response(socket, "200 OK", "{\"status\":\"ok\",\"service\":\"xllama\"}");
+            write_response(
+                socket, "200 OK",
+                ::xllama::health_json(package_version(), ::xllama::build_api_capabilities()));
             return;
         }
 
