@@ -315,7 +315,10 @@ validate_taesd || rc=$?
         )
 
     def test_wait_idle_reads_atomics_only(self):
-        text = (ROOT / "uwp/MainPage.cpp").read_text()
+        # MainPageController spans uwp/MainPage.cpp and uwp/mainpage-*.cpp (#549).
+        uwp = ROOT / "uwp"
+        files = [uwp / "MainPage.cpp", *sorted(uwp.glob("mainpage-*.cpp"))]
+        text = "\n".join(p.read_text() for p in files)
         start = text.index('a.op == "wait_idle"')
         block = text[start : text.index('} else if (a.op == "generate_image")', start)]
         self.assertNotIn("try_acquire_compute_job", block)

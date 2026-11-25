@@ -17,7 +17,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "uwp/models/manifest.json"
 LICENSES = ROOT / "LICENSES"
-MAINPAGE = ROOT / "uwp/MainPage.cpp"
+# MainPageController spans uwp/MainPage.cpp and uwp/mainpage-*.cpp (#549).
+MAINPAGE_SOURCES = [ROOT / "uwp/MainPage.cpp", *sorted((ROOT / "uwp").glob("mainpage-*.cpp"))]
 MODELS_V1 = "https://github.com/gianlucamazza/xllama/releases/download/models-v1"
 
 # Catalogue id -> (local filename, LICENSES/ path, models-v1 asset name)
@@ -147,7 +148,7 @@ class CatalogLicensePairingTests(unittest.TestCase):
             self.assertIsNone(_file_by_name(entry, "LICENSE"))
 
     def test_taesd_overlay_downloads_mit_licence(self) -> None:
-        text = MAINPAGE.read_text(encoding="utf-8")
+        text = "\n".join(p.read_text(encoding="utf-8") for p in MAINPAGE_SOURCES)
         digest = _sha256(LICENSES / "madebyollin-taesd-LICENSE")
         self.assertIn("sd-turbo-fp16_taesd_LICENSE", text)
         self.assertIn(digest, text)

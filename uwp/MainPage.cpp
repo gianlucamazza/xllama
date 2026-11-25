@@ -3,64 +3,7 @@
 
 #ifdef XLLAMA_UWP
 
-// clang-format off
-#include "pch.h"
-#include "MainPage.h"
-// clang-format on
-
-    #ifndef XLLAMA_STORE_SKU
-        #include "api-server.h"
-    #endif
-    #include "chat-history.h"
-    #include "inference-bridge.h"
-    #include "xllama/app_settings.h"
-    #include "xllama/cancel_policy.h"
-    #include "xllama/chat_prompt.h"
-    #include "xllama/compute_admission.h"
-    #include "xllama/debug_dashboard.h"
-    #include "xllama/diffusion/request.h"
-    #include "xllama/diffusion/residency.h"
-    #include "xllama/kv_store.h"
-    #include "xllama/local_knob.h"
-    #include "xllama/model_file_plan.h"
-    #include "xllama/model_provision.h"
-    #include "xllama/path_utils.h"
-    #include "xllama/personalize.h"
-    #include "xllama/platform.h"
-    #include "xllama/preference_capture.h"
-    #include "xllama/prompt_budget.h"
-    #include "xllama/routing_policy.h"
-    #include "xllama/stability_attribution.h"
-    #include "xllama/training.h"
-    #include "xllama/utf8_utils.h"
-
-    #include <winrt/Windows.Data.Json.h>
-    #include <winrt/Windows.Networking.Connectivity.h>
-    #include <winrt/Windows.Networking.h>
-    #include <winrt/Windows.UI.Xaml.Media.Imaging.h>
-    #ifndef XLLAMA_STORE_SKU
-        #include "xllama/api_activity.h"
-    #endif
-
-    #include <algorithm>
-    #include <chrono>
-    #include <cstdio>
-    #include <ctime>
-    #include <filesystem>
-    #include <limits>
-    #include <mutex>
-    #include <optional>
-    #include <string>
-    #include <thread>
-    #include <vector>
-
-using namespace winrt;
-using namespace winrt::Windows::Foundation;
-using namespace winrt::Windows::Storage;
-using namespace winrt::Windows::UI::Core;
-using namespace winrt::Windows::UI::Xaml;
-using namespace winrt::Windows::UI::Xaml::Controls;
-using namespace winrt::Windows::UI::Text;
+    #include "mainpage-internal.h"
 
 namespace xllama {
 
@@ -69,7 +12,7 @@ namespace xllama {
 // floor is `lfm25-230m`. Numbers live in `docs/benchmarks.md`. ORT-only
 // builds keep the classic SmolLM2 CPU int4.
 // Matches bench/configs/settings-modern.json and docs/recommended-config.md.
-static std::wstring DefaultChatModelId() {
+std::wstring DefaultChatModelId() {
     #if defined(XLLAMA_USE_LLAMA)
     return L"lfm25-350m";
     #else
@@ -77,52 +20,11 @@ static std::wstring DefaultChatModelId() {
     #endif
 }
 
-// Wide LocalFolder path helper.
-static std::wstring local_wpath(const wchar_t* filename_w) {
-    auto folder = ApplicationData::Current().LocalFolder();
-    return std::wstring(folder.Path().c_str()) + L"\\" + filename_w;
-}
-
-// #170b: where per-conversation KV snapshots live. Created on demand by the
-// save path; every reader tolerates its absence.
-static ::xllama::KvStore kv_store() {
-    return ::xllama::KvStore{::xllama::wstring_to_utf8(local_wpath(L"kv"))};
-}
-
-static std::wstring format_diffuse_stage(const std::string& stage) {
-    if (stage == "start")
-        return L"Starting image generation...";
-    if (stage == "text_encoder")
-        return L"Text encoder (GPU)...";
-    if (stage.rfind("unet ", 0) == 0)
-        return L"UNet " + ::xllama::utf8_to_wstring(stage.substr(5)) + L" (GPU)...";
-    if (stage == "vae")
-        return L"VAE decode (GPU)...";
-    if (stage == "done")
-        return L"Image ready — open [*] Image to view";
-    if (stage == "cancelled")
-        return L"Image generation cancelled";
-    if (stage == "error")
-        return L"Image generation failed — see xllama.log";
-    return ::xllama::utf8_to_wstring(stage);
-}
-
 // ---------------------------------------------------------------------------
 // BuildUI — assembles the UI tree programmatically.
 // Equivalent to MainPage.xaml without requiring MarkupCompilePass2 or
 // IXamlMetadataProvider metadata for xllama types.
 // ---------------------------------------------------------------------------
-
-// Every editable box in this app is reached with a gamepad, and the on-screen
-// keyboard belongs to a deliberate A press — not to focus arriving on its own.
-// Without this, opening a dialog moves focus to its first TextBox and the
-// keyboard slides up over the dialog's own content: measured, it covered the
-// generated image in a Store listing screenshot and the last third of the demo
-// capture.
-static void
-no_keyboard_on_programmatic_focus(winrt::Windows::UI::Xaml::Controls::TextBox const& box) {
-    box.PreventKeyboardDisplayOnProgrammaticFocus(true);
-}
 
 void MainPageController::BuildUI() {
     m_root = Page();
@@ -2482,6 +2384,7 @@ bool MainPageController::SelectModel(const std::wstring& name) {
     return true;
 }
 
+// ---------------------------------------------------------------------------
 // Model provisioning — catalogue / USB / bundled. EnsureModelAsync loads the
 // selected chat model; EnsureGpuModelIfNeeded queues gpu_model when routing≠0.
 // ---------------------------------------------------------------------------
@@ -2935,6 +2838,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
     }
 }
 
+// ---------------------------------------------------------------------------
 // LoadModelName: read model.txt from LocalFolder
 // ---------------------------------------------------------------------------
 
