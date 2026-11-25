@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Device Portal helper keeps the caller's EXIT/INT/TERM trap.** `scripts/wdp-curl-auth.sh` (#528) mangled a trap set before `wdp_setup_curl_auth`, so at exit the chained body failed to parse: `install-latest-build.sh` left `/tmp/xllama-install-$$` behind and exited with status 2 after a good install. The helper now lets the shell unquote `trap -p` output.
+
 - **D3D12 shared-activation cache keyed by tensor identity.** Hardening of the d3d12 shared-activation cache: lookups use tensor owner, data pointer, column stride, type and row size, not address alone. Latent hazard; no known failure on main.
 
 ## [1.8.1]
