@@ -1,0 +1,9 @@
+12:18:30.783 [caprec] AppRecordingManager present=0 GraphicsCaptureSession present=1
+[gcprobe] session_present=1 item_present=1 viable=0 encoder=0 presence_error=0 duration_us=100
+[xllama] ws after model load: 3546 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[xllama] ws after context: 3574 MB
+[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0) prefix_snapshot=1
+[xllama] session generate: n=8 prefill=797.1ms (24 tok) reuse=0 drafted=0 spec_accept=0
+[xllama] diffuse: model='sd-turbo-fp16' steps=1 seed=42 scheduler=euler prompt='a red sports car on a mountain road at sunset'
+[xllama] diffuse: ORT error: Load model from <console-app-data>/models/sd-turbo-fp16/unet/model.onnx failed:bad allocation

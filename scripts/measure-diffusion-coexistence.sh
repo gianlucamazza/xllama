@@ -205,7 +205,7 @@ for cell in "$@"; do
 	ws=""
 	[[ -s "$ws_file" ]] && ws=$(tr -d '[:space:]' <"$ws_file")
 	"${DEPLOY}" get-log "$PFN" 2>/dev/null | tail -n "+$((log0 + 1))" |
-		grep -E -i 'diffuse|gpu-mem|ws after|out of memory|8007000E|E_OUTOFMEMORY|887A0005|DEVICE_REMOVED|session|error' |
+		grep -E -i 'diffuse|released|gpu-mem|ws after|out of memory|8007000E|E_OUTOFMEMORY|887A0005|DEVICE_REMOVED|session|error' |
 		python3 -I "${REPO_ROOT}/scripts/redact_recorded_path.py" --text >"${OUT}/${cell}.log" || true
 	printf '%s,%s,%s,%s,%s,%s\n' "$cell" "$outcome" "$detail" "$wall" "$peak" "$ws" >>"${OUT}/cells.csv"
 	echo "    ${outcome} ${detail} wall=${wall}s peak_ws=${peak:-?}MB sampled_private_ws=${ws:-?}MB"
