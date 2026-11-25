@@ -97,31 +97,38 @@ inline constexpr int resolve_n_ctx(int requested) {
     return requested;
 }
 
-// A GGUF session's context: the resolved request, capped at the model's
-// trained context (GGUF `<arch>.context_length`). Above it, llama.cpp only
-// warns and the model runs past what it was trained on. If n_ctx_train is
-// unknown (<= 0) the request stands, because the admission still bounds memory.
-// A trained context below kMinSessionNCtx does not lower the session floor.
+// A session's own n_ctx request: 0 means kDefaultNCtx, anything else stands.
+// The kMinSessionNCtx floor is a catalogue rule (resolve_n_ctx, applied by
+// catalogue_n_ctx). SessionParams from the SDK, the CLI or a test keep a small
+// context on purpose, e.g. 128 tokens to force a context shift.
+inline constexpr int session_n_ctx(int requested) {
+    return requested > 0 ? requested : kDefaultNCtx;
+}
+
+// A GGUF session's context: the request, capped at the model's trained context
+// (GGUF `<arch>.context_length`). Above it, llama.cpp only warns and the model
+// runs past what it was trained on. If n_ctx_train is unknown (<= 0) the request
+// stands, because the admission still bounds memory.
 inline constexpr int bound_gguf_n_ctx(int requested, int n_ctx_train) {
-    const int n = resolve_n_ctx(requested);
-    if (n_ctx_train <= 0 || n <= n_ctx_train)
-        return n;
-    return n_ctx_train < kMinSessionNCtx ? kMinSessionNCtx : n_ctx_train;
+    const int n = session_n_ctx(requested);
+    return (n_ctx_train > 0 && n > n_ctx_train) ? n_ctx_train : n;
 }
 
 // The context of a session that no memory admission checked: ORT GenAI
 // (max_length), or a GGUF load whose dry run failed.
 inline constexpr int bound_unadmitted_n_ctx(int requested) {
-    const int n = resolve_n_ctx(requested);
+    const int n = session_n_ctx(requested);
     return n > kMaxUnadmittedNCtx ? kMaxUnadmittedNCtx : n;
 }
 
 // The n_ctx a catalogue entry asks its session for, before the model file is
-// read. Used by the resolver and by the surfaces that plan a prompt before
-// loading. A GGUF session can still open smaller (bound_gguf_n_ctx); after the
-// load, Session::context_length() is the context that holds.
+// read: the catalogue's default and floor (resolve_n_ctx), then the backend's
+// pre-load bound. Used by the resolver and by the surfaces that plan a prompt
+// before loading. A GGUF session can still open smaller (bound_gguf_n_ctx);
+// after the load, Session::context_length() is the context that holds.
 inline constexpr int catalogue_n_ctx(int requested, bool gguf) {
-    return gguf ? resolve_n_ctx(requested) : bound_unadmitted_n_ctx(requested);
+    const int n = resolve_n_ctx(requested);
+    return gguf ? n : bound_unadmitted_n_ctx(n);
 }
 
 // GGUF layers on the d3d12 backend for a session (docs/gguf-gpu-decode.md, D3).

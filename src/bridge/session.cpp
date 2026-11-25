@@ -1696,8 +1696,8 @@ std::optional<LlamaLoadPlan> plan_llama_load(const SessionParams& sp, std::strin
     // admission's decision (admit_memory, below in create_llama).
     plan.n_ctx_train = gguf_context_length(plan.path);
     plan.n_ctx = bound_gguf_n_ctx(sp.n_ctx, plan.n_ctx_train);
-    if (plan.n_ctx < resolve_n_ctx(sp.n_ctx))
-        log_output("[xllama] Session: n_ctx " + std::to_string(resolve_n_ctx(sp.n_ctx)) +
+    if (plan.n_ctx < session_n_ctx(sp.n_ctx))
+        log_output("[xllama] Session: n_ctx " + std::to_string(session_n_ctx(sp.n_ctx)) +
                    " capped at the model's trained context " + std::to_string(plan.n_ctx) + "\n");
     plan.chat_cparams =
         make_context_params(plan.n_ctx, plan.n_threads, sp.n_batch, sp.n_ubatch, plan.gpu_layers,
