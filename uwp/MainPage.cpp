@@ -19,6 +19,7 @@
     #include "xllama/debug_dashboard.h"
     #include "xllama/json_utils.h"
     #include "xllama/kv_store.h"
+    #include "xllama/local_knob.h"
     #include "xllama/model_file_plan.h"
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
@@ -84,29 +85,6 @@ static std::wstring local_wpath(const wchar_t* filename_w) {
 // save path; every reader tolerates its absence.
 static ::xllama::KvStore kv_store() {
     return ::xllama::KvStore{::xllama::wstring_to_utf8(local_wpath(L"kv"))};
-}
-
-static std::string read_local_text_file(const wchar_t* name) {
-    FILE* fp = _wfopen(local_wpath(name).c_str(), L"rb");
-    if (!fp)
-        return {};
-    std::string s;
-    char buf[256];
-    size_t n;
-    while ((n = fread(buf, 1, sizeof(buf), fp)) > 0)
-        s.append(buf, n);
-    fclose(fp);
-    while (!s.empty() && (s.back() == '\n' || s.back() == '\r'))
-        s.pop_back();
-    return s;
-}
-
-static void write_local_bytes(const wchar_t* name, const std::string& bytes) {
-    FILE* fp = _wfopen(local_wpath(name).c_str(), L"wb");
-    if (!fp)
-        return;
-    fwrite(bytes.data(), 1, bytes.size(), fp);
-    fclose(fp);
 }
 
 static std::wstring format_diffuse_stage(const std::string& stage) {
@@ -1437,20 +1415,8 @@ void MainPageController::LoadSettings() {
 
     // Back-compat: also read model.txt if model not set via settings.json
     if (m_model_filename.empty()) {
-        auto model_path = local_wpath(L"model.txt");
-        FILE* mf = _wfopen(model_path.c_str(), L"r");
-        if (mf) {
-            wchar_t mbuf[512] = {};
-            if (fgetws(mbuf, 511, mf)) {
-                size_t len = wcslen(mbuf);
-                while (len > 0 &&
-                       (mbuf[len - 1] == L'\n' || mbuf[len - 1] == L'\r' || mbuf[len - 1] == L' '))
-                    mbuf[--len] = L'\0';
-                if (len > 0)
-                    m_model_filename = mbuf;
-            }
-            fclose(mf);
-        }
+        // UTF-8, read the same way as the headless bench (local_knob.h).
+        m_model_filename = ::xllama::utf8_to_wstring(::xllama::read_local_text("model.txt"));
         if (m_model_filename.empty())
             m_model_filename = DefaultChatModelId();
     }
@@ -1522,12 +1488,11 @@ void MainPageController::StopDebugDashboardTimer() {
 void MainPageController::ApplyDebugDashboard(bool enabled, bool persist_flag) {
     m_debug_dashboard = enabled;
     if (persist_flag) {
-        const std::wstring flag_w =
-            ::xllama::utf8_to_wstring(std::string(::xllama::kDebugDashboardFlagName));
+        const std::string flag(::xllama::kDebugDashboardFlagName);
         if (enabled)
-            write_local_bytes(flag_w.c_str(), "enabled");
+            ::xllama::write_local_text(flag, "enabled");
         else
-            _wremove(local_wpath(flag_w.c_str()).c_str());
+            _wremove(local_wpath(::xllama::utf8_to_wstring(flag).c_str()).c_str());
     }
     if (!m_debugDashboardPanel)
         return;
@@ -1719,8 +1684,8 @@ void MainPageController::RefreshApiPanel() {
 
 void MainPageController::ApplyApiSettings(bool enabled, int port) {
     if (enabled) {
-        write_local_bytes(L"api-port.txt", std::to_string(port));
-        write_local_bytes(L"api.flag", "enabled");
+        ::xllama::write_local_text("api-port.txt", std::to_string(port));
+        ::xllama::write_local_text("api.flag", "enabled");
     } else {
         _wremove(local_wpath(L"api.flag").c_str());
     }
@@ -1780,7 +1745,7 @@ winrt::fire_and_forget MainPageController::ShowDisclaimerIfNeeded() {
     dlg.XamlRoot(m_root.XamlRoot());
     ApTrackDialog(dlg);
     co_await dlg.ShowAsync();
-    write_local_bytes(L"disclaimer.accepted", "1\n");
+    ::xllama::write_local_text("disclaimer.accepted", "1\n");
 }
 
 winrt::fire_and_forget MainPageController::ShowSettings() {
@@ -1890,14 +1855,9 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
 
     #ifndef XLLAMA_STORE_SKU
     const bool api_enabled = std::filesystem::exists(local_wpath(L"api.flag"));
-    int api_port = 11434;
-    try {
-        const std::string configured_port = read_local_text_file(L"api-port.txt");
-        if (!configured_port.empty())
-            api_port = std::stoi(configured_port);
-    } catch (...) {
-        api_port = 11434;
-    }
+    // The port the server binds (api-server.h), not the raw file text.
+    const int api_port =
+        ::xllama::api::configured_api_port(::xllama::read_local_text("api-port.txt"));
     winrt::Windows::UI::Xaml::Controls::ToggleSwitch apiToggle;
     apiToggle.Header(winrt::box_value(L"LAN API (OpenAI-compatible)"));
     apiToggle.OnContent(winrt::box_value(L"On"));
@@ -2162,7 +2122,7 @@ bool MainPageController::PublishPersonalizedModel(const std::string& merged_gguf
     // If an override already exists, re-read its models array is complex without
     // a full JSON rewriter; the per-entry merge means a same-name replace is
     // enough, and a one-entry override still keeps all bundled models.
-    write_local_bytes(L"manifest.json", override_json);
+    ::xllama::write_local_text("manifest.json", override_json);
     InvalidateManifestCache(); // catalogue changed — StartInference reads the cache
     return true;
 }
@@ -2206,10 +2166,10 @@ void MainPageController::StartPersonalizeTrain() {
 
     // Persist job.json for harness parity / debugging.
     CreateDirectoryW(local_wpath(L"training").c_str(), nullptr);
-    write_local_bytes(L"training\\job.json", ::xllama::format_personalize_job_json(job));
+    ::xllama::write_local_text("training\\job.json", ::xllama::format_personalize_job_json(job));
     _wremove(local_wpath(L"training\\result.done").c_str());
-    write_local_bytes(L"training\\progress.json",
-                      ::xllama::format_train_progress_json("prepare", 0, job.epochs, 0, 0, 0));
+    ::xllama::write_local_text("training\\progress.json", ::xllama::format_train_progress_json(
+                                                              "prepare", 0, job.epochs, 0, 0, 0));
 
     // Free chat RSS before train (Phase 10 peak gate ~1.2 GB).
     {
@@ -2246,13 +2206,7 @@ void MainPageController::StartPersonalizeTrain() {
             const ::xllama::TrainingResult r = ::xllama::bridge::run_train_job_localized(job, cb);
 
             // result.done for API / autopilot pollers
-            {
-                FILE* done = _wfopen(local_wpath(L"training\\result.done").c_str(), L"w");
-                if (done) {
-                    fputs(r.success ? "ok\n" : "fail\n", done);
-                    fclose(done);
-                }
-            }
+            ::xllama::write_local_text("training\\result.done", r.success ? "ok\n" : "fail\n");
 
             if (r.success) {
                 std::string pub_err;
@@ -2352,7 +2306,7 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
 
     winrt::Windows::UI::Xaml::Controls::TextBlock lastSeed;
     lastSeed.Opacity(0.7);
-    const std::string previous_seed = read_local_text_file(L"diffuse-seed.txt");
+    const std::string previous_seed = ::xllama::read_local_text("diffuse-seed.txt");
     lastSeed.Text(previous_seed.empty()
                       ? L"Last seed: none"
                       : L"Last seed: " + ::xllama::utf8_to_wstring(previous_seed));
@@ -2367,7 +2321,7 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     // pixel-art robot with "a red sports car on a mountain road at sunset"
     // underneath, and pressing Generate would have produced neither.
     {
-        const std::string last = read_local_text_file(L"prompt.txt");
+        const std::string last = ::xllama::read_local_text("prompt.txt");
         promptBox.Text(last.empty() ? L"a red sports car on a mountain road at sunset"
                                     : ::xllama::utf8_to_wstring(last).c_str());
     }
@@ -2572,10 +2526,10 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
         self->SetStatus(L"Busy — another compute job is active", StatusKind::Error);
         co_return;
     }
-    write_local_bytes(L"prompt.txt", prompt_utf8);
-    write_local_bytes(L"diffuse-steps.txt", std::to_string(steps));
-    write_local_bytes(L"diffuse-seed.txt", std::to_string(seed));
-    write_local_bytes(L"diffuse-model.txt", "sd-turbo-fp16");
+    ::xllama::write_local_text("prompt.txt", prompt_utf8);
+    ::xllama::write_local_text("diffuse-steps.txt", std::to_string(steps));
+    ::xllama::write_local_text("diffuse-seed.txt", std::to_string(seed));
+    ::xllama::write_local_text("diffuse-model.txt", "sd-turbo-fp16");
 
     self->StartDiffusion(std::move(compute_permit));
 }
@@ -2603,7 +2557,7 @@ void MainPageController::StartDiffusion(::xllama::ComputeJobAdmission::Handle pe
     // the new run at the first UNet-step check, and a leftover "done"/"error"
     // progress line would flash in the status bar before the worker's first write.
     _wremove(local_wpath(L"diffuse-cancel.flag").c_str());
-    write_local_bytes(L"diffuse-progress.txt", "start");
+    ::xllama::write_local_text("diffuse-progress.txt", "start");
 
     auto self = shared_from_this();
     auto dispatcher = m_root.Dispatcher();
@@ -2638,7 +2592,7 @@ void MainPageController::StartDiffusion(::xllama::ComputeJobAdmission::Handle pe
 }
 
 void MainPageController::PollDiffuseProgress() {
-    const std::string stage = read_local_text_file(L"diffuse-progress.txt");
+    const std::string stage = ::xllama::read_local_text("diffuse-progress.txt");
     if (stage.empty())
         return;
     SetStatus(format_diffuse_stage(stage),
@@ -2653,7 +2607,7 @@ void MainPageController::FinishDiffusion() {
     }
     m_diffuse_running.store(false);
 
-    const std::string stage = read_local_text_file(L"diffuse-progress.txt");
+    const std::string stage = ::xllama::read_local_text("diffuse-progress.txt");
     if (stage == "done") {
         SetStatus(L"Image ready — open [*] Image to view", StatusKind::Success);
     } else if (stage == "cancelled") {
@@ -2916,12 +2870,8 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                                            .c_str());
                             // Cache USB root (drive_path without trailing \) for
                             // resolve_model_path() sync path.
-                            auto cache_path = local_wpath(L"usb_model_root.txt");
-                            FILE* fp = _wfopen(cache_path.c_str(), L"w");
-                            if (fp) {
-                                fputws(drive_path.c_str(), fp);
-                                fclose(fp);
-                            }
+                            ::xllama::write_local_text("usb_model_root.txt",
+                                                       ::xllama::wstring_to_utf8(drive_path));
                             usb_found = true;
                         }
                     } catch (...) {
@@ -3780,7 +3730,7 @@ void MainPageController::OnCancelClick(IInspectable const&, RoutedEventArgs cons
     switch (::xllama::cancel_target(m_diffuse_running.load(), m_train_running.load(),
                                     m_is_running.load())) {
     case ::xllama::CancelTarget::Image:
-        write_local_bytes(L"diffuse-cancel.flag", "cancel");
+        ::xllama::write_local_text("diffuse-cancel.flag", "cancel");
         SetStatus(L"Cancelling image...");
         m_cancelButton.IsEnabled(false);
         return;
@@ -3947,7 +3897,7 @@ void MainPageController::StartAutopilotIfRequested() {
         winrt::init_apartment(); // MTA (same as the diffuse worker)
         std::string result = "ok";
         try {
-            std::string json = read_local_text_file(L"autopilot.json");
+            std::string json = ::xllama::read_local_text("autopilot.json");
             if (json.empty())
                 throw std::runtime_error("autopilot.json missing or empty");
             std::vector<ApAction> actions;
@@ -3968,7 +3918,7 @@ void MainPageController::StartAutopilotIfRequested() {
         // before we get here); only write it if it didn't.
         if (GetFileAttributesW(local_wpath(L"autopilot-done.txt").c_str()) ==
             INVALID_FILE_ATTRIBUTES)
-            write_local_bytes(L"autopilot-done.txt", result);
+            ::xllama::write_local_text("autopilot-done.txt", result);
         log_output("[autopilot] driver exit: " + result + "\n");
     }).detach();
 }
@@ -4001,7 +3951,7 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
     // the other, and always silently.
     auto rendezvous = [&](const std::string& label, std::chrono::seconds timeout) {
         const std::wstring mark_path = local_wpath(L"autopilot-mark.txt");
-        write_local_bytes(L"autopilot-mark.txt", label);
+        ::xllama::write_local_text("autopilot-mark.txt", label);
         // The wait below reads "file gone" as "the host has taken its shot". A
         // write that failed produces the same absence, so without this check the
         // action would sail through and the log would claim a release that never
@@ -4189,22 +4139,22 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             // it is the defect class already paid for in the bench (#205): the
             // run succeeds and produces a real-looking image nobody asked for.
             // validate_autopilot_script guarantees a non-empty prompt.
-            write_local_bytes(L"prompt.txt", ::xllama::wstring_to_utf8(a.arg));
-            write_local_bytes(L"diffuse-steps.txt", std::to_string(a.steps));
-            write_local_bytes(L"diffuse-seed.txt", std::to_string(a.seed));
-            write_local_bytes(L"diffuse-model.txt", "sd-turbo-fp16");
+            ::xllama::write_local_text("prompt.txt", ::xllama::wstring_to_utf8(a.arg));
+            ::xllama::write_local_text("diffuse-steps.txt", std::to_string(a.steps));
+            ::xllama::write_local_text("diffuse-seed.txt", std::to_string(a.seed));
+            ::xllama::write_local_text("diffuse-model.txt", "sd-turbo-fp16");
             ApDispatchSync([this, seed = a.seed, compute_permit]() {
                 m_last_diffuse_seed = seed;
                 StartDiffusion(compute_permit);
             });
             auto t = a.timeout.count() > 0 ? a.timeout : std::chrono::seconds{600};
             if (!ApWaitAtomic(m_diffuse_running, false, t)) {
-                write_local_bytes(L"diffuse-cancel.flag", "cancel");
+                ::xllama::write_local_text("diffuse-cancel.flag", "cancel");
                 ApWaitAtomic(m_diffuse_running, false, kGrace);
                 throw std::runtime_error("action " + std::to_string(i) +
                                          " generate_image: timeout");
             }
-            std::string stage = read_local_text_file(L"diffuse-progress.txt");
+            std::string stage = ::xllama::read_local_text("diffuse-progress.txt");
             if (stage != "done")
                 throw std::runtime_error("action " + std::to_string(i) +
                                          " generate_image: stage=" + stage);
@@ -4234,13 +4184,13 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                     _wremove(local_wpath(L"d3d12be-result.csv").c_str());
                     ::xllama::bridge::run_d3d12_selftest();
                 } else {
-                    write_local_bytes(L"model.txt", probe_model);
-                    write_local_bytes(L"prompt.txt", ::xllama::wstring_to_utf8(a.arg));
+                    ::xllama::write_local_text("model.txt", probe_model);
+                    ::xllama::write_local_text("prompt.txt", ::xllama::wstring_to_utf8(a.arg));
                     _wremove(local_wpath(L"logits.done").c_str());
                     _wremove(local_wpath(L"logits.bin").c_str());
                     _wremove(local_wpath(L"logits.bin.json").c_str());
                     ::xllama::bridge::run_logits();
-                    if (read_local_text_file(L"logits.done") != "ok")
+                    if (::xllama::read_local_text("logits.done") != "ok")
                         throw std::runtime_error("GPU logit diagnostic failed");
                 }
             } catch (...) {
@@ -4282,7 +4232,7 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             ApDispatchSync([this]() { StartPersonalizeTrain(); });
             if (!m_train_running.load()) {
                 // StartPersonalizeTrain failed preflight synchronously on UI thread.
-                const std::string done = read_local_text_file(L"training\\result.done");
+                const std::string done = ::xllama::read_local_text("training\\result.done");
                 throw std::runtime_error("action " + std::to_string(i) +
                                          " start_train: did not start (preflight)");
             }
@@ -4292,21 +4242,21 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                 ApWaitAtomic(m_train_running, false, kGrace);
                 throw std::runtime_error("action " + std::to_string(i) + " start_train: timeout");
             }
-            const std::string done = read_local_text_file(L"training\\result.done");
+            const std::string done = ::xllama::read_local_text("training\\result.done");
             if (::xllama::parse_train_result_done(done) != "ok")
                 throw std::runtime_error("action " + std::to_string(i) +
                                          " start_train: result.done=" + done);
         } else if (a.op == "train_status") {
-            const std::string done = read_local_text_file(L"training\\result.done");
-            const std::string prog = read_local_text_file(L"training\\progress.json");
+            const std::string done = ::xllama::read_local_text("training\\result.done");
+            const std::string prog = ::xllama::read_local_text("training\\progress.json");
             const std::string state = m_train_running.load()
                                           ? "running"
                                           : (::xllama::parse_train_result_done(done).empty()
                                                  ? "idle"
                                                  : ::xllama::parse_train_result_done(done));
-            write_local_bytes(L"autopilot-train-status.txt", "state=" + state +
-                                                                 "\nresult_done=" + done +
-                                                                 "\nprogress=" + prog + "\n");
+            ::xllama::write_local_text("autopilot-train-status.txt",
+                                       "state=" + state + "\nresult_done=" + done +
+                                           "\nprogress=" + prog + "\n");
             log_output("[autopilot] train_status state=" + state + "\n");
         } else if (a.op == "mark") {
             if (!not_running())
@@ -4362,7 +4312,7 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             log_output("[autopilot] show_pane '" + pane + "' closed\n");
         } else if (a.op == "quit") {
             log_output("[autopilot] action " + std::to_string(i) + " quit\n");
-            write_local_bytes(L"autopilot-done.txt", "ok");
+            ::xllama::write_local_text("autopilot-done.txt", "ok");
             ApDispatchSync([]() { winrt::Windows::UI::Xaml::Application::Current().Exit(); });
             return;
         } else {
@@ -4376,7 +4326,7 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
         log_output("[autopilot] action " + std::to_string(i) + " " + a.op + " end\n");
     }
     // Fell off the end without an explicit quit: still a success.
-    write_local_bytes(L"autopilot-done.txt", "ok");
+    ::xllama::write_local_text("autopilot-done.txt", "ok");
 }
 
 } // namespace xllama
