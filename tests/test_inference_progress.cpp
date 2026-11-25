@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include "xllama/inference_progress.h"
+#include "xllama/path_utils.h"
 
 #include <chrono>
 #include <cstdio>

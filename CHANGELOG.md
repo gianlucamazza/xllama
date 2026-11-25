@@ -7,7 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-- **Operator integer knobs parse strictly.** LocalState `*.txt` integer knobs and the `XLLAMA_DECODE_PROGRESS_*` / `XLLAMA_INFER_STALL_TIMEOUT_S` env vars go through `include/xllama/local_knob.h`: a whole decimal integer with optional whitespace, otherwise the documented fallback. Before, `atoi` turned `auto` in `gguf_gpu_layers.txt` into `0` (all layers on the CPU) and an empty env var into a disabled watchdog.
+- **One home for LocalState operator files.** Knob, input and job-status files (`gguf_gpu_layers.txt`, `d3d12-*.txt`, `diffuse-*.txt`, `prompt.txt`, `model.txt`, `api-port.txt`, `usb_model_root.txt`, `training\\result.done`, …) and the `XLLAMA_DECODE_PROGRESS_*` / `XLLAMA_INFER_STALL_TIMEOUT_S` env vars go through `include/xllama/local_knob.h` on every surface, replacing nine copies with different trim rules. Integer knobs are a whole decimal number with optional whitespace, otherwise the documented fallback: before, `atoi` turned `auto` in `gguf_gpu_layers.txt` into `0` (all layers on the CPU) and an empty env var into a disabled watchdog. Text is read as UTF-8 with CRLF normalised, so `model.txt` and `usb_model_root.txt` no longer depend on the console's ANSI codepage. Settings now shows the API port the server actually binds (`configured_api_port`), and a failed LocalState write for `/v1/images/generations` returns 500 instead of running the previous request.
 
 - **D3D12 shared-activation cache keyed by tensor identity.** Hardening of the d3d12 shared-activation cache: lookups use tensor owner, data pointer, column stride, type and row size, not address alone. Latent hazard; no known failure on main.
 

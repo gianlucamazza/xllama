@@ -13,11 +13,7 @@
 #pragma once
 
 #include "xllama/local_knob.h"
-#include "xllama/path_utils.h"
 #include "xllama/platform.h"
-#ifdef XLLAMA_UWP
-    #include "xllama/utf8_utils.h"
-#endif
 
 #include <atomic>
 #include <chrono>
@@ -132,16 +128,7 @@ inline void overlay_progress_env(InferenceProgressConfig& cfg) {
 }
 
 inline void write_inference_stall_marker(const std::string& body) {
-    const std::string path = resolve_local_path(kInferenceStallMarker);
-#ifdef XLLAMA_UWP
-    FILE* fp = _wfopen(utf8_to_wstring(path).c_str(), L"w");
-#else
-    FILE* fp = std::fopen(path.c_str(), "w");
-#endif
-    if (!fp)
-        return;
-    std::fputs(body.c_str(), fp);
-    std::fclose(fp);
+    write_local_text(kInferenceStallMarker, body); // best effort: the log line is the record
 }
 
 /// Background stall detector plus the prefill/decode progress logger.
