@@ -40,7 +40,7 @@ else
 fi
 
 echo "==> apply UWP patches"
-"$repo/scripts/apply-uwp-patches.sh"
+"$repo/scripts/apply-llama-patches.sh"
 
 echo "==> C++/WinRT pin (packages.config)"
 # shellcheck source=scripts/ensure-cppwinrt-pin.sh

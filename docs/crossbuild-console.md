@@ -183,7 +183,7 @@ source ./scripts/ensure-cppwinrt-pin.sh   # sets UWP_CPPWINRT_*
 
 ```bash
 # 1) AppContainer guards (WINAPI_FAMILY partition) on the llama.cpp submodule
-./scripts/apply-uwp-patches.sh
+./scripts/apply-llama-patches.sh
 
 # 2) From the xllama repo root, with uwp-crossbuild on PATH (or full path to
 #    its checkout). Prefer a checkout that sets WINAPI_FAMILY=APP for --uwp.
@@ -246,7 +246,7 @@ openappx deploy --device "https://${XBOX_IP}:${XBOX_PORT}" \
 | Store `/MD` + desktop CRT               | launch fail (desktop `VCRUNTIME140`)        | `UWP_STORE_CRT=1` + `fetch-vclibs` `*_app` libs (gotcha 19)                                      |
 | Store `/MD` + raw `libcpmt`             | LLD `FAILIFMISMATCH` RuntimeLibrary         | never mix MT archive into MD (gotcha 21)                                                         |
 | Desktop family compile (old toolchain)  | PE imports registry/affinity → `0x8027025b` | uwp-crossbuild sets `WINAPI_FAMILY=APP`; apply AppContainer patch                                |
-| Forbidden imports (registry / affinity) | `0x8027025b` after install                  | `./scripts/apply-uwp-patches.sh` + uwp-crossbuild `pe-import-audit`                              |
+| Forbidden imports (registry / affinity) | `0x8027025b` after install                  | `./scripts/apply-llama-patches.sh` + uwp-crossbuild `pe-import-audit`                            |
 | Product launch (proven)                 | —                                           | **CI MSVC** for shipping/measurement; crossbuild launch observed 2026-08-08 (≥ 0.5.1, GGUF path) |
 
 ### Pre-deploy import audit (uwp-crossbuild)

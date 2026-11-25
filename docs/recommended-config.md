@@ -174,6 +174,7 @@ Export host-side: [`scripts/export-taesd-asset.sh`](../scripts/export-taesd-asse
 ## Linux development
 
 ```bash
+./scripts/apply-llama-patches.sh   # once per submodule checkout
 cmake --preset linux-test
 cmake --build build/linux-test -j$(nproc)
 ctest --test-dir build/linux-test --output-on-failure
