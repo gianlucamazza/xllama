@@ -14,6 +14,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <cmath>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -23,6 +24,7 @@
 #include "xllama/diffusion/half.h"
 #include "xllama/diffusion/lcm_scheduler.h"
 #include "xllama/diffusion/png_writer.h"
+#include "xllama/diffusion/request.h"
 
 using nlohmann::json;
 
@@ -207,4 +209,43 @@ TEST_CASE("Euler scale_model_input + step match golden step case") {
     REQUIRE(x.size() == want_prev.size());
     for (size_t i = 0; i < x.size(); ++i)
         CHECK(x[i] == doctest::Approx(want_prev[i]).epsilon(1e-3));
+}
+
+TEST_CASE("diffusion request: interactive steps are clamped to the SD-Turbo range") {
+    using namespace xllama::diffusion;
+    CHECK(interactive_steps(1) == 1);
+    CHECK(interactive_steps(4) == kStepsInteractiveMax);
+    CHECK(interactive_steps(9) == kStepsInteractiveMax);
+    CHECK(interactive_steps(0) == kStepsMin);
+    CHECK(interactive_steps(-3) == kStepsMin);
+    CHECK(interactive_steps(2.9) == 2);
+    CHECK(interactive_steps(std::nan("")) == kStepsMin);
+    CHECK(interactive_steps(1e300) == kStepsInteractiveMax); // no UB double->int cast
+}
+
+TEST_CASE("diffusion request: a seed is any uint32, negative keeps the default") {
+    using namespace xllama::diffusion;
+    CHECK(request_seed(0) == 0u);
+    CHECK(request_seed(42) == 42u);
+    CHECK(request_seed(3000000000.0) == 3000000000u); // above INT_MAX and 1e9
+    CHECK(request_seed(4294967295.0) == 4294967295u);
+    CHECK(request_seed(1e12) == 4294967295u);
+    CHECK(request_seed(-1) == kDefaultSeed);
+    CHECK(request_seed(std::nan("")) == kDefaultSeed);
+}
+
+TEST_CASE("diffusion request: diffuse-*.txt round-trips what the surfaces write") {
+    using namespace xllama::diffusion;
+    CHECK(steps_from_knob(std::to_string(3)) == 3);
+    CHECK(steps_from_knob("50\n") == kStepsMax);
+    CHECK(steps_from_knob("51") == kDefaultSteps);
+    CHECK(steps_from_knob("") == kDefaultSteps);
+    CHECK(steps_from_knob("two") == kDefaultSteps);
+    // Every seed the GUI and API accept must survive the file: 1e9 used to be
+    // the ceiling here, so a larger seed silently became 42.
+    CHECK(seed_from_knob(std::to_string(3000000000u)) == 3000000000u);
+    CHECK(seed_from_knob(std::to_string(request_seed(4294967295.0))) == 4294967295u);
+    CHECK(seed_from_knob("4294967296") == kDefaultSeed);
+    CHECK(seed_from_knob("-1") == kDefaultSeed);
+    CHECK(seed_from_knob("") == kDefaultSeed);
 }

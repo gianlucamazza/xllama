@@ -11,6 +11,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -29,8 +30,8 @@ struct AutopilotAction {
     // "name" ahead of "label" — so sharing would have dropped the label in
     // silence and left the host waiting for a mark that never matched.
     std::wstring label; // mark / show_pane
-    int steps{1};       // generate_image
-    unsigned seed{42};
+    int steps{1};       // generate_image (diffusion/request.h contract)
+    std::uint32_t seed{42};
     bool enabled{false};           // set_api / set_kv_reuse / set_taesd
     bool has_enabled{false};       // 'enabled' was present (set_kv_reuse and set_taesd
                                    // require it: the default would silently mean "disable")
