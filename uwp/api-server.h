@@ -8,7 +8,10 @@
 
 #pragma once
 
+#include "xllama/local_knob.h"
+
 #include <string>
+#include <string_view>
 
 namespace xllama {
 class ApiActivity; // xllama/api_activity.h (kept out of this header: it precedes pch.h)
@@ -26,6 +29,16 @@ struct ServerStatus {
 
 inline bool port_bindable(int port) {
     return port >= 1025 && port <= 49151 && port != 11443;
+}
+
+inline constexpr int kDefaultApiPort = 11434; // Ollama default port, familiar to clients
+
+// The port LocalState\api-port.txt asks for, as the server binds it and the
+// Settings page shows it: a whole integer that port_bindable accepts, else the
+// default. One decision, so the page cannot show a port the server refuses.
+inline int configured_api_port(std::string_view text) {
+    const std::optional<int> p = ::xllama::parse_knob_int(text);
+    return (p && port_bindable(*p)) ? *p : kDefaultApiPort;
 }
 
 // Bind and return; the global StreamSocketListener keeps accepting callbacks.

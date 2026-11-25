@@ -866,6 +866,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_cli.cpp`                     | `cli.h`                                                                                                        |
 | `test_decode_loop.cpp`             | `decode_loop.h` via `run_inference` (opt-in model)                                                             |
 | `test_inference_progress.cpp`      | `inference_progress.h` cadence, stall policy, watchdog                                                         |
+| `test_local_knob.cpp`              | `local_knob.h` LocalState file read/write, CRLF/trim normalisation, strict integer knobs                       |
 | `test_device_train.cpp`            | `device_train.h`                                                                                               |
 | `test_diffusion.cpp`               | `diffusion/` (Euler golden vectors, LCM step table, LCM-off = Euler)                                           |
 | `test_diskbw.cpp`                  | `diskbw.h`                                                                                                     |

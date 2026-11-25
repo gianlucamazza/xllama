@@ -268,6 +268,7 @@ Load-bearing headers agents usually touch:
 | `training.h` / `device_train.h`      | Job validation and Lane B device train                         |
 | `personalize.h`                      | In-app personalize helpers                                     |
 | `json_utils.h`                       | JSON escape / parse (header-only)                              |
+| `local_knob.h`                       | LocalState knob/input files: read, write, strict int parse     |
 | `stability_attribution.h`            | Image-dialog Stability §IV.a credit predicate                  |
 | `catalog_trust.h`                    | UWP-only catalogue signature types                             |
 

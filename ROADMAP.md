@@ -112,6 +112,11 @@ row exports for the 8B comparison.
 Historical H2 FAIL and the #273 catalogue gates remain unchanged. Completing
 cache/tool checks does not close runtime, console or GPU acceptance tasks.
 
+A separate out-of-core inference research plan (OOC-0..OOC-5) is proposed, not
+approved, in #536. It extends the M3–M5 research parked in the MoE program
+merged with #532. This entry unblocks no milestone. M1 still needs its own
+owner approval and comes after the #522 regression and bump.
+
 ## Research / XAB release
 
 - [x] Research package: Series S Developer Mode report, claim registry, generated

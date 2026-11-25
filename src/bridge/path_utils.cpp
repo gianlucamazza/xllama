@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: MIT
 
 #include "xllama/path_utils.h"
+#include "xllama/local_knob.h"
 #include "xllama/platform.h"
+#include "xllama/utf8_utils.h"
 
 #include <filesystem>
 
@@ -184,46 +186,15 @@ std::string resolve_model_path(const std::string& filename) {
     // for the synchronous inference path. Omitted from Store SKU (no
     // removableStorage capability — docs/release-readiness.md).
     {
-        std::string cache_utf8 = local_folder_path("usb_model_root.txt", nullptr);
-        int csz = MultiByteToWideChar(CP_UTF8, 0, cache_utf8.c_str(), -1, nullptr, 0);
-        if (csz > 0) {
-            std::wstring wcache(static_cast<size_t>(csz), L'\0');
-            MultiByteToWideChar(CP_UTF8, 0, cache_utf8.c_str(), -1, wcache.data(), csz);
-            if (!wcache.empty() && wcache.back() == L'\0')
-                wcache.pop_back();
-            FILE* fp = _wfopen(wcache.c_str(), L"r");
-            if (fp) {
-                wchar_t usb_root[512] = {};
-                if (fgetws(usb_root, 511, fp)) {
-                    size_t len = wcslen(usb_root);
-                    while (len > 0 && (usb_root[len - 1] == L'\n' || usb_root[len - 1] == L'\r'))
-                        usb_root[--len] = L'\0';
-                }
-                fclose(fp);
-                if (usb_root[0]) {
-                    int fnSz = MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, nullptr, 0);
-                    if (fnSz > 0) {
-                        std::wstring wfn(static_cast<size_t>(fnSz), L'\0');
-                        MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, wfn.data(), fnSz);
-                        if (!wfn.empty() && wfn.back() == L'\0')
-                            wfn.pop_back();
-                        std::wstring usb_dir = std::wstring(usb_root) + L"\\xllama\\models\\" + wfn;
-                        // Accept either classic ORT or GGUF layout on USB.
-                        if (dir_is_valid_model(usb_dir)) {
-                            log_output("[xllama] model found via USB cache\n");
-                            int nsz = WideCharToMultiByte(CP_UTF8, 0, usb_dir.c_str(), -1, nullptr,
-                                                          0, nullptr, nullptr);
-                            if (nsz > 0) {
-                                std::string usb_path(nsz, '\0');
-                                WideCharToMultiByte(CP_UTF8, 0, usb_dir.c_str(), -1,
-                                                    usb_path.data(), nsz, nullptr, nullptr);
-                                if (!usb_path.empty() && usb_path.back() == '\0')
-                                    usb_path.pop_back();
-                                return usb_path;
-                            }
-                        }
-                    }
-                }
+        // UTF-8, written by the same helper (local_knob.h).
+        const std::wstring usb_root = utf8_to_wstring(read_local_text("usb_model_root.txt"));
+        if (!usb_root.empty()) {
+            const std::wstring usb_dir =
+                usb_root + L"\\xllama\\models\\" + utf8_to_wstring(filename);
+            // Accept either classic ORT or GGUF layout on USB.
+            if (dir_is_valid_model(usb_dir)) {
+                log_output("[xllama] model found via USB cache\n");
+                return wstring_to_utf8(usb_dir);
             }
         }
     }
