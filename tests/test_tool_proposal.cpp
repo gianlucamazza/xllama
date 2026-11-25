@@ -879,3 +879,27 @@ TEST_CASE("tool_choice required or named returns a call, not text first (opt-in:
     MESSAGE("calls " << calls << "/" << runs);
     CHECK(calls == runs);
 }
+
+TEST_CASE("a thinking model's reasoning is returned beside the content, not dropped (#564)") {
+    xllama::IncomingCall call;
+    call.name = "ping";
+    call.arguments = "{}";
+    const xllama::ChoiceAssembly with_call =
+        xllama::assemble_choice("", "<think>the user wants ping</think>", {call}, false, true);
+    CHECK(with_call.content_null);
+    CHECK(with_call.reasoning == "the user wants ping");
+
+    const xllama::ChoiceAssembly answer =
+        xllama::assemble_choice("<think>easy</think>pong", "", {}, false, true);
+    CHECK(answer.content == "pong");
+    CHECK(answer.reasoning == "easy");
+
+    // The template's parser already extracted it: kept first, nothing duplicated.
+    const xllama::ChoiceAssembly parsed =
+        xllama::assemble_choice("", "", {call}, false, true, "parsed plan");
+    CHECK(parsed.reasoning == "parsed plan");
+
+    const xllama::ChoiceAssembly other =
+        xllama::assemble_choice("<think>x</think>y", "", {}, false);
+    CHECK(other.reasoning.empty());
+}

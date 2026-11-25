@@ -260,6 +260,7 @@ ToolParseResult parse_tool_generation(const void* llama_model, const std::string
             parser_params.parser.load(applied.params.parser);
         const common_chat_msg message = common_chat_parse(raw_text, hit_cap, parser_params);
         out.content = parsed_content(message);
+        out.reasoning = message.reasoning_content;
         for (const common_chat_tool_call& call : message.tool_calls) {
             IncomingCall incoming;
             incoming.id = call.id;
@@ -273,6 +274,7 @@ ToolParseResult parse_tool_generation(const void* llama_model, const std::string
         out.parser_threw = true;
         out.calls.clear();
         out.content.clear();
+        out.reasoning.clear();
     }
     return out;
 }

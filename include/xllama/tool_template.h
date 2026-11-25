@@ -36,6 +36,7 @@ struct ToolParseResult {
     // generation as text; this is not an HTTP error and not a second sample.
     bool parser_threw = false;
     std::string content;
+    std::string reasoning; // the parser's reasoning_content (templates that extract it)
     std::vector<IncomingCall> calls;
 };
 

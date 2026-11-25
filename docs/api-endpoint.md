@@ -170,7 +170,7 @@ to branch on (`include/xllama/api_discovery.h`):
     "pull": true,
     "preferences": true,
     "training_status": true,
-    "reasoning_content": false
+    "reasoning_content": true
   }
 }
 ```
@@ -371,6 +371,25 @@ write sets the request's abort flag, which ends the prefill inside its batch
 (#580) and releases the session and the compute permit. With TCP the first
 write after the peer closed usually still succeeds, so a disconnect is seen
 within about two intervals. `validate-api.sh disconnect` measures it.
+
+**Reasoning (#564).** For a thinking model (`capabilities.reasoning` in
+`/v1/models`), the `<think>…</think>` block is returned apart from the answer,
+as llama-server's `--reasoning-format deepseek`, vLLM's reasoning parsers and
+the DeepSeek API do:
+
+- JSON replies carry it in `message.reasoning_content`, absent when the model
+  wrote none.
+- SSE carries it in `delta.reasoning_content` chunks, with `delta.content` for
+  the answer.
+- A tool proposal's message carries it in both shapes, beside `tool_calls`.
+
+`content` never contains the tags. One splitter (`thinking_split.h`) decides
+for every path and for the GUI, which shows the content and keeps the reasoning
+out of the chat history. A reply cut off mid-thought has an empty `content`
+and the reasoning so far. Other models' text is returned unchanged, including
+a literal `<think>`. Whether to keep `reasoning_content` in the next request's
+history is the client's choice; xllama renders past assistant turns through the
+template as sent.
 
 A tool proposal with `stream: true` buffers generation, applies the GGUF template
 parser, then sends the assistant role, a delta with the assembled content and any

@@ -264,6 +264,7 @@ Load-bearing headers agents usually touch:
 | `tool_budget.h`                      | Tool-proposal `prompt too long` text, `code`, and `param`      |
 | `sampling.h`                         | Sampler defaults shared by CLI, bench, GUI, API                |
 | `chat_prompt.h`                      | `ChatFormat` and stop sequences                                |
+| `thinking_split.h`                   | `<think>` reasoning vs content, batch and streamed             |
 | `embedding.h`                        | Embedding params and pooling trim                              |
 | `api_pull_policy.h`                  | Trusted catalogue pulls and API pull admission                 |
 | `withdrawn_models.h`                 | Catalogue ids that must not be downloadable                    |
