@@ -228,6 +228,8 @@ for cell in "$@"; do
 				--prompt "$(cat "${TMP}/prompt.txt")" --repeats 1 --max-tokens 8 \
 				--timeout "$REQUEST_TIMEOUT_S" --hardware "$HARDWARE" \
 				--json-out "${OUT}/${name}.ttfb.json" >/dev/null 2>&1 || true
+			# The receipt is committed: keep the console's LAN address out of it.
+			[[ -f "${OUT}/${name}.ttfb.json" ]] && sed -i "s/${XBOX_IP//./\\.}/console/g" "${OUT}/${name}.ttfb.json"
 			first=$(json_field "${OUT}/${name}.ttfb.json" 'd["attempts"][0]["first_content_ms"]')
 			done_ms=$(json_field "${OUT}/${name}.ttfb.json" 'd["attempts"][0]["done_ms"]')
 			err=$(json_field "${OUT}/${name}.ttfb.json" 'd["attempts"][0]["error"]')

@@ -1,0 +1,33 @@
+{
+ "schema": "xllama-api-ttfb/1",
+ "utc": "2026-11-25T21:35:28.818278+00:00",
+ "endpoint": "console:11434/v1/chat/completions",
+ "model": "llama32-3b",
+ "prompt_chars": 27424,
+ "max_tokens": 8,
+ "hardware_declared": "xbox-series-s-declared",
+ "scope": "client-observed LAN timing incl. network, HTTP and any model load; not the in-app ttft_ms and not a throughput result",
+ "attempts": [
+  {
+   "connect_ms": 22.984,
+   "headers_ms": 66.224,
+   "first_byte_ms": 66.273,
+   "first_content_ms": 262382.349,
+   "done_ms": 262753.481,
+   "status": 200,
+   "content_chunks": 1,
+   "error": null,
+   "text_chars": 2,
+   "attempt": 0
+  }
+ ],
+ "complete": 1,
+ "failed": 0,
+ "median_ms": {
+  "connect_ms": 22.984,
+  "headers_ms": 66.224,
+  "first_byte_ms": 66.273,
+  "first_content_ms": 262382.349,
+  "done_ms": 262753.481
+ }
+}

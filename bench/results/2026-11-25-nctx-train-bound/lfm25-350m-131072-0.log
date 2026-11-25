@@ -1,0 +1,7 @@
+[gcprobe] session_present=1 item_present=1 viable=0 encoder=0 presence_error=0 duration_us=99
+[xllama] Session: memory estimate n_ctx=4096 (n_ctx_train 32768) host 730 MB (weights 373, context 48, compute 309), device 0 MB, 124 MB in use
+[xllama] ws after model load: 519 MB
+[xllama] Session: n_ctx 131072 capped at the model's trained context 128000
+[xllama] Session: memory estimate n_ctx=128000 (n_ctx_train 128000) host 1868 MB (weights 206, context 1500, compute 162), device 0 MB, 104 MB in use
+[xllama] ws after model load: 319 MB
+[xllama] ws after context: 1824 MB
