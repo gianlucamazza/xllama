@@ -12,7 +12,7 @@
 # ggml-cpu/iqp.cpp after ggml#27851; ggml-cpu.c now links tiled/ instead).
 #
 # Run after `git submodule update` (both UWP workflows do this via
-# apply-uwp-patches.sh).
+# apply-llama-patches.sh).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

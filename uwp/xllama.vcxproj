@@ -37,7 +37,7 @@
 
   <!-- Backend selection: 'ort' (default, ORT GenAI text inference) or 'llamacpp'
        (ggml/llama CPU backend from the submodule, XLLAMA_USE_ORT=0 — the CPU A/B
-       lane; requires the submodule checked out + scripts/apply-uwp-patches.sh).
+       lane; requires the submodule checked out + scripts/apply-llama-patches.sh).
        Plain ORT (image spike, diffusion) stays linked in both. -->
   <PropertyGroup>
     <XllamaBackend Condition="'$(XllamaBackend)' == ''">ort</XllamaBackend>
@@ -373,6 +373,7 @@
     <ClCompile Include="..\src\bridge\ramceil.cpp" />
     <ClCompile Include="..\src\bridge\platform.cpp" />
     <ClCompile Include="..\src\bridge\path_utils.cpp" />
+    <ClCompile Include="..\src\bridge\local_knob.cpp" />
     <ClCompile Include="..\src\bridge\utf8_utils.cpp" />
     <ClCompile Include="..\src\bridge\chat_prompt.cpp" />
     <ClCompile Include="..\src\bridge\prompt_budget.cpp" />

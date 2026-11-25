@@ -29,7 +29,7 @@ runs:
       shell: bash
       run: |
         git submodule update --init --depth 1 llama.cpp
-        bash scripts/apply-uwp-patches.sh
+        bash scripts/apply-llama-patches.sh
         bash scripts/check-uwp-sources.sh
 
     - name: Restore NuGet packages

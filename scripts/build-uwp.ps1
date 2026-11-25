@@ -26,7 +26,7 @@ param(
     # 'ort' (default): ORT GenAI only. 'llamacpp': ggml/llama CPU backend only
     # (XLLAMA_USE_ORT absent). 'unified': BOTH backends compiled, chosen at
     # runtime per model (Qwen3.5/LFM2 GGUF via llama.cpp, rest via ORT).
-    # 'llamacpp'/'unified' require the submodule + scripts/apply-uwp-patches.sh.
+    # 'llamacpp'/'unified' require the submodule + scripts/apply-llama-patches.sh.
     [ValidateSet("ort", "llamacpp", "unified")]
     [string]$Backend        = "ort",
     # Replace onnxruntime-genai.dll with the #2280 DML fallback build when available
