@@ -408,6 +408,7 @@
     <ClCompile Include="chat-history.cpp" />
     <ClCompile Include="MainPage.cpp" />
     <ClCompile Include="mainpage-api.cpp" />
+    <ClCompile Include="mainpage-autopilot.cpp" />
     <ClCompile Include="mainpage-debug.cpp" />
     <ClCompile Include="mainpage-history.cpp" />
     <ClCompile Include="mainpage-image.cpp" />
