@@ -184,6 +184,14 @@ TEST_CASE("granite detection") {
     CHECK_FALSE(model_is_granite("/models/granite-cache/lfm25-350m.gguf"));
 }
 
+TEST_CASE("granite wins over a llama substring in the same basename") {
+    // Re-quantised Granite files are often named after the tool or runtime
+    // ("…-ollama", "…-llamacpp"); "llama" is a substring there, not the family.
+    CHECK(chat_format_for("granite-4.0-h-tiny-ollama-Q4_K_M.gguf").kind == ChatFormatKind::Granite);
+    CHECK(chat_format_for("/m/granite-4.2-3b-llamacpp-Q4_0.gguf").kind == ChatFormatKind::Granite);
+    CHECK(chat_format_for("Llama-3.2-3B-Instruct-Q3_K_S.gguf").kind == ChatFormatKind::Llama3);
+}
+
 TEST_CASE("model detection ignores directory names (full-path ids)") {
     // The CLI passes a FULL path; directory names must not select a template.
     // A cache dir literally named "xllama-gguf" contains "llama" and used to
