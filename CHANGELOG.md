@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Operator integer knobs parse strictly.** LocalState `*.txt` integer knobs and the `XLLAMA_DECODE_PROGRESS_*` / `XLLAMA_INFER_STALL_TIMEOUT_S` env vars go through `include/xllama/local_knob.h`: a whole decimal integer with optional whitespace, otherwise the documented fallback. Before, `atoi` turned `auto` in `gguf_gpu_layers.txt` into `0` (all layers on the CPU) and an empty env var into a disabled watchdog.
+
 - **D3D12 shared-activation cache keyed by tensor identity.** Hardening of the d3d12 shared-activation cache: lookups use tensor owner, data pointer, column stride, type and row size, not address alone. Latent hazard; no known failure on main.
 
 ## [1.8.1]

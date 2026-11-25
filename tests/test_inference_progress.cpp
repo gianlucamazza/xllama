@@ -90,6 +90,24 @@ TEST_CASE("overlay_progress_env applies only set variables") {
     set_or_clear_env("XLLAMA_INFER_STALL_TIMEOUT_S", keep_s.empty() ? nullptr : keep_s.c_str());
 }
 
+TEST_CASE("overlay_progress_env ignores empty and unparsable values") {
+    const char* old_n = std::getenv("XLLAMA_DECODE_PROGRESS_EVERY");
+    const char* old_s = std::getenv("XLLAMA_INFER_STALL_TIMEOUT_S");
+    std::string keep_n = old_n ? old_n : "";
+    std::string keep_s = old_s ? old_s : "";
+
+    set_or_clear_env("XLLAMA_DECODE_PROGRESS_EVERY", "often");
+    set_or_clear_env("XLLAMA_INFER_STALL_TIMEOUT_S", "");
+    InferenceProgressConfig cfg;
+    const int default_stall = cfg.stall_timeout_s;
+    overlay_progress_env(cfg);
+    CHECK(cfg.decode_log_every_n == kDefaultDecodeLogEveryN);
+    CHECK(cfg.stall_timeout_s == default_stall);
+
+    set_or_clear_env("XLLAMA_DECODE_PROGRESS_EVERY", keep_n.empty() ? nullptr : keep_n.c_str());
+    set_or_clear_env("XLLAMA_INFER_STALL_TIMEOUT_S", keep_s.empty() ? nullptr : keep_s.c_str());
+}
+
 TEST_CASE("InferenceWatchdog fires after a short stall timeout") {
     InferenceProgressConfig cfg;
     cfg.stall_timeout_s = 1;

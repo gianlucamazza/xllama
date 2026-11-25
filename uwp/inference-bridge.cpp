@@ -15,6 +15,7 @@
 #endif
 #include "xllama/inference.h"
 #include "xllama/json_utils.h"
+#include "xllama/local_knob.h"
 #include "xllama/membw.h"
 #include "xllama/path_utils.h"
 #include "xllama/personalize.h"
@@ -80,8 +81,7 @@ std::string read_local_file(const char* name) {
 
 // Small integer knob from a LocalState file; |fallback| when absent or unparsable.
 int read_local_int(const char* name, int fallback) {
-    const std::string s = read_local_file(name);
-    return s.empty() ? fallback : std::atoi(s.c_str());
+    return ::xllama::parse_knob_int_or(read_local_file(name), fallback);
 }
 
 // Multi-turn TTFT bench: measures turn-2 prefill with KV reuse (append only the
