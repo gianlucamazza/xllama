@@ -204,6 +204,8 @@ TEST_CASE("model detection ignores directory names (full-path ids)") {
     CHECK_FALSE(model_is_phi("C:\\phi-cache\\LFM2.5-350M-Q4_K_M.gguf"));
     CHECK(model_is_phi("C:\\models\\Phi-3.5-mini-instruct-Q3_K_S.gguf"));
     CHECK_FALSE(model_is_gemma("/srv/gemma-store/lfm25-350m.gguf"));
+    CHECK_FALSE(model_is_smollm3("models/smollm3-cache/lfm25-350m.gguf"));
+    CHECK(chat_format_for("models/smollm3-cache/lfm25-350m.gguf").kind == ChatFormatKind::ChatML);
     CHECK_FALSE(model_is_granite("/srv/granite-store/lfm25-350m.gguf"));
     CHECK(model_is_granite("/srv/cache/granite-4.0-h-tiny-Q3_K_S.gguf"));
 }
@@ -474,8 +476,8 @@ TEST_CASE("render_system_prefix is the exact head of render_prompt (#169)") {
     // DedicatedTurn formats: the prefix must be byte-identical to what
     // render_prompt emits before the first user turn — a context shift pins
     // exactly its token count.
-    for (const char* id :
-         {"smollm2-360m-cpu-int4", "llama32-3b", "phi35-mini", "gemma4-e2b", "granite40-h-tiny"}) {
+    for (const char* id : {"smollm2-360m-cpu-int4", "llama32-3b", "phi35-mini", "gemma4-e2b",
+                           "granite40-h-tiny", "smollm3-3b"}) {
         const ChatFormat f = chat_format_for(id);
         const std::string prefix = f.render_system_prefix(sys);
         CHECK(!prefix.empty());
@@ -542,4 +544,64 @@ TEST_CASE("granite 4.x empty system still emits an empty dedicated turn") {
           "<|start_of_role|>user<|end_of_role|>ciao<|end_of_text|>\n"
           "<|start_of_role|>assistant<|end_of_role|>");
     CHECK(f.render_system_prefix("") == "<|start_of_role|>system<|end_of_role|><|end_of_text|>\n");
+}
+
+TEST_CASE("smollm3 chat golden and history prefill") {
+    const ChatFormat f = chat_format_for("smollm3-3b");
+    const std::string header = "<|im_start|>system\n## Metadata\n\n"
+                               "Knowledge Cutoff Date: June 2025\n"
+                               "Today Date: 15 June 2025\nReasoning Mode: /no_think\n\n"
+                               "## Custom Instructions\n\n";
+    const std::string end = "\n\n<|im_end|>\n";
+    const std::string gen = "<|im_start|>assistant\n<think>\n\n</think>\n";
+    CHECK(f.render_prompt("", {}, "hi") ==
+          header + "You are a helpful AI assistant named SmolLM, trained by Hugging Face." + end +
+              "<|im_start|>user\nhi<|im_end|>\n" + gen);
+    CHECK(f.render_prompt("Be concise.", {}, "hi") ==
+          header + "Be concise." + end + "<|im_start|>user\nhi<|im_end|>\n" + gen);
+    CHECK(f.render_prompt("Be concise.", {{"hi", "hello"}}, "how are you?") ==
+          header + "Be concise." + end + "<|im_start|>user\nhi<|im_end|>\n" + gen +
+              "hello<|im_end|>\n<|im_start|>user\nhow are you?<|im_end|>\n" + gen);
+    CHECK(f.gen_suffix == "<think>\n\n</think>\n");
+    CHECK(f.gen_suffix != qwen_no_think_gen_suffix("qwen35-0.8b"));
+    CHECK_FALSE(f.strip_thinking_content);
+    CHECK(f.stop_sequences == std::vector<std::string>{"<|im_end|>"});
+    CHECK(f.bos.empty());
+    CHECK(f.render_prompt("", {}, "hi") == f.render_prompt("", {}, "hi"));
+    CHECK(f.render_system_prefix("sys") == f.render_system_prefix("sys"));
+    CHECK(f.render_system_prefix("sys").find("Today Date: 15 June 2025") != std::string::npos);
+    for (const char* sys :
+         {"Be concise. /think", "Be concise. /no_think", "Be concise. /system_override"}) {
+        CHECK(f.render_prompt(sys, {}, "hi") ==
+              header + "Be concise." + end + "<|im_start|>user\nhi<|im_end|>\n" + gen);
+    }
+    CHECK(f.render_prompt("/think Be concise.", {}, "hi") ==
+          header + " Be concise." + end + "<|im_start|>user\nhi<|im_end|>\n" + gen);
+    CHECK(f.render_system_prefix("/think") == f.render_system_prefix(""));
+}
+
+TEST_CASE("smollm3 kv-reuse includes history prefill") {
+    const ChatFormat f = chat_format_for("smollm3-3b");
+    const std::vector<ChatTurn> history = {{"u1", "a1"}};
+    const std::string base = f.render_prompt("sys", history, "u2");
+    const std::string cold = f.render_prompt("sys", {{"u1", "a1"}, {"u2", "a2"}}, "u3");
+    CHECK(base + "a2" + f.stop_sequences.front() + f.render_delta("u3", true) == cold);
+    CHECK(base + "a2" + f.render_delta("u3", false) == cold);
+}
+
+TEST_CASE("smollm3 detection and existing chat formats") {
+    for (const char* id : {"smollm3-3b", "SmolLM3-3B-Q4_K_M.gguf", "smol-lm3", "smol_lm3"}) {
+        CHECK(model_is_smollm3(id));
+        CHECK(chat_format_for(id).kind == ChatFormatKind::SmolLM3);
+    }
+    CHECK_FALSE(model_is_smollm3("smollm2"));
+    CHECK_FALSE(model_is_smollm3("smollm2-360m-cpu-int4"));
+    const ChatFormat old = chat_format_for("smollm2-360m-cpu-int4");
+    CHECK(old.kind == ChatFormatKind::ChatML);
+    CHECK(old.gen_suffix.empty());
+    CHECK_FALSE(old.strip_thinking_content);
+    CHECK(chat_format_for("llama32-3b").kind == ChatFormatKind::Llama3);
+    CHECK(chat_format_for("phi35-mini").kind == ChatFormatKind::Phi3);
+    CHECK(chat_format_for("granite40-h-tiny").kind == ChatFormatKind::Granite);
+    CHECK(chat_format_for("qwen25-coder-1.5b").kind == ChatFormatKind::ChatML);
 }

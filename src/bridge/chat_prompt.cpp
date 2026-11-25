@@ -10,6 +10,7 @@
 namespace xllama {
 namespace {
 
+constexpr char kSmolLM3FrozenDate[] = "15 June 2025";
 constexpr char kThinkOpen[] = "<think>";
 constexpr char kThinkClose[] = "</think>";
 
@@ -78,6 +79,12 @@ bool model_is_phi(const std::string& model_id) {
 
 bool model_is_granite(const std::string& model_id) {
     return to_lower(model_basename(model_id)).find("granite") != std::string::npos;
+}
+
+bool model_is_smollm3(const std::string& model_id) {
+    const std::string b = to_lower(model_basename(model_id));
+    return b.find("smollm3") != std::string::npos || b.find("smol-lm3") != std::string::npos ||
+           b.find("smol_lm3") != std::string::npos;
 }
 
 bool model_is_thinking(const std::string& model_id) {
@@ -249,6 +256,19 @@ ChatFormat chat_format_for(const std::string& model_id) {
         f.system_style = SystemStyle::DedicatedTurn;
         f.stop_sequences = {"<|end_of_text|>"};
         f.gen_suffix = {};
+    } else if (model_is_smollm3(model_id)) {
+        f.kind = ChatFormatKind::SmolLM3;
+        f.turn_open = "<|im_start|>";
+        f.turn_close = "<|im_end|>\n";
+        f.role_sep = "\n";
+        f.user_tag = "user";
+        f.assistant_tag = "assistant";
+        f.system_tag = "system";
+        f.system_sep = "";
+        f.system_style = SystemStyle::DedicatedTurn;
+        f.stop_sequences = {"<|im_end|>"};
+        f.gen_suffix = "<think>\n\n</think>\n";
+        f.gen_suffix_in_history = true;
     } else {
         f.kind = ChatFormatKind::ChatML;
         f.turn_open = "<|im_start|>";
@@ -274,6 +294,24 @@ std::string ChatFormat::render_system_prefix(const std::string& system) const {
     // bos belongs here rather than in render_prompt: this is the one function
     // both the prompt and the #169 pinned head go through, so a template BOS
     // cannot be counted by one and missed by the other.
+    if (kind == ChatFormatKind::SmolLM3) {
+        std::string instructions = system;
+        for (const std::string flag : {"/no_think", "/think", "/system_override"}) {
+            size_t pos = 0;
+            while ((pos = instructions.find(flag, pos)) != std::string::npos)
+                instructions.erase(pos, flag.size());
+        }
+        while (!instructions.empty() &&
+               std::isspace(static_cast<unsigned char>(instructions.back())))
+            instructions.pop_back();
+        if (instructions.empty())
+            instructions = "You are a helpful AI assistant named SmolLM, trained by Hugging Face.";
+        return turn_open + system_tag + role_sep +
+               "## Metadata\n\n"
+               "Knowledge Cutoff Date: June 2025\nToday Date: " +
+               kSmolLM3FrozenDate + "\nReasoning Mode: /no_think\n\n## Custom Instructions\n\n" +
+               instructions + "\n\n" + turn_close;
+    }
     if (system_style == SystemStyle::DedicatedTurn)
         return bos + turn_open + system_tag + role_sep + system + turn_close;
     return bos;
@@ -300,9 +338,10 @@ std::string ChatFormat::render_prompt(const std::string& system,
 
     for (const ChatTurn& t : history) {
         p += turn_open + user_tag + role_sep + user_content(t.user) + turn_close;
-        // History assistant headers never carry gen_suffix (suffix only on the
-        // trailing header below), matching the legacy hand-built prompt.
-        p += turn_open + assistant_tag + role_sep + t.assistant + turn_close;
+        // History carries gen_suffix only when requested: SmolLM3 puts its
+        // empty-think block there, and the KV cache already holds it.
+        p += turn_open + assistant_tag + role_sep + (gen_suffix_in_history ? gen_suffix : "") +
+             t.assistant + turn_close;
     }
 
     p += turn_open + user_tag + role_sep + user_content(final_user) + turn_close;
