@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A NaN in a recurrent state no longer sticks.** `patches/0004-recurrent-state-fill-zero.patch` backports upstream llama.cpp #31913: clearing a recurrent state multiplied it by 0, which keeps a NaN, instead of writing 0. Affects LFM2 and Granite-4.0-H sessions; a single bad value would otherwise poison every later token of the conversation.
+
 - **Context shift no longer aborts on models without RoPE.** Granite-4.0-H (`rope.scaling.finetuned=false`, so no layer uses RoPE) hit `GGML_ASSERT(buffer)` in llama.cpp's K-shift when a #169 context shift ran. `patches/0003-kv-cache-k-shift-unallocated-input.patch` backports the upstream guard (`3e4dfa8f39f9`). `scripts/apply-uwp-patches.sh` is now `scripts/apply-llama-patches.sh` and applies to the Linux build too: CMake configure refuses an unpatched pin, so host tests run the llama.cpp source the console ships.
 
 - **D3D12 shared-activation cache keyed by tensor identity.** Hardening of the d3d12 shared-activation cache: lookups use tensor owner, data pointer, column stride, type and row size, not address alone. Latent hazard; no known failure on main.
