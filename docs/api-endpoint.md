@@ -419,7 +419,10 @@ job — use Settings / autopilot `start_train` for that.
 
 ### Images (`POST /v1/images/generations`)
 
-In-process SD-Turbo with the same clamps as the Image dialog (`steps` 1–4).
+In-process SD-Turbo with the same contract as the Image dialog
+(`include/xllama/diffusion/request.h`): `steps` clamped to 1–4, `seed` any
+uint32 (above it clamps; a negative seed keeps 42). The same seed reproduces the
+same image from the dialog, the API and autopilot.
 Shares process-wide compute admission with chat → `503` when busy.
 
 ```bash
