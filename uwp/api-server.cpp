@@ -28,6 +28,7 @@
     #include "xllama/chat_prompt.h"
     #include "xllama/compute_admission.h"
     #include "xllama/http_framing.h"
+    #include "xllama/local_knob.h"
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
     #include "xllama/personalize.h"
@@ -111,39 +112,17 @@ std::mutex g_control_mtx;
 // thread pool, not on run_server's thread).
 StreamSocketListener g_listener{nullptr};
 
-constexpr int kDefaultPort = 11434; // Ollama default port, familiar to clients
-
-// Read and trim a small LocalState text file; empty string if absent.
-std::string read_local_text(const char* name) {
-    std::string out;
-    const std::string p = ::xllama::resolve_local_path(name);
-    FILE* f = _wfopen(winrt::to_hstring(p).c_str(), L"r");
-    if (!f)
-        return out;
-    char buf[512];
-    size_t n;
-    while ((n = fread(buf, 1, sizeof(buf), f)) > 0)
-        out.append(buf, n);
-    fclose(f);
-    while (!out.empty() && (out.back() == '\n' || out.back() == '\r' || out.back() == ' '))
-        out.pop_back();
-    return out;
-}
-
 // Xbox blocks binding ports in [57344, 65535] (traffic is silently dropped, per
 // the UWP-on-Xbox known-issues doc); 11443 is the Device Portal. Reject those so
 // an api-port.txt typo fails loudly to the default rather than binding a dead
 // port. Valid app range is [1025, 49151].
 int listen_port() {
-    const std::string s = read_local_text("api-port.txt");
-    if (!s.empty()) {
-        const int p = std::atoi(s.c_str());
-        if (port_bindable(p))
-            return p;
+    const std::string s = ::xllama::read_local_text("api-port.txt");
+    const int port = configured_api_port(s);
+    if (!s.empty() && ::xllama::parse_knob_int(s) != port) // unparsable or not bindable
         ::xllama::log_output("[xllama] api: api-port.txt=" + s +
-                             " out of bindable range [1025,49151]\\11443; using default\n");
-    }
-    return kDefaultPort;
+                             " is not a port in [1025,49151]\\11443; using default\n");
+    return port;
 }
 
 // ---------------------------------------------------------------------------
@@ -937,7 +916,7 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
 
     std::string model = winrt::to_string(root.GetNamedString(L"model", L""));
     if (model.empty())
-        model = read_local_text("model.txt"); // field-test fallback
+        model = ::xllama::read_local_text("model.txt"); // field-test fallback
     if (model.empty()) {
         status = "400 Bad Request";
         return error_json("missing 'model' (and no LocalState\\model.txt fallback)");
@@ -1161,7 +1140,7 @@ std::string current_model_id() {
     std::unique_lock<std::mutex> lk(hub.mtx, std::try_to_lock);
     if (lk.owns_lock() && !hub.model.empty())
         return hub.model;
-    return read_local_text("model.txt");
+    return ::xllama::read_local_text("model.txt");
 }
 
 // Catalogue ids ready to serve: every LocalState\models\<id> whose files make
@@ -1274,7 +1253,7 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
     }
     std::string model = winrt::to_string(root.GetNamedString(L"model", L""));
     if (model.empty())
-        model = read_local_text("model.txt");
+        model = ::xllama::read_local_text("model.txt");
     if (model.empty()) {
         status = "400 Bad Request";
         return embedding_error_json(api, "missing 'model' (and no LocalState\\model.txt fallback)");
@@ -1583,9 +1562,9 @@ std::string handle_preferences(const std::string& body, const char*& status) {
 
 // GET /v1/training/status — result.done + progress.json + optional result.json.
 std::string handle_training_status() {
-    const std::string done_raw = read_local_text("training/result.done");
+    const std::string done_raw = ::xllama::read_local_text("training/result.done");
     const std::string done = ::xllama::parse_train_result_done(done_raw);
-    const std::string progress = read_local_text("training/progress.json");
+    const std::string progress = ::xllama::read_local_text("training/progress.json");
     const std::string result_path =
         ::xllama::resolve_local_path("training/out/personalized/result.json");
     const std::string result_body = read_file_bytes(result_path);
@@ -1646,25 +1625,21 @@ std::string handle_images_locked(const std::string& body, const char*& status) {
 
     // Drive the same LocalState knobs as the Image dialog / autopilot.
     {
-        auto write = [](const char* name, const std::string& v) {
-            FILE* f = _wfopen(::xllama::utf8_to_wstring(::xllama::resolve_local_path(name)).c_str(),
-                              L"wb");
-            if (f) {
-                fwrite(v.data(), 1, v.size(), f);
-                fclose(f);
-            }
-        };
-        write("prompt.txt", prompt);
-        write("diffuse-steps.txt", std::to_string(steps));
-        write("diffuse-seed.txt", std::to_string(seed));
-        write("diffuse-model.txt", "sd-turbo-fp16");
+        // A half-written set would run the previous request's prompt or seed.
+        if (!::xllama::write_local_text("prompt.txt", prompt) ||
+            !::xllama::write_local_text("diffuse-steps.txt", std::to_string(steps)) ||
+            !::xllama::write_local_text("diffuse-seed.txt", std::to_string(seed)) ||
+            !::xllama::write_local_text("diffuse-model.txt", "sd-turbo-fp16")) {
+            status = "500 Internal Server Error";
+            return error_json("cannot write the image request to LocalState");
+        }
         _wremove(
             ::xllama::utf8_to_wstring(::xllama::resolve_local_path("diffuse-cancel.flag")).c_str());
     }
 
     ::xllama::bridge::run_diffuse();
 
-    const std::string stage = read_local_text("diffuse-progress.txt");
+    const std::string stage = ::xllama::read_local_text("diffuse-progress.txt");
     if (stage != "done") {
         status = "500 Internal Server Error";
         return error_json(std::string("image generation failed: stage=") + stage);

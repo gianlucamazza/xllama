@@ -866,6 +866,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_cli.cpp`                     | `cli.h`                                                                                                        |
 | `test_decode_loop.cpp`             | `decode_loop.h` via `run_inference` (opt-in model)                                                             |
 | `test_inference_progress.cpp`      | `inference_progress.h` cadence, stall policy, watchdog                                                         |
+| `test_local_knob.cpp`              | `local_knob.h` LocalState file read/write, CRLF/trim normalisation, strict integer knobs                       |
 | `test_device_train.cpp`            | `device_train.h`                                                                                               |
 | `test_diffusion.cpp`               | `diffusion/` (Euler golden vectors, LCM step table, LCM-off = Euler)                                           |
 | `test_diskbw.cpp`                  | `diskbw.h`                                                                                                     |
@@ -889,6 +890,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_personalize.cpp`             | `personalize.h`                                                                                                |
 | `test_preference_capture.cpp`      | `preference_capture.h`                                                                                         |
 | `test_prefix_snapshot.cpp`         | `prefix_snapshot.h` — extension keeps snapshot; non-extension restores/clears; regenerate Clears               |
+| `test_context_shift.cpp`           | `context_shift.h` — #169 shift admission (`memory_can_shift`, SWA guard)                                       |
 | `test_granite_hybrid_snapshot.cpp` | #512 restore on Granite-4.0-H-Tiny (opt-in `XLLAMA_GRANITE_H_TINY`; skips in CI)                               |
 | `test_prompt_budget.cpp`           | `prompt_budget.h`                                                                                              |
 | `test_ramceil.cpp`                 | `ramceil.h`                                                                                                    |
