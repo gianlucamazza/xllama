@@ -925,7 +925,10 @@ void MainPageController::SaveKvSnapshotAsync() {
                 return; // the resident KV is not this conversation's any more
                         // (the API, a reload or another model) — nothing to save
             std::string err;
-            if (hub.session->save_state(path, &err))
+            // A snapshot larger than the whole pool would be pruned right after
+            // it was written: refuse it before the state is copied (#570).
+            if (hub.session->save_state(path, &err,
+                                        static_cast<std::size_t>(::xllama::kKvStoreMaxBytes)))
                 store.prune(::xllama::kKvStoreMaxFiles, ::xllama::kKvStoreMaxBytes);
             else
                 ::xllama::log_output("[xllama] KV snapshot not saved: " + err + "\n");
@@ -1470,7 +1473,8 @@ void MainPageController::RefreshDebugDashboard() {
             in.session_loaded = static_cast<bool>(hub.session);
             in.resident_model_id = hub.model;
             if (hub.session) {
-                in.n_ctx = hub.params.n_ctx;
+                const int loaded_n_ctx = hub.session->context_length();
+                in.n_ctx = loaded_n_ctx > 0 ? loaded_n_ctx : hub.params.n_ctx;
                 in.n_gpu_layers = hub.params.n_gpu_layers;
                 if (!hub.params.lora_path.empty())
                     in.lora_path = hub.params.lora_path;
@@ -3432,10 +3436,12 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
                 });
                 return;
             }
-            // Budget against the context the resident session was loaded with
-            // (same_load pins n_ctx), not the UI-thread manifest cache, which a
-            // LocalState manifest override can leave stale.
-            plan_n_ctx = hub.params.n_ctx;
+            // Budget against the context the resident session holds, not the
+            // UI-thread manifest cache (a LocalState manifest override can leave
+            // it stale) and not the requested n_ctx, which a GGUF session caps
+            // at its trained context (#570).
+            const int loaded_n_ctx = hub.session ? hub.session->context_length() : 0;
+            plan_n_ctx = loaded_n_ctx > 0 ? loaded_n_ctx : hub.params.n_ctx;
 
             // #170b: this conversation's KV is not resident (switched away and
             // back, or the app was restarted). Restoring the snapshot does not

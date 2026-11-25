@@ -81,11 +81,12 @@ inline constexpr int kReservedGenerationTokens = 250;
 //   - GGUF: bound_gguf_n_ctx caps the request at the model's trained context.
 //     The memory admission (memory_admission.h) then sizes the real KV and
 //     recurrent state at that n_ctx and refuses a load that would not fit.
-//   - ORT GenAI: bound_ort_n_ctx keeps kMaxOrtSessionNCtx, since ORT sessions
-//     have no memory admission and this cap is all that keeps a bad override
+//   - A session with no memory admission keeps kMaxUnadmittedNCtx
+//     (bound_unadmitted_n_ctx): every ORT GenAI session, and a GGUF load whose
+//     no_alloc dry run failed. There this cap is all that keeps a bad override
 //     from exhausting the console KV pool.
 inline constexpr int kMinSessionNCtx = 512;
-inline constexpr int kMaxOrtSessionNCtx = 8192;
+inline constexpr int kMaxUnadmittedNCtx = 8192;
 
 // Resolve a catalogue (or CLI) n_ctx request: 0 means shipping default.
 inline constexpr int resolve_n_ctx(int requested) {
@@ -108,10 +109,11 @@ inline constexpr int bound_gguf_n_ctx(int requested, int n_ctx_train) {
     return n_ctx_train < kMinSessionNCtx ? kMinSessionNCtx : n_ctx_train;
 }
 
-// An ORT GenAI session's context (max_length).
-inline constexpr int bound_ort_n_ctx(int requested) {
+// The context of a session that no memory admission checked: ORT GenAI
+// (max_length), or a GGUF load whose dry run failed.
+inline constexpr int bound_unadmitted_n_ctx(int requested) {
     const int n = resolve_n_ctx(requested);
-    return n > kMaxOrtSessionNCtx ? kMaxOrtSessionNCtx : n;
+    return n > kMaxUnadmittedNCtx ? kMaxUnadmittedNCtx : n;
 }
 
 // The n_ctx a catalogue entry asks its session for, before the model file is
@@ -119,7 +121,7 @@ inline constexpr int bound_ort_n_ctx(int requested) {
 // loading. A GGUF session can still open smaller (bound_gguf_n_ctx); after the
 // load, Session::context_length() is the context that holds.
 inline constexpr int catalogue_n_ctx(int requested, bool gguf) {
-    return gguf ? resolve_n_ctx(requested) : bound_ort_n_ctx(requested);
+    return gguf ? resolve_n_ctx(requested) : bound_unadmitted_n_ctx(requested);
 }
 
 // GGUF layers on the d3d12 backend for a session (docs/gguf-gpu-decode.md, D3).

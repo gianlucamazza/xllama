@@ -149,8 +149,10 @@ json.dump({"_comment": "temporary, removed by measure-nctx-sweep.sh", "models": 
           open(dest, "w", encoding="utf-8"), indent=2)
 PY
 }
-# Deterministic filler of about <tokens> tokens (numbered sentences, ~4 chars
-# per token on English BPE vocabularies), then a short instruction.
+# Deterministic filler of about <tokens> tokens (numbered sentences), then a
+# short instruction. 3.5 chars per token is calibrated on this text with the
+# LFM2.5 and Llama-3.2 vocabularies (2026-11-25: 5922 chars were 1700 tokens).
+# usage.prompt_tokens records the exact count.
 write_prompt() { # <tokens> <dest>
 	python3 -I - "$1" "$2" <<'PY'
 import sys
@@ -161,7 +163,7 @@ out, n, i = [], 0, 0
 while n < tokens:
     s = f"Note {i}: the {words[i % 16]} near the {words[(i * 7 + 3) % 16]} was logged at {i * 13 % 997}."
     out.append(s)
-    n += len(s) // 4 + 1
+    n += len(s) / 3.5
     i += 1
 out.append("Reply with the single word OK.")
 open(dest, "w", encoding="utf-8").write(" ".join(out))

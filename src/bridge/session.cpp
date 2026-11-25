@@ -370,7 +370,7 @@ std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err) {
             log_output(gpu_buf);
         }
         // No memory admission on ORT: the fixed cap is its KV bound (#570).
-        const int n_ctx = bound_ort_n_ctx(sp.n_ctx);
+        const int n_ctx = bound_unadmitted_n_ctx(sp.n_ctx);
 
         // #130: DirectML pays a large one-time per-process cost on the first
         // generate (§5e: cold→warm prefill 1.64-1.72×; CPU control 1.00× —
@@ -1436,7 +1436,7 @@ class LlamaSession final : public Session {
         return buf;
     }
 
-    bool save_state(const std::string& path, std::string* err) override {
+    bool save_state(const std::string& path, std::string* err, std::size_t max_bytes) override {
         if (!ensure_ctx(err))
             return false;
         if (m_kv_tokens.empty()) {
@@ -1448,7 +1448,18 @@ class LlamaSession final : public Session {
         std::vector<uint8_t> blob;
         size_t n_state = 0;
         try {
-            blob.resize(llama_state_seq_get_size(m_ctx.get(), 0));
+            // Size first: the reader refuses anything past kMaxStateBytes, and a
+            // long dense context can hold gigabytes, so check before copying.
+            const size_t want = llama_state_seq_get_size(m_ctx.get(), 0);
+            const size_t cap = max_bytes > 0 ? std::min(max_bytes, kMaxStateBytes) : kMaxStateBytes;
+            if (want > cap) {
+                if (err)
+                    *err = "KV state " + std::to_string(want >> 20) + " MB for " +
+                           std::to_string(m_kv_tokens.size()) + " tokens is over the " +
+                           std::to_string(cap >> 20) + " MB snapshot cap";
+                return false;
+            }
+            blob.resize(want);
             n_state = llama_state_seq_get_data(m_ctx.get(), blob.data(), blob.size(), 0);
         } catch (const std::exception& e) {
             if (err)
@@ -1710,7 +1721,7 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
     llama_model_params mparams = plan->mparams;
     const int gpu_layers = plan->gpu_layers;
     const int n_threads = plan->n_threads;
-    const int n_ctx = plan->n_ctx;
+    int n_ctx = plan->n_ctx;
 
     install_llama_log();
     // Admission before any weight is read: the dry run sizes weights, context
@@ -1729,8 +1740,17 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
                        std::to_string(need->host_compute_mb) + "), device " +
                        std::to_string(need->device_mb) + " MB, " +
                        std::to_string(working_set_mb()) + " MB in use\n");
-        else
-            log_output("[xllama] Session: memory dry run failed; loading without admission\n");
+        else {
+            // No admission without the estimate: keep the fixed bound that
+            // held before the dry run existed (#570).
+            const int bounded = bound_unadmitted_n_ctx(n_ctx);
+            log_output("[xllama] Session: memory dry run failed; loading without admission" +
+                       (bounded < n_ctx ? std::string(", n_ctx ") + std::to_string(n_ctx) +
+                                              " bounded to " + std::to_string(bounded)
+                                        : std::string()) +
+                       "\n");
+            n_ctx = bounded;
+        }
         const ::xllama::MemoryVerdict v = admit_memory(need, n_ctx);
         if (!v.ok) {
             log_output("[xllama] Session: " + v.message + "\n");

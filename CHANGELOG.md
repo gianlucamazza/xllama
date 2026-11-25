@@ -7,7 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-- **GGUF `n_ctx` is bounded by the model, not by 8192 (#570).** The fixed `kMaxSessionNCtx` clamp applied to every backend. A GGUF session now opens at its requested `n_ctx`, capped at the trained context in the GGUF header (`<arch>.context_length`), and the memory admission decides whether that KV fits. ORT GenAI sessions, which have no admission, keep the 8192 cap. Catalogue `n_ctx` values are unchanged.
+- **GGUF `n_ctx` is bounded by the model, not by 8192 (#570).** The fixed `kMaxSessionNCtx` clamp applied to every backend. A GGUF session now opens at its requested `n_ctx`, capped at the trained context in the GGUF header (`<arch>.context_length`), and the memory admission decides whether that KV fits. ORT GenAI sessions, which have no admission, keep the 8192 cap, and so does a GGUF load whose dry run failed. The LAN API and the chat UI budget prompts against the context the session opened with (`Session::context_length()`), not the requested one. A KV snapshot larger than the 192 MB snapshot pool is refused before the state is copied; before, it was copied in RAM, written, and pruned. Catalogue `n_ctx` values are unchanged.
 
 - **Session memory admission counts the KV.** A GGUF session is admitted before any weight is read: llama.cpp's no_alloc dry run sizes weights, context (KV and recurrent state at the requested `n_ctx`) and compute buffers, and a session that would not fit the app's memory limit (or a GPU split over the GPU budget) fails with an `insufficient memory: …` breakdown instead of inside an allocation. The API answers it with `400`. This replaces the embedding-only weights × 1.12 estimate and its fixed 3584 MB gate.
 

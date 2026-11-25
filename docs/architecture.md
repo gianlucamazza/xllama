@@ -566,9 +566,12 @@ The admission is the GGUF context's memory bound, so `n_ctx` has no fixed
 maximum on that backend (#570). `plan_llama_load` reads the model's trained
 context from the GGUF header and caps the request there (`bound_gguf_n_ctx`).
 Above that cap llama.cpp only warns, and the model runs past what it was trained
-on. ORT GenAI sessions have no admission and keep the 8192 cap
-(`bound_ort_n_ctx`). Catalogue `n_ctx` values change only with console evidence
-("measured is not shipped").
+on. A session that no admission checked keeps the 8192 cap
+(`bound_unadmitted_n_ctx`). That covers every ORT GenAI session, and a GGUF load
+whose dry run failed. After the load, `Session::context_length()` is the
+context. The LAN chat handler and the GUI turn worker budget `fit_prompt` and
+the reply limit against it, not against the requested `n_ctx`. Catalogue
+`n_ctx` values change only with console evidence ("measured is not shipped").
 
 ### Embedding residency
 

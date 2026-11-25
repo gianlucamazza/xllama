@@ -176,17 +176,17 @@ TEST_CASE("bound_gguf_n_ctx caps at the trained context, not at a constant") {
     CHECK(bound_gguf_n_ctx(kMinSessionNCtx - 1, 32768) == kMinSessionNCtx);
 }
 
-TEST_CASE("bound_ort_n_ctx keeps the fixed ORT cap") {
-    CHECK(bound_ort_n_ctx(0) == kDefaultNCtx);
-    CHECK(bound_ort_n_ctx(4096) == 4096);
-    CHECK(bound_ort_n_ctx(kMaxOrtSessionNCtx) == kMaxOrtSessionNCtx);
-    CHECK(bound_ort_n_ctx(kMaxOrtSessionNCtx + 1) == kMaxOrtSessionNCtx);
+TEST_CASE("bound_unadmitted_n_ctx: the fixed cap where no admission checks the KV") {
+    CHECK(bound_unadmitted_n_ctx(0) == kDefaultNCtx);
+    CHECK(bound_unadmitted_n_ctx(4096) == 4096);
+    CHECK(bound_unadmitted_n_ctx(kMaxUnadmittedNCtx) == kMaxUnadmittedNCtx);
+    CHECK(bound_unadmitted_n_ctx(kMaxUnadmittedNCtx + 1) == kMaxUnadmittedNCtx);
 }
 
 TEST_CASE("catalogue_n_ctx applies the backend's pre-load bound") {
     CHECK(catalogue_n_ctx(0, true) == kDefaultNCtx);
     CHECK(catalogue_n_ctx(32768, true) == 32768); // GGUF: bounded at load
-    CHECK(catalogue_n_ctx(32768, false) == kMaxOrtSessionNCtx);
+    CHECK(catalogue_n_ctx(32768, false) == kMaxUnadmittedNCtx);
     CHECK(catalogue_n_ctx(4096, false) == 4096);
 }
 
