@@ -1278,7 +1278,10 @@ std::string models_json() {
         std::unique_lock<std::mutex> lk(hub.mtx, std::try_to_lock);
         if (lk.owns_lock() && hub.session) {
             active = hub.model;
-            active_n_ctx = hub.params.n_ctx;
+            // The context the session holds, which can be below the requested
+            // n_ctx (hub.params) when the backend bounds it at load.
+            const int loaded = hub.session->context_length();
+            active_n_ctx = loaded > 0 ? loaded : hub.params.n_ctx;
         }
     }
     if (active.empty())
