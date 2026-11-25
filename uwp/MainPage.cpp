@@ -3620,9 +3620,13 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
                          fit.n_tokens, fit.dropped, plan_dropped, plan_n_ctx, plan_n_predict,
                          fit.fits ? "" : " — DOES NOT FIT");
                 ::xllama::log_output(fb);
-                if (!fit.fits)
+                if (!fit.fits) {
+                    // Logged as well as shown: the refusal never reaches the
+                    // session, so nothing else records it in xllama.log.
                     fit_error = ::xllama::prompt_too_long_message(
                         "final user message", fit.n_tokens, plan_n_predict, plan_n_ctx);
+                    ::xllama::log_output("[xllama] chat: " + fit_error + "\n");
+                }
                 full_prompt = fit.prompt;
                 return full_prompt;
             };
