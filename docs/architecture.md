@@ -890,6 +890,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_personalize.cpp`             | `personalize.h`                                                                                                |
 | `test_preference_capture.cpp`      | `preference_capture.h`                                                                                         |
 | `test_prefix_snapshot.cpp`         | `prefix_snapshot.h` — extension keeps snapshot; non-extension restores/clears; regenerate Clears               |
+| `test_context_shift.cpp`           | `context_shift.h` — #169 shift admission (`memory_can_shift`, SWA guard)                                       |
 | `test_granite_hybrid_snapshot.cpp` | #512 restore on Granite-4.0-H-Tiny (opt-in `XLLAMA_GRANITE_H_TINY`; skips in CI)                               |
 | `test_prompt_budget.cpp`           | `prompt_budget.h`                                                                                              |
 | `test_ramceil.cpp`                 | `ramceil.h`                                                                                                    |
