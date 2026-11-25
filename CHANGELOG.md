@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Prompt budget uses the loaded session's `n_ctx`.** The LAN chat handler and the GUI turn worker sized `fit_prompt` (and the API reply limit) from a per-process manifest cache, while the session was loaded from a fresh catalogue read. After a `LocalState\manifest.json` override changed `n_ctx` without a restart, the two disagreed. Both now use the `n_ctx` the resident session was loaded with.
+
 - **D3D12 shared-activation cache keyed by tensor identity.** Hardening of the d3d12 shared-activation cache: lookups use tensor owner, data pointer, column stride, type and row size, not address alone. Latent hazard; no known failure on main.
 
 ## [1.8.1]

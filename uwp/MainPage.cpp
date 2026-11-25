@@ -3470,7 +3470,7 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
     // m_system_prompt / m_n_predict are UI-thread state, read here.
     const std::vector<::xllama::ChatTurn> plan_turns = plan.turns;
     const std::string system_prompt = m_system_prompt;
-    const int plan_n_ctx = plan.n_ctx;
+    int plan_n_ctx = plan.n_ctx; // replaced by the loaded session's n_ctx in the worker
     const int plan_n_predict = m_n_predict;
     const int plan_dropped = plan.dropped;
 
@@ -3534,6 +3534,10 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
                 });
                 return;
             }
+            // Budget against the context the resident session was loaded with
+            // (same_load pins n_ctx), not the UI-thread manifest cache, which a
+            // LocalState manifest override can leave stale.
+            plan_n_ctx = hub.params.n_ctx;
 
             // #170b: this conversation's KV is not resident (switched away and
             // back, or the app was restarted). Restoring the snapshot does not
