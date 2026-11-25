@@ -867,6 +867,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_capture_probe.cpp`           | `capture_probe.h`                                                                                              |
 | `test_chat_history.cpp`            | `uwp/chat-history.h`                                                                                           |
 | `test_chat_prompt.cpp`             | `chat_prompt.h`                                                                                                |
+| `test_main.cpp`                    | doctest entry point; stall watchdog off unless `XLLAMA_INFER_STALL_TIMEOUT_S` is exported                      |
 | `test_cli.cpp`                     | `cli.h`                                                                                                        |
 | `test_decode_loop.cpp`             | `decode_loop.h` via `run_inference` (opt-in model)                                                             |
 | `test_inference_progress.cpp`      | `inference_progress.h` cadence, stall policy, watchdog                                                         |
