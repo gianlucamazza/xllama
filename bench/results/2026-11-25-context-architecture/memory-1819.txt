@@ -1,0 +1,30 @@
+load_tensors: offloaded 0/25 layers to GPU
+[xllama] ws after model load: 3565 MB
+[xllama] ws after context: 3592 MB
+[xllama] Session: memory estimate n_ctx=2048 host 370 MB (weights 206, context 24, compute 140), device 0 MB, 104 MB in use
+[xllama] ws after model load: 321 MB
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] Session: memory estimate n_ctx=2048 host 825 MB (weights 661, context 24, compute 140), device 660 MB, 126 MB in use
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 796 MB
+[xllama] ws after context: 891 MB
+load_tensors: offloaded 0/17 layers to GPU
+[xllama] Session: memory estimate n_ctx=2048 host 370 MB (weights 206, context 24, compute 140), device 0 MB, 123 MB in use
+load_tensors: offloaded 0/17 layers to GPU
+[xllama] ws after model load: 340 MB
+[xllama] ws after context: 365 MB
+load_tensors: offloaded 0/29 layers to GPU
+[xllama] Session: memory estimate n_ctx=4096 host 1361 MB (weights 934, context 112, compute 315), device 0 MB, 139 MB in use
+load_tensors: offloaded 0/29 layers to GPU
+[xllama] ws after model load: 1101 MB
+[xllama] ws after context: 1216 MB
+load_tensors: offloaded 0/29 layers to GPU
+[xllama] Session: memory estimate n_ctx=2048 host 1969 MB (weights 1463, context 224, compute 282), device 0 MB, 118 MB in use
+load_tensors: offloaded 0/29 layers to GPU
+[xllama] ws after model load: 1632 MB
+[xllama] ws after context: 1858 MB
+load_tensors: offloaded 0/25 layers to GPU
+[xllama] Session: memory estimate n_ctx=2048 host 3693 MB (weights 3397, context 24, compute 272), device 0 MB, 157 MB in use
+load_tensors: offloaded 0/25 layers to GPU
+[xllama] ws after model load: 3567 MB
+[xllama] ws after context: 3593 MB

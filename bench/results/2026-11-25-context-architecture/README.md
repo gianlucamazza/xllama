@@ -46,3 +46,23 @@ budget. The fix in #571:
   GPU budget;
 - the estimate line logs the working set in use before the load, so the next
   run calibrates `kSessionMemoryMarginMb` directly.
+
+## Calibration on 1.8.1.1819 (the fix above)
+
+Each model was loaded by one API turn (`Say hi.`, 16 tokens). "Grown" is the
+working set after the context minus the "in use" figure the estimate line now
+logs. `memory-1819.txt` holds the lines. After that, `longchat` and
+`coderpaste` both PASS (`console-*-1819.log`).
+
+| Model                             | n_ctx | Estimate (host, incl. D3D12) | In use | After context | Grown   |
+| --------------------------------- | ----- | ---------------------------- | ------ | ------------- | ------- |
+| `lfm25-1.2b-instruct` (GPU 17/17) | 2048  | 825 MB (device 660)          | 126 MB | 891 MB        | 765 MB  |
+| `lfm25-350m`                      | 2048  | 370 MB                       | 123 MB | 365 MB        | 242 MB  |
+| `qwen25-coder-1.5b`               | 4096  | 1361 MB                      | 139 MB | 1216 MB       | 1077 MB |
+| `llama32-3b`                      | 2048  | 1969 MB                      | 118 MB | 1858 MB       | 1740 MB |
+| `lfm25-8b-a1b`                    | 2048  | 3693 MB                      | 157 MB | 3593 MB       | 3436 MB |
+
+The estimate alone covers the growth on every load, so
+`kSessionMemoryMarginMb` (192) is headroom on top. The largest catalogue model,
+`lfm25-8b-a1b`, is admitted with 157 + 3693 + 192 = 4042 MB against the
+5120 MB limit.
