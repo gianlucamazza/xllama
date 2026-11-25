@@ -22,6 +22,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <optional>
 #include <string>
 
 // Backend availability. A build defines XLLAMA_USE_ORT when ORT GenAI is linked.
@@ -801,12 +802,27 @@ class LlamaSession final : public Session {
             // the evicted range (its absorbed history survives — a documented
             // approximation), so the front-drop seq_rm succeeds where #170a's
             // tail rewind cannot.
+            //
+            // The eviction ends on a turn boundary (gp.turn_close): it drops
+            // whole turns, never half a message or a template marker. No
+            // boundary that frees enough room, or no turn structure at all,
+            // means fail-fast below, and the caller's full-prompt retry drops
+            // whole turns through fit_prompt.
             bool shifted = false;
-            if (m_can_shift && kv_len > 0 && static_cast<int>(m_kv_tokens.size()) == kv_len) {
+            if (m_can_shift && kv_len > 0 && static_cast<int>(m_kv_tokens.size()) == kv_len &&
+                !gp.turn_close.empty()) {
                 const int keep = std::min(std::max(gp.n_keep, 0), kv_len - 1);
                 const int movable = kv_len - keep;
                 const int need = kv_len + n_pf + std::max(gp.n_predict, 1) - m_n_ctx;
-                const int n_discard = std::min(std::max(need, movable / 2), movable);
+                // At least room for the delta plus one generated token; the
+                // generation loop clamps the rest to what is left.
+                const int must = kv_len + n_pf + 1 - m_n_ctx;
+                const std::vector<llama_token> close = tokenize_special(gp.turn_close);
+                const std::optional<std::size_t> aligned = turn_aligned_discard(
+                    m_kv_tokens, static_cast<std::size_t>(keep),
+                    static_cast<std::size_t>(std::min(std::max(need, movable / 2), movable)),
+                    static_cast<std::size_t>(std::max(must, 1)), close);
+                const int n_discard = aligned ? static_cast<int>(*aligned) : 0;
                 if (n_discard > 0 && kv_len + n_pf + 1 - n_discard <= m_n_ctx &&
                     llama_memory_seq_rm(mem, 0, keep, keep + n_discard)) {
                     llama_memory_seq_add(mem, 0, keep + n_discard, -1, -n_discard);
@@ -1195,6 +1211,23 @@ class LlamaSession final : public Session {
     void drop_prefix_snapshot() {
         m_prefix_tokens.clear();
         m_prefix_blob.clear();
+    }
+
+    // Token ids of a template fragment (special tokens parsed, no BOS), as they
+    // appear inside a rendered prompt.
+    std::vector<llama_token> tokenize_special(const std::string& text) const {
+        const llama_vocab* vocab = llama_model_get_vocab(m_model.get());
+        int32_t n = -llama_tokenize(vocab, text.c_str(), static_cast<int32_t>(text.size()), nullptr,
+                                    0, /*add_special=*/false, /*parse_special=*/true);
+        if (n <= 0)
+            return {};
+        std::vector<llama_token> out(static_cast<size_t>(n));
+        n = llama_tokenize(vocab, text.c_str(), static_cast<int32_t>(text.size()), out.data(), n,
+                           false, true);
+        if (n < 0)
+            return {};
+        out.resize(static_cast<size_t>(n));
+        return out;
     }
 
     // A partial-state checkpoint (llama-server's "context checkpoint"): only the

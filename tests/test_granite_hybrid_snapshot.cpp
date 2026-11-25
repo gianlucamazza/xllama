@@ -226,6 +226,7 @@ TEST_CASE("Session: granitehybrid context shift on overflow (#527, "
     seed.reuse_kv = true;
     seed.reset_kv = true;
     seed.n_keep = n_keep;
+    seed.turn_close = fmt.turn_close;
     const auto r_seed = sess->generate(seed);
     REQUIRE_MESSAGE(r_seed.success, r_seed.error_msg);
     REQUIRE(sess->can_context_shift());
@@ -238,6 +239,7 @@ TEST_CASE("Session: granitehybrid context shift on overflow (#527, "
         cont.reuse_kv = true;
         cont.reset_kv = false;
         cont.n_keep = n_keep;
+        cont.turn_close = fmt.turn_close;
         const auto rc = sess->generate(cont);
         REQUIRE_MESSAGE(rc.success, rc.error_msg);
         total_tokens += rc.n_p_eval + rc.n_eval;
@@ -245,4 +247,46 @@ TEST_CASE("Session: granitehybrid context shift on overflow (#527, "
             saw_shift_success = true;
     }
     CHECK(saw_shift_success);
+}
+
+// Measurement, not a gate (same probe as tests/test_session.cpp): after #169
+// shifts evict the first turn, does Mamba2 state still carry its fact?
+TEST_CASE("Session: granitehybrid evicted-turn recall after a context shift (opt-in: "
+          "XLLAMA_GRANITE_H_TINY, measurement)") {
+    const char* model = granite_h_tiny_path();
+    if (!model)
+        return;
+    const ChatFormat fmt = chat_format_for(model);
+    SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 128;
+    sp.n_threads = 4;
+    std::string error;
+    auto s = Session::create(sp, &error);
+    REQUIRE_MESSAGE(s, error);
+    const std::string sys = "You are terse.";
+    const int n_keep = s->count_tokens(fmt.render_system_prefix(sys));
+    auto turn = [&](const std::string& prompt, bool reset) {
+        GenerateParams gp = greedy(prompt, fmt, 8);
+        gp.reuse_kv = true;
+        gp.reset_kv = reset;
+        gp.n_keep = n_keep;
+        gp.turn_close = fmt.turn_close;
+        if (!reset)
+            gp.expected_kv_epoch = s->kv_epoch();
+        return s->generate(gp);
+    };
+    REQUIRE(turn(fmt.render_prompt(sys, {}, "Remember this code word: PAPAYA."), true).success);
+    for (int i = 0; i < 14; ++i)
+        REQUIRE(turn(fmt.render_delta("Name a random animal, one word.", true), false).success);
+    const auto probe =
+        turn(fmt.render_delta("What was the code word I asked you to remember? Word only.", true),
+             false);
+    REQUIRE_MESSAGE(probe.success, probe.error_msg);
+    const std::string& out = probe.output_text;
+    const bool recalled = out.find("PAPAYA") != std::string::npos ||
+                          out.find("Papaya") != std::string::npos ||
+                          out.find("papaya") != std::string::npos;
+    const std::string verdict = recalled ? "YES" : "no";
+    MESSAGE("granitehybrid evicted-turn recall: " << verdict << " — reply '" << out << "'");
 }

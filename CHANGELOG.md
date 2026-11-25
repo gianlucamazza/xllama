@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Context shift evicts whole turns.** A long chat past `n_ctx` dropped a raw token count after the system prompt, which could cut a message or a chat-template marker in half. The shift now ends right after the format's turn terminator (`GenerateParams::turn_close`, set by the chat UI from `ChatFormat::turn_close`); with no boundary that frees enough room it fails fast and the full-prompt retry drops whole turns. A host recall probe found no evicted-turn fact surviving in LFM2.5 or Granite-4.0-H recurrent state.
+
 - **Hybrid conversations restored from disk keep their prefix checkpoint.** The `LocalState\kv\<id>.kv` snapshot now ends with an optional `xllama-ckpt` trailer holding the partial-state checkpoint. After switching back to a conversation, an edited reply re-prefills only the tail instead of the whole history. Files without the trailer still load, and older builds ignore it.
 
 - **Hybrid prefix reuse keeps a partial checkpoint instead of a full copy.** LFM2 and Granite-4.0-H sessions copied the whole context state (`llama_state_get_data`, attention KV included) after every prefill. They now keep a partial-state checkpoint (`llama_state_seq_*_ext`, `PARTIAL_ONLY`, as llama-server's context checkpoints): 160 KiB for LFM2.5-1.2B, independent of `n_ctx`. A restore truncates the still-resident attention KV to the checkpoint, and an exact regenerate now restores too, with output identical to a cold run, instead of re-prefilling the whole prompt. A context shift drops the checkpoint.

@@ -125,6 +125,7 @@ Parameters for a single generation turn.
 | `reuse_kv`           | false      | Enable KV-cache reuse (continuous decoding) |
 | `reset_kv`           | false      | Reset KV cache for this turn                |
 | `n_keep`             | 0          | Tokens pinned across context shifts         |
+| `turn_close`         | ""         | Turn terminator a shift evicts up to        |
 | `expected_kv_epoch`  | 0          | Continuation guard (`kv_epoch()`); 0 = off  |
 | `on_token`           | —          | Callback per generated token                |
 | `on_status`          | —          | Callback for status changes                 |
@@ -158,6 +159,17 @@ still resident, the recurrent state is restored, the attention KV is truncated
 to the checkpoint and only the suffix prefills — including an exact
 regenerate, whose output matches a cold run. A checkpoint that does not apply
 is dropped and the full prompt prefills; a context shift drops it too.
+
+A continuation that would overflow `n_ctx` shifts the context (#169) when the
+cache supports it: the oldest tokens after `n_keep` are evicted and the rest is
+RoPE-shifted down. Eviction ends right after a complete `turn_close` (the
+format's turn terminator), so it drops whole turns and never half a message or
+a template marker. Without a boundary that frees enough room, or with an empty
+`turn_close`, the continuation fails with `n_eval == 0` (#173) and the caller
+retries with the full prompt, where `fit_prompt` drops whole turns. On hybrid
+caches the recurrent state keeps what it absorbed from evicted tokens
+(llama.cpp's approximation); a recall probe on LFM2.5, Granite-4.0-H-Tiny and
+Qwen2.5-Coder-3B did not recall a fact from an evicted turn.
 `SessionParams::prefix_snapshots` defaults on;
 `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. Disk `load_state` is
 still not a delta-prefill guarantee — it includes generated tokens, so a
