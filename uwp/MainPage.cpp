@@ -18,6 +18,7 @@
     #include "xllama/compute_admission.h"
     #include "xllama/debug_dashboard.h"
     #include "xllama/diffusion/request.h"
+    #include "xllama/diffusion/residency.h"
     #include "xllama/json_utils.h"
     #include "xllama/kv_store.h"
     #include "xllama/local_knob.h"
@@ -2528,6 +2529,13 @@ void MainPageController::StartDiffusion(::xllama::ComputeJobAdmission::Handle pe
     std::thread([self, dispatcher, permit = std::move(permit)]() {
         try {
             winrt::init_apartment(); // MTA — ApplicationData + ORT DML
+            // Free the resident chat model first when the pipeline would not fit
+            // next to it (#548); the permit is held, so the hub lock comes second.
+            if (::xllama::diffusion::make_room_for_diffusion(::xllama::session_hub(),
+                                                             ::xllama::working_set_mb(),
+                                                             ::xllama::app_memory_limit_mb()))
+                ::xllama::log_output("[xllama] diffuse: released the resident chat model to fit "
+                                     "the image pipeline\n");
             ::xllama::bridge::run_diffuse();
         } catch (const std::exception& ex) {
             ::xllama::log_output(std::string("[xllama] diffuse thread: ") + ex.what() + "\n");

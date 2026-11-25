@@ -447,6 +447,17 @@ UI process, with the request starting more than 20 seconds after launch
 ([release-readiness.md](release-readiness.md) §6). That remeasure does not
 replace the Game-metadata verdict.
 
+**Image generation next to a resident chat model (#548, Series S, 2026-11-25).**
+SD-Turbo adds 2.5–3.2 GB to the process working set over whatever chat model is
+resident. Five catalogue models from `lfm25-350m` to `llama32-3b` (1838 MB after
+context) generate fine next to it; with `lfm25-8b-a1b` resident (3574 MB) the UNet
+load fails with `bad allocation`
+([receipt](../bench/results/2026-11-25-diffusion-coexistence/)). The rule lives in
+`include/xllama/diffusion/residency.h`: before the pipeline runs, the resident
+session is released only when the current working set plus the measured
+headroom (`kDiffusionHeadroomMb`) would exceed `app_memory_limit_mb`. The Image
+dialog, the LAN API and `diffuse-inproc.flag` all apply it.
+
 ## 6. Limited Thread Count
 
 **Problem**: Developer Mode apps share CPU resources. Xbox Series S has 8 Zen 2 cores; typically 6–7 are available.

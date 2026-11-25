@@ -10,6 +10,7 @@
 #include "MainPage.h"
 #include "inference-bridge.h"
 #include "xllama/compute_admission.h"
+#include "xllama/diffusion/residency.h"
 #include "xllama/platform.h"
 #include "xllama/capture_probe.h"
 #include "native_capture.h"
@@ -197,8 +198,7 @@ static void log_resource_probe() {
                     exclusive = static_cast<long>(n);
             }
         }
-        const unsigned long long limit_mb =
-            winrt::Windows::System::MemoryManager::AppMemoryUsageLimit() / (1024ull * 1024ull);
+        const unsigned long long limit_mb = ::xllama::app_memory_limit_mb();
         char exp_text[16] = "unavailable";
         char excl_text[16] = "unavailable";
         if (expanded >= 0)
@@ -343,6 +343,11 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
                 std::thread([permit = std::move(compute_permit)] {
                     (void)permit;
                     winrt::init_apartment(); // MTA: run_diffuse uses ApplicationData
+                    // Same residency rule as the Image dialog and the API (#548).
+                    if (::xllama::diffusion::make_room_for_diffusion(
+                            ::xllama::session_hub(), ::xllama::working_set_mb(),
+                            ::xllama::app_memory_limit_mb()))
+                        log_write("[xllama] diffuse-inproc: released the resident chat model\n");
                     ::xllama::bridge::run_diffuse();
                     ::xllama::log_output(
                         "[xllama] diffuse-inproc: run returned (result/error above; "

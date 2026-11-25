@@ -32,6 +32,11 @@ std::size_t peak_working_set_mb() noexcept;
 // Current working-set size in MB (Linux: VmRSS). 0 where unavailable.
 std::size_t working_set_mb() noexcept;
 
+// The app's memory ceiling in MB: MemoryManager.AppMemoryUsageLimit on UWP
+// (5120 for the Game designation on Series S, 1024 for App;
+// docs/uwp-constraints.md). 0 when the platform sets none (Linux).
+std::size_t app_memory_limit_mb() noexcept;
+
 // Physical memory still available to the process, in MB (0 if unavailable).
 // UWP: GlobalMemoryStatusEx (available in PARTITION_APP). Linux: MemAvailable.
 // This is the denominator the GGUF path spends against — weights are read into
