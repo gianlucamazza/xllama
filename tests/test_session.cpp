@@ -802,3 +802,46 @@ TEST_CASE("Session: a full prompt past n_ctx leaves the resident KV and its epoc
     const auto r_cont = s->generate(cont);
     CHECK_MESSAGE(r_cont.success, r_cont.error_msg);
 }
+
+TEST_CASE("Session: a KV file carries the prefix checkpoint, so an edited reply after a load "
+          "re-prefills only the tail (opt-in: XLLAMA_TEST_MODEL)") {
+    // Without the checkpoint trailer a hybrid model loaded from disk has no
+    // checkpoint: the first divergence Clears and prefills everything.
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    const auto path = std::filesystem::temp_directory_path() / "xllama-ckpt-state.bin";
+    xllama::SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 512;
+    sp.n_threads = 2;
+    std::string error;
+    xllama::GenerateParams gp;
+    gp.prompt = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
+                "<|im_start|>user\nSay hello to the reader.<|im_end|>\n<|im_start|>assistant\n";
+    gp.n_predict = 12;
+    gp.temperature = 0;
+    {
+        auto source = xllama::Session::create(sp, &error);
+        REQUIRE_MESSAGE(source, error);
+        REQUIRE(source->generate(gp).success);
+        REQUIRE_MESSAGE(source->save_state(path.string(), &error), error);
+    }
+    xllama::GenerateParams edited = gp;
+    edited.prompt += "Edited assistant reply.<|im_end|>\n<|im_start|>user\nSay goodbye."
+                     "<|im_end|>\n<|im_start|>assistant\n";
+    auto restored = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(restored, error);
+    REQUIRE_MESSAGE(restored->load_state(path.string(), &error), error);
+    const auto actual = restored->generate(edited);
+    REQUIRE_MESSAGE(actual.success, actual.error_msg);
+    restored.reset();
+    auto cold = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(cold, error);
+    const auto expected = cold->generate(edited);
+    REQUIRE_MESSAGE(expected.success, expected.error_msg);
+    CHECK(actual.n_p_eval < expected.n_p_eval);
+    CHECK(actual.output_text == expected.output_text);
+    std::error_code ec;
+    std::filesystem::remove(path, ec);
+}
