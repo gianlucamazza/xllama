@@ -409,6 +409,7 @@
     <ClCompile Include="MainPage.cpp" />
     <ClCompile Include="mainpage-api.cpp" />
     <ClCompile Include="mainpage-debug.cpp" />
+    <ClCompile Include="mainpage-history.cpp" />
     <ClCompile Include="mainpage-image.cpp" />
     <ClCompile Include="mainpage-personalize.cpp" />
     <ClCompile Include="mainpage-settings.cpp" />
