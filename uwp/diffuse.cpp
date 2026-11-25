@@ -52,6 +52,7 @@
     #include "xllama/diffusion/half.h"
     #include "xllama/diffusion/lcm_scheduler.h"
     #include "xllama/diffusion/png_writer.h"
+    #include "xllama/local_knob.h"
     #include "xllama/path_utils.h"
     #include "xllama/platform.h"
     #include "xllama/utf8_utils.h"
@@ -63,7 +64,6 @@
     #include <cstdio>
     #include <cstring>
     #include <ctime>
-    #include <fstream>
     #include <iterator>
     #include <random>
     #include <string>
@@ -172,24 +172,6 @@ FloatInput make_float_input(Ort::MemoryInfo& mem, std::vector<float> data, const
     return t;
 }
 
-std::string read_text_file(const char* name, const std::string& fallback) {
-    std::ifstream f(utf8_to_wstring(resolve_local_path(name)).c_str());
-    if (!f.good())
-        return fallback;
-    std::string s((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-    while (!s.empty() && (s.back() == '\n' || s.back() == '\r' || s.back() == ' '))
-        s.pop_back();
-    return s.empty() ? fallback : s;
-}
-
-int read_int_file(const char* name, int fallback, int lo, int hi) {
-    const std::string s = read_text_file(name, "");
-    if (s.empty())
-        return fallback;
-    const int v = std::atoi(s.c_str());
-    return (v >= lo && v <= hi) ? v : fallback;
-}
-
 double ms_since(std::chrono::steady_clock::time_point t0) {
     return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
 }
@@ -226,12 +208,12 @@ void run_diffuse() {
         throw std::runtime_error(b);
     });
 
-    const std::string dir = read_text_file("diffuse-model.txt", "sd-turbo-fp16");
+    const std::string dir = read_local_text_or("diffuse-model.txt", "sd-turbo-fp16");
     const std::string prompt =
-        read_text_file("prompt.txt", "a red sports car on a mountain road at sunset");
-    const int steps = read_int_file("diffuse-steps.txt", 1, 1, 50);
-    const int seed = read_int_file("diffuse-seed.txt", 42, 0, 1'000'000'000);
-    const bool use_lcm = diffusion::lcm_scheduler_requested(read_text_file("diffuse-lcm.txt", ""));
+        read_local_text_or("prompt.txt", "a red sports car on a mountain road at sunset");
+    const int steps = read_local_int_in("diffuse-steps.txt", 1, 1, 50);
+    const int seed = read_local_int_in("diffuse-seed.txt", 42, 0, 1'000'000'000);
+    const bool use_lcm = diffusion::lcm_scheduler_requested(read_local_text("diffuse-lcm.txt"));
     log_output("[xllama] diffuse: model='" + dir + "' steps=" + std::to_string(steps) +
                " seed=" + std::to_string(seed) + " scheduler=" + (use_lcm ? "lcm" : "euler") +
                " prompt='" + prompt + "'\n");
