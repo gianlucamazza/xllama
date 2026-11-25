@@ -149,15 +149,15 @@ KV is rewound, so it never costs the resident conversation.
 
 A full-prompt turn (LAN API, regenerate) diffs the new tokens against the
 resident KV. Non-hybrid caches rewind the divergent tail (#170a). Hybrid
-caches (LFM2) cannot always rewind: after a successful prefill the session
-keeps an in-memory prefix snapshot (logits + memory). On a long prompt the
-snapshot starts a few tokens before the prompt end, then that tail prefills.
-If the new prompt is a strict extension of that saved prefix, the snapshot is
-restored and only the suffix prefills — including a later turn that diverges
-only in the unsaved tail. An exact regenerate Clears and re-prefills the
-whole prompt so the last token reseeds logits (a full-state restore is not
-bit-identical to a fresh hybrid prefill). A snapshot that is not a prefix of
-the new prompt is dropped and the full prompt prefills.
+caches (LFM2) cannot always rewind: after the prompt head the session keeps
+an in-memory prefix checkpoint, the partial state that `seq_rm` cannot rebuild
+(the recurrent cells only; `PARTIAL_ONLY`). On a long prompt the checkpoint
+sits a few tokens before the prompt end, then that tail prefills. If the new
+prompt extends the checkpoint's tokens and the attention cells up to it are
+still resident, the recurrent state is restored, the attention KV is truncated
+to the checkpoint and only the suffix prefills — including an exact
+regenerate, whose output matches a cold run. A checkpoint that does not apply
+is dropped and the full prompt prefills; a context shift drops it too.
 `SessionParams::prefix_snapshots` defaults on;
 `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. Disk `load_state` is
 still not a delta-prefill guarantee — it includes generated tokens, so a

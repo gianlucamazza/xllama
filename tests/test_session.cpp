@@ -579,18 +579,16 @@ TEST_CASE("Session: hybrid prefix snapshot slack and exact regenerate "
     REQUIRE_MESSAGE(r_regen.success, r_regen.error_msg);
     CHECK(r_regen.n_prompt == r1.n_prompt);
     CHECK(r_regen.output_text == r1.output_text);
-    // Hybrid Clears the whole prompt; attention rewinds to the last token.
+    // Attention rewinds to the last token; a hybrid restores its checkpoint
+    // and re-prefills only the tail after it. Neither prefills from scratch.
     CHECK(r_regen.n_p_eval >= 1);
-    CHECK(r_regen.n_p_eval <= r_regen.n_prompt);
-    const bool hybrid_clear = r_regen.n_p_eval == r_regen.n_prompt;
+    CHECK(r_regen.n_p_eval < r_regen.n_prompt);
 
     auto cold1 = xllama::Session::create(sp, &error);
     REQUIRE_MESSAGE(cold1, error);
     const auto c1 = cold1->generate(mkgp(p1));
     REQUIRE_MESSAGE(c1.success, c1.error_msg);
     CHECK(r_regen.output_text == c1.output_text);
-    if (hybrid_clear)
-        CHECK(r_regen.n_p_eval == c1.n_p_eval);
     cold1.reset();
 
     const auto r_div = sess->generate(mkgp(p2));

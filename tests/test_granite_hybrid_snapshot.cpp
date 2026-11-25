@@ -165,7 +165,8 @@ TEST_CASE("Session: granitehybrid prefix snapshot slack and exact regenerate "
 
     const auto r_regen = sess->generate(greedy(p1, fmt));
     REQUIRE_MESSAGE(r_regen.success, r_regen.error_msg);
-    CHECK(r_regen.n_p_eval == r_regen.n_prompt);
+    // The checkpoint restores: only the tail after it is prefilled again.
+    CHECK(r_regen.n_p_eval == static_cast<int>(kPrefixSnapshotTailSlack));
     CHECK(r_regen.n_prompt == r1.n_prompt);
     CHECK(r_regen.output_text == r1.output_text);
 
@@ -174,7 +175,6 @@ TEST_CASE("Session: granitehybrid prefix snapshot slack and exact regenerate "
     const auto c1 = cold1->generate(greedy(p1, fmt));
     REQUIRE_MESSAGE(c1.success, c1.error_msg);
     CHECK(r_regen.output_text == c1.output_text);
-    CHECK(r_regen.n_p_eval == c1.n_p_eval);
     cold1.reset();
 
     const auto r_div = sess->generate(greedy(p2, fmt));

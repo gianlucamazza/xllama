@@ -122,8 +122,9 @@ struct GenerateParams {
     // then restores an in-memory post-prefill prefix snapshot when the new
     // prompt is a strict extension of that saved prefix, so API/multi-turn
     // turns re-prefill only the suffix (prefix_snapshot.h). The snapshot may
-    // start a few tokens before the previous prompt end. An exact regenerate
-    // Clears and re-prefills so logits match a cold run. Set
+    // start a few tokens before the previous prompt end (a partial-state
+    // checkpoint: the recurrent cells only; the attention prefix stays
+    // resident), so an exact regenerate also re-prefills just that tail. Set
     // SessionParams::prefix_snapshots false to opt out. Non-hybrid #170a
     // rewind is unchanged.
     bool reuse_kv = false;
