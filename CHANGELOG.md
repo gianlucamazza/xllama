@@ -7,7 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-- **First standard-benchmark results, published as informational (#597).** `docs/benchmarks.md` gains a generated section from `bench/results/2026-11-26-standard/`: HellaSwag, WinoGrande, ARC and MMLU on the host for `lfm25-350m` and `lfm25-1.2b-instruct`, and the IFEval/GSM8K subsets on Series S for `lfm25-1.2b-instruct` (82/100 and 80/100). `generate-benchmark-summary.py` refuses a missing or duplicate task, a GGUF hash that differs from `benchmark-summary.json`, and a partial generative run. H9 stays the only promotion gate, and `check-coherence.py` pins that.
+- **First standard-benchmark results, published as informational (#597).** `docs/benchmarks.md` gains a generated section from `bench/results/2026-11-26-standard/`: HellaSwag, WinoGrande, ARC and MMLU on the host for `lfm25-350m` and `lfm25-1.2b-instruct`, and the IFEval/GSM8K subsets on Series S for `lfm25-1.2b-instruct` (82/100 and 80/100), and the same subsets on host `llama-server` (85/100 and 83/100): host and console agree within stderr. `generate-benchmark-summary.py` refuses a missing or duplicate task, a GGUF hash that differs from `benchmark-summary.json`, and a partial generative run. H9 stays the only promotion gate, and `check-coherence.py` pins that.
 
 ## [1.9.0]
 

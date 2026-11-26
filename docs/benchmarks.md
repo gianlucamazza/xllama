@@ -205,6 +205,7 @@ Accuracy % ± standard error. Source: `2026-11-26-standard/host-loglikelihood`.
 | Model | Endpoint | Hardware | IFEval strict | IFEval instructions | GSM8K | Length stops | Source |
 | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
 | LFM2.5-1.2B | `series-s-lan-api-1.8.1.1956` | xbox-series-s-declared | 82/100 ± 3.9 | 88.2 % | 80/100 ± 4.0 | 9 | `2026-11-26-standard/series-s-generative` |
+| LFM2.5-1.2B | `host-llama-server-d812350-cpu` | linux-host-declared | 85/100 ± 3.6 | 90.7 % | 83/100 ± 3.8 | 7 | `2026-11-26-standard/host-generative` |
 <!-- END GENERATED STANDARD BENCHMARKS -->
 <!-- prettier-ignore-end -->
 
