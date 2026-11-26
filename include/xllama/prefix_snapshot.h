@@ -86,17 +86,6 @@ inline size_t prefix_snapshot_capture_n(size_t prompt_n, size_t slack = kPrefixS
     return prompt_n - slack;
 }
 
-inline bool prefix_checkpoint_on_grid(size_t n) {
-    if (n == 0 || n % kPrefixCheckpointStep != 0)
-        return false;
-    if (n <= kPrefixCheckpointDense)
-        return true;
-    if (n % kPrefixCheckpointDense != 0)
-        return false;
-    const size_t k = n / kPrefixCheckpointDense;
-    return (k & (k - 1)) == 0;
-}
-
 // Where one full-prompt hybrid prefill captures, ascending: the grid points
 // in (kv_keep, head), then |head| itself (prefix_snapshot_capture_n). Points
 // at or below kv_keep are already cached. Empty when the head is not before

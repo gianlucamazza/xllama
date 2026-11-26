@@ -749,7 +749,9 @@ TEST_CASE("Session: a new conversation with the same long prefix restores a grid
     CHECK(first.n_p_eval == first.n_prompt);
     const auto second = warm->generate(mkgp(b));
     REQUIRE_MESSAGE(second.success, second.error_msg);
-    CHECK(second.n_p_eval == second.n_prompt - 1024);
+    // A hybrid restores the 1024 grid checkpoint; a non-hybrid rewinds to the
+    // common prefix, which reuses at least as much.
+    CHECK(second.n_p_eval <= second.n_prompt - 1024);
     warm.reset();
 
     auto cold = xllama::Session::create(on, &error);

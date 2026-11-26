@@ -597,11 +597,14 @@ class LlamaSession final : public Session {
     // and a slacked head) let a later full-prompt turn restore the longest
     // prefix it shares instead of prefilling from scratch (#601). Ascending by
     // n; each is a prefix of m_prefix_tokens, itself a prefix of m_kv_tokens.
-    // Grid checkpoints accumulate; of the others (a slacked head, the end of a
-    // short prefill) only the latest is kept. Unused until
+    // Grid checkpoints accumulate within kPrefixCheckpointGridBytes; one head
+    // (the slacked head of a long prefill, or the end of a short one or of a
+    // continuation) is always held, and a new head replaces it. A head is a
+    // head even when its n happens to be a grid point. Unused until
     // llama_model_is_hybrid/is_recurrent is true.
     struct PrefixCheckpoint {
         size_t n = 0;
+        bool head = false;
         std::vector<uint8_t> blob;
     };
     std::vector<llama_token> m_prefix_tokens;
@@ -1032,6 +1035,7 @@ class LlamaSession final : public Session {
             wd.enter_prefill(n_prefilled);
             size_t at = kv_keep;
             for (const size_t point : capture_points) {
+                const bool head = point == capture_points.back();
                 const int n_seg = static_cast<int>(point - at);
                 if (n_seg > 0 && !prefill_chunked(ctx, tokens.data() + at, n_seg, &wd,
                                                   static_cast<int>(at - kv_keep)))
@@ -1039,7 +1043,7 @@ class LlamaSession final : public Session {
                 at = point;
                 m_kv_tokens.assign(tokens.begin(),
                                    tokens.begin() + static_cast<std::ptrdiff_t>(at));
-                capture_prefix_snapshot();
+                capture_prefix_snapshot(head);
             }
             captured_head = true;
             {
@@ -1085,7 +1089,7 @@ class LlamaSession final : public Session {
             const bool keep_slacked_head =
                 full_prompt && m_needs_prefix_snapshot && capture_at < prompt_n;
             if (!keep_slacked_head)
-                capture_prefix_snapshot();
+                capture_prefix_snapshot(/*head=*/true);
         }
 
         // Shared with run_inference — see src/bridge/sampler_chain.h and #125.
@@ -1373,10 +1377,12 @@ class LlamaSession final : public Session {
     // at the current end of the KV. The attention KV is not copied: it stays
     // resident, and a restore truncates it back to the checkpoint instead.
     // For LFM2 that is a few hundred KiB instead of a copy of the whole KV.
-    // Grid checkpoints accumulate; an off-grid one replaces the previous
-    // off-grid one, so a long conversation does not collect a head per turn.
-    // A capture that fails leaves the others: they are still valid prefixes.
-    void capture_prefix_snapshot() {
+    // A |head| replaces the previous head and is always taken, so a long
+    // conversation holds one head, and a model whose state is too large for
+    // the grid keeps the head as it did before #601. A grid checkpoint is
+    // taken only while the grid fits kPrefixCheckpointGridBytes. A capture that
+    // fails leaves the others: they are still valid prefixes.
+    void capture_prefix_snapshot(bool head) {
         if (!m_needs_prefix_snapshot || !m_ctx || m_kv_tokens.empty()) {
             drop_prefix_snapshot();
             return;
@@ -1384,15 +1390,15 @@ class LlamaSession final : public Session {
         const size_t n = m_kv_tokens.size();
         if (!m_checkpoints.empty() && m_checkpoints.back().n >= n)
             return; // already held, or the sequence is no longer this one's
-        const bool on_grid = prefix_checkpoint_on_grid(n);
         PrefixCheckpoint c;
         c.n = n;
+        c.head = head;
         try {
             const size_t size = llama_state_seq_get_size_ext(m_ctx.get(), 0, kPartialState);
-            if (on_grid) {
+            if (!head) {
                 size_t held = 0;
                 for (const PrefixCheckpoint& k : m_checkpoints)
-                    if (prefix_checkpoint_on_grid(k.n))
+                    if (!k.head)
                         held += k.blob.size();
                 if (!prefix_checkpoint_fits(held, size))
                     return; // over the grid budget: the head is still captured
@@ -1406,11 +1412,9 @@ class LlamaSession final : public Session {
         } catch (const std::exception&) {
             return;
         }
-        if (!on_grid) {
+        if (head) {
             m_checkpoints.erase(std::remove_if(m_checkpoints.begin(), m_checkpoints.end(),
-                                               [](const PrefixCheckpoint& k) {
-                                                   return !prefix_checkpoint_on_grid(k.n);
-                                               }),
+                                               [](const PrefixCheckpoint& k) { return k.head; }),
                                 m_checkpoints.end());
         }
         m_checkpoints.push_back(std::move(c));
@@ -1729,6 +1733,7 @@ class LlamaSession final : public Session {
             return;
         PrefixCheckpoint c;
         c.n = static_cast<size_t>(n);
+        c.head = true;
         c.blob = std::move(blob);
         m_checkpoints.assign(1, std::move(c));
         m_prefix_tokens.assign(m_kv_tokens.begin(),

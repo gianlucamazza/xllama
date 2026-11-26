@@ -227,21 +227,20 @@ TEST_CASE("prefix checkpoints: an exact regenerate still restores the slacked he
 }
 
 TEST_CASE("prefix checkpoints: the grid is dense to 2048, then doubles") {
-    CHECK(prefix_checkpoint_on_grid(512));
-    CHECK(prefix_checkpoint_on_grid(1536));
-    CHECK(prefix_checkpoint_on_grid(2048));
-    CHECK(prefix_checkpoint_on_grid(4096));
-    CHECK(prefix_checkpoint_on_grid(65536));
-    CHECK_FALSE(prefix_checkpoint_on_grid(0));
-    CHECK_FALSE(prefix_checkpoint_on_grid(256));
-    CHECK_FALSE(prefix_checkpoint_on_grid(2560));
-    CHECK_FALSE(prefix_checkpoint_on_grid(6144));
-    CHECK_FALSE(prefix_checkpoint_on_grid(2992));
-    // Every position the schedule yields below the head is on the grid.
-    for (size_t n : prefix_checkpoint_positions(0, 70000))
-        if (n != prefix_snapshot_capture_n(70000))
-            CHECK(prefix_checkpoint_on_grid(n));
-    CHECK(prefix_checkpoint_positions(0, 70000).size() == 10);
+    const size_t prompt_n = 70000;
+    const std::vector<size_t> points = prefix_checkpoint_positions(0, prompt_n);
+    CHECK(points == std::vector<size_t>{512, 1024, 1536, 2048, 4096, 8192, 16384, 32768, 65536,
+                                        prompt_n - kPrefixSnapshotTailSlack});
+    // Every grid point is a multiple of the 512 ubatch (#172).
+    for (size_t i = 0; i + 1 < points.size(); ++i)
+        CHECK(points[i] % kPrefixCheckpointStep == 0);
+}
+
+TEST_CASE("prefix checkpoints: a head on a grid point is captured once, as the head") {
+    // 1032 - 8 = 1024: the head coincides with a grid point. It is listed once,
+    // last, so LlamaSession takes it as the head, which no budget refuses.
+    CHECK(prefix_checkpoint_positions(0, 1024 + kPrefixSnapshotTailSlack) ==
+          std::vector<size_t>{512, 1024});
 }
 
 TEST_CASE("prefix checkpoints: positions skip what is already cached") {
