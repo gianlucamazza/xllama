@@ -3491,6 +3491,8 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
                 // token, so the boundary is exact. Ignored unless a context
                 // shift actually runs (#169).
                 gp.n_keep = self->m_turn_session->count_tokens(sys_prefix);
+                // A context shift evicts whole turns, up to this terminator.
+                gp.turn_close = fmt.turn_close;
                 gp.on_status = on_status;
                 gp.on_token = on_token;
                 return self->m_turn_session->generate(gp);

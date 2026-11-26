@@ -451,6 +451,7 @@ TEST_CASE(
     seed.reuse_kv = true;
     seed.reset_kv = true;
     seed.n_keep = n_keep;
+    seed.turn_close = "<|im_end|>\n";
     const auto r_seed = sess->generate(seed);
     REQUIRE_MESSAGE(r_seed.success, r_seed.error_msg);
 
@@ -473,6 +474,7 @@ TEST_CASE(
         cont.reuse_kv = true;
         cont.reset_kv = false;
         cont.n_keep = n_keep;
+        cont.turn_close = "<|im_end|>\n";
         const auto rc = sess->generate(cont);
         if (shifts) {
             REQUIRE_MESSAGE(rc.success, rc.error_msg);
@@ -844,4 +846,82 @@ TEST_CASE("Session: a KV file carries the prefix checkpoint, so an edited reply 
     CHECK(actual.output_text == expected.output_text);
     std::error_code ec;
     std::filesystem::remove(path, ec);
+}
+
+TEST_CASE("Session: a shift with no turn boundary to evict fails fast instead of cutting a "
+          "message (opt-in: XLLAMA_TEST_MODEL)") {
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    xllama::SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 256;
+    std::string error;
+    auto s = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(s, error);
+    // One long user turn with no terminator before the overflow: nothing whole
+    // can be evicted.
+    std::string user;
+    for (int i = 0; i < 40; ++i)
+        user += "word" + std::to_string(i) + " ";
+    xllama::GenerateParams seed = greedy_turn("<|im_start|>user\n" + user, true, true);
+    seed.turn_close = "<|im_end|>\n";
+    REQUIRE(s->generate(seed).success);
+    if (!s->can_context_shift())
+        return;
+    xllama::GenerateParams cont = greedy_turn(user + user + user, true, false);
+    cont.turn_close = "<|im_end|>\n";
+    cont.expected_kv_epoch = s->kv_epoch();
+    const auto r = s->generate(cont);
+    CHECK_FALSE(r.success);
+    CHECK(r.n_eval == 0);
+    CHECK(r.error_msg.find("context full") != std::string::npos);
+}
+
+// Measurement, not a gate: does a hybrid's recurrent state still carry a fact
+// from a turn the #169 shift evicted? Attention-only models cannot (the cells
+// are gone); a hybrid's conv/SSM state absorbed it before the eviction. The
+// result is recorded in docs/sdk/session.md and context_shift.h.
+TEST_CASE("Session: probe for evicted-turn recall after a context shift (opt-in: "
+          "XLLAMA_TEST_MODEL, measurement)") {
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    xllama::SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 128; // small: the first turn must be evicted
+    std::string error;
+    auto s = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(s, error);
+    const std::string sys = "<|im_start|>system\nYou are terse.<|im_end|>\n";
+    const int n_keep = s->count_tokens(sys);
+    auto turn = [&](const std::string& prompt, bool reset, int n_predict) {
+        xllama::GenerateParams gp = greedy_turn(prompt, true, reset);
+        gp.n_predict = n_predict;
+        gp.n_keep = n_keep;
+        gp.turn_close = "<|im_end|>\n";
+        if (!reset)
+            gp.expected_kv_epoch = s->kv_epoch();
+        return s->generate(gp);
+    };
+    REQUIRE(turn(sys + "<|im_start|>user\nRemember this code word: PAPAYA.<|im_end|>\n"
+                       "<|im_start|>assistant\n",
+                 true, 8)
+                .success);
+    for (int i = 0; i < 14; ++i) {
+        const auto r = turn("<|im_end|>\n<|im_start|>user\nName a random animal, one word."
+                            "<|im_end|>\n<|im_start|>assistant\n",
+                            false, 8);
+        REQUIRE_MESSAGE(r.success, r.error_msg);
+    }
+    const auto probe =
+        turn("<|im_end|>\n<|im_start|>user\nWhat was the code word I asked you to "
+             "remember? Answer with the word only.<|im_end|>\n<|im_start|>assistant\n",
+             false, 8);
+    REQUIRE_MESSAGE(probe.success, probe.error_msg);
+    const bool recalled = probe.output_text.find("PAPAYA") != std::string::npos ||
+                          probe.output_text.find("Papaya") != std::string::npos ||
+                          probe.output_text.find("papaya") != std::string::npos;
+    const std::string verdict = recalled ? "YES" : "no";
+    MESSAGE("evicted-turn recall: " << verdict << " — reply '" << probe.output_text << "'");
 }
