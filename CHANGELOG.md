@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The Linux crossbuild compiles the app again.** Since #260, `uwp/ggml-uwp.vcxproj` and `uwp/llama-common-uwp.vcxproj` generated `ggml-version.h` and `build-info.cpp` with an inline `<Target>`/`<Exec>` and a `Path::Combine` property function. uwp-crossbuild refuses both, so `scripts/crossbuild-uwp.sh` stopped before compiling.
+  - The two actions now live in `uwp/generated-sources.targets` and write to a fixed `uwp\generated\`. MSBuild still runs them, and `crossbuild-uwp.sh` runs the same cmake scripts before `build-project`.
+  - `uwp/native_capture.cpp` includes `windows.graphics.directx.direct3d11.interop.h` and `xllama.vcxproj` links `bcrypt.lib`, by their real file names, which a case-sensitive file system needs.
+  - It needs uwp-crossbuild ≥ 0.5.4: one SDK version with that SDK's own UCRT, and per-source `ClCompile` metadata. `crossbuild-uwp.sh` checks for that, and `docs/crossbuild-console.md` covers it. CI MSVC stays the shipping and measurement path.
 - **First standard-benchmark results, published as informational (#597).** `docs/benchmarks.md` gains a generated section from `bench/results/2026-11-26-standard/`: HellaSwag, WinoGrande, ARC and MMLU on the host for `lfm25-350m` and `lfm25-1.2b-instruct`, and the IFEval/GSM8K subsets on Series S for `lfm25-1.2b-instruct` (82/100 and 80/100), and the same subsets on host `llama-server` (85/100 and 83/100): host and console agree within stderr. `generate-benchmark-summary.py` refuses a missing or duplicate task, a GGUF hash that differs from `benchmark-summary.json`, and a partial generative run. H9 stays the only promotion gate, and `check-coherence.py` pins that.
 
 ## [1.9.0]

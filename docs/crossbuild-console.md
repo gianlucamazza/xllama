@@ -30,16 +30,29 @@ End-to-end path using **uwp-crossbuild** + **openappx** (no Windows VM).
 | Goal                               | Path                                                      | Status on Series S                                                                                                                                                                                           |
 | ---------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Ship / measure product tok/s       | CI MSVC `build-uwp` → `xllama-appx` → deploy              | **Launches.** See the latest app tag (`v*`) on the [releases page](https://github.com/gianlucamazza/xllama/releases) for package-bound validation.                                                           |
-| Compile + package from Linux       | uwp-crossbuild ≥ **0.5.1** + store `/MD` + dual-CRT stage | **Launches** (observed 2026-08-08 after 0.5.1's ntdll reroutes: window activated, GGUF model loaded). Unproven: ORT/GenAI backends, first-boot provisioning, long uptime — product measurement stays CI MSVC |
+| Compile + package from Linux       | uwp-crossbuild ≥ **0.5.4** + store `/MD` + dual-CRT stage | **Launches** (observed 2026-08-08 after 0.5.1's ntdll reroutes: window activated, GGUF model loaded). Unproven: ORT/GenAI backends, first-boot provisioning, long uptime — product measurement stays CI MSVC |
 | hello-uwp / non-filesystem samples | uwp-crossbuild `/MT` or store `/MD`                       | Launches                                                                                                                                                                                                     |
 
 ## Prerequisites
 
-- `uwp-crossbuild` ≥ **0.5.1** installed or checkout with `scripts/` on `PATH`
-  (the 0.5.1 ntdll reroutes are the launch condition — 0.5.0 compiles a PE
-  that fails activation as `0x80040904`)
+- `uwp-crossbuild` ≥ **0.5.4** installed or checkout with `scripts/` on `PATH`.
+  0.5.4 compiles against one SDK version with that SDK's own UCRT, and honours
+  per-source `ClCompile` metadata (`ggml_d3d12.cpp`'s include path); earlier
+  versions stop in `llama.cpp/common/common.cpp` (`_putenv_s`) or in
+  `ggml_d3d12.cpp`. The 0.5.1 ntdll reroutes remain the launch condition
+  (0.5.0 compiles a PE that fails activation as `0x80040904`).
 - `openappx` ≥ 0.6.3 (`pipx install 'openappx>=0.6.3'`)
-- xwin splat + SDK: see uwp-crossbuild README (`fetch-sdk.sh`)
+- xwin splat at the SDK the projects target, version in full, then
+  `fetch-sdk.sh`, `fetch-vclibs.sh` and `gen-msvcprt-app-static.sh`: see the
+  uwp-crossbuild README. `uwp-check-deps` reports a splat at another SDK
+  version, and `build.sh` refuses it.
+
+  ```bash
+  xwin --accept-license --arch x86_64 --sdk-version 10.0.22621 \
+    --cache-dir ~/.cache/uwp-crossbuild/xwin-download \
+    splat --output ~/.cache/uwp-crossbuild/xwin
+  ```
+
 - Device: `~/.config/xllama/xbox-env` and/or `~/.config/uwp-crossbuild/device-env`
 - Signing: PFX whose subject equals `Identity/@Publisher` in
   `uwp/AppxManifest.xml` (`CN=xllama-dev` for the dev identity)
@@ -148,14 +161,15 @@ gh run download <run-id> -n xllama-appx -D /tmp/xllama-ci-art
 uwp-crossbuild (≥ 0.5.0) audits the **EXE** only. After `build-project`, always:
 
 ```bash
-export UWP_STORE_CRT=1
-uwp-build-project --project uwp/xllama.vcxproj --out /tmp/xllama-layout \
-  --property XllamaBackend=unified
-# or: ./scripts/crossbuild-uwp.sh --out /tmp/xllama-layout
-
-./scripts/stage-ort-desktop-crt.sh --layout /tmp/xllama-layout
+# crossbuild-uwp.sh sets UWP_STORE_CRT=1, builds, and runs
+# stage-ort-desktop-crt.sh on the layout as its last step.
+./scripts/crossbuild-uwp.sh --out /tmp/xllama-layout
 # Source: XLLAMA_DESKTOP_CRT_DIR, uwp/, or ~/.cache/xllama/desktop-crt/
-# (VC143 redist or DLLs from a CI package — never Wine stubs)
+# (VC143 redist or DLLs from a CI package — never Wine stubs). From a CI
+# package, after checking it against the release SHA256SUMS:
+mkdir -p ~/.cache/xllama/desktop-crt
+7z e -o"$HOME/.cache/xllama/desktop-crt" xllama_<version>_x64.msix \
+  MSVCP140.dll MSVCP140_1.dll VCRUNTIME140.dll VCRUNTIME140_1.dll
 ```
 
 Fail closed if `onnxruntime.dll` is in the layout but any of
@@ -182,23 +196,22 @@ source ./scripts/ensure-cppwinrt-pin.sh   # sets UWP_CPPWINRT_*
 ## Build from Linux (uwp-crossbuild)
 
 ```bash
-# 1) AppContainer guards (WINAPI_FAMILY partition) on the llama.cpp submodule
-./scripts/apply-llama-patches.sh
+# From the xllama repo root, with uwp-crossbuild on PATH (or UWP_CROSSBUILD_ROOT
+# pointing at its checkout):
+scripts/crossbuild-uwp.sh --out /tmp/xllama-layout --backend unified
 
-# 2) From the xllama repo root, with uwp-crossbuild on PATH (or full path to
-#    its checkout). Prefer a checkout that sets WINAPI_FAMILY=APP for --uwp.
-build-project \
-  --project uwp/xllama.vcxproj \
-  --out /tmp/xllama-layout \
-  --property XllamaBackend=unified
-
-# 3) Fail closed on AppContainer-forbidden imports before pack/deploy
-#    (pe-import-audit ships with uwp-crossbuild ≥ 0.5.0; on PATH after install)
-pe-import-audit.sh /tmp/xllama-layout/xllama.exe
+# Fail closed on AppContainer-forbidden imports before pack/deploy
+# (installed as uwp-pe-import-audit; pe-import-audit.sh in a uwp-crossbuild checkout)
+uwp-pe-import-audit /tmp/xllama-layout/xllama.exe
 ```
 
-(`build-project` and `pe-import-audit.sh` come from the **uwp-crossbuild**
-tooling tree, not from a script under this repository.)
+`scripts/crossbuild-uwp.sh` is the entry point; do not call `build-project`
+directly. Before it, the script applies the llama.cpp patches, pins C++/WinRT
+to `packages.config`, and writes `uwp/generated/ggml-version.h` and
+`build-info.cpp`: the two actions `uwp/generated-sources.targets` runs under
+MSBuild, which uwp-crossbuild lists and does not evaluate. After it, it stages
+the desktop CRT for ORT. (`build-project` and `uwp-pe-import-audit` come from the
+**uwp-crossbuild** tooling tree, not from a script under this repository.)
 
 For **product-shaped** packages (ORT linked), use store `/MD` for the EXE
 (`UWP_STORE_CRT=1` + `fetch-vclibs` + `gen-msvcprt-app-static`) **and** still
@@ -252,8 +265,8 @@ openappx deploy --device "https://${XBOX_IP}:${XBOX_PORT}" \
 ### Pre-deploy import audit (uwp-crossbuild)
 
 ```bash
-# After build-project produces a layout (tool from uwp-crossbuild ≥ 0.5.0):
-pe-import-audit.sh /tmp/xllama-layout/xllama.exe
+# After crossbuild-uwp.sh produces a layout (tool from uwp-crossbuild ≥ 0.5.0):
+uwp-pe-import-audit /tmp/xllama-layout/xllama.exe
 # Fail closed on RegOpenKey* / SetThreadAffinityMask / desktop CRT DLLs.
 ```
 

@@ -52,7 +52,7 @@
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <PropertyGroup>
-    <LlamaBuildInfoDir>$([System.IO.Path]::Combine('$(ProjectDir)', '$(IntDir)', 'generated'))</LlamaBuildInfoDir>
+    <LlamaBuildInfoDir>$(ProjectDir)generated</LlamaBuildInfoDir>
   </PropertyGroup>
 
   <ItemDefinitionGroup>
@@ -132,15 +132,13 @@
     <!-- One file per model dialect; chat.cpp dispatches to each. A wildcard, like
          ggml-uwp models\*.cpp, so a submodule bump cannot drop one (LNK2001). -->
     <ClCompile Include="..\llama.cpp\common\parsers\*.cpp" />
-    <!-- Generated under IntDir, so %(RelativeDir) is absolute: name the object. -->
+    <!-- Generated under uwp\generated (generated-sources.targets), so
+         %(RelativeDir) is absolute: name the object. -->
     <ClCompile Include="$(LlamaBuildInfoDir)\build-info.cpp">
       <ObjectFileName>$(IntDir)build-info.obj</ObjectFileName>
     </ClCompile>
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <Target Name="GenerateLlamaBuildInfo" BeforeTargets="ClCompile">
-    <MakeDir Directories="$(LlamaBuildInfoDir)" />
-    <Exec Command="cmake -DLLAMA_SOURCE_DIR=&quot;$(ProjectDir)..\llama.cpp&quot; -DOUTPUT_FILE=&quot;$(LlamaBuildInfoDir)\build-info.cpp&quot; -P &quot;$(ProjectDir)..\cmake\GenerateLlamaBuildInfo.cmake&quot;" />
-  </Target>
+  <Import Project="generated-sources.targets" />
 </Project>

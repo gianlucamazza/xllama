@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (c) 2024 Gianluca Mazza
+     SPDX-License-Identifier: MIT
+
+     The sources llama.cpp's CMake configure would generate, which the UWP
+     projects bypass. Imported at the bottom of ggml-uwp.vcxproj and
+     llama-common-uwp.vcxproj; each target runs only in the project that
+     defines its output directory. Both write under uwp\generated\, a fixed
+     path, because neither file depends on the configuration.
+
+     A .targets file is an action. The Linux crossbuild does not evaluate it:
+     scripts/crossbuild-uwp.sh runs the same two cmake scripts into the same
+     directory before build-project. Change one, change the other. -->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Target Name="GenerateGgmlVersion" BeforeTargets="ClCompile" Condition="'$(GgmlVersionDir)' != ''">
+    <MakeDir Directories="$(GgmlVersionDir)" />
+    <Exec Command="cmake -DGGML_SOURCE_DIR=&quot;$(ProjectDir)..\llama.cpp\ggml&quot; -DOUTPUT_FILE=&quot;$(GgmlVersionDir)\ggml-version.h&quot; -P &quot;$(ProjectDir)..\cmake\GenerateGgmlVersion.cmake&quot;" />
+  </Target>
+  <Target Name="GenerateLlamaBuildInfo" BeforeTargets="ClCompile" Condition="'$(LlamaBuildInfoDir)' != ''">
+    <MakeDir Directories="$(LlamaBuildInfoDir)" />
+    <Exec Command="cmake -DLLAMA_SOURCE_DIR=&quot;$(ProjectDir)..\llama.cpp&quot; -DOUTPUT_FILE=&quot;$(LlamaBuildInfoDir)\build-info.cpp&quot; -P &quot;$(ProjectDir)..\cmake\GenerateLlamaBuildInfo.cmake&quot;" />
+  </Target>
+</Project>
