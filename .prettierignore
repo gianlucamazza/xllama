@@ -17,3 +17,6 @@ bench/results/2026-11-24-v181-series-s-release/
 
 # Byte-identical Granite H9 receipts (do not reformat).
 bench/results/2026-11-24-granite40-h-tiny/h9-20261125/
+
+# Byte-identical ADR 0010 Maincoder-1B declaration (do not reformat).
+docs/research/evidence/2026-11-25-adr0010-maincoder-1b/
