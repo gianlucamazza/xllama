@@ -592,13 +592,20 @@ class LlamaSession final : public Session {
     // whenever the KV state stops being trustworthy (decode failure).
     std::vector<llama_token> m_kv_tokens;
 
-    // Hybrid/recurrent caches refuse a partial tail erase. After a successful
-    // prefill of the prompt head (a few tokens short of the end when the
-    // prompt is long enough), a llama_state_get_data blob lets the next
-    // full-prompt turn restore that prefix instead of prefilling from scratch.
-    // Unused until llama_model_is_hybrid/is_recurrent is true.
+    // Hybrid/recurrent caches refuse a partial tail erase. Partial-state
+    // checkpoints taken during a prefill (prefix_checkpoint_positions: a grid
+    // and a slacked head) let a later full-prompt turn restore the longest
+    // prefix it shares instead of prefilling from scratch (#601). Ascending by
+    // n; each is a prefix of m_prefix_tokens, itself a prefix of m_kv_tokens.
+    // Grid checkpoints accumulate; of the others (a slacked head, the end of a
+    // short prefill) only the latest is kept. Unused until
+    // llama_model_is_hybrid/is_recurrent is true.
+    struct PrefixCheckpoint {
+        size_t n = 0;
+        std::vector<uint8_t> blob;
+    };
     std::vector<llama_token> m_prefix_tokens;
-    std::vector<uint8_t> m_prefix_blob;
+    std::vector<PrefixCheckpoint> m_checkpoints;
     bool m_needs_prefix_snapshot = false;
 
     std::string m_model_path;       // the .gguf the session loaded, for the memory dry run
@@ -803,10 +810,21 @@ class LlamaSession final : public Session {
             if (common > 0 && common < m_kv_tokens.size()) {
                 can_rewind = llama_memory_seq_rm(mem, 0, static_cast<llama_pos>(common), -1);
             }
-            const bool snap_prefix = tokens_are_prefix(m_prefix_tokens, tokens);
-            const PrefixSnapshotPlan plan =
-                plan_prefix_snapshot(common, m_kv_tokens.size(), tokens.size(),
-                                     m_prefix_tokens.size(), snap_prefix, can_rewind);
+            // Offer the planner only the checkpoints whose tokens this prompt
+            // still starts with.
+            size_t shared = 0;
+            while (shared < m_prefix_tokens.size() && shared < tokens.size() &&
+                   m_prefix_tokens[shared] == tokens[shared])
+                ++shared;
+            std::vector<size_t> offered, offered_index;
+            for (size_t i = 0; i < m_checkpoints.size(); ++i) {
+                if (m_checkpoints[i].n <= shared) {
+                    offered.push_back(m_checkpoints[i].n);
+                    offered_index.push_back(i);
+                }
+            }
+            const PrefixSnapshotPlan plan = plan_prefix_snapshot(
+                common, m_kv_tokens.size(), tokens.size(), offered, can_rewind);
             kv_keep = plan.kv_keep;
             switch (plan.action) {
             case PrefixSnapshotAction::KeepResident:
@@ -819,7 +837,7 @@ class LlamaSession final : public Session {
                 break;
             }
             case PrefixSnapshotAction::RestoreSnapshot: {
-                if (restore_prefix_snapshot(kv_keep)) {
+                if (restore_prefix_snapshot(offered_index[plan.checkpoint])) {
                     char rb[192];
                     snprintf(rb, sizeof(rb),
                              "[xllama] session: KV prefix snapshot restored — %zu of %zu "
@@ -856,6 +874,7 @@ class LlamaSession final : public Session {
                 }
                 llama_memory_clear(mem, true);
                 kv_keep = 0;
+                drop_prefix_snapshot(); // no attention cells left to restore onto
                 break;
             }
             if (plan.action == PrefixSnapshotAction::RestoreSnapshot && kv_keep > 0) {
@@ -966,16 +985,21 @@ class LlamaSession final : public Session {
         // LOGICAL batch only — the physical ubatch stays 512 (#172 optimum),
         // which is what the prefill rate was measured on.
         //
-        // Hybrid snapshots: when the full prompt is long enough, prefill the
-        // head, capture, then prefill the tail. A later prompt that diverges
-        // only in that tail can restore the head. Short prefills, opt-out, and
-        // in-place continuations stay a single prefill.
+        // Hybrid checkpoints (#601): when the full prompt is long enough,
+        // prefill up to each capture point (the grid, then a head a few tokens
+        // short of the end), capture, and go on. A later prompt that shares
+        // only part of this one restores the longest point it shares; one that
+        // diverges only in the tail restores the head. Short prefills, opt-out,
+        // and in-place continuations stay a single prefill.
         const size_t prompt_n = tokens.size();
         const size_t capture_at = (full_prompt && m_needs_prefix_snapshot)
                                       ? prefix_snapshot_capture_n(prompt_n)
                                       : prompt_n;
-        const bool split_snapshot =
-            full_prompt && m_needs_prefix_snapshot && kv_keep < capture_at && capture_at < prompt_n;
+        const std::vector<size_t> capture_points =
+            (full_prompt && m_needs_prefix_snapshot)
+                ? prefix_checkpoint_positions(kv_keep, prompt_n)
+                : std::vector<size_t>{};
+        const bool split_snapshot = !capture_points.empty();
 
         InferenceWatchdog wd(gp.progress(), gp.abort_flag);
         const auto t_prefill0 = std::chrono::steady_clock::now();
@@ -1006,23 +1030,32 @@ class LlamaSession final : public Session {
         if (split_snapshot) {
             n_prefilled = static_cast<int>(prompt_n - kv_keep);
             wd.enter_prefill(n_prefilled);
-            const int n_head = static_cast<int>(capture_at - kv_keep);
-            if (n_head > 0 && !prefill_chunked(ctx, tokens.data() + kv_keep, n_head, &wd))
-                return fail_prefill();
-            m_kv_tokens.assign(tokens.begin(),
-                               tokens.begin() + static_cast<std::ptrdiff_t>(capture_at));
-            capture_prefix_snapshot();
+            size_t at = kv_keep;
+            for (const size_t point : capture_points) {
+                const int n_seg = static_cast<int>(point - at);
+                if (n_seg > 0 && !prefill_chunked(ctx, tokens.data() + at, n_seg, &wd,
+                                                  static_cast<int>(at - kv_keep)))
+                    return fail_prefill();
+                at = point;
+                m_kv_tokens.assign(tokens.begin(),
+                                   tokens.begin() + static_cast<std::ptrdiff_t>(at));
+                capture_prefix_snapshot();
+            }
             captured_head = true;
             {
-                char cb[160];
+                size_t bytes = 0;
+                for (const PrefixCheckpoint& c : m_checkpoints)
+                    bytes += c.blob.size();
+                char cb[200];
                 snprintf(cb, sizeof(cb),
-                         "[xllama] session: prefix checkpoint captured at %zu of %zu "
-                         "tokens (hybrid, %zu KiB partial state)\n",
-                         capture_at, prompt_n, m_prefix_blob.size() / 1024);
+                         "[xllama] session: prefix checkpoints captured to %zu of %zu tokens "
+                         "(hybrid, %zu held, %zu KiB partial state)\n",
+                         at, prompt_n, m_checkpoints.size(), bytes / 1024);
                 log_output(cb);
             }
-            const int n_tail = static_cast<int>(prompt_n - capture_at);
-            if (!prefill_chunked(ctx, tokens.data() + capture_at, n_tail, &wd, n_head))
+            const int n_tail = static_cast<int>(prompt_n - at);
+            if (!prefill_chunked(ctx, tokens.data() + at, n_tail, &wd,
+                                 static_cast<int>(at - kv_keep)))
                 return fail_prefill();
         } else if (n_pf > 0) {
             n_prefilled = n_pf;
@@ -1045,9 +1078,10 @@ class LlamaSession final : public Session {
         else
             m_kv_tokens.insert(m_kv_tokens.end(), tokens.begin(), tokens.end());
         if (!captured_head) {
-            // A restore/keep already at or past capture_at must not replace the
-            // slacked head with the full prompt. Short prefills and
-            // opt-out/non-hybrid still capture (or drop) as today.
+            // A restore/keep already at or past capture_at must not add the full
+            // prompt as a checkpoint in place of the slacked head. Short
+            // prefills and continuations capture at their end;
+            // opt-out/non-hybrid drop.
             const bool keep_slacked_head =
                 full_prompt && m_needs_prefix_snapshot && capture_at < prompt_n;
             if (!keep_slacked_head)
@@ -1314,7 +1348,7 @@ class LlamaSession final : public Session {
 
     void drop_prefix_snapshot() {
         m_prefix_tokens.clear();
-        m_prefix_blob.clear();
+        m_checkpoints.clear();
     }
 
     // Token ids of a template fragment (special tokens parsed, no BOS), as they
@@ -1339,46 +1373,78 @@ class LlamaSession final : public Session {
     // at the current end of the KV. The attention KV is not copied: it stays
     // resident, and a restore truncates it back to the checkpoint instead.
     // For LFM2 that is a few hundred KiB instead of a copy of the whole KV.
+    // Grid checkpoints accumulate; an off-grid one replaces the previous
+    // off-grid one, so a long conversation does not collect a head per turn.
+    // A capture that fails leaves the others: they are still valid prefixes.
     void capture_prefix_snapshot() {
         if (!m_needs_prefix_snapshot || !m_ctx || m_kv_tokens.empty()) {
             drop_prefix_snapshot();
             return;
         }
+        const size_t n = m_kv_tokens.size();
+        if (!m_checkpoints.empty() && m_checkpoints.back().n >= n)
+            return; // already held, or the sequence is no longer this one's
+        const bool on_grid = prefix_checkpoint_on_grid(n);
+        PrefixCheckpoint c;
+        c.n = n;
         try {
-            const size_t n = llama_state_seq_get_size_ext(m_ctx.get(), 0, kPartialState);
-            m_prefix_blob.resize(n);
-            const size_t used = llama_state_seq_get_data_ext(m_ctx.get(), m_prefix_blob.data(), n,
-                                                             0, kPartialState);
-            if (used == 0) {
-                drop_prefix_snapshot();
-                return;
+            const size_t size = llama_state_seq_get_size_ext(m_ctx.get(), 0, kPartialState);
+            if (on_grid) {
+                size_t held = 0;
+                for (const PrefixCheckpoint& k : m_checkpoints)
+                    if (prefix_checkpoint_on_grid(k.n))
+                        held += k.blob.size();
+                if (!prefix_checkpoint_fits(held, size))
+                    return; // over the grid budget: the head is still captured
             }
-            m_prefix_blob.resize(used);
-            m_prefix_tokens = m_kv_tokens;
+            c.blob.resize(size);
+            const size_t used =
+                llama_state_seq_get_data_ext(m_ctx.get(), c.blob.data(), size, 0, kPartialState);
+            if (used == 0)
+                return;
+            c.blob.resize(used);
         } catch (const std::exception&) {
-            drop_prefix_snapshot();
+            return;
         }
+        if (!on_grid) {
+            m_checkpoints.erase(std::remove_if(m_checkpoints.begin(), m_checkpoints.end(),
+                                               [](const PrefixCheckpoint& k) {
+                                                   return !prefix_checkpoint_on_grid(k.n);
+                                               }),
+                                m_checkpoints.end());
+        }
+        m_checkpoints.push_back(std::move(c));
+        m_prefix_tokens = m_kv_tokens;
     }
 
-    // Put the recurrent state back to the checkpoint at |n| tokens, then drop
-    // the attention cells from |n| on. Requires the attention KV [0, n) to be
-    // the checkpoint's (plan_prefix_snapshot checks common >= n). Once the
+    // Put the recurrent state back to checkpoint |index|, then drop the
+    // attention cells from its n on, and the checkpoints past it, which no
+    // longer match the cache. Requires the attention KV [0, n) to be the
+    // checkpoint's (plan_prefix_snapshot checks common >= n). Once the
     // recurrent cell sits at n-1, the hybrid seq_rm(n, -1) is a plain tail
     // erase and succeeds; a false return means the cache is not what the
     // checkpoint assumed, and the caller clears and re-prefills.
-    bool restore_prefix_snapshot(size_t n) {
-        if (!m_ctx || m_prefix_blob.empty() || m_prefix_tokens.size() != n)
+    bool restore_prefix_snapshot(size_t index) {
+        if (!m_ctx || index >= m_checkpoints.size())
+            return false;
+        const PrefixCheckpoint& c = m_checkpoints[index];
+        if (c.blob.empty() || c.n > m_prefix_tokens.size())
             return false;
         try {
-            const size_t used = llama_state_seq_set_data_ext(
-                m_ctx.get(), m_prefix_blob.data(), m_prefix_blob.size(), 0, kPartialState);
+            const size_t used = llama_state_seq_set_data_ext(m_ctx.get(), c.blob.data(),
+                                                             c.blob.size(), 0, kPartialState);
             if (used == 0)
                 return false;
-            return llama_memory_seq_rm(llama_get_memory(m_ctx.get()), 0, static_cast<llama_pos>(n),
-                                       -1);
+            if (!llama_memory_seq_rm(llama_get_memory(m_ctx.get()), 0, static_cast<llama_pos>(c.n),
+                                     -1))
+                return false;
         } catch (const std::exception&) {
             return false;
         }
+        const size_t n = c.n;
+        m_checkpoints.resize(index + 1);
+        m_prefix_tokens.resize(n);
+        return true;
     }
 
     // --- #170b: KV state files ---------------------------------------------
@@ -1497,15 +1563,19 @@ class LlamaSession final : public Session {
         // head when the next prompt diverges in the tail, instead of
         // re-prefilling everything (the upstream slot-save pattern, #26004).
         // Readers that predate it stop after the state blob and never see it.
-        const bool write_ckpt = !m_prefix_blob.empty() && !m_prefix_tokens.empty() &&
+        // Only the longest checkpoint is written, so the format older builds
+        // read is unchanged; the grid is rebuilt by the next long prefill.
+        PrefixCheckpoint* last = m_checkpoints.empty() ? nullptr : &m_checkpoints.back();
+        const bool write_ckpt = last != nullptr && !last->blob.empty() &&
+                                last->n <= m_prefix_tokens.size() &&
                                 tokens_are_prefix(m_prefix_tokens, m_kv_tokens);
         if (ok && write_ckpt) {
             char ck[96];
-            const int cn = snprintf(ck, sizeof(ck), "%s\t%zu\t%zu\n", kCheckpointMagic,
-                                    m_prefix_tokens.size(), m_prefix_blob.size());
+            const int cn = snprintf(ck, sizeof(ck), "%s\t%zu\t%zu\n", kCheckpointMagic, last->n,
+                                    last->blob.size());
             ok = cn > 0 && static_cast<size_t>(cn) < sizeof(ck) &&
                  std::fwrite(ck, 1, static_cast<size_t>(cn), fp) == static_cast<size_t>(cn) &&
-                 io_chunked(fp, m_prefix_blob.data(), m_prefix_blob.size(), /*write=*/true);
+                 io_chunked(fp, last->blob.data(), last->blob.size(), /*write=*/true);
         }
         ok = (std::fclose(fp) == 0) && ok;
 
@@ -1657,7 +1727,10 @@ class LlamaSession final : public Session {
         std::vector<uint8_t> blob(static_cast<size_t>(bytes));
         if (!io_chunked(fp, blob.data(), blob.size(), /*write=*/false))
             return;
-        m_prefix_blob = std::move(blob);
+        PrefixCheckpoint c;
+        c.n = static_cast<size_t>(n);
+        c.blob = std::move(blob);
+        m_checkpoints.assign(1, std::move(c));
         m_prefix_tokens.assign(m_kv_tokens.begin(),
                                m_kv_tokens.begin() + static_cast<std::ptrdiff_t>(n));
     }

@@ -705,6 +705,68 @@ TEST_CASE("Session: hybrid head/tail prefill matches the opt-out greedy output "
     }
 }
 
+TEST_CASE("Session: a new conversation with the same long prefix restores a grid checkpoint "
+          "(#601, opt-in: XLLAMA_TEST_MODEL)") {
+    // Two different conversations share a system prompt longer than 1024
+    // tokens. The second must restore the 1024 checkpoint of the first instead
+    // of prefilling from scratch, and generate what a cold session generates.
+    // A cold session with checkpoints on (prefill split at the grid) must also
+    // match one with them off (one prefill).
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    xllama::SessionParams on;
+    on.model_path = model;
+    on.n_ctx = 4096;
+    on.n_threads = 2;
+    xllama::SessionParams off = on;
+    off.prefix_snapshots = false;
+
+    std::string system = "<|im_start|>system\nYou are the harbour office assistant. Rules:\n";
+    for (int i = 0; i < 60; ++i)
+        system += "Rule " + std::to_string(i) +
+                  ": log every vessel, its berth, its cargo and the tide at arrival.\n";
+    system += "<|im_end|>\n<|im_start|>user\n";
+    const std::string a = system + "Which berth takes tankers?<|im_end|>\n<|im_start|>assistant\n";
+    const std::string b = system + "Summarise the rules in one sentence.<|im_end|>\n"
+                                   "<|im_start|>assistant\n";
+    auto mkgp = [](const std::string& prompt) {
+        xllama::GenerateParams gp;
+        gp.prompt = prompt;
+        gp.n_predict = 24;
+        gp.temperature = 0.0f;
+        return gp;
+    };
+
+    std::string error;
+    auto warm = xllama::Session::create(on, &error);
+    REQUIRE_MESSAGE(warm, error);
+    const int shared = warm->count_tokens(system);
+    REQUIRE_MESSAGE(shared > 1100, "the shared prefix must pass the 1024 grid point");
+    REQUIRE_MESSAGE(shared < 1500, "and stay below the 1536 one");
+    const auto first = warm->generate(mkgp(a));
+    REQUIRE_MESSAGE(first.success, first.error_msg);
+    CHECK(first.n_p_eval == first.n_prompt);
+    const auto second = warm->generate(mkgp(b));
+    REQUIRE_MESSAGE(second.success, second.error_msg);
+    CHECK(second.n_p_eval == second.n_prompt - 1024);
+    warm.reset();
+
+    auto cold = xllama::Session::create(on, &error);
+    REQUIRE_MESSAGE(cold, error);
+    const auto expected = cold->generate(mkgp(b));
+    REQUIRE_MESSAGE(expected.success, expected.error_msg);
+    CHECK(expected.n_p_eval == expected.n_prompt);
+    CHECK(second.output_text == expected.output_text);
+    cold.reset();
+
+    auto single = xllama::Session::create(off, &error);
+    REQUIRE_MESSAGE(single, error);
+    const auto unsplit = single->generate(mkgp(b));
+    REQUIRE_MESSAGE(unsplit.success, unsplit.error_msg);
+    CHECK(unsplit.output_text == expected.output_text);
+}
+
 namespace {
 struct EpochProbeSession final : xllama::Session {
     xllama::InferenceResult generate(const xllama::GenerateParams&) override {
