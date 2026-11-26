@@ -397,7 +397,8 @@ comments. The write is how the server notices a client that left: a failed
 write sets the request's abort flag, which ends the prefill inside its batch
 (#580) and releases the session and the compute permit. With TCP the first
 write after the peer closed usually still succeeds, so a disconnect is seen
-within about two intervals. `validate-api.sh disconnect` measures it.
+within about two intervals. `validate-api.sh disconnect` measures it, for plain
+chat and for a streamed tool proposal.
 
 **Reasoning (#564).** For a thinking model (`capabilities.reasoning` in
 `/v1/models`), the `<think>…</think>` block is returned apart from the answer,
@@ -418,12 +419,23 @@ a literal `<think>`. Whether to keep `reasoning_content` in the next request's
 history is the client's choice; xllama renders past assistant turns through the
 template as sent.
 
-A tool proposal with `stream: true` buffers generation, applies the GGUF template
-parser, then sends the assistant role, a delta with the assembled content and any
-indexed `delta.tool_calls[]`, the finish chunk with usage, and `data: [DONE]`.
-The same raw-text fallback as the JSON path applies when parsing fails or a tool
-call is cut off. The first event follows completed generation and parsing.
-Errors detected before the SSE head use the normal HTTP JSON error response.
+A tool proposal with `stream: true` opens the stream once the request checks
+pass, before generation. The SSE head and the assistant role go out first, and
+the keepalive above covers the prefill (#594). It then buffers generation,
+applies the GGUF template parser, and sends a delta with the assembled content
+and any indexed `delta.tool_calls[]`, the finish chunk with usage, and
+`data: [DONE]`. The same raw-text fallback as the JSON path applies when parsing
+fails or a tool call is cut off. Request errors are found before the head and
+keep the normal HTTP JSON error response:
+
+- bad JSON;
+- an unknown model;
+- `tools` + `functions`;
+- a template that fails to render;
+- a prompt too long.
+
+A failure in generation or parsing comes after the head, so it travels as an
+`{"error":{...}}` event, as on plain chat. Before 1.10.0 it was an HTTP `500`.
 
 Measured for plain chat on
 Series S (2026-10-16, `lfm25-1.2b-instruct`, 52-token reply): first byte at 11 ms against

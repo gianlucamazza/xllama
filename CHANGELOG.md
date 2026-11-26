@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A streamed tool proposal notices a client that leaves (#594).** `tools` with `stream: true` wrote the SSE head only after generation and parsing, so nothing watched the socket during a long agent-turn prefill, and a client that left still held the session and the compute permit. The stream now opens once the request checks pass, before generation, and gets the same keepalive and abort as plain chat (#581). Request errors (bad JSON, unknown model, a template that fails to render, a prompt too long) are still HTTP JSON. A failure in generation or parsing is now an `{"error":…}` SSE event, as on plain chat, instead of an HTTP `500`. `validate-api.sh disconnect` checks both kinds of stream.
 - **The Linux crossbuild compiles the app again.** Since #260, `uwp/ggml-uwp.vcxproj` and `uwp/llama-common-uwp.vcxproj` generated `ggml-version.h` and `build-info.cpp` with an inline `<Target>`/`<Exec>` and a `Path::Combine` property function. uwp-crossbuild refuses both, so `scripts/crossbuild-uwp.sh` stopped before compiling.
   - The two actions now live in `uwp/generated-sources.targets` and write to a fixed `uwp\generated\`. MSBuild still runs them, and `crossbuild-uwp.sh` runs the same cmake scripts before `build-project`.
   - `uwp/native_capture.cpp` includes `windows.graphics.directx.direct3d11.interop.h` and `xllama.vcxproj` links `bcrypt.lib`, by their real file names, which a case-sensitive file system needs.
