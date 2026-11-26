@@ -161,15 +161,18 @@ gh run download <run-id> -n xllama-appx -D /tmp/xllama-ci-art
 uwp-crossbuild (≥ 0.5.0) audits the **EXE** only. After `build-project`, always:
 
 ```bash
-# crossbuild-uwp.sh sets UWP_STORE_CRT=1, builds, and runs
-# stage-ort-desktop-crt.sh on the layout as its last step.
-./scripts/crossbuild-uwp.sh --out /tmp/xllama-layout
-# Source: XLLAMA_DESKTOP_CRT_DIR, uwp/, or ~/.cache/xllama/desktop-crt/
-# (VC143 redist or DLLs from a CI package — never Wine stubs). From a CI
-# package, after checking it against the release SHA256SUMS:
+# First the desktop CRT, which the last step stages next to ORT and refuses to
+# go without. Source: XLLAMA_DESKTOP_CRT_DIR, uwp/, or ~/.cache/xllama/desktop-crt/
+# (VC143 redist or DLLs from a CI package — never Wine stubs). Skip this when
+# one of them already holds the four DLLs. From a CI package, after checking it
+# against the release SHA256SUMS:
 mkdir -p ~/.cache/xllama/desktop-crt
 7z e -o"$HOME/.cache/xllama/desktop-crt" xllama_<version>_x64.msix \
   MSVCP140.dll MSVCP140_1.dll VCRUNTIME140.dll VCRUNTIME140_1.dll
+
+# crossbuild-uwp.sh sets UWP_STORE_CRT=1, builds, and runs
+# stage-ort-desktop-crt.sh on the layout as its last step.
+./scripts/crossbuild-uwp.sh --out /tmp/xllama-layout
 ```
 
 Fail closed if `onnxruntime.dll` is in the layout but any of
