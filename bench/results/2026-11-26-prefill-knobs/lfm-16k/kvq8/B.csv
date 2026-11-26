@@ -1,0 +1,4 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index,prefill_ms,ttft_ms
+lfm25-350m,Q4_0,cpu,16384,6,52.37,19.40,415,275750,0,0,14428,16,0,xbox-series-s-declared-kvq8-noeog,2026-11-26T10:56:07Z,2,275479.7,275480.2
+lfm25-350m,Q4_0,cpu,16384,6,52.03,19.40,414,277606,0,0,14428,16,0,xbox-series-s-declared-kvq8-noeog,2026-11-26T11:05:54Z,2,277325.6,277326.1
+lfm25-350m,Q4_0,cpu,16384,6,52.53,18.27,415,274925,0,0,14428,16,0,xbox-series-s-declared-kvq8-noeog,2026-11-26T11:20:50Z,2,274654.8,274655.2

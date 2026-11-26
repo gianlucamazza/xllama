@@ -10,6 +10,10 @@
 #                                   [--json-out PATH]
 #   scripts/paired-bench-summary.py <cell_dir> --profile bias-add|bias-add-control|rope
 #                                   [--json-out PATH]
+#   scripts/paired-bench-summary.py <cell_dir> --report prefill,decode,ttft,peak
+#                                   [--json-out PATH]
+# --report is for an estimate with no preregistered margin (#582): the same
+# medians and intervals, no verdict, exit 0 on valid input.
 # Profiles require 20 complete alternating pairs of one preregistered model and
 # host tag. bias-add-control also requires identical measured prefill and decode
 # submission counts in both arms of every pair. rope (A = bias ADD on, B = bias
@@ -18,7 +22,9 @@
 # speed-up cannot come from a knob that never took effect.
 #
 # Pair i is row i of A.csv and row i of B.csv; only pairs whose two arms are
-# both recorded as ok in ledger.jsonl count. Per pair:
+# both recorded as ok in ledger.jsonl count. A "retry" ledger line is an attempt
+# that failed before writing a row (bench-paired-knob.sh --retries); it is not
+# a pair and is ignored. Per pair:
 #   prefill ratio  = B.prompt_tok_s / A.prompt_tok_s   (higher is better)
 #   decode ratio   = B.decode_tok_s / A.decode_tok_s   (higher is better)
 #   TTFT ratio     = B.ttft_ms / A.ttft_ms             (lower is better)
@@ -112,6 +118,8 @@ def ok_pairs(cell: Path, expected_count=None):
     for line in ledger.read_text().splitlines():
         if line.strip():
             e = json.loads(line)
+            if e["status"] == "retry":
+                continue
             status.setdefault(e["pair"], {})[e["arm"]] = e["status"]
             entries.append((e["pair"], e.get("order"), e["arm"], e["status"]))
     if expected_count is not None:
@@ -190,13 +198,15 @@ def main() -> int:
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--gates", help="comma-separated: prefill,decode,ttft,peak for #313")
     mode.add_argument("--profile", choices=tuple(PROFILES))
+    mode.add_argument("--report", help="comma-separated gates, reported without a margin")
     ap.add_argument("--json-out", type=Path)
     args = ap.parse_args()
     try:
         profile_specs, profile_models, check = PROFILES[args.profile] if args.profile else (
             None, None, None)
         specs = profile_specs or GATES
-        gates = list(specs) if args.profile else [g.strip() for g in args.gates.split(",") if g.strip()]
+        names = args.report if args.report is not None else args.gates
+        gates = list(specs) if args.profile else [g.strip() for g in names.split(",") if g.strip()]
         if not gates or any(g not in specs for g in gates):
             raise Invalid(f"gates must be among {sorted(GATES)}")
         a, b = load_rows(args.cell / "A.csv"), load_rows(args.cell / "B.csv")
@@ -229,12 +239,17 @@ def main() -> int:
         column, kind, margin, direction = specs[g]
         vals = values[g]
         med, lo, hi = median_interval(vals, rng)
+        unit = " MiB" if kind == "delta" else ""
+        if args.report is not None:
+            rows[g] = {"column": column, "kind": kind, "median": med, "ci95": [lo, hi],
+                       "values": vals.tolist()}
+            print(f"  {g:<8} median {med:.4f}{unit}  95% CI [{lo:.4f}, {hi:.4f}]")
+            continue
         v = judge(direction, margin, lo, hi)
         verdicts.append(v)
         rows[g] = {"column": column, "kind": kind, "median": med, "ci95": [lo, hi],
                    "margin": margin, "direction": direction, "verdict": v,
                    "values": vals.tolist()}
-        unit = " MiB" if kind == "delta" else ""
         if direction == "within":
             limit = f"[{margin[0]:g}, {margin[1]:g}]"
         else:
@@ -245,8 +260,11 @@ def main() -> int:
         verdicts.append(verdict)
         rows["submissions"] = {"mismatched_pairs": mismatched_pairs, "verdict": verdict}
         print(f"  submissions {verdict}, mismatched pairs {mismatched_pairs}")
-    cell = "pass" if all(v == "pass" for v in verdicts) else (
-        "fail" if "fail" in verdicts else "inconclusive")
+    if args.report is not None:
+        cell = "report"
+    else:
+        cell = "pass" if all(v == "pass" for v in verdicts) else (
+            "fail" if "fail" in verdicts else "inconclusive")
     summary = {"cell": str(args.cell), "model": a[0]["model"], "n_prompt_tok": a[0]["n_prompt_tok"],
                "pairs": len(pairs), "seed": SEED, "resamples": RESAMPLES, "gates": rows,
                "verdict": cell}
@@ -255,7 +273,7 @@ def main() -> int:
     if args.json_out:
         args.json_out.write_text(json.dumps(summary, indent=1) + "\n")
     print(f"{a[0]['model']} P={a[0]['n_prompt_tok']} pairs={len(pairs)}: {cell.upper()}")
-    return 0 if cell == "pass" else 1
+    return 0 if cell in ("pass", "report") else 1
 
 
 if __name__ == "__main__":

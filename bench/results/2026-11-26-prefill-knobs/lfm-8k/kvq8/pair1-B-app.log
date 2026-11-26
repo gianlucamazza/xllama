@@ -1,0 +1,52 @@
+[xllama] bench.flag detected -> headless bench mode
+[xllama] headless bench: starting
+[xllama] bench: prompt.txt 27072 bytes
+[xllama] bench model: lfm25-350m
+[xllama] bench prompt: <|im_start|>system
+You are a helpful AI assistant.<|im_end|>
+<|im_start|>user
+En...
+[llama] llama_model_loader: mmap is not supported on this platform
+[llama] load_tensors:          CPU model buffer size =    52.75 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =   154.12 MiB
+[xllama] ws after model load: 262 MB
+[xllama] model loaded
+[xllama] KV cache: q8_0 + flash attention (#171)
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =    51.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.08 MiB
+[llama] sched_reserve:        CPU compute buffer size =   146.05 MiB
+[xllama] ws after context: 315 MB
+[xllama] prompt tokens: 7250
+[xllama] prefill starting: 7250 tokens
+[xllama] prefill done: 7250 tokens in 70624 ms
+[xllama] done: load=70900ms prompt=102.7 tok/s decode=34.6 tok/s peak=357MB drafted=0 spec_accept=0
+[llama] ~llama_context:        CPU compute buffer size is 146.0508 MiB, matches expectation of 146.0508 MiB
+[xllama] bench-result.csv written
+[xllama] headless bench: done, exiting
+[xllama] bench.flag detected -> headless bench mode
+[xllama] headless bench: starting
+[xllama] bench: prompt.txt 27072 bytes
+[xllama] bench model: lfm25-350m
+[xllama] bench prompt: <|im_start|>system
+You are a helpful AI assistant.<|im_end|>
+<|im_start|>user
+En...
+[llama] llama_model_loader: mmap is not supported on this platform
+[llama] load_tensors:          CPU model buffer size =    52.75 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =   154.12 MiB
+[xllama] ws after model load: 262 MB
+[xllama] model loaded
+[xllama] KV cache: q8_0 + flash attention (#171)
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =    51.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.08 MiB
+[llama] sched_reserve:        CPU compute buffer size =   146.05 MiB
+[xllama] ws after context: 315 MB
+[xllama] prompt tokens: 7250
+[xllama] prefill starting: 7250 tokens
+[xllama] prefill done: 7250 tokens in 71037 ms
+[xllama] done: load=71296ms prompt=102.1 tok/s decode=33.7 tok/s peak=357MB drafted=0 spec_accept=0
+[llama] ~llama_context:        CPU compute buffer size is 146.0508 MiB, matches expectation of 146.0508 MiB
+[xllama] bench-result.csv written
+[xllama] headless bench: done, exiting

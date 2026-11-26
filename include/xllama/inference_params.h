@@ -64,6 +64,11 @@ struct InferenceParams {
     /// Quantize KV cache to q8_0 (GGUF path only).
     bool kv_q8 = false;
 
+    /// Flash attention for the GGUF context: -1 = llama.cpp's auto (enabled
+    /// where the backend supports it, the CPU included), 0 = off, 1 = on.
+    /// kv_q8 forces it on. A bench knob (#582); sessions keep auto.
+    int flash_attn = -1;
+
     /// GGUF layers whose weight matmuls run on the d3d12 backend (0 = CPU,
     /// docs/gguf-gpu-decode.md). Ignored where D3D12 is unavailable.
     int n_gpu_layers = 0;

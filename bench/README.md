@@ -63,7 +63,9 @@ this structural check does not verify provenance or reproduce a measurement.
   `backend` is `cpu` or `d3d12` for llama.cpp rows (`d3d12` = GGUF layers on
   the d3d12 backend, host tag `-gN`) and `ort-genai-cpu` /
   `ort-genai-dml` for ORT rows. `-noeog` in `host` means the run decoded
-  exactly `n_predict` tokens (`--ignore-eog`).
+  exactly `n_predict` tokens (`--ignore-eog`). `-fa0` / `-fa1` mean flash
+  attention was forced off or on (`--flash-attn`, #582). A row without either
+  tag ran llama.cpp's auto, which this pin resolves to on for the CPU backend.
 
   `prefill_ms` is prompt-processing duration. `ttft_ms` is measured from
   prefill start until the first generated token is ready; zero means that no
@@ -297,7 +299,16 @@ python3 scripts/paired-bench-summary.py bench/results/<campaign>/<cell> --gates 
 
 The summary gives each gate's median paired ratio (or memory delta) with a
 paired percentile bootstrap 95 % interval and the preregistered margins of
-#313; a gate whose interval crosses its margin is inconclusive. Freeze the
+#313; a gate whose interval crosses its margin is inconclusive.
+
+A knob that `bench-xbox-ort.sh` owns (`--flash-attn`, `--ubatch`, `--kv-q8`)
+goes to one arm with `--b-arg` (or `--a-arg`), repeated once per word, instead
+of `--knob`: the harness rewrites those files on every run. `--retries N`
+reruns an arm whose harness call failed before writing a row, such as a Device
+Portal upload timeout; each such attempt is a `retry` line in the ledger, and
+the summary ignores it. An estimate with no preregistered margin (#582) uses
+`paired-bench-summary.py --report <gates>`: the same medians and intervals,
+without a verdict. Freeze the
 manifest before the first cell runs. First campaign:
 [`docs/research/evidence/2026-11-16-c4-performance/`](../docs/research/evidence/2026-11-16-c4-performance/README.md).
 

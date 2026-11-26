@@ -215,6 +215,9 @@ void main_loop() {
     // #171: q8_0 KV cache + flash attention A/B. Host-column tag -kvq8, same
     // rationale as -uN (the CSV schema carries no cache-type column).
     const int bench_kvq8 = ::xllama::read_local_int("bench_kvq8.txt", 0);
+    // #582: flash attention A/B. Missing or -1 = llama.cpp auto, 0 = off,
+    // 1 = on. Host-column tag -fa0 / -fa1, same rationale as -uN.
+    const int bench_flash_attn = ::xllama::read_local_int("bench_flash_attn.txt", -1);
     // Phase 15 W2 (#210): draft-free prompt-lookup speculative decoding.
     // 0 = off (default); 1 = on. Host-column tag -plookup (CSV has no dedicated
     // column — same pattern as -kvq8 / -uN).
@@ -273,9 +276,10 @@ void main_loop() {
     if (bench_ctx > 0)
         params.n_ctx = bench_ctx;
     params.max_length_override = bench_maxlen;
-    params.n_threads = bench_threads;                // 0 = auto; set by bench-xbox-ort.sh
-    params.n_ubatch = bench_ubatch;                  // #172: 0 = llama default (512)
-    params.kv_q8 = bench_kvq8 != 0;                  // #171: q8_0 KV + flash attention
+    params.n_threads = bench_threads; // 0 = auto; set by bench-xbox-ort.sh
+    params.n_ubatch = bench_ubatch;   // #172: 0 = llama default (512)
+    params.kv_q8 = bench_kvq8 != 0;   // #171: q8_0 KV + flash attention
+    params.flash_attn = (bench_flash_attn == 0 || bench_flash_attn == 1) ? bench_flash_attn : -1;
     params.prompt_lookup = bench_prompt_lookup != 0; // #210 W2
     params.n_gpu_layers = bench_gpu_layers;          // D2b: 0 = CPU
     params.greedy = bench_greedy;
@@ -311,6 +315,9 @@ void main_loop() {
             snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-u%d", bench_ubatch);
     if (bench_kvq8 != 0)
         host_len += snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-kvq8");
+    if (params.flash_attn >= 0)
+        host_len +=
+            snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-fa%d", params.flash_attn);
     if (bench_gpu_layers > 0)
         host_len +=
             snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-g%d", bench_gpu_layers);

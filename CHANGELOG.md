@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Long-prompt prefill knobs measured on Series S (#582).** 36 paired A/B runs (`bench/results/2026-11-26-prefill-knobs/`): the shipped configuration (auto flash attention, which this pin resolves to on for the CPU, `n_ubatch` 512, f16 KV) is within 3 % of the fastest arm. Flash attention off costs 31–54 %, q8_0 KV 51–76 % (it saves 44–420 MiB), `n_ubatch` 256 3–5 %; 1024 gains 0.5–2.9 % for 43–73 MiB. Defaults are unchanged. To measure it: `bench-xbox-ort.sh --flash-attn 0|1` (`bench_flash_attn.txt`, host tag `-fa0/-fa1`), `bench-paired-knob.sh --a-arg/--b-arg` and `--retries`, `paired-bench-summary.py --report`, and llama.cpp's flash attention resolution now reaches `xllama.log`.
+
 - **A streamed client that leaves during prefill releases the session (#581).** Nothing was written while a long prompt prefilled, so a disconnect went unnoticed until the first token, minutes later on Series S, with the session and the compute permit held for nobody. A stream silent for 5 s now gets an SSE comment (`: keepalive`); its failed write aborts the prefill (#580). `validate-api.sh disconnect` checks it.
 
 - **Stop and the stall watchdog end a GGUF prefill inside its batch (#580).** An abort was only seen between `n_batch` chunks (up to 2048 tokens, about 90 s for a 3B model on Series S), and a stuck `llama_decode` could not be ended at all. While a prefill runs, llama.cpp's abort callback now reads the turn's abort flag and the watchdog, and ggml-cpu checks it between graph nodes. The partial KV is dropped as after any failed prefill, the KV epoch is renewed, and the error reads `aborted during prefill`. D3D12-offloaded layers stop at the next ubatch.

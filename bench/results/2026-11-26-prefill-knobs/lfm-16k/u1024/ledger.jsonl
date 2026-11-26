@@ -1,0 +1,6 @@
+{"pair":1,"order":"AB","arm":"A","status":"ok","detail":"row 1","date":"2026-11-26T10:30:54Z"}
+{"pair":1,"order":"AB","arm":"B","status":"ok","detail":"row 1","date":"2026-11-26T10:33:31Z"}
+{"pair":2,"order":"BA","arm":"B","status":"ok","detail":"row 2","date":"2026-11-26T10:36:08Z"}
+{"pair":2,"order":"BA","arm":"A","status":"ok","detail":"row 2","date":"2026-11-26T10:38:45Z"}
+{"pair":3,"order":"AB","arm":"A","status":"ok","detail":"row 3","date":"2026-11-26T10:41:21Z"}
+{"pair":3,"order":"AB","arm":"B","status":"ok","detail":"row 3","date":"2026-11-26T10:43:58Z"}

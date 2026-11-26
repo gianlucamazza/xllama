@@ -688,6 +688,12 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     if (params.n_batch > 0 || params.n_ubatch > 0)
         log_output("[xllama] prefill batch override: n_batch=" + std::to_string(cparams.n_batch) +
                    " n_ubatch=" + std::to_string(cparams.n_ubatch) + "\n");
+    if (params.flash_attn == 0 || params.flash_attn == 1) {
+        cparams.flash_attn_type =
+            params.flash_attn ? LLAMA_FLASH_ATTN_TYPE_ENABLED : LLAMA_FLASH_ATTN_TYPE_DISABLED;
+        log_output(std::string("[xllama] flash attention: ") + (params.flash_attn ? "on" : "off") +
+                   " (#582)\n");
+    }
     const llama_flash_attn_type fa_requested = cparams.flash_attn_type;
     if (params.kv_q8) {
         // #171: q8_0 KV needs flash attention (quantized V throws without it);
