@@ -36,10 +36,20 @@ struct ApiCapabilities {
 // images need the ORT diffusion pipeline (XLLAMA_USE_ORT).
 ApiCapabilities build_api_capabilities();
 
+// The llama.cpp commit this build compiles (common/build-info.h); empty
+// without XLLAMA_USE_LLAMA. Only the commit: the build number counts the
+// submodule's history, and a shallow checkout (CI) has one commit, so
+// llama_build_info() reads "b1-<commit>" whatever the pin.
+std::string build_llama_cpp();
+
 // {"status":"ok","service":"xllama","version":…,"api":…,"capabilities":{…},
-//  "sampling":[…]}: sampling lists the chat fields of api_sampling.h.
-// The first two fields are the original body and stay first.
-std::string health_json(const std::string& version, const ApiCapabilities& caps);
+//  "sampling":[…],"runtime":{"llama_cpp":…,"patches":[…]}}. The first two
+// fields are the original body and stay first. "sampling" lists the chat
+// fields of api_sampling.h (#609). "runtime" (#611) names the llama.cpp pin
+// and the patches applied to it (llama_patches.h); it is left out when
+// |llama_cpp| is empty (a build without llama.cpp).
+std::string health_json(const std::string& version, const ApiCapabilities& caps,
+                        const std::string& llama_cpp);
 
 struct ModelInfo {
     std::string id;

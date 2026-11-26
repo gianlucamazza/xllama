@@ -62,6 +62,7 @@ add_executable(xllama-tests
     test_api_config.cpp
     test_api_activity.cpp
     test_api_discovery.cpp
+    test_llama_patches.cpp
     test_thinking_split.cpp
     test_debug_dashboard.cpp
     test_compute_admission.cpp
@@ -84,6 +85,7 @@ target_compile_definitions(xllama-tests PRIVATE
     GOLDEN_JSON_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../diffusion/golden_vectors.json"
     CLIP_TOKENIZER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../diffusion/clip_tokenizer"
     PARITY_GOLDEN_BIN="${CMAKE_CURRENT_SOURCE_DIR}/golden/logits-smol-short.bin"
-    LLAMA_TEMPLATES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../llama.cpp/models/templates")
+    LLAMA_TEMPLATES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../llama.cpp/models/templates"
+    LLAMA_PATCHES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../patches")
 
 add_test(NAME xllama-tests COMMAND xllama-tests)

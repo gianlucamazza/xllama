@@ -179,7 +179,16 @@ to branch on (`include/xllama/api_discovery.h`):
     "reasoning_tokens": true,
     "cached_tokens": true
   },
-  "sampling": ["temperature", "top_p", "top_k", "repetition_penalty", "seed"]
+  "sampling": ["temperature", "top_p", "top_k", "repetition_penalty", "seed"],
+  "runtime": {
+    "llama_cpp": "d812350",
+    "patches": [
+      "0001-uwp-appcontainer-guards",
+      "0003-kv-cache-k-shift-unallocated-input",
+      "0004-recurrent-state-fill-zero",
+      "0005-required-tool-call-no-content-prefix"
+    ]
+  }
 }
 ```
 
@@ -189,7 +198,13 @@ status mapping changes in a way a client must branch on. `capabilities` lists
 what the installed build serves: the llama.cpp-only package reports
 `images: false`. `sampling` lists the sampling fields a chat request may set
 (`include/xllama/api_sampling.h`, the table the request is validated against),
-so a client sends only those instead of assuming them per version.
+so a client sends only those instead of assuming them per version. `runtime`
+names the llama.cpp commit the build compiles (llama.cpp's own build info; the
+commit only, since its build number counts the submodule history and reads 1 in
+a shallow checkout) and the patches applied to it
+(`include/xllama/llama_patches.h`, kept equal to `patches/` by a test), so a
+client can tell whether an upstream fix is in the build it talks to. It is
+absent from a build without llama.cpp.
 
 Each `/v1/models` entry keeps OpenAI's `id`, `object`, `created` and `owned_by`
 and adds non-standard fields that clients may ignore:

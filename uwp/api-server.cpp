@@ -2191,9 +2191,10 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
 
         // Health probe (also the spike gate: curl http://<ip>:<port>/ -> 200).
         if (req.method == "GET" && (req.path == "/" || req.path == "/health")) {
-            write_response(
-                socket, "200 OK",
-                ::xllama::health_json(package_version(), ::xllama::build_api_capabilities()));
+            write_response(socket, "200 OK",
+                           ::xllama::health_json(package_version(),
+                                                 ::xllama::build_api_capabilities(),
+                                                 ::xllama::build_llama_cpp()));
             return;
         }
 
