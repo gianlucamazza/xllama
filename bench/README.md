@@ -355,6 +355,16 @@ For the same model and subset, host and console should agree within the stderr
 template, stop sequences, `max_tokens` or thinking split. A run with `--limit`
 writes summary rows marked `"partial": true`; it is a smoke test, not a result.
 
+#### Publishing standard results
+
+A campaign directory under `results/` holds the JSONL files of both lanes.
+`benchmark-summary.json` names them under `standard`, with each model's label,
+GGUF filename and SHA256, and `generate-benchmark-summary.py` renders the
+informational section of `docs/benchmarks.md` from them. The generator fails on
+a missing or duplicate task, a GGUF hash that differs from the policy, and a
+`--limit` (partial) or short generative run. `quality.source` stays the H9
+file; `check-coherence.py` pins that.
+
 ### Xbox Series S — paired A/B campaigns
 
 For a change that one LocalState knob switches on or off (the #313
