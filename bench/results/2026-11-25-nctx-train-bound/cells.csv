@@ -1,0 +1,10 @@
+cell,model,n_ctx,target_tokens,load_status,prompt_status,prompt_tokens,first_content_ms,done_ms,max_private_ws_mb,detail
+lfm25-350m-2048-1500,lfm25-350m,2048,1500,200,200,1700,4798.654,4811.653,308,
+lfm25-350m-8192-7000,lfm25-350m,8192,7000,200,200,7685,,28208.026,387,stream: ValueError: no content delta before [DONE]
+lfm25-350m-16384-14500,lfm25-350m,16384,14500,200,200,15836,75744.535,75870.159,493,
+lfm25-350m-32768-30000,lfm25-350m,32768,30000,200,400,,,,492,stream: ValueError: HTTP 400; prompt too long: the final user message needs 33209 tokens plus 8 for the reply; but n_ctx is 32768
+lfm25-350m-131072-0,lfm25-350m,131072,0,200,,,,,633,
+llama32-3b-8192-7000,llama32-3b,8192,7000,200,200,7562,262382.349,262753.481,2519,
+llama32-3b-16384-14500,llama32-3b,16384,14500,200,200,15583,711556.269,712938.301,3425,
+llama32-3b-32768-0,llama32-3b,32768,0,400,,,,,3424,session create failed: insufficient memory: this model at n_ctx 32768 needs 5359 MB (weights 1463; context 3584; compute 312) with 135 MB already in use; over t
+lfm25-350m-32768-27500,lfm25-350m,32768,27500,200,200,30401,,207263.382,700,stream: ValueError: no content delta before [DONE]

@@ -13,7 +13,8 @@ struct Session {
     virtual EmbeddingResult embed(const EmbeddingParams& params);
     virtual int context_length() const;
     virtual bool can_context_shift() const;
-    virtual bool save_state(const std::string& path, std::string* err = nullptr);
+    virtual bool save_state(const std::string& path, std::string* err = nullptr,
+                            std::size_t max_bytes = 0);
     virtual bool load_state(const std::string& path, std::string* err = nullptr);
     virtual ~Session() = default;
 };
@@ -26,8 +27,14 @@ Thread safety: serialize generation, embedding, token counting and state operati
 on a Session. The GUI and LAN API hold `SessionHub::mtx` through each operation;
 `embed()` clears chat KV, so the next chat turn requires a clean prefill.
 The default backend implementation returns an unsuccessful embedding result;
-its `context_length()` returns 0. The llama.cpp session reports its configured
-context length.
+its `context_length()` returns 0. The llama.cpp session reports the context it
+opened with, which can be below `SessionParams::n_ctx` (capped at the model's
+trained context). Budget prompts against `context_length()`, not the request.
+
+`save_state()` refuses a state larger than `max_bytes` (0 means the loader's
+512 MB ceiling) before it copies or writes anything. The chat UI passes the
+KV snapshot pool cap (`kKvStoreMaxBytes`), so a long dense context is not
+saved. Its next visit prefills normally.
 
 ## `xllama::SessionHub`
 
@@ -89,7 +96,7 @@ Configuration for creating a persistent session.
 | Field              | Default | Description                                                      |
 | ------------------ | ------- | ---------------------------------------------------------------- |
 | `model_path`       | —       | Path to model                                                    |
-| `n_ctx`            | 2048    | Context size                                                     |
+| `n_ctx`            | 2048    | Context size; GGUF caps it at the model's trained context        |
 | `n_threads`        | 0       | Thread count (0=auto)                                            |
 | `n_batch`          | 0       | llama.cpp logical prefill batch (0=default 2048)                 |
 | `n_ubatch`         | 0       | llama.cpp physical prefill chunk (0=default 512)                 |

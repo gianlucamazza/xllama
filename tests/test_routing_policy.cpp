@@ -161,7 +161,39 @@ TEST_CASE("resolve_n_ctx clamps and defaults") {
     CHECK(resolve_n_ctx(-1) == kDefaultNCtx);
     CHECK(resolve_n_ctx(4096) == 4096);
     CHECK(resolve_n_ctx(kMinSessionNCtx - 1) == kMinSessionNCtx);
-    CHECK(resolve_n_ctx(kMaxSessionNCtx + 1) == kMaxSessionNCtx);
+    // No fixed maximum: each backend bounds the context when the session opens.
+    CHECK(resolve_n_ctx(32768) == 32768);
+}
+
+TEST_CASE("bound_gguf_n_ctx caps at the trained context, not at a constant") {
+    CHECK(bound_gguf_n_ctx(0, 32768) == kDefaultNCtx);
+    CHECK(bound_gguf_n_ctx(16384, 32768) == 16384); // below n_ctx_train
+    CHECK(bound_gguf_n_ctx(32768, 32768) == 32768); // at n_ctx_train
+    CHECK(bound_gguf_n_ctx(65536, 32768) == 32768); // above: capped
+    CHECK(bound_gguf_n_ctx(131072, 0) == 131072);   // unknown: admission decides
+    CHECK(bound_gguf_n_ctx(131072, -1) == 131072);
+    CHECK(bound_gguf_n_ctx(2048, 256) == 256); // a tiny trained context still caps
+    // A session's own small context stands: the 512 floor is the catalogue's.
+    CHECK(bound_gguf_n_ctx(128, 32768) == 128);
+    CHECK(bound_gguf_n_ctx(kMinSessionNCtx - 1, 32768) == kMinSessionNCtx - 1);
+}
+
+TEST_CASE("bound_unadmitted_n_ctx: the fixed cap where no admission checks the KV") {
+    CHECK(bound_unadmitted_n_ctx(0) == kDefaultNCtx);
+    CHECK(bound_unadmitted_n_ctx(4096) == 4096);
+    CHECK(bound_unadmitted_n_ctx(kMaxUnadmittedNCtx) == kMaxUnadmittedNCtx);
+    CHECK(bound_unadmitted_n_ctx(kMaxUnadmittedNCtx + 1) == kMaxUnadmittedNCtx);
+    CHECK(bound_unadmitted_n_ctx(256) == 256); // no catalogue floor here either
+}
+
+TEST_CASE("catalogue_n_ctx applies the backend's pre-load bound") {
+    CHECK(catalogue_n_ctx(0, true) == kDefaultNCtx);
+    CHECK(catalogue_n_ctx(32768, true) == 32768); // GGUF: bounded at load
+    CHECK(catalogue_n_ctx(32768, false) == kMaxUnadmittedNCtx);
+    CHECK(catalogue_n_ctx(4096, false) == 4096);
+    // The catalogue keeps its floor on both backends.
+    CHECK(catalogue_n_ctx(256, true) == kMinSessionNCtx);
+    CHECK(catalogue_n_ctx(256, false) == kMinSessionNCtx);
 }
 
 TEST_CASE("max_prompt_tokens_for_n_ctx tracks session size") {

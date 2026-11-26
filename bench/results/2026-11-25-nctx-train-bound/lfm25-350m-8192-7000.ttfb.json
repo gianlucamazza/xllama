@@ -1,0 +1,33 @@
+{
+ "schema": "xllama-api-ttfb/1",
+ "utc": "2026-11-25T21:29:16.455255+00:00",
+ "endpoint": "console:11434/v1/chat/completions",
+ "model": "lfm25-350m",
+ "prompt_chars": 27424,
+ "max_tokens": 8,
+ "hardware_declared": "xbox-series-s-declared",
+ "scope": "client-observed LAN timing incl. network, HTTP and any model load; not the in-app ttft_ms and not a throughput result",
+ "attempts": [
+  {
+   "connect_ms": 6.523,
+   "headers_ms": 29.239,
+   "first_byte_ms": 29.307,
+   "first_content_ms": null,
+   "done_ms": 28208.026,
+   "status": 200,
+   "content_chunks": 0,
+   "error": "ValueError: no content delta before [DONE]",
+   "text_chars": 0,
+   "attempt": 0
+  }
+ ],
+ "complete": 0,
+ "failed": 1,
+ "median_ms": {
+  "connect_ms": null,
+  "headers_ms": null,
+  "first_byte_ms": null,
+  "first_content_ms": null,
+  "done_ms": null
+ }
+}

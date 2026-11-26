@@ -75,10 +75,18 @@ inline constexpr int kMaxPromptTokens = 1800;
 // GPU routing became unreachable for every default install — #133 all over again.
 inline constexpr int kReservedGenerationTokens = 250;
 
-// Catalogue n_ctx bounds. 0 / omit → kDefaultNCtx. Above the max is clamped so
-// a bad override cannot OOM the console KV pool.
+// Catalogue n_ctx: 0 / omit means kDefaultNCtx, and nothing opens below
+// kMinSessionNCtx. There is no fixed maximum here (#570). Each backend applies
+// its own bound when the session opens:
+//   - GGUF: bound_gguf_n_ctx caps the request at the model's trained context.
+//     The memory admission (memory_admission.h) then sizes the real KV and
+//     recurrent state at that n_ctx and refuses a load that would not fit.
+//   - A session with no memory admission keeps kMaxUnadmittedNCtx
+//     (bound_unadmitted_n_ctx): every ORT GenAI session, and a GGUF load whose
+//     no_alloc dry run failed. There this cap is all that keeps a bad override
+//     from exhausting the console KV pool.
 inline constexpr int kMinSessionNCtx = 512;
-inline constexpr int kMaxSessionNCtx = 8192;
+inline constexpr int kMaxUnadmittedNCtx = 8192;
 
 // Resolve a catalogue (or CLI) n_ctx request: 0 means shipping default.
 inline constexpr int resolve_n_ctx(int requested) {
@@ -86,9 +94,41 @@ inline constexpr int resolve_n_ctx(int requested) {
         return kDefaultNCtx;
     if (requested < kMinSessionNCtx)
         return kMinSessionNCtx;
-    if (requested > kMaxSessionNCtx)
-        return kMaxSessionNCtx;
     return requested;
+}
+
+// A session's own n_ctx request: 0 means kDefaultNCtx, anything else stands.
+// The kMinSessionNCtx floor is a catalogue rule (resolve_n_ctx, applied by
+// catalogue_n_ctx). SessionParams from the SDK, the CLI or a test keep a small
+// context on purpose, e.g. 128 tokens to force a context shift.
+inline constexpr int session_n_ctx(int requested) {
+    return requested > 0 ? requested : kDefaultNCtx;
+}
+
+// A GGUF session's context: the request, capped at the model's trained context
+// (GGUF `<arch>.context_length`). Above it, llama.cpp only warns and the model
+// runs past what it was trained on. If n_ctx_train is unknown (<= 0) the request
+// stands, because the admission still bounds memory.
+inline constexpr int bound_gguf_n_ctx(int requested, int n_ctx_train) {
+    const int n = session_n_ctx(requested);
+    return (n_ctx_train > 0 && n > n_ctx_train) ? n_ctx_train : n;
+}
+
+// The context of a session that no memory admission checked: ORT GenAI
+// (max_length), or a GGUF load whose dry run failed.
+inline constexpr int bound_unadmitted_n_ctx(int requested) {
+    const int n = session_n_ctx(requested);
+    return n > kMaxUnadmittedNCtx ? kMaxUnadmittedNCtx : n;
+}
+
+// The n_ctx a catalogue entry asks its session for, before the model file is
+// read: the catalogue's default and floor (resolve_n_ctx), then the backend's
+// pre-load bound. Used by the resolver and by the surfaces that plan a prompt
+// before loading. A GGUF session can still open smaller (bound_gguf_n_ctx);
+// after the load, Session::context_length() is the context that holds.
+inline constexpr int catalogue_n_ctx(int requested, bool gguf) {
+    const int n = resolve_n_ctx(requested);
+    return gguf ? n : bound_unadmitted_n_ctx(n);
 }
 
 // GGUF layers on the d3d12 backend for a session (docs/gguf-gpu-decode.md, D3).

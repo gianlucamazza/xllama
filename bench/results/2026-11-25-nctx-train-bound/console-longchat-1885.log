@@ -1,0 +1,12 @@
+=== #169 long-chat context shift ===
+Stopped GianlucaMazza.xllama_1.8.1.1885_x64__pj67f1fcj4n14.
+  injected: 24 messages, est ~1972 tok (budget 1800)
+GianlucaMazza.xllama_1.8.1.1885_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 41s.
+  autopilot: ok
+  ok: context shift fired (1x)
+  ok: no continuation fell back to a full prefill
+  ok: no context-full error
+GianlucaMazza.xllama_1.8.1.1885_x64__pj67f1fcj4n14 is not running.
+#169 long-chat: PASS

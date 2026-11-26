@@ -369,7 +369,8 @@ std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err) {
                      gpu.budget_mb);
             log_output(gpu_buf);
         }
-        int n_ctx = sp.n_ctx > 0 ? sp.n_ctx : 2048;
+        // No memory admission on ORT: the fixed cap is its KV bound (#570).
+        const int n_ctx = bound_unadmitted_n_ctx(sp.n_ctx);
 
         // #130: DirectML pays a large one-time per-process cost on the first
         // generate (§5e: cold→warm prefill 1.64-1.72×; CPU control 1.00× —
@@ -1435,7 +1436,7 @@ class LlamaSession final : public Session {
         return buf;
     }
 
-    bool save_state(const std::string& path, std::string* err) override {
+    bool save_state(const std::string& path, std::string* err, std::size_t max_bytes) override {
         if (!ensure_ctx(err))
             return false;
         if (m_kv_tokens.empty()) {
@@ -1447,7 +1448,18 @@ class LlamaSession final : public Session {
         std::vector<uint8_t> blob;
         size_t n_state = 0;
         try {
-            blob.resize(llama_state_seq_get_size(m_ctx.get(), 0));
+            // Size first: the reader refuses anything past kMaxStateBytes, and a
+            // long dense context can hold gigabytes, so check before copying.
+            const size_t want = llama_state_seq_get_size(m_ctx.get(), 0);
+            const size_t cap = max_bytes > 0 ? std::min(max_bytes, kMaxStateBytes) : kMaxStateBytes;
+            if (want > cap) {
+                if (err)
+                    *err = "KV state " + std::to_string(want >> 20) + " MB for " +
+                           std::to_string(m_kv_tokens.size()) + " tokens is over the " +
+                           std::to_string(cap >> 20) + " MB snapshot cap";
+                return false;
+            }
+            blob.resize(want);
             n_state = llama_state_seq_get_data(m_ctx.get(), blob.data(), blob.size(), 0);
         } catch (const std::exception& e) {
             if (err)
@@ -1657,7 +1669,8 @@ struct LlamaLoadPlan {
     llama_model_params mparams;
     int gpu_layers = 0;
     int n_threads = 0;
-    int n_ctx = 0;
+    int n_ctx = 0;                     // bound_gguf_n_ctx(request, n_ctx_train)
+    int n_ctx_train = 0;               // the model's trained context; 0 when unknown
     llama_context_params chat_cparams; // the context ensure_ctx() will create
 };
 
@@ -1679,7 +1692,13 @@ std::optional<LlamaLoadPlan> plan_llama_load(const SessionParams& sp, std::strin
     plan.mparams = llama_model_default_params();
     plan.gpu_layers = apply_gguf_gpu_layers(sp.n_gpu_layers, plan.mparams, plan.path);
     plan.n_threads = sp.n_threads > 0 ? sp.n_threads : detect_threads_llama();
-    plan.n_ctx = sp.n_ctx > 0 ? sp.n_ctx : kDefaultNCtx;
+    // #570: the model's trained context bounds n_ctx; memory is the
+    // admission's decision (admit_memory, below in create_llama).
+    plan.n_ctx_train = gguf_context_length(plan.path);
+    plan.n_ctx = bound_gguf_n_ctx(sp.n_ctx, plan.n_ctx_train);
+    if (plan.n_ctx < session_n_ctx(sp.n_ctx))
+        log_output("[xllama] Session: n_ctx " + std::to_string(session_n_ctx(sp.n_ctx)) +
+                   " capped at the model's trained context " + std::to_string(plan.n_ctx) + "\n");
     plan.chat_cparams =
         make_context_params(plan.n_ctx, plan.n_threads, sp.n_batch, sp.n_ubatch, plan.gpu_layers,
                             sp.kv_q8, sp.prompt_lookup, /*for_embedding=*/false);
@@ -1702,7 +1721,7 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
     llama_model_params mparams = plan->mparams;
     const int gpu_layers = plan->gpu_layers;
     const int n_threads = plan->n_threads;
-    const int n_ctx = plan->n_ctx;
+    int n_ctx = plan->n_ctx;
 
     install_llama_log();
     // Admission before any weight is read: the dry run sizes weights, context
@@ -1714,14 +1733,24 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
             estimate_session_memory(abs_path, mparams, plan->chat_cparams);
         if (need)
             log_output("[xllama] Session: memory estimate n_ctx=" + std::to_string(n_ctx) +
-                       " host " + std::to_string(need->host_mb()) + " MB (weights " +
+                       " (n_ctx_train " + std::to_string(plan->n_ctx_train) + ") host " +
+                       std::to_string(need->host_mb()) + " MB (weights " +
                        std::to_string(need->host_model_mb) + ", context " +
                        std::to_string(need->host_context_mb) + ", compute " +
                        std::to_string(need->host_compute_mb) + "), device " +
                        std::to_string(need->device_mb) + " MB, " +
                        std::to_string(working_set_mb()) + " MB in use\n");
-        else
-            log_output("[xllama] Session: memory dry run failed; loading without admission\n");
+        else {
+            // No admission without the estimate: keep the fixed bound that
+            // held before the dry run existed (#570).
+            const int bounded = bound_unadmitted_n_ctx(n_ctx);
+            log_output("[xllama] Session: memory dry run failed; loading without admission" +
+                       (bounded < n_ctx ? std::string(", n_ctx ") + std::to_string(n_ctx) +
+                                              " bounded to " + std::to_string(bounded)
+                                        : std::string()) +
+                       "\n");
+            n_ctx = bounded;
+        }
         const ::xllama::MemoryVerdict v = admit_memory(need, n_ctx);
         if (!v.ok) {
             log_output("[xllama] Session: " + v.message + "\n");

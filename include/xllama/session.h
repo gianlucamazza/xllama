@@ -11,6 +11,7 @@
 #include "xllama/memory_admission.h"
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -240,8 +241,14 @@ struct Session {
     // Both return false with *err on any failure, "unsupported backend"
     // included; a caller must treat that as "no cache, prefill normally",
     // never as a hard error.
-    virtual bool save_state(const std::string& path, std::string* err = nullptr) {
+    // save_state refuses, before allocating anything, a state larger than
+    // max_bytes (0 = the reader's own ceiling): a long dense context can hold
+    // gigabytes of KV, which would be copied in RAM next to the resident model
+    // only to be refused at load or pruned from the pool right after.
+    virtual bool save_state(const std::string& path, std::string* err = nullptr,
+                            std::size_t max_bytes = 0) {
         (void)path;
+        (void)max_bytes;
         if (err)
             *err = "state persistence not supported by this backend";
         return false;

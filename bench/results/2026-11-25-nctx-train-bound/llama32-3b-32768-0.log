@@ -1,0 +1,5 @@
+[gcprobe] session_present=1 item_present=1 viable=0 encoder=0 presence_error=0 duration_us=107
+[xllama] Session: memory estimate n_ctx=4096 (n_ctx_train 32768) host 730 MB (weights 373, context 48, compute 309), device 0 MB, 99 MB in use
+[xllama] ws after model load: 520 MB
+[xllama] Session: memory estimate n_ctx=32768 (n_ctx_train 131072) host 5359 MB (weights 1463, context 3584, compute 312), device 0 MB, 135 MB in use
+[xllama] Session: insufficient memory: this model at n_ctx 32768 needs 5359 MB (weights 1463, context 3584, compute 312) with 135 MB already in use, over the 5120 MB app limit — choose a smaller model or n_ctx

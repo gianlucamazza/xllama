@@ -592,10 +592,10 @@ CatalogueSessionPolicy catalogue_session_policy(const std::string& model) {
     }
     CatalogueSessionPolicy p;
     if (entry) {
-        p.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
+        p.gguf = entry->kind == L"gguf";
+        p.n_ctx = ::xllama::catalogue_n_ctx(entry->n_ctx, p.gguf);
         p.coding = ::xllama::role_is_coding(::xllama::wstring_to_utf8(entry->role));
         p.embedding = ::xllama::role_is_embedding(::xllama::wstring_to_utf8(entry->role));
-        p.gguf = entry->kind == L"gguf";
     }
     return p;
 }
@@ -965,9 +965,10 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
 
         model_is_coding = policy.coding;
         // ADR 0007: the GUI's resolver, adapter included (audit F03). Its n_ctx is
-        // what the session loads with (same_load pins it), so the reply limit and
-        // fit_prompt below budget against the real context, not the per-process
-        // manifest cache in catalogue_session_policy.
+        // the request the session loads with (same_load pins it). The reply limit
+        // is validated against it here, before any load (F01). A GGUF session may
+        // open smaller (capped at its trained context, #570), so fit_prompt and the
+        // reply limit are checked again below against the loaded context.
         const ::xllama::SessionParams sp = ::xllama::CatalogueSessionParams(model);
         policy_n_ctx = sp.n_ctx;
         const ::xllama::ApiTokenLimit limit = read_max_tokens(root, policy_n_ctx);
@@ -993,6 +994,18 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
             status =
                 ::xllama::is_memory_refusal(err) ? "400 Bad Request" : "500 Internal Server Error";
             return error_json("session create failed: " + err);
+        }
+        // The context the session actually holds is what everything below budgets
+        // against: a prompt between the cap and the request must be trimmed or
+        // refused here, not fail in decode.
+        if (const int loaded = session->context_length(); loaded > 0 && loaded < policy_n_ctx) {
+            policy_n_ctx = loaded;
+            const ::xllama::ApiTokenLimit loaded_limit = read_max_tokens(root, policy_n_ctx);
+            if (!loaded_limit.error.empty()) {
+                status = "400 Bad Request";
+                return error_json(loaded_limit.error);
+            }
+            n_predict = loaded_limit.value;
         }
     }
 
