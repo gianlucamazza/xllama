@@ -321,5 +321,39 @@
     "phase35-kv.csv",
     "phase6-gemma-kv.csv",
     "phase7-lfm-kv.csv"
-  ]
+  ],
+  "standard": {
+    "note": "Informational (#597): host loglikelihood via llama-perplexity and fixed generative subsets over an OpenAI-compatible endpoint. Not a promotion gate; H9 (quality.source) stays the only gate.",
+    "models": {
+      "lfm25-350m": {
+        "label": "LFM2.5-350M",
+        "gguf": "LFM2.5-350M-QAD-Q4_0.gguf",
+        "gguf_sha256": "3d10b6ab8fc91a919534b9558e266255aca0bbc7f6d015963599aa9e74e05b1d"
+      },
+      "lfm25-1.2b-instruct": {
+        "label": "LFM2.5-1.2B",
+        "gguf": "LFM2.5-1.2B-Instruct-QAD-Q4_0.gguf",
+        "gguf_sha256": "bb741ebb106d543e9de114b843a3d3d73d51c74b5801e69da2abde821a0cb3e1"
+      }
+    },
+    "loglikelihood": {
+      "source": "2026-11-26-standard/host-loglikelihood.jsonl",
+      "tasks": [
+        "hellaswag",
+        "winogrande",
+        "arc-challenge",
+        "arc-easy",
+        "mmlu"
+      ]
+    },
+    "generative": {
+      "tasks": [
+        "ifeval",
+        "gsm8k"
+      ],
+      "sources": [
+        "2026-11-26-standard/series-s-generative.jsonl"
+      ]
+    }
+  }
 }

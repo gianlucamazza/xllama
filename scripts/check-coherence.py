@@ -917,6 +917,20 @@ def main() -> int:
             err(f"H9 {model}={s}/{n} expected {a}/{b}")
     good("H9 scores match docs")
 
+    # #597: standard benchmarks are informational. H9 stays the quality source
+    # and the published section says so; generate-benchmark-summary.py --check
+    # keeps its numbers equal to the committed results.
+    summary_policy = json.loads((ROOT / "bench/benchmark-summary.json").read_text(encoding="utf-8"))
+    bench_md = (ROOT / "docs/benchmarks.md").read_text(encoding="utf-8")
+    if summary_policy["quality"]["source"] != "2026-09-30-h9-rescore.jsonl":
+        err("benchmark-summary.json quality.source must stay the H9 rescore (#597)")
+    elif "standard" not in summary_policy:
+        err("benchmark-summary.json has no standard section (#597)")
+    elif "stays the only promotion gate" not in bench_md:
+        err("docs/benchmarks.md standard section must say H9 stays the only promotion gate")
+    else:
+        good("standard benchmarks informational, H9 stays the gate")
+
     # --- leftover merge conflict markers ---
     # 2026-11-16: three zdiff3 base markers ("||||||| parent of ...") reached
     # main inside CHANGELOG.md; prettier had indented them into a list item,
