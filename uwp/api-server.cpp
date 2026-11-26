@@ -1297,7 +1297,9 @@ std::string models_json() {
             m.display = ::xllama::wstring_to_utf8(entry->display);
             m.kind = ::xllama::wstring_to_utf8(entry->kind);
             m.role = ::xllama::wstring_to_utf8(entry->role);
-            m.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
+            // The context a session of this entry opens with: the same rule as
+            // catalogue_session_policy (ORT keeps the 8192 cap, #570).
+            m.n_ctx = ::xllama::catalogue_n_ctx(entry->n_ctx, entry->kind == L"gguf");
         } else if (::xllama::model_uses_llama_backend(id)) {
             m.kind = "gguf";
         }

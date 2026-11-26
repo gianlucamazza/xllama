@@ -184,14 +184,14 @@ what the installed build serves: the llama.cpp-only package reports
 Each `/v1/models` entry keeps OpenAI's `id`, `object`, `created` and `owned_by`
 and adds non-standard fields that clients may ignore:
 
-| Field          | Meaning                                                                                                                |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `active`       | `true` on the model the resident session holds (absent otherwise)                                                      |
-| `display`      | Catalogue display name (absent for a model outside the catalogue)                                                      |
-| `kind`         | `gguf`, `ort-genai` or `diffusion`                                                                                     |
-| `role`         | Catalogue role: `""`, `coding` or `embedding`                                                                          |
-| `n_ctx`        | Context the session uses: the resident session's for the active model, else the catalogue's                            |
-| `capabilities` | `tools` (the GGUF chat template renders a tool schema, the same check a tool proposal makes), `reasoning`, `embedding` |
+| Field          | Meaning                                                                                                                                                                 |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `active`       | `true` on the model the resident session holds (absent otherwise)                                                                                                       |
+| `display`      | Catalogue display name (absent for a model outside the catalogue)                                                                                                       |
+| `kind`         | `gguf`, `ort-genai` or `diffusion`                                                                                                                                      |
+| `role`         | Catalogue role: `""`, `coding` or `embedding`                                                                                                                           |
+| `n_ctx`        | Context the session uses: the resident session's for the active model, else what a session of that entry opens with (`catalogue_n_ctx`: 512 floor, ONNX capped at 8192) |
+| `capabilities` | `tools` (the GGUF chat template renders a tool schema, the same check a tool proposal makes), `reasoning`, `embedding`                                                  |
 
 `tools` is read from the GGUF header's chat template without loading weights,
 and cached per file, size and write time.
