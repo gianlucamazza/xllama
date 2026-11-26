@@ -836,7 +836,7 @@ TEST_CASE("tool_choice required or named returns a call, not text first (opt-in:
         tool("read_file", "Read a text file. Returns numbered lines.",
              R"({"type":"object","properties":{"path":{"type":"string"},"offset":)"
              R"({"type":"integer"}},"required":["path"]})")};
-    const std::string system = "You are xlr, a helpful assistant. Use tools only when the request "
+    const std::string system = "You are a helpful assistant. Use tools only when the request "
                                "needs files or commands; otherwise just answer. Reply in Italian.";
     const std::vector<std::vector<xllama::ChatMessage>> transcripts{
         {message(xllama::ChatRole::System, system),
