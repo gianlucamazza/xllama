@@ -1,0 +1,568 @@
+Entry 1: A survey team logged damage to the eastern breakwater at 14:58, reference 8433.
+Entry 2: A survey team filed fuel deliveries for the tug fleet at 18:54, reference 9482.
+Entry 3: The archive recounted the tide tables for pier seven at 00:58, reference 2152.
+Entry 4: The harbour master filed a dispute over berth fees at 15:23, reference 5145.
+Entry 5: The night clerk logged the crane maintenance schedule at 19:23, reference 1024.
+Entry 6: The customs office noted the crane maintenance schedule at 17:40, reference 6757.
+Entry 7: The harbour master recounted the crane maintenance schedule at 21:12, reference 7500.
+Entry 8: The customs office checked damage to the eastern breakwater at 22:56, reference 7088.
+Entry 9: The lighthouse keeper reviewed cargo manifests from the northern route at 02:17, reference 5844.
+Entry 10: The customs office reviewed the tide tables for pier seven at 05:02, reference 7178.
+Entry 11: The customs office filed damage to the eastern breakwater at 07:11, reference 3531.
+Entry 12: The archive measured cargo manifests from the northern route at 02:49, reference 6353.
+Entry 13: The archive logged the quarterly weather summary at 11:10, reference 4061.
+Entry 14: The lighthouse keeper corrected fuel deliveries for the tug fleet at 18:55, reference 2620.
+Entry 15: The night clerk corrected damage to the eastern breakwater at 06:55, reference 1348.
+Entry 16: The harbour master checked the tide tables for pier seven at 00:42, reference 6795.
+Entry 17: A survey team measured a dispute over berth fees at 01:57, reference 6371.
+Entry 18: The ferry crew corrected the quarterly weather summary at 01:44, reference 7181.
+Entry 19: The night clerk logged the passenger counts for the evening ferry at 18:34, reference 3872.
+Entry 20: The ferry crew measured the crane maintenance schedule at 22:36, reference 2722.
+Entry 21: The customs office logged the crane maintenance schedule at 04:02, reference 6633.
+Entry 22: A visiting engineer corrected the quarterly weather summary at 21:29, reference 5770.
+Entry 23: A survey team reviewed the tide tables for pier seven at 16:02, reference 4389.
+Entry 24: The archive filed a dispute over berth fees at 21:25, reference 3562.
+Entry 25: A visiting engineer corrected damage to the eastern breakwater at 23:18, reference 5185.
+Entry 26: The archive noted fuel deliveries for the tug fleet at 14:13, reference 1251.
+Entry 27: The night clerk filed damage to the eastern breakwater at 13:51, reference 9773.
+Entry 28: A survey team measured cargo manifests from the northern route at 02:02, reference 5068.
+Entry 29: The customs office reviewed the crane maintenance schedule at 07:35, reference 6005.
+Entry 30: A survey team noted damage to the eastern breakwater at 16:38, reference 8443.
+Entry 31: The harbour master reviewed fuel deliveries for the tug fleet at 03:27, reference 4030.
+Entry 32: The customs office recounted the tide tables for pier seven at 16:48, reference 6333.
+Entry 33: The customs office measured fuel deliveries for the tug fleet at 08:02, reference 2759.
+Entry 34: The harbour master noted the passenger counts for the evening ferry at 20:37, reference 8401.
+Entry 35: The lighthouse keeper recounted a dispute over berth fees at 19:56, reference 7006.
+Entry 36: A survey team corrected the passenger counts for the evening ferry at 15:08, reference 7863.
+Entry 37: The archive logged the crane maintenance schedule at 18:16, reference 8964.
+Entry 38: The lighthouse keeper checked cargo manifests from the northern route at 19:52, reference 3666.
+Entry 39: The harbour master measured damage to the eastern breakwater at 03:46, reference 6306.
+Entry 40: The harbour master recounted the tide tables for pier seven at 19:40, reference 1960.
+Entry 41: The archive recounted a dispute over berth fees at 02:26, reference 3390.
+Entry 42: The customs office logged fuel deliveries for the tug fleet at 11:43, reference 4877.
+Entry 43: The harbour master recounted damage to the eastern breakwater at 20:10, reference 5863.
+Entry 44: The ferry crew reviewed damage to the eastern breakwater at 18:23, reference 5388.
+Entry 45: The ferry crew corrected the crane maintenance schedule at 08:55, reference 1850.
+Entry 46: The ferry crew filed cargo manifests from the northern route at 23:47, reference 3441.
+Entry 47: A survey team filed damage to the eastern breakwater at 14:43, reference 8070.
+Entry 48: The customs office reviewed a dispute over berth fees at 01:21, reference 6919.
+Entry 49: A visiting engineer corrected the passenger counts for the evening ferry at 05:00, reference 5157.
+Entry 50: The lighthouse keeper measured cargo manifests from the northern route at 22:08, reference 8256.
+Entry 51: A survey team filed damage to the eastern breakwater at 08:29, reference 5837.
+Entry 52: The ferry crew noted the quarterly weather summary at 06:10, reference 9195.
+Entry 53: The night clerk reviewed cargo manifests from the northern route at 01:30, reference 4726.
+Entry 54: The harbour master logged cargo manifests from the northern route at 21:10, reference 3391.
+Entry 55: The night clerk reviewed the quarterly weather summary at 21:48, reference 4881.
+Entry 56: The archive noted the tide tables for pier seven at 09:53, reference 9959.
+Entry 57: The night clerk noted cargo manifests from the northern route at 00:52, reference 4821.
+Entry 58: A visiting engineer noted a dispute over berth fees at 09:22, reference 1115.
+Entry 59: The customs office reviewed fuel deliveries for the tug fleet at 18:54, reference 1709.
+Entry 60: The ferry crew corrected damage to the eastern breakwater at 12:10, reference 7260.
+Entry 61: The lighthouse keeper recounted fuel deliveries for the tug fleet at 11:13, reference 2842.
+Entry 62: The night clerk recounted the passenger counts for the evening ferry at 19:03, reference 5936.
+Entry 63: A visiting engineer reviewed the passenger counts for the evening ferry at 09:28, reference 4958.
+Entry 64: The harbour master noted the passenger counts for the evening ferry at 06:54, reference 2694.
+Entry 65: The customs office logged the quarterly weather summary at 10:05, reference 8322.
+Entry 66: The harbour master measured the passenger counts for the evening ferry at 00:14, reference 7071.
+Entry 67: The archive corrected the tide tables for pier seven at 15:55, reference 1690.
+Entry 68: The lighthouse keeper measured a dispute over berth fees at 15:57, reference 9320.
+Entry 69: The archive filed the quarterly weather summary at 01:54, reference 8473.
+Entry 70: The ferry crew reviewed the passenger counts for the evening ferry at 21:13, reference 4916.
+Entry 71: A survey team recounted damage to the eastern breakwater at 06:21, reference 1294.
+Entry 72: The archive recounted the passenger counts for the evening ferry at 20:32, reference 3840.
+Entry 73: The harbour master noted a dispute over berth fees at 12:25, reference 6963.
+Entry 74: The ferry crew reviewed the crane maintenance schedule at 16:33, reference 2585.
+Entry 75: The customs office logged the passenger counts for the evening ferry at 00:15, reference 5258.
+Entry 76: A visiting engineer checked the crane maintenance schedule at 17:33, reference 4546.
+Entry 77: The night clerk noted the quarterly weather summary at 03:40, reference 7793.
+Entry 78: The night clerk recounted damage to the eastern breakwater at 10:11, reference 5998.
+Entry 79: The archive measured the quarterly weather summary at 12:07, reference 5627.
+Entry 80: The lighthouse keeper logged fuel deliveries for the tug fleet at 06:49, reference 8326.
+Entry 81: A visiting engineer noted a dispute over berth fees at 09:58, reference 6268.
+Entry 82: The lighthouse keeper logged a dispute over berth fees at 19:43, reference 5034.
+Entry 83: The archive noted fuel deliveries for the tug fleet at 20:44, reference 7778.
+Entry 84: The customs office noted the passenger counts for the evening ferry at 18:43, reference 7213.
+Entry 85: The night clerk corrected the crane maintenance schedule at 19:23, reference 9020.
+Entry 86: The archive logged cargo manifests from the northern route at 15:57, reference 1155.
+Entry 87: The customs office logged the passenger counts for the evening ferry at 15:10, reference 6427.
+Entry 88: The lighthouse keeper checked the crane maintenance schedule at 03:53, reference 8274.
+Entry 89: The lighthouse keeper filed a dispute over berth fees at 15:02, reference 2068.
+Entry 90: The archive reviewed fuel deliveries for the tug fleet at 10:43, reference 8514.
+Entry 91: A visiting engineer logged the crane maintenance schedule at 12:35, reference 8472.
+Entry 92: A survey team noted the passenger counts for the evening ferry at 01:50, reference 7960.
+Entry 93: The harbour master corrected a dispute over berth fees at 22:29, reference 1500.
+Entry 94: The harbour master corrected the tide tables for pier seven at 02:17, reference 2244.
+Entry 95: The customs office measured the tide tables for pier seven at 13:25, reference 6032.
+Entry 96: The harbour master noted cargo manifests from the northern route at 09:11, reference 9863.
+Entry 97: The customs office corrected the crane maintenance schedule at 21:05, reference 8668.
+Entry 98: A visiting engineer recounted cargo manifests from the northern route at 01:16, reference 4812.
+Entry 99: The lighthouse keeper checked cargo manifests from the northern route at 18:26, reference 8198.
+Entry 100: The harbour master noted fuel deliveries for the tug fleet at 14:38, reference 2260.
+Entry 101: The lighthouse keeper filed damage to the eastern breakwater at 23:52, reference 6170.
+Entry 102: The harbour master recounted the passenger counts for the evening ferry at 23:05, reference 2660.
+Entry 103: A visiting engineer logged the tide tables for pier seven at 01:45, reference 6662.
+Entry 104: The archive checked cargo manifests from the northern route at 19:59, reference 4627.
+Entry 105: The customs office filed a dispute over berth fees at 18:54, reference 4926.
+Entry 106: The ferry crew logged fuel deliveries for the tug fleet at 11:23, reference 1954.
+Entry 107: The night clerk filed the tide tables for pier seven at 01:17, reference 1550.
+Entry 108: The harbour master measured cargo manifests from the northern route at 01:37, reference 1763.
+Entry 109: The customs office recounted damage to the eastern breakwater at 03:32, reference 4339.
+Entry 110: The ferry crew corrected the tide tables for pier seven at 21:48, reference 6985.
+Entry 111: The harbour master filed damage to the eastern breakwater at 12:53, reference 3376.
+Entry 112: A survey team corrected the quarterly weather summary at 17:42, reference 1329.
+Entry 113: A survey team logged the crane maintenance schedule at 02:35, reference 2570.
+Entry 114: The ferry crew checked a dispute over berth fees at 02:42, reference 8279.
+Entry 115: A visiting engineer logged the crane maintenance schedule at 08:04, reference 2814.
+Entry 116: A survey team recounted the tide tables for pier seven at 14:16, reference 6117.
+Entry 117: The harbour master corrected the passenger counts for the evening ferry at 03:11, reference 6998.
+Entry 118: The harbour master corrected the tide tables for pier seven at 04:37, reference 7937.
+Entry 119: The ferry crew logged the passenger counts for the evening ferry at 11:51, reference 3435.
+Entry 120: The harbour master noted cargo manifests from the northern route at 06:39, reference 7057.
+Entry 121: The ferry crew filed fuel deliveries for the tug fleet at 18:47, reference 2689.
+Entry 122: The ferry crew corrected cargo manifests from the northern route at 09:54, reference 1947.
+Entry 123: The lighthouse keeper measured cargo manifests from the northern route at 06:45, reference 3545.
+Entry 124: The harbour master measured cargo manifests from the northern route at 07:06, reference 3345.
+Entry 125: The night clerk recounted the tide tables for pier seven at 12:39, reference 1225.
+Entry 126: The lighthouse keeper logged a dispute over berth fees at 21:45, reference 3480.
+Entry 127: A survey team recounted the tide tables for pier seven at 13:32, reference 8635.
+Entry 128: A survey team filed the passenger counts for the evening ferry at 20:33, reference 9980.
+Entry 129: The ferry crew reviewed damage to the eastern breakwater at 15:47, reference 5505.
+Entry 130: A survey team noted the quarterly weather summary at 07:36, reference 4071.
+Entry 131: A survey team checked the quarterly weather summary at 18:54, reference 4547.
+Entry 132: A visiting engineer logged the crane maintenance schedule at 08:53, reference 2135.
+Entry 133: The harbour master corrected the quarterly weather summary at 00:06, reference 4137.
+Entry 134: The night clerk measured damage to the eastern breakwater at 22:19, reference 2548.
+Entry 135: The lighthouse keeper corrected the tide tables for pier seven at 05:05, reference 8153.
+Entry 136: The night clerk recounted cargo manifests from the northern route at 04:53, reference 1984.
+Entry 137: The night clerk corrected the crane maintenance schedule at 21:15, reference 3404.
+Entry 138: The night clerk noted the crane maintenance schedule at 13:47, reference 4764.
+Entry 139: The customs office corrected cargo manifests from the northern route at 09:07, reference 4349.
+Entry 140: The harbour master checked damage to the eastern breakwater at 02:52, reference 6645.
+Entry 141: A visiting engineer checked the quarterly weather summary at 12:14, reference 4241.
+Entry 142: The ferry crew noted cargo manifests from the northern route at 01:14, reference 7783.
+Entry 143: The harbour master logged a dispute over berth fees at 10:14, reference 9314.
+Entry 144: The ferry crew reviewed damage to the eastern breakwater at 11:27, reference 5219.
+Entry 145: The archive logged fuel deliveries for the tug fleet at 05:17, reference 5087.
+Entry 146: A survey team reviewed the tide tables for pier seven at 22:01, reference 7070.
+Entry 147: A visiting engineer recounted the quarterly weather summary at 03:06, reference 3883.
+Entry 148: The lighthouse keeper noted damage to the eastern breakwater at 07:36, reference 5795.
+Entry 149: The archive logged cargo manifests from the northern route at 14:40, reference 1846.
+Entry 150: The lighthouse keeper corrected damage to the eastern breakwater at 11:09, reference 2019.
+Entry 151: The ferry crew measured the crane maintenance schedule at 20:41, reference 2887.
+Entry 152: A visiting engineer measured the tide tables for pier seven at 03:13, reference 5083.
+Entry 153: The archive checked a dispute over berth fees at 04:23, reference 2662.
+Entry 154: The lighthouse keeper corrected the crane maintenance schedule at 03:36, reference 9155.
+Entry 155: The ferry crew logged fuel deliveries for the tug fleet at 14:24, reference 7194.
+Entry 156: The ferry crew recounted damage to the eastern breakwater at 06:26, reference 6316.
+Entry 157: The customs office logged the crane maintenance schedule at 16:21, reference 4263.
+Entry 158: The night clerk recounted the tide tables for pier seven at 13:00, reference 5063.
+Entry 159: The harbour master noted cargo manifests from the northern route at 05:37, reference 3671.
+Entry 160: The archive reviewed the quarterly weather summary at 04:38, reference 8992.
+Entry 161: The archive measured the tide tables for pier seven at 01:18, reference 8934.
+Entry 162: A survey team corrected the tide tables for pier seven at 02:14, reference 5953.
+Entry 163: The ferry crew recounted a dispute over berth fees at 18:40, reference 8414.
+Entry 164: A survey team logged the crane maintenance schedule at 18:32, reference 1289.
+Entry 165: A survey team noted a dispute over berth fees at 03:25, reference 9182.
+Entry 166: The ferry crew corrected the quarterly weather summary at 17:45, reference 9724.
+Entry 167: The ferry crew corrected the tide tables for pier seven at 17:50, reference 1983.
+Entry 168: A visiting engineer measured the tide tables for pier seven at 15:56, reference 6515.
+Entry 169: A survey team filed the quarterly weather summary at 03:38, reference 5025.
+Entry 170: The night clerk reviewed a dispute over berth fees at 10:42, reference 1977.
+Entry 171: The lighthouse keeper checked fuel deliveries for the tug fleet at 13:45, reference 9693.
+Entry 172: The night clerk recounted damage to the eastern breakwater at 04:09, reference 1378.
+Entry 173: A visiting engineer measured the passenger counts for the evening ferry at 00:58, reference 6951.
+Entry 174: The harbour master checked the crane maintenance schedule at 08:05, reference 1498.
+Entry 175: The night clerk logged damage to the eastern breakwater at 22:13, reference 8235.
+Entry 176: The customs office logged the quarterly weather summary at 19:34, reference 6063.
+Entry 177: The customs office recounted the tide tables for pier seven at 16:42, reference 3639.
+Entry 178: The ferry crew noted a dispute over berth fees at 01:18, reference 4093.
+Entry 179: The night clerk recounted fuel deliveries for the tug fleet at 01:41, reference 4325.
+Entry 180: The night clerk checked cargo manifests from the northern route at 14:40, reference 9758.
+Entry 181: The harbour master logged cargo manifests from the northern route at 19:32, reference 8689.
+Entry 182: The lighthouse keeper measured fuel deliveries for the tug fleet at 08:14, reference 8408.
+Entry 183: The ferry crew measured the passenger counts for the evening ferry at 19:44, reference 7528.
+Entry 184: A visiting engineer filed damage to the eastern breakwater at 02:25, reference 6999.
+Entry 185: The customs office measured a dispute over berth fees at 10:37, reference 9859.
+Entry 186: The archive recounted a dispute over berth fees at 04:22, reference 2497.
+Entry 187: The customs office checked a dispute over berth fees at 00:43, reference 5342.
+Entry 188: The harbour master checked damage to the eastern breakwater at 23:53, reference 4162.
+Entry 189: The ferry crew logged the crane maintenance schedule at 22:19, reference 9099.
+Entry 190: A survey team measured cargo manifests from the northern route at 14:08, reference 5286.
+Entry 191: A survey team corrected a dispute over berth fees at 09:44, reference 7770.
+Entry 192: A survey team corrected the quarterly weather summary at 18:40, reference 3797.
+Entry 193: The customs office reviewed a dispute over berth fees at 15:42, reference 3405.
+Entry 194: The lighthouse keeper filed cargo manifests from the northern route at 08:37, reference 6259.
+Entry 195: The archive corrected the quarterly weather summary at 06:07, reference 9467.
+Entry 196: A visiting engineer recounted damage to the eastern breakwater at 10:40, reference 2304.
+Entry 197: The night clerk corrected damage to the eastern breakwater at 02:05, reference 9018.
+Entry 198: A survey team measured the quarterly weather summary at 00:59, reference 6576.
+Entry 199: The lighthouse keeper reviewed fuel deliveries for the tug fleet at 11:46, reference 6436.
+Entry 200: The ferry crew noted cargo manifests from the northern route at 01:36, reference 6731.
+Entry 201: The ferry crew filed cargo manifests from the northern route at 14:51, reference 5323.
+Entry 202: The ferry crew measured cargo manifests from the northern route at 22:50, reference 7628.
+Entry 203: A survey team recounted the crane maintenance schedule at 10:28, reference 9202.
+Entry 204: The night clerk checked the passenger counts for the evening ferry at 17:38, reference 7144.
+Entry 205: The archive corrected the quarterly weather summary at 01:25, reference 5418.
+Entry 206: The night clerk measured the tide tables for pier seven at 09:35, reference 9722.
+Entry 207: The night clerk measured the crane maintenance schedule at 22:26, reference 1746.
+Entry 208: The lighthouse keeper logged fuel deliveries for the tug fleet at 15:57, reference 6094.
+Entry 209: The ferry crew logged fuel deliveries for the tug fleet at 10:14, reference 4396.
+Entry 210: The archive checked a dispute over berth fees at 18:07, reference 4601.
+Entry 211: A visiting engineer filed a dispute over berth fees at 18:34, reference 3649.
+Entry 212: The night clerk measured cargo manifests from the northern route at 10:08, reference 1145.
+Entry 213: The archive logged a dispute over berth fees at 21:14, reference 8311.
+Entry 214: A visiting engineer corrected damage to the eastern breakwater at 07:02, reference 3289.
+Entry 215: The harbour master measured cargo manifests from the northern route at 02:42, reference 2850.
+Entry 216: A visiting engineer filed cargo manifests from the northern route at 11:56, reference 6192.
+Entry 217: A survey team noted damage to the eastern breakwater at 12:02, reference 2037.
+Entry 218: The night clerk noted the passenger counts for the evening ferry at 07:01, reference 8262.
+Entry 219: The archive corrected a dispute over berth fees at 19:18, reference 3577.
+Entry 220: The customs office checked a dispute over berth fees at 08:05, reference 1537.
+Entry 221: The lighthouse keeper reviewed cargo manifests from the northern route at 02:47, reference 8361.
+Entry 222: The harbour master checked cargo manifests from the northern route at 14:45, reference 3973.
+Entry 223: The night clerk corrected a dispute over berth fees at 22:23, reference 7713.
+Entry 224: The archive reviewed cargo manifests from the northern route at 11:49, reference 1569.
+Entry 225: The customs office logged the tide tables for pier seven at 01:05, reference 8631.
+Entry 226: The archive recounted the passenger counts for the evening ferry at 00:14, reference 6178.
+Entry 227: A visiting engineer noted damage to the eastern breakwater at 06:15, reference 9321.
+Entry 228: A visiting engineer corrected a dispute over berth fees at 07:49, reference 1967.
+Entry 229: A visiting engineer recounted the quarterly weather summary at 14:59, reference 5797.
+Entry 230: The customs office logged cargo manifests from the northern route at 14:23, reference 5910.
+Entry 231: A survey team recounted the crane maintenance schedule at 17:52, reference 4471.
+Entry 232: The ferry crew recounted the quarterly weather summary at 00:31, reference 1659.
+Entry 233: The lighthouse keeper logged the passenger counts for the evening ferry at 19:13, reference 6645.
+Entry 234: The ferry crew measured the quarterly weather summary at 03:26, reference 4283.
+Entry 235: A visiting engineer measured the crane maintenance schedule at 20:47, reference 1352.
+Entry 236: The night clerk noted the quarterly weather summary at 00:40, reference 8589.
+Entry 237: A survey team recounted the crane maintenance schedule at 06:22, reference 8451.
+Entry 238: A survey team recounted fuel deliveries for the tug fleet at 11:19, reference 6062.
+Entry 239: A survey team measured cargo manifests from the northern route at 21:10, reference 2066.
+Entry 240: A survey team recounted the quarterly weather summary at 04:30, reference 6406.
+Entry 241: The ferry crew reviewed cargo manifests from the northern route at 13:32, reference 4558.
+Entry 242: The lighthouse keeper measured fuel deliveries for the tug fleet at 01:59, reference 3717.
+Entry 243: The archive recounted a dispute over berth fees at 18:35, reference 1640.
+Entry 244: The customs office corrected the crane maintenance schedule at 10:34, reference 4403.
+Entry 245: The customs office reviewed the quarterly weather summary at 04:29, reference 8177.
+Entry 246: A visiting engineer corrected the passenger counts for the evening ferry at 14:19, reference 7266.
+Entry 247: The lighthouse keeper measured damage to the eastern breakwater at 14:51, reference 3078.
+Entry 248: The harbour master measured a dispute over berth fees at 01:12, reference 8265.
+Entry 249: A survey team filed the crane maintenance schedule at 01:38, reference 6831.
+Entry 250: The ferry crew recounted the quarterly weather summary at 06:15, reference 9197.
+Entry 251: The harbour master corrected fuel deliveries for the tug fleet at 15:32, reference 3119.
+Entry 252: The customs office corrected the tide tables for pier seven at 11:54, reference 5322.
+Entry 253: The archive noted damage to the eastern breakwater at 10:35, reference 3797.
+Entry 254: The ferry crew logged a dispute over berth fees at 13:43, reference 3381.
+Entry 255: The ferry crew reviewed cargo manifests from the northern route at 23:32, reference 3674.
+Entry 256: The lighthouse keeper logged a dispute over berth fees at 11:18, reference 7702.
+Entry 257: The ferry crew reviewed a dispute over berth fees at 19:03, reference 8586.
+Entry 258: A visiting engineer recounted a dispute over berth fees at 00:01, reference 9005.
+Entry 259: The archive logged the crane maintenance schedule at 04:55, reference 8214.
+Entry 260: A survey team checked the passenger counts for the evening ferry at 21:02, reference 5865.
+Entry 261: The customs office measured a dispute over berth fees at 08:04, reference 6647.
+Entry 262: The harbour master reviewed the passenger counts for the evening ferry at 11:20, reference 6832.
+Entry 263: A survey team measured the crane maintenance schedule at 16:36, reference 2896.
+Entry 264: The customs office corrected the passenger counts for the evening ferry at 10:25, reference 3019.
+Entry 265: The archive recounted damage to the eastern breakwater at 14:55, reference 9454.
+Entry 266: The archive recounted the passenger counts for the evening ferry at 19:28, reference 9089.
+Entry 267: The night clerk measured fuel deliveries for the tug fleet at 19:15, reference 1397.
+Entry 268: The harbour master reviewed the crane maintenance schedule at 15:19, reference 7764.
+Entry 269: The ferry crew corrected a dispute over berth fees at 00:37, reference 3679.
+Entry 270: The lighthouse keeper checked the tide tables for pier seven at 21:11, reference 7441.
+Entry 271: A visiting engineer corrected fuel deliveries for the tug fleet at 18:23, reference 4387.
+Entry 272: A visiting engineer reviewed the passenger counts for the evening ferry at 21:03, reference 1140.
+Entry 273: The customs office measured the quarterly weather summary at 05:05, reference 7869.
+Entry 274: A survey team checked the quarterly weather summary at 23:32, reference 4138.
+Entry 275: The night clerk recounted damage to the eastern breakwater at 07:26, reference 8221.
+Entry 276: A visiting engineer corrected fuel deliveries for the tug fleet at 02:27, reference 5960.
+Entry 277: The customs office filed the crane maintenance schedule at 23:15, reference 6116.
+Entry 278: The night clerk noted the crane maintenance schedule at 09:05, reference 8994.
+Entry 279: The archive recounted cargo manifests from the northern route at 16:20, reference 3496.
+Entry 280: The lighthouse keeper recounted the passenger counts for the evening ferry at 09:50, reference 5683.
+Entry 281: The customs office checked the passenger counts for the evening ferry at 20:16, reference 6708.
+Entry 282: A survey team corrected a dispute over berth fees at 19:52, reference 8202.
+Entry 283: The night clerk noted a dispute over berth fees at 06:51, reference 7551.
+Entry 284: A survey team checked damage to the eastern breakwater at 15:21, reference 8352.
+Entry 285: The night clerk recounted the crane maintenance schedule at 19:24, reference 9328.
+Entry 286: The archive reviewed the crane maintenance schedule at 08:10, reference 6904.
+Entry 287: The lighthouse keeper filed the tide tables for pier seven at 04:38, reference 7045.
+Entry 288: The ferry crew recounted a dispute over berth fees at 00:56, reference 8714.
+Entry 289: The ferry crew recounted a dispute over berth fees at 06:45, reference 7809.
+Entry 290: A visiting engineer logged the crane maintenance schedule at 16:07, reference 3145.
+Entry 291: The night clerk filed the quarterly weather summary at 02:41, reference 1860.
+Entry 292: A visiting engineer noted fuel deliveries for the tug fleet at 03:37, reference 3444.
+Entry 293: The ferry crew logged fuel deliveries for the tug fleet at 12:41, reference 9750.
+Entry 294: The night clerk checked the tide tables for pier seven at 11:58, reference 8962.
+Entry 295: The lighthouse keeper logged the tide tables for pier seven at 02:20, reference 4639.
+Entry 296: A survey team recounted the tide tables for pier seven at 04:17, reference 2364.
+Entry 297: A visiting engineer filed the quarterly weather summary at 14:27, reference 5762.
+Entry 298: A visiting engineer logged the crane maintenance schedule at 16:22, reference 3369.
+Entry 299: The night clerk corrected the quarterly weather summary at 11:52, reference 9755.
+Entry 300: The harbour master measured the crane maintenance schedule at 10:11, reference 1161.
+Entry 301: The lighthouse keeper reviewed cargo manifests from the northern route at 13:46, reference 8329.
+Entry 302: The lighthouse keeper checked damage to the eastern breakwater at 14:31, reference 8696.
+Entry 303: The ferry crew noted a dispute over berth fees at 20:17, reference 8567.
+Entry 304: A visiting engineer logged cargo manifests from the northern route at 15:09, reference 2329.
+Entry 305: The customs office checked a dispute over berth fees at 04:21, reference 1878.
+Entry 306: The lighthouse keeper recounted the tide tables for pier seven at 17:54, reference 1574.
+Entry 307: The customs office filed a dispute over berth fees at 22:30, reference 1010.
+Entry 308: The customs office measured a dispute over berth fees at 05:34, reference 2435.
+Entry 309: The lighthouse keeper filed cargo manifests from the northern route at 22:37, reference 1600.
+Entry 310: The lighthouse keeper reviewed the quarterly weather summary at 16:19, reference 7013.
+Entry 311: A visiting engineer logged the crane maintenance schedule at 18:14, reference 8328.
+Entry 312: The lighthouse keeper measured the crane maintenance schedule at 10:54, reference 5238.
+Entry 313: A visiting engineer noted fuel deliveries for the tug fleet at 15:43, reference 8523.
+Entry 314: The ferry crew measured a dispute over berth fees at 04:31, reference 3386.
+Entry 315: The harbour master recounted the crane maintenance schedule at 18:02, reference 7965.
+Entry 316: A survey team corrected the tide tables for pier seven at 02:35, reference 5798.
+Entry 317: The night clerk checked cargo manifests from the northern route at 08:45, reference 8224.
+Entry 318: The harbour master measured damage to the eastern breakwater at 19:34, reference 5657.
+Entry 319: The lighthouse keeper corrected the quarterly weather summary at 16:43, reference 6595.
+Entry 320: The archive logged cargo manifests from the northern route at 16:43, reference 6292.
+Entry 321: The archive checked damage to the eastern breakwater at 05:37, reference 2517.
+Entry 322: A survey team checked the quarterly weather summary at 13:17, reference 9140.
+Entry 323: The lighthouse keeper recounted the tide tables for pier seven at 01:19, reference 1481.
+Entry 324: A visiting engineer checked cargo manifests from the northern route at 12:05, reference 3026.
+Entry 325: The lighthouse keeper noted the tide tables for pier seven at 17:36, reference 2980.
+Entry 326: The harbour master logged cargo manifests from the northern route at 03:09, reference 7581.
+Entry 327: The night clerk filed cargo manifests from the northern route at 18:11, reference 3485.
+Entry 328: The harbour master reviewed cargo manifests from the northern route at 13:52, reference 2766.
+Entry 329: The archive reviewed the passenger counts for the evening ferry at 09:21, reference 6476.
+Entry 330: A visiting engineer filed the quarterly weather summary at 20:19, reference 2598.
+Entry 331: The harbour master filed the passenger counts for the evening ferry at 11:49, reference 8937.
+Entry 332: The archive filed the crane maintenance schedule at 20:49, reference 7553.
+Entry 333: The lighthouse keeper measured the quarterly weather summary at 08:24, reference 5963.
+Entry 334: The night clerk noted the crane maintenance schedule at 15:52, reference 7517.
+Entry 335: The harbour master checked damage to the eastern breakwater at 00:34, reference 3720.
+Entry 336: The archive corrected the quarterly weather summary at 09:00, reference 7251.
+Entry 337: A survey team reviewed the passenger counts for the evening ferry at 04:26, reference 2939.
+Entry 338: The archive noted damage to the eastern breakwater at 16:52, reference 1370.
+Entry 339: The customs office noted damage to the eastern breakwater at 10:23, reference 9049.
+Entry 340: A survey team checked a dispute over berth fees at 20:45, reference 4461.
+Entry 341: A survey team measured the crane maintenance schedule at 09:48, reference 3556.
+Entry 342: A visiting engineer logged the tide tables for pier seven at 20:01, reference 6627.
+Entry 343: The customs office measured damage to the eastern breakwater at 09:37, reference 2019.
+Entry 344: The harbour master corrected fuel deliveries for the tug fleet at 12:58, reference 4386.
+Entry 345: The archive corrected the crane maintenance schedule at 06:31, reference 3788.
+Entry 346: A survey team recounted cargo manifests from the northern route at 07:29, reference 8612.
+Entry 347: The ferry crew corrected damage to the eastern breakwater at 00:25, reference 7301.
+Entry 348: The archive recounted damage to the eastern breakwater at 21:15, reference 1959.
+Entry 349: The customs office checked cargo manifests from the northern route at 00:36, reference 4677.
+Entry 350: The harbour master logged damage to the eastern breakwater at 01:57, reference 1413.
+Entry 351: The customs office logged fuel deliveries for the tug fleet at 01:59, reference 5950.
+Entry 352: The harbour master recounted cargo manifests from the northern route at 05:01, reference 5882.
+Entry 353: A visiting engineer filed the tide tables for pier seven at 07:56, reference 6977.
+Entry 354: A visiting engineer noted the tide tables for pier seven at 03:14, reference 7483.
+Entry 355: The archive noted damage to the eastern breakwater at 05:57, reference 5999.
+Entry 356: A survey team noted the crane maintenance schedule at 14:48, reference 6767.
+Entry 357: The archive filed damage to the eastern breakwater at 05:40, reference 7770.
+Entry 358: The ferry crew recounted cargo manifests from the northern route at 04:10, reference 3560.
+Entry 359: The night clerk corrected cargo manifests from the northern route at 11:05, reference 6818.
+Entry 360: The night clerk reviewed the passenger counts for the evening ferry at 11:46, reference 6453.
+Entry 361: The ferry crew checked cargo manifests from the northern route at 02:34, reference 3029.
+Entry 362: A survey team checked fuel deliveries for the tug fleet at 16:43, reference 5860.
+Entry 363: The lighthouse keeper filed cargo manifests from the northern route at 16:55, reference 1415.
+Entry 364: A survey team reviewed cargo manifests from the northern route at 05:48, reference 6416.
+Entry 365: The harbour master filed the tide tables for pier seven at 10:52, reference 9357.
+Entry 366: A visiting engineer filed cargo manifests from the northern route at 12:06, reference 2307.
+Entry 367: The archive recounted fuel deliveries for the tug fleet at 01:07, reference 9162.
+Entry 368: The customs office recounted the passenger counts for the evening ferry at 22:41, reference 8845.
+Entry 369: The archive filed a dispute over berth fees at 07:05, reference 8210.
+Entry 370: A visiting engineer recounted the crane maintenance schedule at 02:13, reference 7674.
+Entry 371: The night clerk logged cargo manifests from the northern route at 17:20, reference 3862.
+Entry 372: The archive noted a dispute over berth fees at 11:24, reference 9497.
+Entry 373: The archive logged the passenger counts for the evening ferry at 04:55, reference 2162.
+Entry 374: The archive measured cargo manifests from the northern route at 01:38, reference 9526.
+Entry 375: A survey team noted fuel deliveries for the tug fleet at 09:51, reference 1285.
+Entry 376: The ferry crew noted damage to the eastern breakwater at 15:37, reference 1938.
+Entry 377: The lighthouse keeper recounted a dispute over berth fees at 09:20, reference 2165.
+Entry 378: The lighthouse keeper corrected cargo manifests from the northern route at 22:03, reference 8213.
+Entry 379: A survey team noted a dispute over berth fees at 16:28, reference 6536.
+Entry 380: The archive measured cargo manifests from the northern route at 07:57, reference 7234.
+Entry 381: The night clerk recounted fuel deliveries for the tug fleet at 18:13, reference 3439.
+Entry 382: A visiting engineer reviewed the quarterly weather summary at 19:12, reference 5853.
+Entry 383: The harbour master noted the crane maintenance schedule at 21:16, reference 2221.
+Entry 384: The archive logged the crane maintenance schedule at 01:36, reference 2975.
+Entry 385: The harbour master measured the passenger counts for the evening ferry at 05:47, reference 7192.
+Entry 386: The night clerk logged a dispute over berth fees at 08:23, reference 8649.
+Entry 387: A visiting engineer corrected the quarterly weather summary at 16:24, reference 6152.
+Entry 388: The harbour master recounted a dispute over berth fees at 23:03, reference 7499.
+Entry 389: The lighthouse keeper logged damage to the eastern breakwater at 20:02, reference 9990.
+Entry 390: A survey team noted the tide tables for pier seven at 00:52, reference 1555.
+Entry 391: The ferry crew filed the passenger counts for the evening ferry at 22:38, reference 9934.
+Entry 392: The night clerk filed the tide tables for pier seven at 02:06, reference 6577.
+Entry 393: The harbour master corrected the crane maintenance schedule at 21:36, reference 9696.
+Entry 394: The customs office reviewed damage to the eastern breakwater at 05:58, reference 1877.
+Entry 395: The lighthouse keeper filed cargo manifests from the northern route at 20:48, reference 7528.
+Entry 396: The ferry crew reviewed a dispute over berth fees at 16:47, reference 1377.
+Entry 397: The lighthouse keeper measured a dispute over berth fees at 17:31, reference 5681.
+Entry 398: A survey team measured fuel deliveries for the tug fleet at 02:58, reference 3247.
+Entry 399: The lighthouse keeper noted damage to the eastern breakwater at 09:31, reference 4571.
+Entry 400: A visiting engineer measured fuel deliveries for the tug fleet at 13:27, reference 1860.
+Entry 401: A visiting engineer filed cargo manifests from the northern route at 13:51, reference 8200.
+Entry 402: The ferry crew checked the passenger counts for the evening ferry at 12:17, reference 4091.
+Entry 403: The customs office filed damage to the eastern breakwater at 20:56, reference 6121.
+Entry 404: The lighthouse keeper checked the crane maintenance schedule at 12:57, reference 2148.
+Entry 405: The night clerk checked fuel deliveries for the tug fleet at 02:44, reference 3389.
+Entry 406: The ferry crew noted cargo manifests from the northern route at 12:31, reference 7954.
+Entry 407: The night clerk noted the passenger counts for the evening ferry at 20:22, reference 1331.
+Entry 408: The lighthouse keeper reviewed the tide tables for pier seven at 07:11, reference 6787.
+Entry 409: The customs office logged the quarterly weather summary at 08:44, reference 4810.
+Entry 410: The ferry crew filed fuel deliveries for the tug fleet at 23:47, reference 4893.
+Entry 411: The archive reviewed a dispute over berth fees at 06:34, reference 4642.
+Entry 412: The harbour master recounted cargo manifests from the northern route at 20:59, reference 4843.
+Entry 413: The ferry crew reviewed the crane maintenance schedule at 11:03, reference 8173.
+Entry 414: The night clerk measured damage to the eastern breakwater at 16:58, reference 3498.
+Entry 415: The customs office measured the tide tables for pier seven at 19:05, reference 9785.
+Entry 416: The customs office noted the crane maintenance schedule at 14:18, reference 9629.
+Entry 417: The customs office checked damage to the eastern breakwater at 10:09, reference 5616.
+Entry 418: The night clerk noted the crane maintenance schedule at 23:46, reference 3580.
+Entry 419: The harbour master filed cargo manifests from the northern route at 22:58, reference 4820.
+Entry 420: The ferry crew measured a dispute over berth fees at 09:28, reference 9034.
+Entry 421: The night clerk checked damage to the eastern breakwater at 12:34, reference 6231.
+Entry 422: The lighthouse keeper noted the quarterly weather summary at 08:15, reference 4484.
+Entry 423: The archive logged cargo manifests from the northern route at 09:27, reference 6435.
+Entry 424: The ferry crew filed damage to the eastern breakwater at 04:20, reference 2306.
+Entry 425: The customs office corrected cargo manifests from the northern route at 08:24, reference 6636.
+Entry 426: The archive noted the passenger counts for the evening ferry at 02:31, reference 4687.
+Entry 427: The customs office recounted fuel deliveries for the tug fleet at 14:31, reference 7140.
+Entry 428: The night clerk noted cargo manifests from the northern route at 15:03, reference 4253.
+Entry 429: The customs office checked the crane maintenance schedule at 22:16, reference 6340.
+Entry 430: The harbour master recounted fuel deliveries for the tug fleet at 23:06, reference 5901.
+Entry 431: The night clerk logged the tide tables for pier seven at 01:58, reference 1097.
+Entry 432: The archive filed fuel deliveries for the tug fleet at 03:46, reference 4168.
+Entry 433: The customs office measured the passenger counts for the evening ferry at 14:18, reference 1309.
+Entry 434: The harbour master logged cargo manifests from the northern route at 09:16, reference 6037.
+Entry 435: The harbour master measured fuel deliveries for the tug fleet at 02:13, reference 2133.
+Entry 436: The customs office corrected the quarterly weather summary at 13:52, reference 6143.
+Entry 437: A visiting engineer filed a dispute over berth fees at 18:31, reference 6845.
+Entry 438: The archive checked the crane maintenance schedule at 13:36, reference 5610.
+Entry 439: The ferry crew recounted a dispute over berth fees at 17:01, reference 7189.
+Entry 440: The customs office measured the crane maintenance schedule at 23:33, reference 6231.
+Entry 441: The archive noted damage to the eastern breakwater at 10:04, reference 9827.
+Entry 442: The ferry crew filed cargo manifests from the northern route at 14:56, reference 3561.
+Entry 443: The ferry crew recounted the quarterly weather summary at 10:35, reference 1203.
+Entry 444: The archive checked fuel deliveries for the tug fleet at 19:36, reference 1746.
+Entry 445: The night clerk logged the tide tables for pier seven at 13:31, reference 6031.
+Entry 446: The lighthouse keeper reviewed a dispute over berth fees at 20:57, reference 3404.
+Entry 447: A visiting engineer logged fuel deliveries for the tug fleet at 14:43, reference 8801.
+Entry 448: A survey team checked the tide tables for pier seven at 05:00, reference 7838.
+Entry 449: The harbour master reviewed cargo manifests from the northern route at 02:10, reference 1517.
+Entry 450: The customs office reviewed the passenger counts for the evening ferry at 22:17, reference 8315.
+Entry 451: The archive noted the tide tables for pier seven at 04:09, reference 3791.
+Entry 452: A survey team filed fuel deliveries for the tug fleet at 00:33, reference 2330.
+Entry 453: The ferry crew reviewed fuel deliveries for the tug fleet at 02:18, reference 4770.
+Entry 454: The ferry crew corrected the quarterly weather summary at 05:59, reference 1253.
+Entry 455: A visiting engineer logged the crane maintenance schedule at 19:09, reference 5210.
+Entry 456: A visiting engineer logged the crane maintenance schedule at 14:44, reference 5425.
+Entry 457: The customs office corrected fuel deliveries for the tug fleet at 19:06, reference 7699.
+Entry 458: A survey team recounted the crane maintenance schedule at 04:44, reference 1243.
+Entry 459: The night clerk recounted the quarterly weather summary at 12:12, reference 4973.
+Entry 460: A visiting engineer measured cargo manifests from the northern route at 04:52, reference 3683.
+Entry 461: The harbour master filed fuel deliveries for the tug fleet at 04:36, reference 7040.
+Entry 462: A survey team measured a dispute over berth fees at 13:29, reference 8620.
+Entry 463: A visiting engineer recounted the passenger counts for the evening ferry at 09:41, reference 4722.
+Entry 464: The harbour master corrected the crane maintenance schedule at 00:24, reference 7325.
+Entry 465: A survey team corrected the tide tables for pier seven at 12:46, reference 9127.
+Entry 466: The night clerk filed a dispute over berth fees at 04:23, reference 7897.
+Entry 467: The customs office filed the passenger counts for the evening ferry at 08:02, reference 6849.
+Entry 468: The night clerk reviewed the passenger counts for the evening ferry at 00:32, reference 3298.
+Entry 469: The lighthouse keeper measured the crane maintenance schedule at 01:55, reference 7731.
+Entry 470: The lighthouse keeper noted the tide tables for pier seven at 19:02, reference 9992.
+Entry 471: The lighthouse keeper recounted fuel deliveries for the tug fleet at 05:19, reference 3003.
+Entry 472: A survey team measured fuel deliveries for the tug fleet at 19:31, reference 1959.
+Entry 473: The harbour master noted the quarterly weather summary at 16:48, reference 5561.
+Entry 474: The ferry crew logged the tide tables for pier seven at 08:25, reference 1012.
+Entry 475: The ferry crew checked the quarterly weather summary at 16:11, reference 8172.
+Entry 476: The ferry crew logged the crane maintenance schedule at 05:33, reference 4394.
+Entry 477: The night clerk corrected cargo manifests from the northern route at 00:50, reference 5354.
+Entry 478: The archive logged the crane maintenance schedule at 16:23, reference 5772.
+Entry 479: The harbour master logged cargo manifests from the northern route at 12:53, reference 1250.
+Entry 480: The harbour master reviewed the passenger counts for the evening ferry at 22:52, reference 7673.
+Entry 481: The customs office recounted the quarterly weather summary at 04:16, reference 3987.
+Entry 482: A survey team corrected the tide tables for pier seven at 01:23, reference 4510.
+Entry 483: The night clerk reviewed the quarterly weather summary at 09:23, reference 3999.
+Entry 484: The night clerk measured the crane maintenance schedule at 18:00, reference 4477.
+Entry 485: The lighthouse keeper reviewed the crane maintenance schedule at 03:35, reference 8456.
+Entry 486: The night clerk reviewed the crane maintenance schedule at 00:45, reference 8606.
+Entry 487: A visiting engineer reviewed the tide tables for pier seven at 16:46, reference 7119.
+Entry 488: The archive filed the passenger counts for the evening ferry at 21:10, reference 2046.
+Entry 489: The customs office recounted cargo manifests from the northern route at 17:37, reference 9892.
+Entry 490: The archive noted cargo manifests from the northern route at 15:44, reference 5123.
+Entry 491: The night clerk measured the tide tables for pier seven at 20:56, reference 7851.
+Entry 492: The harbour master measured the tide tables for pier seven at 11:50, reference 4813.
+Entry 493: The customs office filed the crane maintenance schedule at 08:55, reference 4915.
+Entry 494: The ferry crew reviewed fuel deliveries for the tug fleet at 03:58, reference 1691.
+Entry 495: The lighthouse keeper logged a dispute over berth fees at 07:50, reference 4325.
+Entry 496: A visiting engineer reviewed the quarterly weather summary at 03:17, reference 2517.
+Entry 497: The archive reviewed a dispute over berth fees at 12:21, reference 8509.
+Entry 498: The harbour master recounted the passenger counts for the evening ferry at 07:34, reference 2543.
+Entry 499: The harbour master filed the crane maintenance schedule at 00:07, reference 7222.
+Entry 500: The harbour master filed the crane maintenance schedule at 05:32, reference 2778.
+Entry 501: The customs office measured the tide tables for pier seven at 15:52, reference 4071.
+Entry 502: The customs office noted fuel deliveries for the tug fleet at 11:47, reference 5639.
+Entry 503: The lighthouse keeper checked the crane maintenance schedule at 00:52, reference 1079.
+Entry 504: The harbour master reviewed damage to the eastern breakwater at 01:39, reference 1820.
+Entry 505: The archive filed the quarterly weather summary at 13:19, reference 9184.
+Entry 506: The lighthouse keeper filed a dispute over berth fees at 12:34, reference 3813.
+Entry 507: The archive reviewed a dispute over berth fees at 14:09, reference 7691.
+Entry 508: The ferry crew filed a dispute over berth fees at 10:50, reference 6269.
+Entry 509: The lighthouse keeper checked cargo manifests from the northern route at 19:13, reference 4190.
+Entry 510: The harbour master logged cargo manifests from the northern route at 13:04, reference 3237.
+Entry 511: The archive noted damage to the eastern breakwater at 08:31, reference 5212.
+Entry 512: A visiting engineer corrected the tide tables for pier seven at 05:22, reference 1949.
+Entry 513: A survey team corrected damage to the eastern breakwater at 23:12, reference 8157.
+Entry 514: The archive reviewed cargo manifests from the northern route at 10:14, reference 9987.
+Entry 515: The lighthouse keeper measured the crane maintenance schedule at 01:01, reference 5021.
+Entry 516: A visiting engineer filed cargo manifests from the northern route at 11:21, reference 8401.
+Entry 517: The night clerk corrected the quarterly weather summary at 07:59, reference 4121.
+Entry 518: The harbour master reviewed the quarterly weather summary at 00:52, reference 3139.
+Entry 519: A visiting engineer reviewed the quarterly weather summary at 06:43, reference 7249.
+Entry 520: A survey team noted the tide tables for pier seven at 02:59, reference 2311.
+Entry 521: The ferry crew corrected cargo manifests from the northern route at 18:12, reference 2558.
+Entry 522: The customs office reviewed damage to the eastern breakwater at 12:55, reference 3508.
+Entry 523: The archive measured the crane maintenance schedule at 14:39, reference 1571.
+Entry 524: The lighthouse keeper recounted a dispute over berth fees at 12:18, reference 2672.
+Entry 525: A survey team corrected damage to the eastern breakwater at 00:19, reference 2675.
+Entry 526: A survey team measured the quarterly weather summary at 21:37, reference 4450.
+Entry 527: The customs office noted the tide tables for pier seven at 08:55, reference 9157.
+Entry 528: A visiting engineer reviewed the crane maintenance schedule at 09:37, reference 7003.
+Entry 529: The night clerk noted the quarterly weather summary at 09:09, reference 9973.
+Entry 530: The ferry crew checked fuel deliveries for the tug fleet at 11:43, reference 6539.
+Entry 531: The customs office noted the crane maintenance schedule at 22:18, reference 2860.
+Entry 532: The ferry crew recounted the passenger counts for the evening ferry at 03:51, reference 6878.
+Entry 533: The archive measured cargo manifests from the northern route at 10:17, reference 4444.
+Entry 534: The lighthouse keeper measured cargo manifests from the northern route at 20:36, reference 3769.
+Entry 535: The lighthouse keeper measured damage to the eastern breakwater at 05:02, reference 8053.
+Entry 536: The harbour master recounted the tide tables for pier seven at 14:53, reference 3181.
+Entry 537: The night clerk checked a dispute over berth fees at 13:04, reference 2910.
+Entry 538: A visiting engineer checked fuel deliveries for the tug fleet at 04:25, reference 7018.
+Entry 539: The harbour master logged the quarterly weather summary at 13:13, reference 3122.
+Entry 540: A visiting engineer reviewed fuel deliveries for the tug fleet at 02:23, reference 8412.
+Entry 541: The night clerk noted a dispute over berth fees at 20:29, reference 4573.
+Entry 542: The archive noted the quarterly weather summary at 14:12, reference 3487.
+Entry 543: The ferry crew logged a dispute over berth fees at 21:10, reference 9036.
+Entry 544: A visiting engineer logged damage to the eastern breakwater at 16:45, reference 5566.
+Entry 545: The lighthouse keeper corrected the crane maintenance schedule at 15:01, reference 5669.
+Entry 546: The archive measured damage to the eastern breakwater at 23:39, reference 9643.
+Entry 547: The night clerk corrected the passenger counts for the evening ferry at 15:04, reference 2079.
+Entry 548: The night clerk noted the passenger counts for the evening ferry at 18:49, reference 8076.
+Entry 549: The lighthouse keeper reviewed damage to the eastern breakwater at 02:23, reference 2549.
+Entry 550: The archive reviewed fuel deliveries for the tug fleet at 00:32, reference 5838.
+Entry 551: A survey team checked the passenger counts for the evening ferry at 04:15, reference 5356.
+Entry 552: The harbour master reviewed the passenger counts for the evening ferry at 01:22, reference 8166.
+Entry 553: The archive measured the crane maintenance schedule at 19:44, reference 9369.
+Entry 554: The customs office recounted the crane maintenance schedule at 02:25, reference 8702.
+Entry 555: A survey team reviewed the crane maintenance schedule at 07:15, reference 4278.
+Entry 556: The night clerk measured the tide tables for pier seven at 15:36, reference 1312.
+Entry 557: The lighthouse keeper measured the passenger counts for the evening ferry at 15:01, reference 9966.
+Entry 558: The archive recounted the quarterly weather summary at 19:30, reference 5494.
+Entry 559: The ferry crew noted the crane maintenance schedule at 19:14, reference 2967.
+Entry 560: The lighthouse keeper measured the tide tables for pier seven at 10:26, reference 4761.
+Entry 561: The lighthouse keeper reviewed fuel deliveries for the tug fleet at 09:26, reference 8387.
+Entry 562: A survey team checked the crane maintenance schedule at 05:02, reference 7806.
+Entry 563: The night clerk noted a dispute over berth fees at 19:32, reference 4589.
+Entry 564: The lighthouse keeper reviewed the quarterly weather summary at 22:03, reference 9725.
+Entry 565: The ferry crew logged a dispute over berth fees at 15:40, reference 2477.
+Entry 566: A survey team checked the crane maintenance schedule at 20:34, reference 9648.
+Entry 567: The night clerk checked cargo manifests from the northern route at 22:01, reference 2472.
+Summarise the log in one sentence.
