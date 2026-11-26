@@ -307,6 +307,54 @@ gitlink. `--out`
 appends, so one dated file can hold several models. HellaSwag with 400 tasks
 has a stderr of about 2.5 points: a gap smaller than about twice that is noise.
 
+### Host and Series S — standard generative subsets (informational, #597)
+
+`scripts/eval-standard-generative.py` sends 100 IFEval prompts and 100 GSM8K
+problems to any OpenAI-compatible `/v1/chat/completions` endpoint, either host
+`llama-server` or the console LAN API. It runs at temperature 0 and seed 42,
+and scores every reply in code. The subsets are frozen as key lists in
+`eval/standard-generative.json`. The datasets are pinned and cached the same
+way as in the loglikelihood lane.
+
+```bash
+./scripts/eval-standard-generative.py --fetch
+# host reference
+llama-server -m <model>.gguf --port 8080 --jinja &
+./scripts/eval-standard-generative.py --base-url http://127.0.0.1:8080 --model <id> \
+  --hardware <host-label> --endpoint-label "llama-server <pin>" \
+  --out bench/results/<date>-std-gen.jsonl
+# Series S (LAN API on, console free)
+source ~/.config/xllama/xbox-env
+./scripts/eval-standard-generative.py --base-url "http://${XBOX_IP}:11434" --model <catalogue-id> \
+  --hardware xbox-series-s --endpoint-label "xllama <version>" \
+  --out bench/results/<date>-std-gen.jsonl
+```
+
+Each item row keeps the reply, `finish_reason`, usage and latency. Each task
+then gets one summary row with accuracy, binomial stderr, errors and `length`
+stops; IFEval also reports instruction-level accuracy.
+
+- **IFEval** reports strict prompt-level accuracy: every instruction in a prompt
+  must hold. The checks are a stdlib port of
+  `google-research/instruction_following_eval` (Apache-2.0), with two
+  differences from upstream:
+  - Sentences are counted by splitting on terminal punctuation, not with nltk
+    punkt.
+  - The case checks do not also detect English.
+
+  The 31 prompts that need `langdetect` (`language:response_language`) are left
+  out of the subset. Scores compare across runs of this script, not with
+  published IFEval numbers.
+
+- **GSM8K** asks for a final `Answer: <number>` line and compares that number
+  with the reference after `####`. If the reply has no such line, the last
+  number in it is used.
+
+For the same model and subset, host and console should agree within the stderr
+(about 5 points at 100 items). A larger gap is a shipped-path finding: chat
+template, stop sequences, `max_tokens` or thinking split. A run with `--limit`
+writes summary rows marked `"partial": true`; it is a smoke test, not a result.
+
 ### Xbox Series S — paired A/B campaigns
 
 For a change that one LocalState knob switches on or off (the #313
