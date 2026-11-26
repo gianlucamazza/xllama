@@ -199,7 +199,7 @@ n_ctx` — rather than the answer's length, which keeps the verdict independent
   5), matched by package family from the installed PFN (or
   `XLLAMA_PACKAGE_FAMILY`); it is not a peak;
 - **API** — separate LAN gate (`scripts/validate-api.sh`):
-  `spike|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all` (chat, context budget,
+  `spike|discovery|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all` (chat, context budget,
   client-side tool proposals per [ADR 0004](adr/0004-tool-proposals.md),
   embeddings, pull, #118 preference/training-status probes). `admission` waits
   for the first SSE data chunk of a long streamed reply, then requires 503 on

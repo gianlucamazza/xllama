@@ -5,7 +5,7 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-api.sh <spike|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|all>
+#   ./scripts/validate-api.sh <spike|discovery|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|all>
 #
 #   spike  bind gate only: GET / -> HTTP 200 (proves the StreamSocketListener
 #          survives the Series S firewall/PLM). No inference.
@@ -166,6 +166,42 @@ validate_spike() {
 	fi
 	echo "  FAIL: unexpected health body"
 	echo "spike: FAIL"
+	return 1
+}
+
+# --- discovery: /health and /v1/models fields (#565, #566) -----------------
+
+validate_discovery() {
+	echo "=== discovery: /health version + capabilities, /v1/models fields ==="
+	local health models
+	health=$(curl -fsS -m 10 "${API_URL}/health" || true)
+	models=$(curl -fsS -m 10 "${API_URL}/v1/models" || true)
+	echo "  GET /health -> ${health}"
+	if python3 -c '
+import json, sys
+h = json.loads(sys.argv[1])
+assert h["status"] == "ok" and h["service"] == "xllama", h
+assert isinstance(h["version"], str) and h["version"].count(".") == 3, h["version"]
+assert isinstance(h["api"], int) and h["api"] >= 1, h["api"]
+caps = h["capabilities"]
+for key in ("tools", "tools_stream", "embeddings", "images", "pull", "preferences",
+            "training_status", "reasoning_content"):
+    assert isinstance(caps[key], bool), (key, caps)
+m = json.loads(sys.argv[2])
+assert m["object"] == "list" and m["data"], m
+for entry in m["data"]:
+    for key in ("id", "object", "created", "owned_by", "role", "capabilities"):
+        assert key in entry, (key, entry)
+    for key in ("tools", "reasoning", "embedding"):
+        assert isinstance(entry["capabilities"][key], bool), entry
+    if entry.get("kind") == "gguf" and entry["role"] != "embedding":
+        print("  %s: n_ctx=%s tools=%s reasoning=%s" % (entry["id"], entry.get("n_ctx"),
+              entry["capabilities"]["tools"], entry["capabilities"]["reasoning"]))
+' "$health" "$models"; then
+		echo "discovery: PASS"
+		return 0
+	fi
+	echo "discovery: FAIL"
 	return 1
 }
 
@@ -947,6 +983,10 @@ PYTOOLRESULT
 CMD="${1:-}"
 case "$CMD" in
 spike) validate_spike ;;
+discovery)
+	validate_spike || exit 1
+	validate_discovery
+	;;
 chat)
 	validate_spike || exit 1
 	validate_chat
@@ -991,8 +1031,8 @@ embed)
 	validate_spike || exit 1
 	validate_embed
 	;;
-# Every check below, in order: spike, chat, stream, admission, embed, budget,
-# tools, framing, prefs, train, pull.
+# Every check below, in order: spike, discovery, chat, stream, admission,
+# embed, budget, tools, framing, prefs, train, pull.
 all)
 	rc=0
 	validate_spike || {
@@ -1000,6 +1040,7 @@ all)
 		echo "SPIKE FAILED — stopping before chat"
 		exit 1
 	}
+	validate_discovery || rc=1
 	validate_chat || rc=1
 	validate_stream || rc=1
 	validate_admission || rc=1
@@ -1016,7 +1057,7 @@ all)
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <spike|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|all>" >&2
+	echo "Usage: $0 <spike|discovery|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|all>" >&2
 	exit 1
 	;;
 esac

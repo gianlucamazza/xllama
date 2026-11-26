@@ -50,4 +50,14 @@ ToolParseResult parse_tool_generation(const void* llama_model, const std::string
                                       const std::string& forced_name, const std::string& raw_text,
                                       bool hit_cap);
 
+// Whether a chat template renders a tool schema: the same check a tool
+// proposal makes before it generates ("model chat template does not render
+// tools"), on a one-message probe. False for an empty template.
+bool chat_template_renders_tools(const std::string& jinja);
+
+// The chat template stored in a GGUF file (tokenizer.chat_template), read
+// from its header only, no tensor data. Empty when the file has none or
+// cannot be read.
+std::string gguf_chat_template(const std::string& gguf_path);
+
 } // namespace xllama

@@ -20,6 +20,7 @@
 
     #include <nlohmann/json.hpp>
 
+    #include "gguf.h"
     #include "llama.h"
 
 namespace xllama {
@@ -276,6 +277,34 @@ ToolParseResult parse_tool_generation(const void* llama_model, const std::string
     return out;
 }
 
+bool chat_template_renders_tools(const std::string& jinja) {
+    if (jinja.empty())
+        return false;
+    ChatMessage user;
+    user.role = ChatRole::User;
+    user.content = "Hello.";
+    ToolSpec probe;
+    probe.name = "xllama_probe";
+    probe.description = "Probe tool.";
+    probe.parameters_json = R"({"type":"object","properties":{}})";
+    return render_tool_prompt(nullptr, jinja, {user}, {probe}, ToolChoice::Auto, "").ok;
+}
+
+std::string gguf_chat_template(const std::string& gguf_path) {
+    gguf_init_params params = {};
+    params.no_alloc = true;
+    params.ctx = nullptr;
+    gguf_context* g = gguf_init_from_file(gguf_path.c_str(), params);
+    if (!g)
+        return {};
+    std::string jinja;
+    const int64_t key = gguf_find_key(g, "tokenizer.chat_template");
+    if (key >= 0 && gguf_get_kv_type(g, key) == GGUF_TYPE_STRING)
+        jinja = gguf_get_val_str(g, key);
+    gguf_free(g);
+    return jinja;
+}
+
 } // namespace xllama
 
 #else
@@ -296,6 +325,14 @@ ToolParseResult parse_tool_generation(const void*, const std::string&,
     ToolParseResult out;
     out.parser_threw = true;
     return out;
+}
+
+bool chat_template_renders_tools(const std::string&) {
+    return false;
+}
+
+std::string gguf_chat_template(const std::string&) {
+    return {};
 }
 
 } // namespace xllama

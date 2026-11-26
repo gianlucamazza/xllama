@@ -586,6 +586,23 @@ TEST_CASE("a template that ignores tools is refused instead of answering without
     CHECK_MESSAGE(rendered.ok, rendered.error);
 }
 
+TEST_CASE("chat_template_renders_tools is the proposal's own template check") {
+    CHECK(xllama::chat_template_renders_tools(kToolTemplate));
+    CHECK_FALSE(xllama::chat_template_renders_tools(kPhi4Template));
+    CHECK_FALSE(xllama::chat_template_renders_tools(""));
+}
+
+TEST_CASE("gguf_chat_template reads the template from the file header (opt-in: "
+          "XLLAMA_TOOL_MODEL)") {
+    CHECK(xllama::gguf_chat_template("/nonexistent/model.gguf").empty());
+    const char* model = std::getenv("XLLAMA_TOOL_MODEL");
+    if (!model)
+        return;
+    const std::string jinja = xllama::gguf_chat_template(model);
+    CHECK_FALSE(jinja.empty());
+    CHECK(xllama::chat_template_renders_tools(jinja));
+}
+
 TEST_CASE("replaying a tool call is not mistaken for a template that ignores tools") {
     const std::vector<xllama::ToolSpec> tools{ping_tool()};
     const std::vector<xllama::ChatMessage> replay = replayed_ping();
