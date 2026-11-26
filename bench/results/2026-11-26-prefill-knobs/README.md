@@ -77,3 +77,41 @@ for d in "$C"/*/*/; do echo "$d"; scripts/paired-bench-summary.py "$d" --report 
 
 A pilot of a different, unpaired design ran on the same package before this
 manifest. It was stopped and is not used here.
+
+## Results
+
+Package 1.8.1.1908, 2026-11-26, all 36 pairs complete. No arm needed a retry,
+and every arm's app log matched its expected lines. Per cell, `<knob>/A.csv`
+and `B.csv` hold the recorded rows, `ledger.jsonl` the arms, `pair*-app.log` the
+app log of each arm, and `summary.json` the `--report` output. Arm A is the
+shipped configuration: llama.cpp's auto flash attention (resolved to on,
+`Flash Attention enabled` in every A log), `n_ubatch` 512, f16 KV.
+
+Prefill is the median paired ratio B/A of `prompt_tok_s`, with its 95 %
+bootstrap interval; peak is the median paired delta of `peak_ws_mb`.
+
+| Cell       | Prompt tokens | A prefill (tok/s, s) | `fa0`                          | `kvq8`                         | `u256`                        | `u1024`                       |
+| ---------- | ------------- | -------------------- | ------------------------------ | ------------------------------ | ----------------------------- | ----------------------------- |
+| `lfm-8k`   | 7250          | 281, 25.8 s          | 0.573 [0.572, 0.574], +318 MiB | 0.364 [0.364, 0.365], −44 MiB  | 0.969 [0.968, 0.969], −21 MiB | 1.012 [1.012, 1.013], +43 MiB |
+| `lfm-16k`  | 14428         | 220, 65.5 s          | 0.458 [0.457, 0.458], +658 MiB | 0.238 [0.236, 0.239], −93 MiB  | 0.950 [0.949, 0.951], −26 MiB | 1.029 [1.026, 1.031], +51 MiB |
+| `llama-4k` | 3555          | 34.4, 103.3 s        | 0.694 [0.693, 0.695], +196 MiB | 0.488 [0.487, 0.489], −420 MiB | 0.973 [0.973, 0.977], −36 MiB | 1.005 [1.005, 1.006], +73 MiB |
+
+TTFT ratios mirror the prefill ratios (`summary.json`).
+
+## Reading
+
+- **No knob changes the curve.** The shipped configuration is within 3 % of
+  the fastest arm in every cell. `n_ubatch` 1024 gains 0.5–2.9 % for
+  43–73 MiB more peak; 256 loses 2.7–5.0 %. The 512 default (#172) stays.
+- **Flash attention is already on, and it matters more as the prompt grows.**
+  Turning it off costs 31 % at 3.6k tokens on the 3B and 54 % at 14.4k on
+  `lfm25-350m`, with more memory, not less.
+- **q8_0 KV is a memory trade, not a speed one.** On this CPU it slows prefill
+  2.0–4.2× (worse with length) for 44–420 MiB less peak (#171). It is only
+  worth it where the KV, not time, is the limit.
+- **So the outcome of #582 is a documented ceiling, not a tuned default.**
+  Series S CPU prefill with the shipped knobs: `lfm25-350m` 281 tok/s at 7.2k
+  tokens and 220 tok/s at 14.4k; `llama32-3b` 34 tok/s at 3.6k (22 tok/s at
+  15.6k in `../2026-11-25-nctx-train-bound/`). A catalogue `n_ctx` raise for a
+  3B dense model means minutes of prefill before the first token at 8k and
+  beyond; a hybrid 350M model stays near one minute at 14k.

@@ -1,0 +1,4 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index,prefill_ms,ttft_ms
+llama32-3b,Q3_K_S,cpu,8192,6,34.58,4.82,2605,105031,0,0,3555,16,0,xbox-series-s-declared-u1024-noeog,2026-11-26T12:21:50Z,2,102799.1,102800.0
+llama32-3b,Q3_K_S,cpu,8192,6,34.62,4.82,2605,104969,0,0,3555,16,0,xbox-series-s-declared-u1024-noeog,2026-11-26T12:25:49Z,2,102695.8,102696.7
+llama32-3b,Q3_K_S,cpu,8192,6,34.61,4.83,2605,104975,0,0,3555,16,0,xbox-series-s-declared-u1024-noeog,2026-11-26T12:37:46Z,2,102729.4,102730.3
