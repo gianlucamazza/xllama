@@ -1,0 +1,62 @@
+{
+  "command": "scripts/validate-api.sh all + disconnect",
+  "env": {
+    "ORT_MODEL": "smollm2-360m-cpu-int4"
+  },
+  "gates": [
+    {
+      "gate": "spike",
+      "result": "PASS"
+    },
+    {
+      "gate": "discovery",
+      "result": "PASS"
+    },
+    {
+      "gate": "chat",
+      "result": "PASS"
+    },
+    {
+      "gate": "stream",
+      "result": "PASS"
+    },
+    {
+      "gate": "admission",
+      "result": "PASS"
+    },
+    {
+      "gate": "budget",
+      "result": "PASS"
+    },
+    {
+      "gate": "tools",
+      "result": "PASS"
+    },
+    {
+      "gate": "framing",
+      "result": "PASS"
+    },
+    {
+      "gate": "embed",
+      "result": "PASS",
+      "note": "attempt 1 failed before any request: embed-nomic-v2-moe was not on the console (404 from /api/embed); pulled through POST /api/pull, then the unmodified gate passed (validate-api-embed.log)"
+    },
+    {
+      "gate": "prefs",
+      "result": "PASS"
+    },
+    {
+      "gate": "train",
+      "result": "PASS"
+    },
+    {
+      "gate": "pull",
+      "result": "PASS"
+    },
+    {
+      "gate": "disconnect",
+      "result": "PASS"
+    }
+  ],
+  "date": "2026-11-26"
+}

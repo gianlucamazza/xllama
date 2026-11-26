@@ -20,3 +20,4 @@ bench/results/2026-11-24-granite40-h-tiny/h9-20261125/
 
 # Byte-identical ADR 0010 Maincoder-1B declaration (do not reformat).
 docs/research/evidence/2026-11-25-adr0010-maincoder-1b/
+bench/results/2026-11-26-v190-series-s-release/

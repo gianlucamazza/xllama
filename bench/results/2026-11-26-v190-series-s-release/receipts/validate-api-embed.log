@@ -1,0 +1,6 @@
+=== spike: LAN bind + HTTP 200 ===
+  Waiting for http://console:11434/ (timeout 120s)...
+  Endpoint up after 0s.
+  GET / -> {"status":"ok","service":"xllama","version":"1.9.0.1963","api":1,"capabilities":{"tools":true,"tools_stream":true,"embeddings":true,"images":true,"pull":true,"preferences":true,"training_status":true,"reasoning_content":true,"reasoning_tokens":true,"cached_tokens":true}}
+spike: PASS
+embed: PASS (embed-nomic-v2-moe, 17 live requests)

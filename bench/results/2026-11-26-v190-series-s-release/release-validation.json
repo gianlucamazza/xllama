@@ -1,0 +1,12 @@
+{
+  "source_sha": "8c538c62efd2122f665fc1cd96dd1025c231d126",
+  "package_version": "1.9.0.1963",
+  "msix_sha256": "eed3ea3890b7a7c62841b3836a0da099c251a4b81c10cfbfae5aff7a2756e74e",
+  "device": "Xbox Series S",
+  "date": "2026-11-26",
+  "console_gates": "PASS 10/10",
+  "lan_api_gates": "PASS 13/13 (validate-api.sh all, 12 gates, plus disconnect; embed passed after its model was pulled, see api-gates.json)",
+  "selftests": "PASS: d3d12 selftest 24/24, knobs absent",
+  "restoration": "PASS (LocalState unchanged by the update; gate chats removed)",
+  "overall": "RELEASE_READY"
+}
