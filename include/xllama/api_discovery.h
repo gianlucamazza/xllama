@@ -36,7 +36,8 @@ struct ApiCapabilities {
 // images need the ORT diffusion pipeline (XLLAMA_USE_ORT).
 ApiCapabilities build_api_capabilities();
 
-// {"status":"ok","service":"xllama","version":…,"api":…,"capabilities":{…}}.
+// {"status":"ok","service":"xllama","version":…,"api":…,"capabilities":{…},
+//  "sampling":[…]}: sampling lists the chat fields of api_sampling.h.
 // The first two fields are the original body and stay first.
 std::string health_json(const std::string& version, const ApiCapabilities& caps);
 

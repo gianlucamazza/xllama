@@ -29,6 +29,7 @@ add_executable(xllama-tests
     test_prompt_budget.cpp
     test_session_spec.cpp
     test_api_policy.cpp
+    test_api_sampling.cpp
     test_http_framing.cpp
     test_sse.cpp
     test_stop_filter.cpp
