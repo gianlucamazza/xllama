@@ -8,18 +8,19 @@ vetax-by and EgbertJiang were reviewed on 2026-11-15 against `main` `289b51b`
 by reading their diffs; nothing from either fork was built or run.
 All forks keep the MIT licence.
 
-| Fork                                                   | Taken                                                                                                                                   | Not taken                                            |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| [SamirCharleston](#samircharleston-vision-spike)       | llama.cpp warnings on every load (credited in the commit)                                                                               | batch cap, repack opt-out, mmap revival, vision code |
-| [bjoern2088](#bjoern2088-xbox-one-x)                   | hybrid-cache prefix snapshots (rebuilt in-tree, 2026-11-23)                                                                             | Xbox One X port                                      |
-| [http-hadi](#http-hadi-d3d12f)                         | evidence for [#273], [#274], [#275] and the [#313] design                                                                               | the vendored D3D12F backend                          |
-| miguelenes                                             | already in `main` (#261, `4100bc2`)                                                                                                     | —                                                    |
-| nyzxor, hjotha, mr-wfj                                 | —                                                                                                                                       | no commits ahead                                     |
-| [maxmorrison74](#maxmorrison74-xllama-on-steroids)     | optional debug dashboard idea (rebuilt in-tree)                                                                                         | rebrand, background, soundtrack, footer credit       |
-| [Chorss](#november-21-contributor-updates)             | opt-in F32 bias ADD on D3D12 ([#504](https://github.com/gianlucamazza/xllama/pull/504)); GGUF thread knob (rebuilt in-tree, 2026-11-23) | —                                                    |
-| [vetax-by](#vetax-by-demand-loaded-moe-experts)        | a data point for [#273] and the SSD assessment                                                                                          | the expert-loading runtime and its llama.cpp patches |
-| [EgbertJiang](#egbertjiang-xbox-one-s)                 | Gemma 4 chat template (rebuilt in-tree, credited)                                                                                       | Xbox One S port, `/chat` page, second model root     |
-| [christopherbearman](#2026-11-23-d3d12-mmv-iq3-iq4-q5) | D3D12 MMV for IQ3_XXS, IQ4_XS, Q5_K (rebuilt in-tree, 2026-11-23); LCM scheduler (rebuilt in-tree, 2026-11-23)                          | browser chat UI                                      |
+| Fork                                                   | Taken                                                                                                                                   | Not taken                                                |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| [SamirCharleston](#samircharleston-vision-spike)       | llama.cpp warnings on every load (credited in the commit)                                                                               | batch cap, repack opt-out, mmap revival, vision code     |
+| [bjoern2088](#bjoern2088-xbox-one-x)                   | hybrid-cache prefix snapshots (rebuilt in-tree, 2026-11-23)                                                                             | Xbox One X port                                          |
+| [http-hadi](#http-hadi-d3d12f)                         | evidence for [#273], [#274], [#275] and the [#313] design                                                                               | the vendored D3D12F backend                              |
+| miguelenes                                             | already in `main` (#261, `4100bc2`)                                                                                                     | —                                                        |
+| nyzxor, hjotha, mr-wfj                                 | —                                                                                                                                       | no commits ahead                                         |
+| [maxmorrison74](#maxmorrison74-xllama-on-steroids)     | optional debug dashboard idea (rebuilt in-tree)                                                                                         | rebrand, background, soundtrack, footer credit           |
+| [Chorss](#november-21-contributor-updates)             | opt-in F32 bias ADD on D3D12 ([#504](https://github.com/gianlucamazza/xllama/pull/504)); GGUF thread knob (rebuilt in-tree, 2026-11-23) | —                                                        |
+| [vetax-by](#vetax-by-demand-loaded-moe-experts)        | a data point for [#273] and the SSD assessment                                                                                          | the expert-loading runtime and its llama.cpp patches     |
+| [EgbertJiang](#egbertjiang-xbox-one-s)                 | Gemma 4 chat template (rebuilt in-tree, credited)                                                                                       | Xbox One S port, `/chat` page, second model root         |
+| [christopherbearman](#2026-11-23-d3d12-mmv-iq3-iq4-q5) | D3D12 MMV for IQ3_XXS, IQ4_XS, Q5_K (rebuilt in-tree, 2026-11-23); LCM scheduler (rebuilt in-tree, 2026-11-23)                          | browser chat UI                                          |
+| [xdrury-du](#xdrury-du-xbox-one-x)                     | —                                                                                                                                       | Xbox One X port, Ministral 3 3B profile, One X GPU probe |
 
 ## 2026-11-23: interactive GGUF thread knob
 
@@ -359,6 +360,8 @@ with its own tests. Credit: `CHANGELOG.md`, `CONTRIBUTORS.md`.
 [#313]: https://github.com/gianlucamazza/xllama/issues/313
 [#345]: https://github.com/gianlucamazza/xllama/pull/345
 [#374]: https://github.com/gianlucamazza/xllama/issues/374
+[#479]: https://github.com/gianlucamazza/xllama/issues/479
+[#481]: https://github.com/gianlucamazza/xllama/issues/481
 
 ## 2026-11-07 pinned re-review: bjoern2088
 
@@ -614,3 +617,127 @@ first token, 0.72 / 1.00 tok/s, 0 / 39330 hits of 112176 requests
 ([evidence](research/evidence/2026-11-16-moe-24b-console/README.md)). The
 author's figures stand; the #273 verdict is still unchanged, for the reasons
 above.
+
+## Inventory addendum, 2026-11-26
+
+The fork collection returns 18 public forks. Comparisons are pinned against
+upstream `8f95f9ccd9ba2abec0569ba4f7726428d0a87eb0`. The table lists every
+branch with commits ahead of it. http-hadi's `ci-logs-*` branches are left
+out, as on 2026-11-07. mr-wfj and nyzxor have no commits ahead.
+
+| Fork / branch                                                                           | SHA                                        | Ahead / behind |
+| --------------------------------------------------------------------------------------- | ------------------------------------------ | -------------- |
+| `christopherbearman/xllama` / `main`                                                    | `96d31a78bd31ef3b0edbeebc8a2adad8b4df7321` | 37 / 42        |
+| `UMEBOSHIISAN/xllama` / `cursor/decision-models-spike-8b6e`                             | `61751c1d505443802df2144f784dac9bff0e8692` | 4 / 159        |
+| `UMEBOSHIISAN/xllama` / `diag/c4-dispatch-timing`                                       | `89be43d48852f8823db52e549c5c4d04437dc5df` | 12 / 65        |
+| `UMEBOSHIISAN/xllama` / `feat/d3d12-dispatch-layer`                                     | `83cd7a755928e900e4b9388dbaa71f18d8ed8450` | 1 / 53         |
+| `UMEBOSHIISAN/xllama` / `feat/d3d12-multicolumn-prefill`                                | `773a284d3e697565d7edcf5b2eeb1b869d8e531f` | 10 / 75        |
+| `UMEBOSHIISAN/xllama` / `feat/d3d12-phase-counters`                                     | `9a96551df722255eb930e81781d9e6354c9702b4` | 6 / 105        |
+| `UMEBOSHIISAN/xllama` / `feat/floppylm-training`                                        | `ba0ebcedb385aca2e9646cec65b3a11fc7b6db89` | 8 / 200        |
+| `UMEBOSHIISAN/xllama` / `fix/idle-loading-bar-animation`                                | `46c939520c8ba37b146b85034fe9dac20ec8c00f` | 1 / 96         |
+| `xdrury-du/xllama-xbox-one` / `codex/ministral3-one-x`                                  | `591209cfac93b203d18ff2ac98be54d6d174b4b7` | 3 / 51         |
+| `xdrury-du/xllama-xbox-one` / `codex/ministral-one-x-experiments`                       | `1591b43c153d9fec1d1e1223d2bb9147b984d8de` | 16 / 51        |
+| `xdrury-du/xllama-xbox-one` / `codex/one-x-gpu-probe`                                   | `dd840091fe4472e1875367dcd15a55b7cd23b5b8` | 4 / 51         |
+| `xdrury-du/xllama-xbox-one` / `codex/xbox-one-cpu-baseline`                             | `af4e5ba762c676526c9461153f85adc9f931486b` | 2 / 51         |
+| `tayhill1/xllama` / `fix/kv-benchmark-settings`                                         | `67d413ba5160fad7519173a8b1ca3d731c66df27` | 1 / 53         |
+| `Chorss/xllama` / `chore/claude-harness`                                                | `8c095c44f215b2e0ef200cba9621875d3f89668d` | 1 / 35         |
+| `Chorss/xllama` / `cursor/decision-models-spike-8b6e`                                   | `61751c1d505443802df2144f784dac9bff0e8692` | 4 / 159        |
+| `Chorss/xllama` / `docs/series-x-app-designation`                                       | `1e68fcd343b6ee6a34c750ff369cb873a099d310` | 5 / 55         |
+| `Chorss/xllama` / `feat/d3d12-bias-add-gpu`                                             | `6ed22c41f99566ba1fa3006539b0f0340e7dcbee` | 8 / 42         |
+| `Chorss/xllama` / `feat/d3d12-multicolumn-prefill`                                      | `773a284d3e697565d7edcf5b2eeb1b869d8e531f` | 10 / 75        |
+| `Chorss/xllama` / `feat/d3d12-perf`                                                     | `d67a8fa93758cd55ee0a4632d18b8ef943e34e95` | 29 / 35        |
+| `Chorss/xllama` / `feat/d3d12-phase-counters`                                           | `9a96551df722255eb930e81781d9e6354c9702b4` | 6 / 105        |
+| `Chorss/xllama` / `feat/d3d12-rope-gpu`                                                 | `de912137c74b26251046791f772ed55f9da17f3c` | 16 / 28        |
+| `Chorss/xllama` / `feat/floppylm-training`                                              | `ba0ebcedb385aca2e9646cec65b3a11fc7b6db89` | 8 / 200        |
+| `Chorss/xllama` / `feat/session-threads-knob`                                           | `825c3a5ff588bd76dc3d875977797a19b64734fe` | 1 / 65         |
+| `Chorss/xllama` / `fix/idle-loading-bar-animation`                                      | `46c939520c8ba37b146b85034fe9dac20ec8c00f` | 1 / 96         |
+| `EidonLabsInc/xllama` / `main`                                                          | `04a5a5cb76ae3367206847daccb2c4387906ed1a` | 9 / 51         |
+| `vetax-by/xllama` / `codex/ua50-ssd-moe`                                                | `9b155911ca7e1364b659c8386eca9714d5bda8c5` | 56 / 111       |
+| `EgbertJiang/xllama` / `codex/xbox-one-s-compat`                                        | `1e72e2da6fafecc2ef8a5a7a3e23f52746430150` | 1 / 224        |
+| `weiting-tw/xllama` / `ccr-dc7c3963-oookvu`                                             | `c48a6aca6c733db6512afcd5f5018c5e13233509` | 1 / 138        |
+| `weiting-tw/xllama` / `seriesx-validation`                                              | `d42e60157d56ca2a663a70b1255ab4ffc41ce84f` | 2 / 72         |
+| `maxmorrison74/xllama-on-steroids` / `codex/process-compute-admission-macos-build`      | `02ae793efed85b1de7bc0e880aebb966355eaeb2` | 1 / 163        |
+| `maxmorrison74/xllama-on-steroids` / `codex/xllama-on-steroids-branding`                | `b8aad358b1b3f6a790a921a2c3aba38d7b664d57` | 17 / 163       |
+| `maxmorrison74/xllama-on-steroids` / `dependabot/submodules/version-updates-dd6c1a1710` | `ab41616326a785ef41445cc7c0a47b920989992c` | 1 / 163        |
+| `maxmorrison74/xllama-on-steroids` / `feat/floppylm-training`                           | `ba0ebcedb385aca2e9646cec65b3a11fc7b6db89` | 8 / 200        |
+| `maxmorrison74/xllama-on-steroids` / `feat/moe-xbox-smoke-probe`                        | `5cba82fc1c69d39b6f4331fc43d8c0460b4f7fd9` | 22 / 163       |
+| `maxmorrison74/xllama-on-steroids` / `main`                                             | `574b492b4a158442bfe13e8100ab87286036af8a` | 2 / 163        |
+| `t91012696-glitch/xllama` / `feat/floppylm-training`                                    | `ba0ebcedb385aca2e9646cec65b3a11fc7b6db89` | 8 / 200        |
+| `t91012696-glitch/xllama` / `main`                                                      | `d6593de281b5b0b0bfbd249ed153512772dc162c` | 1 / 163        |
+| `duranlisandro/xllama_matrix` / `fix/347-run-scoped-logs`                               | `8386256442fa7bdf299f608fc42253693ee3fc96` | 2 / 158        |
+| `duranlisandro/xllama_matrix` / `pr/sse-chat-streaming`                                 | `6add2a55b18e0a28724c6bc88047a9350ebd177d` | 12 / 163       |
+| `http-hadi/xllama` / `feat/d3d12-full`                                                  | `750c20bc3df2637c7a11443c4a4cc038d7125373` | 8 / 186        |
+| `http-hadi/xllama` / `feat/floppylm-training`                                           | `ba0ebcedb385aca2e9646cec65b3a11fc7b6db89` | 8 / 200        |
+| `http-hadi/xllama` / `gpu-for-all`                                                      | `3aecc96d9a1dd2af58de15e82cdfd30a7c49ae12` | 3 / 186        |
+| `http-hadi/xllama` / `gpu-only-fix`                                                     | `0bded61bb152c252718e2e6d4f056ab716caeff8` | 18 / 186       |
+| `http-hadi/xllama` / `package/d3d12f`                                                   | `0bded61bb152c252718e2e6d4f056ab716caeff8` | 18 / 186       |
+| `http-hadi/xllama` / `probe/no16`                                                       | `750c20bc3df2637c7a11443c4a4cc038d7125373` | 8 / 186        |
+| `http-hadi/xllama` / `probe/warp`                                                       | `33f4ce87651b0d060b2e75e37065a79e87380a2f` | 2 / 186        |
+| `http-hadi/xllama` / `release/d3d12f`                                                   | `750c20bc3df2637c7a11443c4a4cc038d7125373` | 8 / 186        |
+| `bjoern2088/xllama` / `jarvis-fast`                                                     | `6b559031911ee88fddc8e9614787de8f5baa1db5` | 22 / 186       |
+| `bjoern2088/xllama` / `jarvis-snapshot`                                                 | `77b4701c32afbc396100bf70f1bf98685c69130a` | 20 / 186       |
+| `bjoern2088/xllama` / `main`                                                            | `43cbd38b70301fe6308db35af9be657f07624725` | 19 / 186       |
+| `hjotha/xllama-1` / `feat/floppylm-training`                                            | `ba0ebcedb385aca2e9646cec65b3a11fc7b6db89` | 8 / 200        |
+| `SamirCharleston/xllama` / `vision-spike`                                               | `c104faed1ff83d8efbf15908ad644d32d764f67c` | 18 / 228       |
+
+What changed since the passes above:
+
+- **christopherbearman:** `main` moved from `bbf0104` to `96d31a7`.
+  The 11 code commits `99581b3`..`c9e7e6c` (2026-11-24 and 2026-11-25) are
+  under review in [#589](https://github.com/gianlucamazza/xllama/issues/589).
+  One of them, `d330574`, surfaced the LAN API bug filed as
+  [#591](https://github.com/gianlucamazza/xllama/issues/591). `96d31a7`
+  (2026-11-26) is docs and catalogue rows only.
+- **Chorss:** `feat/d3d12-rope-gpu` and `feat/d3d12-perf` moved on
+  2026-11-24 and are under review in
+  [#590](https://github.com/gianlucamazza/xllama/issues/590). Its
+  `feat/d3d12-phase-counters` and `feat/d3d12-multicolumn-prefill` hold
+  only upstream's own commits.
+- **UMEBOSHIISAN:** a fork created on 2026-11-20. Every branch ahead holds
+  only upstream's own commits (D3D12 diagnostic and prefill experiments,
+  shared with Chorss) or the `cursor/decision-models-spike-8b6e` spike. There is
+  no third-party code.
+- **xdrury-du:** a new fork, renamed `xllama-xbox-one`. See
+  [below](#xdrury-du-xbox-one-x).
+- **tayhill1** and **EidonLabsInc:** their branches ahead were merged as
+  [#489](https://github.com/gianlucamazza/xllama/pull/489) and
+  [#491](https://github.com/gianlucamazza/xllama/pull/491). They count as
+  ahead because `main` holds them as squashes.
+- **weiting-tw:** `seriesx-validation` (2026-11-15) adds an independent
+  Series X campaign under `bench/results/2026-11-15-series-x/` with a
+  device receipt, plus a Git Bash fix for the console harness. It was never
+  opened as a pull request, and nothing from it is imported. It would count
+  only through the
+  [Series X acceptance protocol](console-validation-runbook.md#independent-series-x-acceptance-374).
+- **vetax-by:** `codex/ua50-ssd-moe` is at `9b15591`, 56 ahead. It is
+  tracked by the
+  [MoE engineering program](superpowers/plans/2026-11-24-moe-engineering-program.md)
+  and [#479]–[#481], not here.
+
+The other forks are at the commits recorded above, and their verdicts are
+unchanged.
+
+### xdrury-du: Xbox One X
+
+Fork [xllama-xbox-one](https://github.com/xdrury-du/xllama-xbox-one), last
+pushed 2026-11-20. It has four `codex/*` branches:
+
+- `codex/xbox-one-cpu-baseline`: AVX CPU inference profile for the One X.
+- `codex/ministral3-one-x`
+  ([`591209c`](https://github.com/xdrury-du/xllama-xbox-one/commit/591209cfac93b203d18ff2ac98be54d6d174b4b7)):
+  a separate `manifest.xbox-one.json` with Gemma 3 270M and Ministral 3 3B
+  Instruct 2512 Q4_K_M (text only, 2 147 023 008 bytes, `n_ctx` 1024).
+- `codex/one-x-gpu-probe`
+  ([`dd84009`](https://github.com/xdrury-du/xllama-xbox-one/commit/dd840091fe4472e1875367dcd15a55b7cd23b5b8)):
+  a `/v1/diagnostics/gpu` route. It creates a feature level 11_0 D3D12
+  device, rejects a software adapter, runs one FXC-compiled `cs_5_0` FP32
+  64×64 mat-vec and compares every element with a CPU reference. Its own
+  [notes](https://github.com/xdrury-du/xllama-xbox-one/blob/codex/one-x-gpu-probe/docs/xbox-one-gpu-probe.md)
+  say a pass does not validate inference shaders, numerics or speed.
+- `codex/ministral-one-x-experiments`: 16 commits of follow-up experiments.
+
+Console validation of the One X build is marked pending in the fork. No
+result from an Xbox One is published. Not taken, for the same reason as
+[bjoern2088](#bjoern2088-xbox-one-x) and
+[EgbertJiang](#egbertjiang-xbox-one-s): the project does not target Xbox
+One. Reopen if Xbox One becomes a goal, as a separate build lane.
