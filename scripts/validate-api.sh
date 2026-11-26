@@ -90,6 +90,23 @@ fi
 TMPDIR_LOCAL=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_LOCAL"; wdp_curl_auth_cleanup' EXIT
 
+# The usage block of every chat reply (#585): the Python checks below that read
+# one exec this first. usage_problem returns "" when the block is well formed.
+export XLLAMA_USAGE_PY='
+def usage_problem(usage, reasoning):
+    if not isinstance(usage, dict):
+        return "no usage block"
+    p, c = usage.get("prompt_tokens"), usage.get("completion_tokens")
+    if usage.get("total_tokens") != p + c:
+        return "total_tokens != prompt + completion: %r" % usage
+    r = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
+    if not isinstance(r, int) or not 0 <= r <= c:
+        return "reasoning_tokens out of [0, completion_tokens]: %r" % usage
+    if reasoning and r == 0:
+        return "reasoning_content without reasoning_tokens: %r" % usage
+    return ""
+'
+
 # --- WDP helpers (same idioms as validate-console.sh) ----------------------
 
 upload_file() {
@@ -185,7 +202,7 @@ assert isinstance(h["version"], str) and h["version"].count(".") == 3, h["versio
 assert isinstance(h["api"], int) and h["api"] >= 1, h["api"]
 caps = h["capabilities"]
 for key in ("tools", "tools_stream", "embeddings", "images", "pull", "preferences",
-            "training_status", "reasoning_content"):
+            "training_status", "reasoning_content", "reasoning_tokens"):
     assert isinstance(caps[key], bool), (key, caps)
 m = json.loads(sys.argv[2])
 assert m["object"] == "list" and m["data"], m
@@ -222,16 +239,22 @@ validate_chat() {
 	# mislabeling valid completions as empty.
 	content=$(
 		printf '%s' "$resp" | python3 -c '
-import json, sys
+import json, os, sys
+exec(os.environ["XLLAMA_USAGE_PY"])
 try:
     d = json.load(sys.stdin)
-    print(d.get("choices", [{}])[0].get("message", {}).get("content", ""))
+    message = d.get("choices", [{}])[0].get("message", {})
+    problem = usage_problem(d.get("usage"), message.get("reasoning_content"))
+    print(("USAGE " + problem) if problem else message.get("content", ""))
 except Exception:
     print("")
 '
 	)
 	if [[ -z "$content" ]]; then
 		echo "  FAIL: empty/invalid completion. Raw: ${resp:0:200}"
+		verdict=1
+	elif [[ "$content" == "USAGE "* ]]; then
+		echo "  FAIL: ${content#USAGE }"
 		verdict=1
 	elif [[ "$content" == *"<|"* ]]; then
 		# Template-token leak ("User\n\n<|end|>" etc.): the model echoed turn
@@ -297,7 +320,8 @@ validate_stream() {
 	# the deltas must add up to a non-empty reply with a real finish_reason.
 	check=$(
 		python3 -c '
-import json, sys
+import json, os, sys
+exec(os.environ["XLLAMA_USAGE_PY"])
 lines = open(sys.argv[1], encoding="utf-8", errors="replace").read().splitlines()
 frames = [l[len("data: "):] for l in lines if l.startswith("data: ")]
 if not frames:
@@ -306,14 +330,19 @@ if not frames:
 if frames[-1].strip() != "[DONE]":
     print("FAIL: stream does not end with data: [DONE]")
     raise SystemExit
-text, finish = "", None
+text, reasoning, finish, usage = "", "", None, None
 for frame in frames[:-1]:
-    choice = json.loads(frame).get("choices", [{}])[0]
+    chunk = json.loads(frame)
+    choice = chunk.get("choices", [{}])[0]
     text += choice.get("delta", {}).get("content", "") or ""
+    reasoning += choice.get("delta", {}).get("reasoning_content", "") or ""
     if choice.get("finish_reason"):
-        finish = choice["finish_reason"]
+        finish, usage = choice["finish_reason"], chunk.get("usage")
+problem = usage_problem(usage, reasoning)
 if not text.strip():
     print("FAIL: no delta content in any frame")
+elif problem:
+    print("FAIL: final chunk usage: " + problem)
 elif finish not in ("stop", "length"):
     print("FAIL: missing or odd finish_reason: %r" % (finish,))
 else:
@@ -749,8 +778,11 @@ validate_tool_stream() {
 	fi
 	python3 - "${TMPDIR_LOCAL}/tool-stream.sse" "$expected" "${TMPDIR_LOCAL}/streamed-call.json" <<'PYTOOLSTREAM'
 import json
+import os
 import sys
 from pathlib import Path
+
+exec(os.environ["XLLAMA_USAGE_PY"])
 
 body = Path(sys.argv[1]).read_text()
 # SSE comments (": keepalive", #581) are not events.
@@ -768,9 +800,10 @@ assert all(c["index"] == 0 for c in choices), choices
 assert choices[0]["delta"]["role"] == "assistant", choices[0]
 assert all(c["finish_reason"] is None for c in choices[:-1]), choices
 assert choices[-1]["delta"] == {}, choices[-1]
-usage = chunks[-1]["usage"]
-assert usage["total_tokens"] == usage["prompt_tokens"] + usage["completion_tokens"], usage
 deltas = [c["delta"] for c in choices]
+reasoning = "".join(delta.get("reasoning_content") or "" for delta in deltas)
+problem = usage_problem(chunks[-1].get("usage"), reasoning)
+assert not problem, problem
 calls = [call for delta in deltas for call in delta.get("tool_calls", [])]
 if sys.argv[2] == "tool_calls":
     assert choices[-1]["finish_reason"] == "tool_calls", choices[-1]
@@ -796,9 +829,12 @@ validate_tools() {
 	named_request="$req"
 	code=$(post_chat "$req" "${TMPDIR_LOCAL}/tools-a.json")
 	check=$(python3 -c '
-import json, sys
+import json, os, sys
+exec(os.environ["XLLAMA_USAGE_PY"])
 d = json.load(open(sys.argv[1]))
 c = d["choices"][0]
+problem = usage_problem(d.get("usage"), c["message"].get("reasoning_content"))
+assert not problem, problem
 calls = c["message"].get("tool_calls") or []
 assert calls, "no tool_calls (finish_reason=%s)" % c.get("finish_reason")
 f = calls[0]["function"]

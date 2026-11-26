@@ -19,7 +19,8 @@ TEST_CASE("health_json keeps the original fields first and adds version, api, ca
     CHECK(j["capabilities"]["tools"] == true);
     CHECK(j["capabilities"]["images"] == false);
     CHECK(j["capabilities"]["reasoning_content"] == false);
-    CHECK(j["capabilities"].size() == 8);
+    CHECK(j["capabilities"]["reasoning_tokens"] == false);
+    CHECK(j["capabilities"].size() == 9);
 }
 
 TEST_CASE("build_api_capabilities follows the compiled backends") {
@@ -33,6 +34,7 @@ TEST_CASE("build_api_capabilities follows the compiled backends") {
 #endif
     CHECK(caps.pull);
     CHECK(caps.reasoning_content);
+    CHECK(caps.reasoning_tokens);
 }
 
 TEST_CASE("models_list_json is an OpenAI list with xllama's per-model fields") {

@@ -8,8 +8,10 @@
 // message.reasoning_content / delta.reasoning_content (#564).
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace xllama {
 
@@ -31,6 +33,33 @@ struct ThinkingSplit {
 // - A stray closer after the balanced pass is dropped.
 // Content is trimmed at both ends, reasoning too.
 ThinkingSplit split_thinking(std::string_view text);
+
+// A byte range [begin, end) of a text.
+struct TextSpan {
+    std::size_t begin = 0;
+    std::size_t end = 0;
+};
+
+// Where split_thinking finds the reasoning: one span per block, tags included,
+// in order and disjoint. split_thinking is built on it.
+std::vector<TextSpan> thinking_spans(std::string_view text);
+
+// Counts the generated tokens spent on reasoning, for
+// usage.completion_tokens_details.reasoning_tokens (#585). push() takes each
+// token's piece as Session::generate reports it through on_token. A token
+// counts when any of its bytes lies in a reasoning block, its tags included.
+class ReasoningTokenCounter {
+  public:
+    void push(std::string_view piece);
+    // |think_blocks|: the reply is split on <think> blocks (a thinking model).
+    // |parsed_reasoning|: what a template's parser extracted with its own
+    // markup; counted where it occurs verbatim in the reply.
+    int count(bool think_blocks, std::string_view parsed_reasoning = {}) const;
+
+  private:
+    std::string m_text;
+    std::vector<std::size_t> m_ends; // end offset of each token's piece in m_text
+};
 
 // split_thinking on a stream. push() returns what can be emitted now; a piece
 // that might be the start of a tag is held until the next piece decides it.

@@ -38,41 +38,88 @@ size_t partial_tag_suffix(std::string_view text, std::string_view tag) {
 
 } // namespace
 
-ThinkingSplit split_thinking(std::string_view text) {
-    ThinkingSplit out;
-    std::string content;
+std::vector<TextSpan> thinking_spans(std::string_view text) {
+    std::vector<TextSpan> spans;
     size_t pos = 0;
     // Starts inside the reasoning: a closer before any opener.
     const size_t first_close = text.find(kThinkCloseTag);
     const size_t first_open = text.find(kThinkOpenTag);
     if (first_close != std::string_view::npos &&
         (first_open == std::string_view::npos || first_open > first_close)) {
-        append_block(out.reasoning, text.substr(0, first_close));
         pos = first_close + kThinkCloseTag.size();
+        spans.push_back({0, pos});
     }
     for (;;) {
         const size_t o = text.find(kThinkOpenTag, pos);
-        if (o == std::string_view::npos) {
-            content.append(text.substr(pos));
+        if (o == std::string_view::npos)
             break;
-        }
-        content.append(text.substr(pos, o - pos));
-        const size_t body = o + kThinkOpenTag.size();
-        const size_t c = text.find(kThinkCloseTag, body);
+        const size_t c = text.find(kThinkCloseTag, o + kThinkOpenTag.size());
         if (c == std::string_view::npos) {
-            append_block(out.reasoning, text.substr(body)); // cut off mid-thought
-            pos = text.size();
+            spans.push_back({o, text.size()}); // cut off mid-thought
             break;
         }
-        append_block(out.reasoning, text.substr(body, c - body));
         pos = c + kThinkCloseTag.size();
+        spans.push_back({o, pos});
     }
+    return spans;
+}
+
+ThinkingSplit split_thinking(std::string_view text) {
+    ThinkingSplit out;
+    std::string content;
+    size_t pos = 0;
+    for (const TextSpan& span : thinking_spans(text)) {
+        content.append(text.substr(pos, span.begin - pos));
+        std::string_view block = text.substr(span.begin, span.end - span.begin);
+        if (block.substr(0, kThinkOpenTag.size()) == kThinkOpenTag)
+            block.remove_prefix(kThinkOpenTag.size());
+        if (block.size() >= kThinkCloseTag.size() &&
+            block.substr(block.size() - kThinkCloseTag.size()) == kThinkCloseTag)
+            block.remove_suffix(kThinkCloseTag.size());
+        append_block(out.reasoning, block);
+        pos = span.end;
+    }
+    content.append(text.substr(pos));
     // Stray closers left in the content are tags, not boundaries.
     for (size_t c = content.find(kThinkCloseTag); c != std::string::npos;
          c = content.find(kThinkCloseTag))
         content.erase(c, kThinkCloseTag.size());
     out.content = trimmed(content);
     return out;
+}
+
+void ReasoningTokenCounter::push(std::string_view piece) {
+    m_text.append(piece);
+    m_ends.push_back(m_text.size());
+}
+
+int ReasoningTokenCounter::count(bool think_blocks, std::string_view parsed_reasoning) const {
+    std::vector<TextSpan> spans;
+    if (think_blocks)
+        spans = thinking_spans(m_text);
+    if (!parsed_reasoning.empty()) {
+        const size_t at = m_text.find(parsed_reasoning);
+        if (at != std::string::npos) {
+            spans.push_back({at, at + parsed_reasoning.size()});
+            std::sort(spans.begin(), spans.end(),
+                      [](const TextSpan& a, const TextSpan& b) { return a.begin < b.begin; });
+        }
+    }
+    int n = 0;
+    size_t begin = 0;
+    size_t s = 0;
+    for (const size_t end : m_ends) {
+        // Spans sorted by begin; skip those that end at or before this token.
+        while (s < spans.size() && spans[s].end <= begin)
+            ++s;
+        for (size_t k = s; k < spans.size() && spans[k].begin < end; ++k)
+            if (spans[k].end > begin && end > begin) {
+                ++n;
+                break;
+            }
+        begin = end;
+    }
+    return n;
 }
 
 void ThinkingStreamSplitter::emit(std::string_view text, ThinkingSplit& out) {
