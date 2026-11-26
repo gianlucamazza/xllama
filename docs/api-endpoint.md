@@ -180,7 +180,7 @@ to branch on (`include/xllama/api_discovery.h`):
     "cached_tokens": true
   },
   "runtime": {
-    "llama_cpp": "b<number>-<commit>",
+    "llama_cpp": "d812350",
     "patches": [
       "0001-uwp-appcontainer-guards",
       "0003-kv-cache-k-shift-unallocated-input",
@@ -195,8 +195,9 @@ to branch on (`include/xllama/api_discovery.h`):
 is the contract version; it increases when a documented response shape or
 status mapping changes in a way a client must branch on. `capabilities` lists
 what the installed build serves: the llama.cpp-only package reports
-`images: false`. `runtime` names the llama.cpp pin the build compiles
-(llama.cpp's own build info) and the patches applied to it
+`images: false`. `runtime` names the llama.cpp commit the build compiles
+(llama.cpp's own build info; the commit only, since its build number counts the
+submodule history and reads 1 in a shallow checkout) and the patches applied to it
 (`include/xllama/llama_patches.h`, kept equal to `patches/` by a test), so a
 client can tell whether an upstream fix is in the build it talks to. It is
 absent from a build without llama.cpp.

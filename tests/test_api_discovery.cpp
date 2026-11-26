@@ -12,7 +12,7 @@ TEST_CASE("health_json keeps the original fields first and adds version, api, ca
     xllama::ApiCapabilities caps;
     caps.tools = true;
     caps.images = false;
-    const std::string body = xllama::health_json("1.8.1.1805", caps, "b10258-d81235049");
+    const std::string body = xllama::health_json("1.8.1.1805", caps, "d812350");
     CHECK(body.rfind("{\"status\":\"ok\",\"service\":\"xllama\",", 0) == 0);
     const json j = json::parse(body);
     CHECK(j["version"] == "1.8.1.1805");
@@ -24,7 +24,7 @@ TEST_CASE("health_json keeps the original fields first and adds version, api, ca
     CHECK(j["capabilities"]["cached_tokens"] == false);
     CHECK(j["capabilities"].size() == 10);
     // The pin and every applied patch (#611), so a client can tell which upstream fixes it has.
-    CHECK(j["runtime"]["llama_cpp"] == "b10258-d81235049");
+    CHECK(j["runtime"]["llama_cpp"] == "d812350");
     REQUIRE(j["runtime"]["patches"].size() == xllama::kLlamaPatches.size());
     CHECK(j["runtime"]["patches"][0] == "0001-uwp-appcontainer-guards");
 }
@@ -35,10 +35,10 @@ TEST_CASE("health_json leaves runtime out of a build without llama.cpp") {
 }
 
 #ifdef XLLAMA_USE_LLAMA
-TEST_CASE("build_llama_cpp names the compiled pin") {
+TEST_CASE("build_llama_cpp is the compiled pin's commit, not a build number") {
     const std::string pin = xllama::build_llama_cpp();
-    CHECK(pin.rfind('b', 0) == 0);
-    CHECK(pin.find('-') != std::string::npos);
+    REQUIRE_FALSE(pin.empty());
+    CHECK(pin.find_first_not_of("0123456789abcdef") == std::string::npos);
 }
 #endif
 

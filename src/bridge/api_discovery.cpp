@@ -44,7 +44,7 @@ ApiCapabilities build_api_capabilities() {
 
 std::string build_llama_cpp() {
 #ifdef XLLAMA_USE_LLAMA
-    return llama_build_info();
+    return llama_commit();
 #else
     return {};
 #endif

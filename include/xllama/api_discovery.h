@@ -36,8 +36,10 @@ struct ApiCapabilities {
 // images need the ORT diffusion pipeline (XLLAMA_USE_ORT).
 ApiCapabilities build_api_capabilities();
 
-// llama.cpp's build info for the pin this build compiles ("b<number>-<commit>",
-// common/build-info.h); empty without XLLAMA_USE_LLAMA.
+// The llama.cpp commit this build compiles (common/build-info.h); empty
+// without XLLAMA_USE_LLAMA. Only the commit: the build number counts the
+// submodule's history, and a shallow checkout (CI) has one commit, so
+// llama_build_info() reads "b1-<commit>" whatever the pin.
 std::string build_llama_cpp();
 
 // {"status":"ok","service":"xllama","version":…,"api":…,"capabilities":{…},
