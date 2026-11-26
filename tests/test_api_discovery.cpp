@@ -1,6 +1,7 @@
 // Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 #include "xllama/api_discovery.h"
+#include "xllama/llama_patches.h"
 
 #include <doctest/doctest.h>
 #include <nlohmann/json.hpp>
@@ -11,7 +12,7 @@ TEST_CASE("health_json keeps the original fields first and adds version, api, ca
     xllama::ApiCapabilities caps;
     caps.tools = true;
     caps.images = false;
-    const std::string body = xllama::health_json("1.8.1.1805", caps);
+    const std::string body = xllama::health_json("1.8.1.1805", caps, "b10258-d81235049");
     CHECK(body.rfind("{\"status\":\"ok\",\"service\":\"xllama\",", 0) == 0);
     const json j = json::parse(body);
     CHECK(j["version"] == "1.8.1.1805");
@@ -22,7 +23,24 @@ TEST_CASE("health_json keeps the original fields first and adds version, api, ca
     CHECK(j["capabilities"]["reasoning_tokens"] == false);
     CHECK(j["capabilities"]["cached_tokens"] == false);
     CHECK(j["capabilities"].size() == 10);
+    // The pin and every applied patch (#611), so a client can tell which upstream fixes it has.
+    CHECK(j["runtime"]["llama_cpp"] == "b10258-d81235049");
+    REQUIRE(j["runtime"]["patches"].size() == xllama::kLlamaPatches.size());
+    CHECK(j["runtime"]["patches"][0] == "0001-uwp-appcontainer-guards");
 }
+
+TEST_CASE("health_json leaves runtime out of a build without llama.cpp") {
+    const json j = json::parse(xllama::health_json("1.9.0.1", xllama::ApiCapabilities{}, ""));
+    CHECK_FALSE(j.contains("runtime"));
+}
+
+#ifdef XLLAMA_USE_LLAMA
+TEST_CASE("build_llama_cpp names the compiled pin") {
+    const std::string pin = xllama::build_llama_cpp();
+    CHECK(pin.rfind('b', 0) == 0);
+    CHECK(pin.find('-') != std::string::npos);
+}
+#endif
 
 TEST_CASE("build_api_capabilities follows the compiled backends") {
     const xllama::ApiCapabilities caps = xllama::build_api_capabilities();

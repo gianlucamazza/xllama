@@ -36,9 +36,17 @@ struct ApiCapabilities {
 // images need the ORT diffusion pipeline (XLLAMA_USE_ORT).
 ApiCapabilities build_api_capabilities();
 
-// {"status":"ok","service":"xllama","version":…,"api":…,"capabilities":{…}}.
-// The first two fields are the original body and stay first.
-std::string health_json(const std::string& version, const ApiCapabilities& caps);
+// llama.cpp's build info for the pin this build compiles ("b<number>-<commit>",
+// common/build-info.h); empty without XLLAMA_USE_LLAMA.
+std::string build_llama_cpp();
+
+// {"status":"ok","service":"xllama","version":…,"api":…,"capabilities":{…},
+//  "runtime":{"llama_cpp":…,"patches":[…]}}. The first two fields are the
+// original body and stay first. "runtime" (#611) names the llama.cpp pin and
+// the patches applied to it (llama_patches.h); it is left out when
+// |llama_cpp| is empty (a build without llama.cpp).
+std::string health_json(const std::string& version, const ApiCapabilities& caps,
+                        const std::string& llama_cpp);
 
 struct ModelInfo {
     std::string id;

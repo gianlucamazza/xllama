@@ -178,6 +178,15 @@ to branch on (`include/xllama/api_discovery.h`):
     "reasoning_content": true,
     "reasoning_tokens": true,
     "cached_tokens": true
+  },
+  "runtime": {
+    "llama_cpp": "b<number>-<commit>",
+    "patches": [
+      "0001-uwp-appcontainer-guards",
+      "0003-kv-cache-k-shift-unallocated-input",
+      "0004-recurrent-state-fill-zero",
+      "0005-required-tool-call-no-content-prefix"
+    ]
   }
 }
 ```
@@ -186,7 +195,11 @@ to branch on (`include/xllama/api_discovery.h`):
 is the contract version; it increases when a documented response shape or
 status mapping changes in a way a client must branch on. `capabilities` lists
 what the installed build serves: the llama.cpp-only package reports
-`images: false`.
+`images: false`. `runtime` names the llama.cpp pin the build compiles
+(llama.cpp's own build info) and the patches applied to it
+(`include/xllama/llama_patches.h`, kept equal to `patches/` by a test), so a
+client can tell whether an upstream fix is in the build it talks to. It is
+absent from a build without llama.cpp.
 
 Each `/v1/models` entry keeps OpenAI's `id`, `object`, `created` and `owned_by`
 and adds non-standard fields that clients may ignore:
