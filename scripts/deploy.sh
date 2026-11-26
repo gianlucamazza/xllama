@@ -2,7 +2,8 @@
 # deploy.sh — interact with the Xbox Device Portal
 #
 # Sub-commands:
-#   deploy.sh <package.msix>                             Upload and install .msix (+ auto-install .cer)
+#   deploy.sh [--force-reinstall] <package.msix>         Upload and install .msix (+ auto-install .cer);
+#                                                        skips a version already installed (#603)
 #   deploy.sh install-cert <cert.cer>                    Install a trust certificate on the console
 #   deploy.sh upload-file <local> <pfn> [remote-dir] [remote-name]  Upload to LocalFolder (auto-creates subdir)
 #   deploy.sh upload-dir <local-dir> <pfn> <remote-dir>  Upload all files in a directory to LocalFolder/<remote-dir>/
@@ -523,10 +524,15 @@ fi
 # -----------------------------------------------------------------------
 # Default: deploy an .msix/.appx
 # -----------------------------------------------------------------------
+FORCE_REINSTALL=0
+if [[ "${1:-}" == "--force-reinstall" ]]; then
+	FORCE_REINSTALL=1
+	shift
+fi
 APPX="${1:-}"
 if [[ -z "$APPX" ]]; then
 	echo "Usage:" >&2
-	echo "  $0 <path/to/xllama.msix>                              (deploy package)" >&2
+	echo "  $0 [--force-reinstall] <path/to/xllama.msix>          (deploy package)" >&2
 	echo "  $0 install-cert <path/to/cert.cer>                    (trust certificate)" >&2
 	echo "  $0 upload-file <local> <pfn> [remote-dir] [remote-name] (upload file; auto-creates subdir)" >&2
 	echo "  $0 upload-dir <local-dir> <pfn> <remote-dir>          (upload all files in dir)" >&2
@@ -547,6 +553,24 @@ fi
 
 APPX_NAME=$(basename "$APPX")
 APPX_DIR=$(dirname "$APPX")
+
+# #603: the same package version installed in place over and over once left
+# the console dropping every inbound connection on the LAN API port while the
+# app logged "listening"; a newer revision fixed it. A version that is already
+# registered is therefore not installed again: there is nothing to update, and
+# a harness that reinstalls per run gets the package it asked for.
+if [[ $FORCE_REINSTALL -eq 0 ]]; then
+	INSTALLED=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/api/app/packagemanager/packages" |
+		python3 "${DEPLOY_SCRIPT_DIR}/package_identity.py" installed "$APPX") || {
+		echo "Error: cannot compare ${APPX_NAME} with the installed packages" >&2
+		exit 1
+	}
+	if [[ -n "$INSTALLED" ]]; then
+		echo "Already installed: ${INSTALLED} — skipping (#603)."
+		echo "  Build a newer revision to update, or pass --force-reinstall."
+		exit 0
+	fi
+fi
 
 # Auto-install companion .cer if present alongside the .msix
 CER_PATH="${APPX_DIR}/../xllama-test.cer"

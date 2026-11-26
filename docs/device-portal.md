@@ -41,6 +41,9 @@ curl -sS \
 ```
 
 Use `./scripts/deploy.sh` which wraps this call and polls installation status.
+It does not reinstall a package version that is already registered, because
+repeated same-version installs once left the LAN API port unreachable (#603);
+`deploy.sh --force-reinstall <package.msix>` does it anyway.
 Other wrapped operations: `upload-file` / `upload-dir` / `mkdir-localstate`
 (LocalState writes), `fetch-file` / `get-log` / `list-localstate [pfn] [subdir]`
 (reads; the subdir form verifies an `upload-dir`),

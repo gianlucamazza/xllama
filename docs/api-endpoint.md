@@ -129,6 +129,10 @@ xllama has no `/api/version` or `/api/chat`.
 - Model list empty or a connection error: `curl http://<console IP>:<port>/health`
   from the Open WebUI machine, check xllama is in the foreground, and that both
   are on the same network.
+- Every connection to the API port times out although `xllama.log` says
+  `api: listening` and Device Portal (11443) answers: seen after many in-place
+  installs of the same package version (#603). Install a newer package
+  revision; see the [runbook](console-validation-runbook.md#troubleshooting).
 - `busy` (503): another request or console chat turn is running. Retry when it
   ends.
 - `out of memory` (503): the request ran the console out of memory. Use a
