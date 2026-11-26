@@ -3,6 +3,10 @@
 
 #include <doctest/doctest.h>
 
+#include <atomic>
+#include <chrono>
+#include <thread>
+
 #include "xllama/sse.h"
 
 #include <string>
@@ -159,4 +163,47 @@ TEST_CASE("sse: the response head is an event stream without Content-Length") {
     CHECK(head.find("Cache-Control: no-cache") != std::string::npos);
     CHECK(head.size() >= 4);
     CHECK(head.compare(head.size() - 4, 4, "\r\n\r\n") == 0);
+}
+
+TEST_CASE("sse: a comment is skipped framing, not an event") {
+    CHECK(xllama::sse_comment("keepalive") == ": keepalive\n\n");
+}
+
+TEST_CASE("sse: the keepalive writes while the stream is silent and stops on a dead client") {
+    using namespace std::chrono_literals;
+    std::atomic<int> writes{0};
+    {
+        xllama::SseKeepalive k(20ms, [&writes] {
+            ++writes;
+            return true;
+        });
+        std::this_thread::sleep_for(150ms);
+        k.stop();
+    }
+    CHECK(writes.load() >= 3);
+
+    // Touched more often than the interval: nothing to write.
+    std::atomic<int> quiet{0};
+    {
+        xllama::SseKeepalive k(80ms, [&quiet] {
+            ++quiet;
+            return true;
+        });
+        for (int i = 0; i < 10; ++i) {
+            std::this_thread::sleep_for(20ms);
+            k.touch();
+        }
+    }
+    CHECK(quiet.load() == 0);
+
+    // A failed write ends the keepalive: no retry on a gone client.
+    std::atomic<int> failed{0};
+    {
+        xllama::SseKeepalive k(10ms, [&failed] {
+            ++failed;
+            return false;
+        });
+        std::this_thread::sleep_for(100ms);
+    }
+    CHECK(failed.load() == 1);
 }

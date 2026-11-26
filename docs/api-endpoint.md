@@ -319,6 +319,14 @@ end. Plain chat emits raw token pieces using `GenerateParams::on_token`. The wri
 holds back any suffix that could still complete a stop sequence and drops the match.
 A failure after the head travels as an `{"error":{...}}` event.
 
+A stream that has written nothing for 5 s (`kSseKeepaliveInterval`), as during a
+long prefill, gets an SSE comment line, `: keepalive` (#581). Clients skip
+comments. The write is how the server notices a client that left: a failed
+write sets the request's abort flag, which ends the prefill inside its batch
+(#580) and releases the session and the compute permit. With TCP the first
+write after the peer closed usually still succeeds, so a disconnect is seen
+within about two intervals. `validate-api.sh disconnect` measures it.
+
 A tool proposal with `stream: true` buffers generation, applies the GGUF template
 parser, then sends the assistant role, a delta with the assembled content and any
 indexed `delta.tool_calls[]`, the finish chunk with usage, and `data: [DONE]`.

@@ -60,6 +60,7 @@
     #include <filesystem>
     #include <memory>
     #include <mutex>
+    #include <optional>
     #include <string>
     #include <vector>
 
@@ -365,7 +366,20 @@ class SseStream {
         delta.Insert(L"role", JsonValue::CreateStringValue(L"assistant"));
         delta.Insert(L"content", JsonValue::CreateStringValue(L""));
         send_chunk(delta, JsonValue::CreateNullValue(), nullptr);
+        // A long prefill writes nothing, and a client that left is noticed only
+        // when a write fails: a comment every few silent seconds is that write,
+        // and its failure sets |abort|, which ends the prefill (#580, #581).
+        if (!m_finished)
+            m_keepalive.emplace(::xllama::kSseKeepaliveInterval, [this] {
+                return write_frame(::xllama::chunk_frame(::xllama::sse_comment("keepalive")));
+            });
     }
+
+    ~SseStream() {
+        stop_keepalive();
+    }
+    SseStream(const SseStream&) = delete;
+    SseStream& operator=(const SseStream&) = delete;
 
     // False when the role chunk could not be written: the client is gone before
     // generation even starts.
@@ -470,6 +484,31 @@ class SseStream {
         }
     }
 
+    // Joins the keepalive thread; never called from it.
+    void stop_keepalive() noexcept {
+        if (m_keepalive)
+            m_keepalive->stop();
+    }
+
+    // One framed write, serialized with the keepalive thread. False, and the
+    // reply stopped, when the client is gone.
+    bool write_frame(const std::string& framed) noexcept {
+        std::lock_guard<std::mutex> lock(m_write_mu);
+        if (m_finished)
+            return false;
+        try {
+            m_writer.WriteString(winrt::to_hstring(framed));
+            m_writer.StoreAsync().get();
+            m_writer.FlushAsync().get();
+        } catch (...) {
+            stop();
+            return false;
+        }
+        if (m_keepalive)
+            m_keepalive->touch();
+        return true;
+    }
+
     // A dead socket ends the reply; generation is aborted so the session lock is
     // released instead of running to EOS behind a client that is already gone.
     void stop() noexcept {
@@ -502,20 +541,14 @@ class SseStream {
     bool send(const std::string& payload) {
         if (m_finished || !::xllama::sse_payload_is_safe(payload))
             return false;
-        try {
-            const std::string framed = ::xllama::chunk_frame(::xllama::sse_event(payload));
-            m_writer.WriteString(winrt::to_hstring(framed));
-            m_writer.StoreAsync().get();
-            m_writer.FlushAsync().get();
-            return true;
-        } catch (...) {
-            // The client is gone: stop emitting and abort the generation.
-            stop();
-            return false;
-        }
+        return write_frame(::xllama::chunk_frame(::xllama::sse_event(payload)));
     }
 
     void end() {
+        if (m_finished)
+            return;
+        stop_keepalive(); // nothing may follow the final chunk
+        std::lock_guard<std::mutex> lock(m_write_mu);
         if (m_finished)
             return;
         m_finished = true;
@@ -536,7 +569,11 @@ class SseStream {
     std::string m_id;
     std::string m_pending; // trailing bytes of a split UTF-8 sequence
     std::atomic<bool>* m_abort = nullptr;
-    bool m_finished = false;
+    // Written by the request thread and the keepalive thread; frames are
+    // serialized by m_write_mu.
+    std::atomic<bool> m_finished{false};
+    std::mutex m_write_mu;
+    std::optional<::xllama::SseKeepalive> m_keepalive; // last: stopped first
 };
 
 void write_cors_preflight(StreamSocket const& socket) {
