@@ -20,6 +20,53 @@ std::string sse_done() {
     return sse_event("[DONE]");
 }
 
+std::string sse_comment(std::string_view text) {
+    std::string out = ": ";
+    out.append(text);
+    out += "\n\n";
+    return out;
+}
+
+SseKeepalive::SseKeepalive(std::chrono::milliseconds interval, std::function<bool()> write)
+    : m_interval(interval), m_write(std::move(write)), m_last(std::chrono::steady_clock::now()),
+      m_thread(&SseKeepalive::run, this) {}
+
+SseKeepalive::~SseKeepalive() {
+    stop();
+}
+
+void SseKeepalive::touch() {
+    std::lock_guard<std::mutex> lock(m_mu);
+    m_last = std::chrono::steady_clock::now();
+}
+
+void SseKeepalive::stop() {
+    {
+        std::lock_guard<std::mutex> lock(m_mu);
+        m_stopped = true;
+    }
+    m_cv.notify_all();
+    if (m_thread.joinable() && m_thread.get_id() != std::this_thread::get_id())
+        m_thread.join();
+}
+
+void SseKeepalive::run() {
+    std::unique_lock<std::mutex> lock(m_mu);
+    while (!m_stopped) {
+        const auto due = m_last + m_interval;
+        if (m_cv.wait_until(lock, due, [this] { return m_stopped; }))
+            return;
+        if (std::chrono::steady_clock::now() < m_last + m_interval)
+            continue; // touched while waiting
+        lock.unlock();
+        const bool alive = m_write();
+        lock.lock();
+        m_last = std::chrono::steady_clock::now();
+        if (!alive)
+            m_stopped = true;
+    }
+}
+
 bool sse_payload_is_safe(std::string_view payload) {
     // The literal holds CR, LF and an explicit NUL; count 3 keeps the implicit
     // terminator out of the set.

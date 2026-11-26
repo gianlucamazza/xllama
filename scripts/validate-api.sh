@@ -5,7 +5,7 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-api.sh <spike|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all>
+#   ./scripts/validate-api.sh <spike|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|all>
 #
 #   spike  bind gate only: GET / -> HTTP 200 (proves the StreamSocketListener
 #          survives the Series S firewall/PLM). No inference.
@@ -37,6 +37,11 @@
 #          (400/400/413/411/400/408) and a refused POST appends no sample.
 #   embed  Ollama native + legacy and OpenAI float/base64 embeddings. Requires
 #          EMBED_MODEL to identify an embedding GGUF already on the console.
+#   disconnect  a streamed client that leaves during a long prefill releases
+#          the session (#581): the keepalive write fails, the prefill aborts,
+#          and a probe is served within DISCONNECT_LIMIT_S (default 30) while the
+#          prefill alone would take a minute. DISCONNECT_MODEL (default
+#          llama32-3b) must be slow enough for that. Not part of `all`.
 #   prefs  POST /v1/preferences -> appends a like sample (#118).
 #   train  GET /v1/training/status -> JSON with state + usable_samples (#118).
 #   all    spike + chat + embed + budget + tools + prefs + train + pull (images are manual).
@@ -287,6 +292,55 @@ else:
 	fi
 	[[ $verdict -eq 0 ]] && echo "stream: PASS" || echo "stream: FAIL"
 	return $verdict
+}
+
+# --- client disconnect during prefill (#581) -------------------------------
+
+validate_disconnect() {
+	echo "=== disconnect: a client gone during prefill releases the session ==="
+	local model="${DISCONNECT_MODEL:-llama32-3b}" limit="${DISCONNECT_LIMIT_S:-30}"
+	local long_req probe_req code start elapsed
+	# About 1600 tokens: inside a 2048 context, a minute of CPU prefill on a 3B.
+	# The nonce keeps a cached prefix from making it fast.
+	long_req=$(python3 -c '
+import json, sys, uuid
+filler = ("Entry %s: the harbour master logged tide tables, cargo manifests and the crane "
+          "maintenance schedule for pier seven. ")
+text = "".join(filler % i for i in range(70))
+print(json.dumps({"model": sys.argv[1], "stream": True, "max_tokens": 16,
+                  "messages": [{"role": "user", "content": uuid.uuid4().hex + " " + text +
+                                "Summarise the log."}]}))
+' "$model")
+	probe_req=$(printf '{"model":"%s","messages":[{"role":"user","content":"Say OK."}],"max_tokens":1}' "$model")
+	# Load the model first, so the timing below is the prefill, not the load.
+	code=$(curl -sS -m 300 -o /dev/null -w "%{http_code}" -H 'Content-Type: application/json' \
+		-d "$probe_req" "${API_URL}/v1/chat/completions" || echo "000")
+	if [[ "$code" != "200" ]]; then
+		echo "  FAIL: warm-up on ${model} was HTTP ${code}"
+		echo "disconnect: FAIL"
+		return 1
+	fi
+	# The client gives up after 3 s, in the middle of the prefill.
+	printf '%s' "$long_req" | curl -sS -N -m 3 -o /dev/null -H 'Content-Type: application/json' \
+		--data-binary @- "${API_URL}/v1/chat/completions" 2>/dev/null || true
+	start=$(date +%s)
+	while :; do
+		code=$(curl -sS -m 120 -o /dev/null -w "%{http_code}" -H 'Content-Type: application/json' \
+			-d "$probe_req" "${API_URL}/v1/chat/completions" || echo "000")
+		elapsed=$(($(date +%s) - start))
+		[[ "$code" != "503" ]] && break
+		if ((elapsed > 180)); then
+			break
+		fi
+		sleep 1
+	done
+	echo "  probe after the disconnect: HTTP ${code} in ${elapsed}s (limit ${limit}s)"
+	if [[ "$code" == "200" ]] && ((elapsed <= limit)); then
+		echo "disconnect: PASS"
+		return 0
+	fi
+	echo "disconnect: FAIL"
+	return 1
 }
 
 # --- compute admission (streamed permit hold) ------------------------------
@@ -663,7 +717,8 @@ import sys
 from pathlib import Path
 
 body = Path(sys.argv[1]).read_text()
-events = body.split("\n\n")
+# SSE comments (": keepalive", #581) are not events.
+events = [e for e in body.split("\n\n") if not e.startswith(":")]
 assert events[-2:] == ["data: [DONE]", ""], events[-2:]
 chunks = []
 for event in events[:-2]:
@@ -916,6 +971,10 @@ admission)
 	validate_spike || exit 1
 	validate_admission
 	;;
+disconnect)
+	validate_spike || exit 1
+	validate_disconnect
+	;;
 prefs)
 	validate_spike || exit 1
 	validate_prefs
@@ -957,7 +1016,7 @@ all)
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <spike|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all>" >&2
+	echo "Usage: $0 <spike|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|all>" >&2
 	exit 1
 	;;
 esac

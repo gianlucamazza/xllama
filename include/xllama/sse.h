@@ -5,9 +5,14 @@
 // transport only owns the socket and moves the bytes.
 #pragma once
 
+#include <chrono>
+#include <condition_variable>
 #include <cstddef>
+#include <functional>
+#include <mutex>
 #include <string>
 #include <string_view>
+#include <thread>
 
 namespace xllama {
 
@@ -17,6 +22,41 @@ std::string sse_event(std::string_view payload);
 
 // The terminal event of a streamed completion.
 std::string sse_done();
+
+// An SSE comment line, ": <text>\n\n". Clients skip it (the SSE spec, and the
+// OpenAI SDKs' parsers), so it carries bytes without carrying an event.
+std::string sse_comment(std::string_view text);
+
+// How long a stream may stay silent before SseKeepalive writes a comment.
+inline constexpr std::chrono::milliseconds kSseKeepaliveInterval{5000};
+
+// Writes a comment when a stream has been silent for |interval| (#581). A long
+// prefill sends nothing, and a dead socket is noticed only when a write fails,
+// so a client that left kept the session prefilling. |write| sends the comment
+// and returns false when the client is gone; the keepalive then stops for
+// good. touch() records any other write. The thread runs until stop() or the
+// destructor, which join it; |write| must not call either.
+class SseKeepalive {
+  public:
+    SseKeepalive(std::chrono::milliseconds interval, std::function<bool()> write);
+    ~SseKeepalive();
+    SseKeepalive(const SseKeepalive&) = delete;
+    SseKeepalive& operator=(const SseKeepalive&) = delete;
+
+    void touch();
+    void stop();
+
+  private:
+    void run();
+
+    const std::chrono::milliseconds m_interval;
+    std::function<bool()> m_write;
+    std::mutex m_mu;
+    std::condition_variable m_cv;
+    std::chrono::steady_clock::time_point m_last;
+    bool m_stopped = false;
+    std::thread m_thread; // last: starts after the state above exists
+};
 
 // False when the payload holds a byte that would break the framing: an event is
 // one line, so CR, LF and NUL are refused instead of emitted. JSON encoding
