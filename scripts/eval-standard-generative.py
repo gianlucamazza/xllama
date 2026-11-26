@@ -255,7 +255,7 @@ def gsm8k_reference(answer: str) -> str:
 
 def gsm8k_extract(reply: str) -> str | None:
     """The number after the last 'Answer:', else the last number in the reply."""
-    tagged = re.findall(r"answer\s*(?:is)?\s*[:=]?\s*\**\s*(" + _NUMBER + r")", reply, re.I)
+    tagged = re.findall(r"answer\s*(?:is)?\s*[:=]?[\s*<]*(" + _NUMBER + r")", reply, re.I)
     found = tagged or re.findall(_NUMBER, reply)
     return _norm_number(found[-1]) if found else None
 

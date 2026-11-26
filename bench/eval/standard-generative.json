@@ -129,7 +129,7 @@
     "gsm8k": {
       "dataset": "gsm8k",
       "scorer": "gsm8k",
-      "max_tokens": 768,
+      "max_tokens": 1024,
       "eligible": "every test problem; key = 0-based line index",
       "keys": [
         13,

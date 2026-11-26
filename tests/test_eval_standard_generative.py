@@ -99,6 +99,8 @@ class Gsm8kTests(unittest.TestCase):
         self.assertEqual(MODULE.gsm8k_reference("work\n#### 1,234"), "1234")
         self.assertEqual(MODULE.gsm8k_extract("5 + 3 = 8 apples.\nAnswer: $1,234."), "1234")
         self.assertEqual(MODULE.gsm8k_extract("The answer is **42**"), "42")
+        # Seen on LFM2.5-1.2B: the model copied the placeholder brackets.
+        self.assertEqual(MODULE.gsm8k_extract("Answer: <18> (3 were left)"), "18")
         self.assertEqual(MODULE.gsm8k_extract("so 3 then 7.50"), "7.5")
         self.assertEqual(MODULE.gsm8k_extract("2.0 total\nAnswer: 2.00"), "2")
         self.assertIsNone(MODULE.gsm8k_extract("no digits"))
