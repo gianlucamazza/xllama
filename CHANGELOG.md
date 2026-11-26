@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Context shift evicts whole turns.** A long chat past `n_ctx` dropped a raw token count after the system prompt, which could cut a message or a chat-template marker in half. The shift now ends right after the format's turn terminator (`GenerateParams::turn_close`, set by the chat UI from `ChatFormat::turn_close`); with no boundary that frees enough room it fails fast and the full-prompt retry drops whole turns. A host recall probe found no evicted-turn fact surviving in LFM2.5 or Granite-4.0-H recurrent state.
+
 - **Hybrid conversations restored from disk keep their prefix checkpoint.** The `LocalState\kv\<id>.kv` snapshot now ends with an optional `xllama-ckpt` trailer holding the partial-state checkpoint. After switching back to a conversation, an edited reply re-prefills only the tail instead of the whole history. Files without the trailer still load, and older builds ignore it.
 
 - **Hybrid prefix reuse keeps a partial checkpoint instead of a full copy.** LFM2 and Granite-4.0-H sessions copied the whole context state (`llama_state_get_data`, attention KV included) after every prefill. They now keep a partial-state checkpoint (`llama_state_seq_*_ext`, `PARTIAL_ONLY`, as llama-server's context checkpoints): 160 KiB for LFM2.5-1.2B, independent of `n_ctx`. A restore truncates the still-resident attention KV to the checkpoint, and an exact regenerate now restores too, with output identical to a cold run, instead of re-prefilling the whole prompt. A context shift drops the checkpoint.
@@ -16,6 +18,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Hybrid prefix snapshots may start a few tokens before the prompt end.** On a long hybrid/recurrent full-prompt prefill the session captures the head, then prefills the tail, so a later prompt that diverges only in those last tokens can restore instead of prefilling from scratch. Exact regenerate of the same prompt still Clears and prefills the whole prompt so the last token reseeds logits. The opt-out knob and non-hybrid rewind are unchanged. On host (LFM2.5-1.2B, CPU) the head/tail split produces the same greedy output as `hybrid-prefix-snapshots=0`; an opt-in `XLLAMA_TEST_MODEL` case guards it. Watchdog prompt progress stays absolute across the split.
 
 - **Host tests run without the stall watchdog.** `xllama-tests` now has its own `tests/test_main.cpp`, which sets `XLLAMA_INFER_STALL_TIMEOUT_S=0` unless the caller exported a value. A model-backed opt-in case in a Debug or ASan build could outlast the 180 s product watchdog, fail as "stalled" and leave `inference-stall.txt` in the working directory.
+
+- **SmolLM3-3B chat renderer.** Added `ChatFormatKind::SmolLM3` with a frozen /no_think metadata header and host goldens; no catalogue entry.
+
 - **`tool_choice` `required` or a named function always starts with the call (#563).** The template grammar allowed free text before the call marker, so a model could fill `max_tokens` with prose ("Ho controllato la directory…") and return no call. `patches/0005` makes a required choice admit only reasoning, then calls, as llama.cpp's Gemma 4 parser already does, for LFM2 and every autoparsed template (ADR 0005 amendment).
 
 - **OLMoE-1B-7B-0125-Instruct chat renderer.** Added `ChatFormatKind::Olmoe` with host goldens; no catalogue entry.

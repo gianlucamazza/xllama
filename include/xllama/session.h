@@ -150,6 +150,13 @@ struct GenerateParams {
     // an approximation the quality gates measure.
     int n_keep = 0;
 
+    // #169: the chat format's turn terminator (ChatFormat::turn_close, e.g.
+    // "<|im_end|>\n"). A context shift evicts whole turns, ending right after
+    // one of these, so it never cuts a message or a template marker in half.
+    // Empty = the caller has no turn structure: the continuation fails fast on
+    // overflow (#173) instead of shifting.
+    std::string turn_close;
+
     // on_token receives a view into a per-iteration buffer: copy it before
     // the callback returns.
     std::function<void(std::string_view)> on_token;
