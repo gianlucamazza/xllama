@@ -1,0 +1,13 @@
+{
+  "device": {
+    "Platform": "Xbox Series S",
+    "OsVersion": "26100.9662.amd64fre.xb_flt_2610ge.261104-2200",
+    "OsEdition": "SystemOS"
+  },
+  "package": {
+    "version": "1.9.0.1963",
+    "sku": "Developer Mode unified CI MSVC (xllama-appx, build-uwp push workflow run 45846298666 on the source commit)",
+    "install": "in-place update over 1.8.1.1956 via Device Portal; LocalState listing (top level, models, chats, kv) identical before and after the update"
+  },
+  "source_sha": "8c538c62efd2122f665fc1cd96dd1025c231d126"
+}

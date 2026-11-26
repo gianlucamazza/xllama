@@ -1,0 +1,4 @@
+{
+  "localstate_at_update": "PASS: localstate-before.txt == localstate-after.txt (top level, 12 model folders, 18 chats, kv)",
+  "after_tests": "the six chats the gates created were removed (18 chats, as before); gate outputs left at the top level: autopilot.json, autopilot-done.txt, d3d12be-result.csv(.done), diffuse-progress.txt, training/; embed-nomic-v2-moe added to models by the embed gate's pull"
+}
