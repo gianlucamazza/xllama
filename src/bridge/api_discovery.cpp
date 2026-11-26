@@ -32,6 +32,7 @@ ApiCapabilities build_api_capabilities() {
     caps.preferences = true;
     caps.training_status = true;
     caps.reasoning_content = true; // #564: JSON, SSE and tool replies
+    caps.reasoning_tokens = true;  // #585: the same replies' usage
     return caps;
 }
 
@@ -46,6 +47,7 @@ std::string health_json(const std::string& version, const ApiCapabilities& caps)
     out += ",\"preferences\":" + std::string(boolean(caps.preferences));
     out += ",\"training_status\":" + std::string(boolean(caps.training_status));
     out += ",\"reasoning_content\":" + std::string(boolean(caps.reasoning_content));
+    out += ",\"reasoning_tokens\":" + std::string(boolean(caps.reasoning_tokens));
     out += "}}";
     return out;
 }

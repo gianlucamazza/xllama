@@ -28,6 +28,7 @@ struct ApiCapabilities {
     bool preferences = false;       // /v1/preferences
     bool training_status = false;   // /v1/training/status
     bool reasoning_content = false; // message.reasoning_content on chat replies
+    bool reasoning_tokens = false;  // usage.completion_tokens_details.reasoning_tokens
 };
 
 // The capabilities of the compiled build: GGUF paths need XLLAMA_USE_LLAMA,

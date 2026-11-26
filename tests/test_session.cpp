@@ -1,11 +1,13 @@
 // Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 
+#include "xllama/chat_prompt.h"
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
 #include "xllama/prefix_snapshot.h"
 #include "xllama/session.h"
 #include "xllama/session_hub.h"
+#include "xllama/thinking_split.h"
 
 #include <chrono>
 #include <doctest/doctest.h>
@@ -1086,4 +1088,61 @@ TEST_CASE("Session: an abort ends a prefill inside its batch, and the next turn 
     const auto ref = fresh->generate(greedy_turn(q, true, true));
     REQUIRE_MESSAGE(ref.success, ref.error_msg);
     CHECK(next.output_text == ref.output_text);
+}
+
+// #585: usage.completion_tokens_details.reasoning_tokens counts on_token
+// pieces, so on_token must report one piece per generated token, and a reply
+// cut off mid-thought must count every token as reasoning. Opt-in, needs a
+// thinking GGUF (the case was seen on LFM2.5-8B-A1B):
+//   XLLAMA_TEST_THINKING_MODEL=/path/to/LFM2.5-8B-A1B-Q4_K_M.gguf ./xllama-tests
+TEST_CASE("Session: reasoning tokens of a reply cut off mid-thought "
+          "(opt-in: XLLAMA_TEST_THINKING_MODEL)") {
+    const char* model_env = std::getenv("XLLAMA_TEST_THINKING_MODEL");
+    if (!model_env)
+        return;
+    const xllama::ChatFormat fmt = xllama::chat_format_for(model_env);
+    REQUIRE(fmt.strip_thinking_content);
+
+    xllama::SessionParams sp;
+    sp.model_path = model_env;
+    sp.n_ctx = 2048;
+    std::string err;
+    auto sess = xllama::Session::create(sp, &err);
+    REQUIRE_MESSAGE(sess, err);
+
+    const auto run = [&](const std::string& user, int n_predict) {
+        xllama::GenerateParams gp;
+        gp.prompt = fmt.render_prompt("", {}, user);
+        gp.stop_sequences = fmt.stop_sequences;
+        gp.n_predict = n_predict;
+        gp.temperature = 0.0f;
+        int pieces = 0;
+        xllama::ReasoningTokenCounter counter;
+        gp.on_token = [&pieces, &counter](std::string_view piece) {
+            ++pieces;
+            counter.push(piece);
+        };
+        const auto r = sess->generate(gp);
+        REQUIRE_MESSAGE(r.success, r.error_msg);
+        CHECK(pieces == r.n_eval);
+        return std::make_pair(r, counter.count(true));
+    };
+
+    // 16 tokens cannot finish the reasoning of a multi-step question.
+    const auto [cut, cut_reasoning] =
+        run("A train leaves at 9:40 and arrives at 13:05. How long is the trip? Explain.", 16);
+    CHECK(cut.n_eval == 16);
+    const xllama::ThinkingSplit cut_split = fmt.split_output(cut.output_text);
+    CHECK_FALSE(cut_split.reasoning.empty());
+    CHECK(cut_split.content.empty());
+    CHECK(cut_reasoning == cut.n_eval);
+
+    // Room to finish: the reasoning is part of the reply, not all of it.
+    const auto [full, full_reasoning] = run("Say hello.", 512);
+    const xllama::ThinkingSplit full_split = fmt.split_output(full.output_text);
+    MESSAGE("short reply: " << full.n_eval << " tokens, " << full_reasoning << " reasoning");
+    if (!full_split.content.empty() && !full_split.reasoning.empty()) {
+        CHECK(full_reasoning > 0);
+        CHECK(full_reasoning < full.n_eval);
+    }
 }

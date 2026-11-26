@@ -170,7 +170,8 @@ to branch on (`include/xllama/api_discovery.h`):
     "pull": true,
     "preferences": true,
     "training_status": true,
-    "reasoning_content": true
+    "reasoning_content": true,
+    "reasoning_tokens": true
   }
 }
 ```
@@ -354,7 +355,13 @@ The reply follows the OpenAI shape: `id` (unique `chatcmpl-…`), `object: chat.
 cap is hit, else `stop`; and `logprobs: null`, omitting which breaks openai-python/LangChain
 Pydantic validation), and a `usage` block from `InferenceResult`: `prompt_tokens` is the prompt's length
 (`n_prompt`), not the tokens prefilled after a KV prefix reuse (`n_p_eval`), and
-`completion_tokens` is `n_eval`.
+`completion_tokens` is `n_eval`. `completion_tokens_details.reasoning_tokens`
+(#585) is the part of `completion_tokens` generated inside the reasoning, tags
+included: a token counts when any of its text lies in a block the splitter
+below returns as `reasoning_content`, or in the reasoning a tool template's
+parser extracted; a token that renders no text is not counted. It is always
+present, `0` for a model that does not reason (OpenAI's shape). A `length` finish with `reasoning_tokens == completion_tokens`
+ran out of tokens while reasoning; with fewer, the answer itself was cut off.
 
 `stream: true` answers with Server-Sent Events instead of one JSON body: one
 `chat.completion.chunk` per token piece (`choices[0].delta.content`), a final chunk carrying
