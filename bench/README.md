@@ -296,7 +296,7 @@ cmake --preset linux-release && cmake --build build/linux-release -j"$(nproc)"
 
 Datasets, revisions, SHA256 and licences are pinned in
 `eval/standard-datasets.json`; a file that does not match is refused, and no
-dataset is committed. Task counts and `n_ctx` are pinned there too (HellaSwag
+dataset is committed. Task counts, `n_ctx` and `n_parallel` are pinned there too (HellaSwag
 400 tasks, the others complete), and `llama-perplexity` selects subsets with a
 fixed seed, so a re-run scores the same items. Each JSONL row records the model
 and dataset SHA256, accuracy and its binomial stderr in percent, chance level,

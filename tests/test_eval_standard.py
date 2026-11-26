@@ -93,6 +93,17 @@ class SpecTests(unittest.TestCase):
         with self.assertRaises(MODULE.EvalError):
             MODULE.validate_spec(bad)
 
+    def test_multiple_choice_has_room_for_five_choices(self):
+        # ARC has tasks with 5 choices; -np 4 aborted the 2026-11-26 smoke at task 210.
+        spec = MODULE.load_spec()
+        for task in spec["tasks"].values():
+            if task["mode"] == "multiple-choice":
+                self.assertGreaterEqual(task["n_parallel"], 5)
+        bad = copy.deepcopy(spec)
+        del bad["tasks"]["hellaswag"]["n_parallel"]
+        with self.assertRaises(MODULE.EvalError):
+            MODULE.validate_spec(bad)
+
     def test_dataset_sha_mismatch_is_refused(self):
         spec = MODULE.load_spec()
         with tempfile.TemporaryDirectory() as d:

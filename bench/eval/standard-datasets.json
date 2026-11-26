@@ -39,10 +39,10 @@
     }
   },
   "tasks": {
-    "hellaswag": { "dataset": "hellaswag", "mode": "hellaswag", "tasks": 400, "n_ctx": 2048, "chance": 25.0 },
-    "winogrande": { "dataset": "winogrande", "mode": "winogrande", "tasks": 0, "n_ctx": 2048, "chance": 50.0 },
-    "arc-challenge": { "dataset": "arc-challenge", "mode": "multiple-choice", "tasks": 0, "n_ctx": 2048, "chance": null },
-    "arc-easy": { "dataset": "arc-easy", "mode": "multiple-choice", "tasks": 0, "n_ctx": 2048, "chance": null },
-    "mmlu": { "dataset": "mmlu", "mode": "multiple-choice", "tasks": 0, "n_ctx": 2048, "chance": null }
+    "hellaswag": { "dataset": "hellaswag", "mode": "hellaswag", "tasks": 400, "n_ctx": 2048, "n_parallel": 4, "chance": 25.0 },
+    "winogrande": { "dataset": "winogrande", "mode": "winogrande", "tasks": 0, "n_ctx": 2048, "n_parallel": 4, "chance": 50.0 },
+    "arc-challenge": { "dataset": "arc-challenge", "mode": "multiple-choice", "tasks": 0, "n_ctx": 2048, "n_parallel": 8, "chance": null },
+    "arc-easy": { "dataset": "arc-easy", "mode": "multiple-choice", "tasks": 0, "n_ctx": 2048, "n_parallel": 8, "chance": null },
+    "mmlu": { "dataset": "mmlu", "mode": "multiple-choice", "tasks": 0, "n_ctx": 2048, "n_parallel": 8, "chance": null }
   }
 }

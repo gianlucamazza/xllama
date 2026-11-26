@@ -77,6 +77,10 @@ def validate_spec(spec: dict) -> None:
             raise EvalError(f"task {name}: tasks must be an int >= 0 (0 = all)")
         if not isinstance(task.get("n_ctx"), int) or task["n_ctx"] <= 0:
             raise EvalError(f"task {name}: n_ctx must be a positive int")
+        # llama-perplexity scores every choice of a task in its own sequence; an ARC
+        # task has up to 5 choices, and too few sequences aborts the run mid-way.
+        if not isinstance(task.get("n_parallel"), int) or task["n_parallel"] < 4:
+            raise EvalError(f"task {name}: n_parallel must be an int >= 4")
 
 
 def sha256_file(path: Path) -> str:
@@ -173,7 +177,7 @@ def run_task(args: argparse.Namespace, spec: dict, name: str, model_sha: str) ->
     task = spec["tasks"][name]
     data = dataset_path(spec, task["dataset"], args.cache)
     cmd = [str(args.perplexity), "-m", str(args.model), "-c", str(task["n_ctx"]),
-           "-t", str(args.threads), *perplexity_args(task, data)]
+           "-np", str(task["n_parallel"]), "-t", str(args.threads), *perplexity_args(task, data)]
     start = time.monotonic()
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                           errors="replace")
@@ -198,6 +202,7 @@ def run_task(args: argparse.Namespace, spec: dict, name: str, model_sha: str) ->
         **result,
         "chance": chance,
         "n_ctx": task["n_ctx"],
+        "n_parallel": task["n_parallel"],
         "threads": args.threads,
         "llama_cpp": llama_pin(),
         "elapsed_s": round(elapsed, 1),
