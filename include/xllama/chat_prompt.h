@@ -49,6 +49,10 @@ bool model_is_granite(const std::string& model_id);
 // "olmo_e", case-insensitive and basename only.
 bool model_is_olmoe(const std::string& model_id);
 
+// True for SmolLM3 ids or filenames ("smollm3", "smol-lm3" or "smol_lm3",
+// case-insensitive, basename only).
+bool model_is_smollm3(const std::string& model_id);
+
 // True for models that emit chain-of-thought inside <think>…</think> before the
 // user-visible answer (basename contains "thinking", e.g. lfm25-1.2b-thinking).
 // These keep plain ChatML with no Qwen3 no-think prefill; postprocess strips
@@ -94,7 +98,7 @@ bool apply_stop_sequences(std::string& output, const std::vector<std::string>& s
 // a per-model generation suffix. Built via chat_format_for().
 // ---------------------------------------------------------------------------
 
-enum class ChatFormatKind { ChatML, Gemma, Llama3, Phi3, Granite, Olmoe };
+enum class ChatFormatKind { ChatML, Gemma, Llama3, Phi3, Granite, Olmoe, SmolLM3 };
 
 // How the system prompt is emitted.
 // - DedicatedTurn: its own turn (ChatML / Llama-3 / Gemma 4 system role).
@@ -130,6 +134,9 @@ struct ChatFormat {
     std::vector<std::string> stop_sequences; // stop token(s); may be a prefix of assistant_close()
     std::string gen_suffix;                  // Qwen/MiniCPM5 no-think prefill; else ""
 
+    // Include the generation prefill in completed assistant turns when required.
+    bool gen_suffix_in_history = false;
+
     // Literal BOS the TEMPLATE must emit, for models whose GGUF declines to add
     // one (add_bos_token=false). Empty everywhere else — Gemma and Llama-3 GGUF
     // add BOS in the tokenizer, so emitting it here would double it. It lives
@@ -142,8 +149,8 @@ struct ChatFormat {
     bool strip_thinking_content = false;
 
     // Full multi-turn prompt ending with the assistant generation header +
-    // gen_suffix. gen_suffix is appended ONLY to the final (trailing) assistant
-    // header, never to completed history turns. History turns are complete
+    // gen_suffix. History assistant headers also carry it when
+    // gen_suffix_in_history is true. History turns are complete
     // (user + assistant) exchanges.
     std::string render_prompt(const std::string& system, const std::vector<ChatTurn>& history,
                               const std::string& final_user) const;
