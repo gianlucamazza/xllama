@@ -33,6 +33,7 @@ ApiCapabilities build_api_capabilities() {
     caps.training_status = true;
     caps.reasoning_content = true; // #564: JSON, SSE and tool replies
     caps.reasoning_tokens = true;  // #585: the same replies' usage
+    caps.cached_tokens = true;     // #595: prompt tokens the KV prefix reuse skipped
     return caps;
 }
 
@@ -48,6 +49,7 @@ std::string health_json(const std::string& version, const ApiCapabilities& caps)
     out += ",\"training_status\":" + std::string(boolean(caps.training_status));
     out += ",\"reasoning_content\":" + std::string(boolean(caps.reasoning_content));
     out += ",\"reasoning_tokens\":" + std::string(boolean(caps.reasoning_tokens));
+    out += ",\"cached_tokens\":" + std::string(boolean(caps.cached_tokens));
     out += "}}";
     return out;
 }

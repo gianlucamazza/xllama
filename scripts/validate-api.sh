@@ -104,6 +104,9 @@ def usage_problem(usage, reasoning):
         return "reasoning_tokens out of [0, completion_tokens]: %r" % usage
     if reasoning and r == 0:
         return "reasoning_content without reasoning_tokens: %r" % usage
+    k = (usage.get("prompt_tokens_details") or {}).get("cached_tokens")
+    if not isinstance(k, int) or not 0 <= k <= p:
+        return "cached_tokens out of [0, prompt_tokens]: %r" % usage
     return ""
 '
 
@@ -202,7 +205,7 @@ assert isinstance(h["version"], str) and h["version"].count(".") == 3, h["versio
 assert isinstance(h["api"], int) and h["api"] >= 1, h["api"]
 caps = h["capabilities"]
 for key in ("tools", "tools_stream", "embeddings", "images", "pull", "preferences",
-            "training_status", "reasoning_content", "reasoning_tokens"):
+            "training_status", "reasoning_content", "reasoning_tokens", "cached_tokens"):
     assert isinstance(caps[key], bool), (key, caps)
 m = json.loads(sys.argv[2])
 assert m["object"] == "list" and m["data"], m
@@ -263,6 +266,33 @@ except Exception:
 		verdict=1
 	else
 		echo "  ok: assistant replied: ${content:0:80}"
+	fi
+
+	# #595: the same request again finds its prompt in the resident KV, so most
+	# of it is reported as cached (a GGUF model; ORT prefills everything).
+	local cached
+	cached=$(curl -sS -m 180 -H 'Content-Type: application/json' -d "$req" \
+		"${API_URL}/v1/chat/completions" | python3 -c '
+import json, sys
+try:
+    u = json.load(sys.stdin)["usage"]
+    print("%d %d" % (u["prompt_tokens_details"]["cached_tokens"], u["prompt_tokens"]))
+except Exception:
+    print("")
+' || true)
+	local kind
+	kind=$(curl -sS -m 10 "${API_URL}/v1/models" | python3 -c '
+import json, sys
+m = [e for e in json.load(sys.stdin)["data"] if e["id"] == sys.argv[1]]
+print(m[0].get("kind", "") if m else "")
+' "$MODEL" 2>/dev/null || true)
+	if [[ "$kind" != "gguf" ]]; then
+		echo "  note: ${MODEL} is not a GGUF model (kind '${kind}'): no prefix reuse to check"
+	elif [[ "$cached" =~ ^([0-9]+)\ ([0-9]+)$ ]] && ((BASH_REMATCH[1] * 2 > BASH_REMATCH[2])); then
+		echo "  ok: repeated request cached ${BASH_REMATCH[1]} of ${BASH_REMATCH[2]} prompt tokens"
+	else
+		echo "  FAIL: repeated request did not report most of its prompt as cached: '${cached}'"
+		verdict=1
 	fi
 
 	# 503-busy: fire two concurrent requests; at least one should be 503 while the
