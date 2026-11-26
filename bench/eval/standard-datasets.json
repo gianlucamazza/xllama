@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "note": "Host loglikelihood lane (#597). Datasets are fetched into the cache dir, never committed; each fetch is checked against sha256. Revisions are pinned in the URLs.",
+  "datasets": {
+    "hellaswag": {
+      "file": "hellaswag_val_full.txt",
+      "url": "https://raw.githubusercontent.com/klosax/hellaswag_text_data/1105d370f8340eac3c63a91fd1fa58e8999f9505/hellaswag_val_full.txt",
+      "sha256": "d572539320eb2050e858ca34b495bbe2103e3b3f1391a9c3bcdf215b0bb93bd1",
+      "upstream": "HellaSwag validation split (Zellers et al. 2019), 10042 tasks, llama.cpp text layout",
+      "upstream_licence": "MIT"
+    },
+    "winogrande": {
+      "file": "winogrande-debiased-eval.csv",
+      "url": "https://huggingface.co/datasets/ikawrakow/winogrande-eval-for-llama.cpp/resolve/93f7fb0697ca6cd2c7e5727dcba3b7200fa4014c/winogrande-debiased-eval.csv",
+      "sha256": "6726173ef65ffdc4abb0d28b755375d288ffb3eb41633bd833288c411c8ebf7c",
+      "upstream": "WinoGrande debiased dev split (Sakaguchi et al. 2019), 1267 tasks",
+      "upstream_licence": "CC-BY-4.0 (repackaging: Apache-2.0)"
+    },
+    "arc-challenge": {
+      "file": "arc-challenge-validation.bin",
+      "url": "https://huggingface.co/datasets/ikawrakow/validation-datasets-for-llama.cpp/resolve/37884b81b4957f1950a53b6ff48d77c8dd5e430c/arc-challenge-validation.bin",
+      "sha256": "19af3dbe27d9bb301a939cebbda1b0e4c6b3c43a4a724ae99fed27fba88edc22",
+      "upstream": "AI2 ARC-Challenge validation split (Clark et al. 2018), 299 tasks, llama.cpp binary layout",
+      "upstream_licence": "CC-BY-SA-4.0 (repackaging: Apache-2.0)"
+    },
+    "arc-easy": {
+      "file": "arc-easy-validation.bin",
+      "url": "https://huggingface.co/datasets/ikawrakow/validation-datasets-for-llama.cpp/resolve/37884b81b4957f1950a53b6ff48d77c8dd5e430c/arc-easy-validation.bin",
+      "sha256": "328d30f5f768e13d777f08d714462188b66dab767b5b5aa9c550f13827496246",
+      "upstream": "AI2 ARC-Easy validation split (Clark et al. 2018), 570 tasks, llama.cpp binary layout",
+      "upstream_licence": "CC-BY-SA-4.0 (repackaging: Apache-2.0)"
+    },
+    "mmlu": {
+      "file": "mmlu-validation.bin",
+      "url": "https://huggingface.co/datasets/ikawrakow/validation-datasets-for-llama.cpp/resolve/37884b81b4957f1950a53b6ff48d77c8dd5e430c/mmlu-validation.bin",
+      "sha256": "470af3a74eccacfaf6f43b08aabf510f61e6c92fe20d17241ded934151e225fa",
+      "upstream": "MMLU validation split (Hendrycks et al. 2021), 1548 tasks, llama.cpp binary layout",
+      "upstream_licence": "MIT (repackaging: Apache-2.0)"
+    }
+  },
+  "tasks": {
+    "hellaswag": { "dataset": "hellaswag", "mode": "hellaswag", "tasks": 400, "n_ctx": 2048, "n_parallel": 4, "chance": 25.0 },
+    "winogrande": { "dataset": "winogrande", "mode": "winogrande", "tasks": 0, "n_ctx": 2048, "n_parallel": 4, "chance": 50.0 },
+    "arc-challenge": { "dataset": "arc-challenge", "mode": "multiple-choice", "tasks": 0, "n_ctx": 2048, "n_parallel": 8, "chance": null },
+    "arc-easy": { "dataset": "arc-easy", "mode": "multiple-choice", "tasks": 0, "n_ctx": 2048, "n_parallel": 8, "chance": null },
+    "mmlu": { "dataset": "mmlu", "mode": "multiple-choice", "tasks": 0, "n_ctx": 2048, "n_parallel": 8, "chance": null }
+  }
+}

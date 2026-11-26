@@ -278,6 +278,35 @@ followed by a full re-run (`results/2026-09-30-h9-rescore.jsonl`). Any further
 tightening changes the task definition in `eval/phase7-h9.json` and lands with a
 full re-measurement. Recorded JSONL rows are never edited.
 
+### Linux host — standard benchmarks (informational, #597)
+
+`scripts/eval-host-standard.py` scores a GGUF on HellaSwag, WinoGrande,
+ARC-Challenge, ARC-Easy and MMLU with llama.cpp's `llama-perplexity`
+(loglikelihood of each choice, no generation). It measures the weights and the
+quant, so the same GGUF is comparable across catalogue models; it says nothing
+about Series S speed, and the LAN API cannot run it (`logprobs` is null).
+H9 stays the promotion gate.
+
+```bash
+./scripts/apply-llama-patches.sh   # configure refuses an unpatched pin
+cmake --preset linux-release && cmake --build build/linux-release -j"$(nproc)"
+./scripts/eval-host-standard.py --fetch          # into ~/.cache/xllama/eval-datasets
+./scripts/eval-host-standard.py --model ~/models/<model>.gguf \
+  --hardware <host-label> --out bench/results/<date>-std-host.jsonl
+```
+
+Datasets, revisions, SHA256 and licences are pinned in
+`eval/standard-datasets.json`; a file that does not match is refused, and no
+dataset is committed. Task counts, `n_ctx` and `n_parallel` are pinned there too (HellaSwag
+400 tasks, the others complete), and `llama-perplexity` selects subsets with a
+fixed seed, so a re-run scores the same items. Each JSONL row records the model
+and dataset SHA256, accuracy and its binomial stderr in percent, chance level,
+`n_ctx`, threads, the declared `--hardware`, and the evaluator: the
+selected `llama-perplexity` build line and SHA256, plus the repo's llama.cpp
+gitlink. `--out`
+appends, so one dated file can hold several models. HellaSwag with 400 tasks
+has a stderr of about 2.5 points: a gap smaller than about twice that is noise.
+
 ### Xbox Series S — paired A/B campaigns
 
 For a change that one LocalState knob switches on or off (the #313
