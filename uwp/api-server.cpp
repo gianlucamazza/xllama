@@ -349,17 +349,42 @@ SseHeadStatus write_sse_head(StreamSocket const& socket) {
     }
 }
 
-// The usage object of a chat reply, JSON and SSE alike. reasoning_tokens is
-// the part of completion_tokens spent inside the reasoning (#585); always sent,
-// 0 for a model that does not reason, as OpenAI does.
-JsonObject usage_json(int prompt_tokens, int completion_tokens, int reasoning_tokens) {
-    JsonObject details;
-    details.Insert(L"reasoning_tokens", JsonValue::CreateNumberValue(reasoning_tokens));
+// The token counts of a chat reply's usage object, JSON and SSE alike.
+struct ChatUsage {
+    int prompt = 0;     // the prompt's length (n_prompt)
+    int completion = 0; // generated tokens (n_eval)
+    // The part of completion spent inside the reasoning (#585); 0 for a model
+    // that does not reason.
+    int reasoning = 0;
+    // Prompt tokens the session did not prefill because its resident KV already
+    // held them (#170a prefix reuse, #595): n_prompt - n_p_eval. A GGUF session
+    // reuses a matching prefix on every path, tool proposals included; an ORT
+    // session prefills the whole prompt, so it is 0 there.
+    int cached = 0;
+};
+
+ChatUsage chat_usage(const ::xllama::InferenceResult& r, int reasoning_tokens) {
+    ChatUsage u;
+    u.prompt = r.n_prompt;
+    u.completion = r.n_eval;
+    u.reasoning = reasoning_tokens;
+    u.cached = std::clamp(r.n_prompt - r.n_p_eval, 0, r.n_prompt);
+    return u;
+}
+
+// OpenAI's usage shape; both details objects are always sent, with zeros when
+// nothing applies, as OpenAI does.
+JsonObject usage_json(const ChatUsage& u) {
+    JsonObject prompt_details;
+    prompt_details.Insert(L"cached_tokens", JsonValue::CreateNumberValue(u.cached));
+    JsonObject completion_details;
+    completion_details.Insert(L"reasoning_tokens", JsonValue::CreateNumberValue(u.reasoning));
     JsonObject usage;
-    usage.Insert(L"prompt_tokens", JsonValue::CreateNumberValue(prompt_tokens));
-    usage.Insert(L"completion_tokens", JsonValue::CreateNumberValue(completion_tokens));
-    usage.Insert(L"total_tokens", JsonValue::CreateNumberValue(prompt_tokens + completion_tokens));
-    usage.Insert(L"completion_tokens_details", details);
+    usage.Insert(L"prompt_tokens", JsonValue::CreateNumberValue(u.prompt));
+    usage.Insert(L"completion_tokens", JsonValue::CreateNumberValue(u.completion));
+    usage.Insert(L"total_tokens", JsonValue::CreateNumberValue(u.prompt + u.completion));
+    usage.Insert(L"prompt_tokens_details", prompt_details);
+    usage.Insert(L"completion_tokens_details", completion_details);
     return usage;
 }
 
@@ -452,8 +477,7 @@ class SseStream {
         }
     }
 
-    void finish(const wchar_t* reason, int prompt_tokens, int completion_tokens,
-                int reasoning_tokens) {
+    void finish(const wchar_t* reason, const ChatUsage& usage_counts) {
         if (m_finished)
             return;
         try {
@@ -465,7 +489,7 @@ class SseStream {
         if (m_finished)
             return;
         try {
-            const JsonObject usage = usage_json(prompt_tokens, completion_tokens, reasoning_tokens);
+            const JsonObject usage = usage_json(usage_counts);
             send_chunk(JsonObject{}, JsonValue::CreateStringValue(winrt::hstring(reason)), &usage);
             end();
         } catch (...) {
@@ -777,8 +801,8 @@ void fill_sampling(JsonObject const& root, ::xllama::GenerateParams& gp) {
 
 // One OpenAI chat.completion body. `message` is choices[0].message.
 std::string completion_json(const std::string& model, JsonObject const& message,
-                            winrt::hstring const& finish_reason, int prompt_tokens,
-                            int completion_tokens, int reasoning_tokens, const char*& status) {
+                            winrt::hstring const& finish_reason, const ChatUsage& usage,
+                            const char*& status) {
     JsonObject choice;
     choice.Insert(L"index", JsonValue::CreateNumberValue(0));
     choice.Insert(L"message", message);
@@ -797,7 +821,7 @@ std::string completion_json(const std::string& model, JsonObject const& message,
     resp.Insert(L"created", JsonValue::CreateNumberValue(static_cast<double>(time(nullptr))));
     resp.Insert(L"model", JsonValue::CreateStringValue(winrt::to_hstring(model)));
     resp.Insert(L"choices", choices);
-    resp.Insert(L"usage", usage_json(prompt_tokens, completion_tokens, reasoning_tokens));
+    resp.Insert(L"usage", usage_json(usage));
     status = "200 OK";
     return winrt::to_string(resp.Stringify());
 }
@@ -926,8 +950,8 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
     const auto finish_reason = winrt::to_hstring(assembly.finish_reason);
     if (!stream) {
         message.Insert(L"role", JsonValue::CreateStringValue(L"assistant"));
-        return completion_json(model, message, finish_reason, generated.n_prompt, generated.n_eval,
-                               n_reasoning, status);
+        return completion_json(model, message, finish_reason, chat_usage(generated, n_reasoning),
+                               status);
     }
 
     // The complete parsed reply is available. Preserve HTTP JSON errors until
@@ -949,7 +973,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
             return {};
         }
         sse.write_message_delta(message);
-        sse.finish(finish_reason.c_str(), generated.n_prompt, generated.n_eval, n_reasoning);
+        sse.finish(finish_reason.c_str(), chat_usage(generated, n_reasoning));
         status = "200 OK";
     } catch (...) {
         status = "500 Internal Server Error";
@@ -1199,8 +1223,8 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
             // still held; it never completed a stop, so it is ordinary text.
             send(stop_filter.finish(), /*finishing=*/true);
             const bool streamed_cap = r.n_eval >= gp.n_predict;
-            sse->finish(streamed_cap ? L"length" : L"stop", r.n_prompt, r.n_eval,
-                        reasoning_tokens.count(fmt.strip_thinking_content));
+            sse->finish(streamed_cap ? L"length" : L"stop",
+                        chat_usage(r, reasoning_tokens.count(fmt.strip_thinking_content)));
             status = "200 OK";
         } catch (...) {
             // Generation or JSON serialization failed after the head was sent.
@@ -1231,8 +1255,9 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
     // EOS token before the cap stops naturally, which ended_with_stop (a textual
     // stop-sequence match) does not capture — deduce it from the token count.
     const bool hit_cap = r.n_eval >= gp.n_predict;
-    return completion_json(model, message, hit_cap ? L"length" : L"stop", r.n_prompt, r.n_eval,
-                           reasoning_tokens.count(fmt.strip_thinking_content), status);
+    return completion_json(model, message, hit_cap ? L"length" : L"stop",
+                           chat_usage(r, reasoning_tokens.count(fmt.strip_thinking_content)),
+                           status);
 }
 
 // The single model the server can currently serve: the resident one, else the

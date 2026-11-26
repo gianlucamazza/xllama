@@ -1146,3 +1146,46 @@ TEST_CASE("Session: reasoning tokens of a reply cut off mid-thought "
         CHECK(full_reasoning < full.n_eval);
     }
 }
+
+// #595: usage.prompt_tokens_details.cached_tokens is n_prompt - n_p_eval. An
+// append-only client (the LAN API's tool path: a full prompt every turn,
+// reuse_kv false) must find the previous turn's prompt and reply already in
+// the KV, so most of each new prompt is cached. Opt-in, needs a real GGUF:
+//   XLLAMA_TEST_MODEL=/path/to/model.gguf ./xllama-tests
+TEST_CASE("Session: an append-only conversation reuses the previous turn as a prefix "
+          "(opt-in: XLLAMA_TEST_MODEL)") {
+    const char* model_env = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model_env)
+        return;
+    const xllama::ChatFormat fmt = xllama::chat_format_for(model_env);
+    xllama::SessionParams sp;
+    sp.model_path = model_env;
+    sp.n_ctx = 2048;
+    std::string err;
+    auto sess = xllama::Session::create(sp, &err);
+    REQUIRE_MESSAGE(sess, err);
+
+    std::vector<xllama::ChatTurn> history;
+    const char* users[] = {"Name three rivers in Europe.", "Which of them is the longest?",
+                           "And which flows through Vienna?"};
+    for (const char* user : users) {
+        xllama::GenerateParams gp;
+        gp.prompt = fmt.render_prompt("You are terse.", history, user);
+        gp.stop_sequences = fmt.stop_sequences;
+        gp.n_predict = 24;
+        gp.temperature = 0.0f;
+        const auto r = sess->generate(gp);
+        REQUIRE_MESSAGE(r.success, r.error_msg);
+        const int cached = r.n_prompt - r.n_p_eval;
+        MESSAGE("turn " << history.size() + 1 << ": prompt " << r.n_prompt << ", prefilled "
+                        << r.n_p_eval << ", cached " << cached);
+        CHECK(cached >= 0);
+        if (!history.empty()) {
+            // The previous prompt is a strict prefix of this one: at most the
+            // reply's re-rendered tail and the new turn prefill. A hybrid cache
+            // restores its checkpoint a few tokens before the previous end.
+            CHECK(cached > r.n_prompt / 2);
+        }
+        history.push_back({user, fmt.postprocess_output(r.output_text)});
+    }
+}
