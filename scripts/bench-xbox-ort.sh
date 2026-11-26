@@ -35,6 +35,10 @@
 #   --kv-q8          q8_0 KV cache + flash attention via bench_kvq8.txt (#171).
 #                    GGUF models only. Host column tagged -kvq8 (same rationale
 #                    as -uN); the guard fails if the MSIX ignores the knob.
+#   --flash-attn 0|1 Flash attention off/on via bench_flash_attn.txt (#582).
+#                    Absent = llama.cpp auto (on for the CPU backend). GGUF
+#                    only. Host column tagged -fa0/-fa1; the guard fails if the
+#                    MSIX ignores the knob.
 #   --gpu-layers N   GGUF GPU decode D2b: layers on the d3d12 backend via
 #                    bench_gpu_layers.txt (0 = CPU, default). GGUF models only.
 #                    Host column tagged -gN; the guard fails if the MSIX ignores it.
@@ -83,6 +87,7 @@ N_PREDICT=0     # 0 = engine default (512)
 MAX_LEN=0       # 0 = derive min(n_ctx, prompt+n_predict); -1 = saturate to n_ctx; >0 = explicit
 UBATCH=0        # 0 = llama default (512); #172 sweep knob, GGUF only
 KVQ8=0          # 1 = q8_0 KV + flash attention; #171 A/B knob, GGUF only
+FLASH_ATTN=-1   # -1 = llama.cpp auto, 0 = off, 1 = on; #582 A/B knob, GGUF only
 GPU_LAYERS=0    # D2b: GGUF layers on the d3d12 backend; 0 = CPU
 IGNORE_EOG=0    # D2b: 1 = decode exactly n_predict tokens
 PROMPT_LOOKUP=0 # 1 = W2 prompt-lookup; #210 A/B knob, GGUF only
@@ -126,6 +131,14 @@ while [[ $# -gt 0 ]]; do
 	--kv-q8)
 		KVQ8=1
 		shift
+		;;
+	--flash-attn)
+		FLASH_ATTN="${2:?--flash-attn requires 0 or 1}"
+		[[ "$FLASH_ATTN" == 0 || "$FLASH_ATTN" == 1 ]] || {
+			echo "Error: --flash-attn takes 0 or 1" >&2
+			exit 1
+		}
+		shift 2
 		;;
 	--gpu-layers)
 		GPU_LAYERS="${2:?--gpu-layers requires a value}"
@@ -379,6 +392,7 @@ bench_host_base() {
 	((N_THREADS > 0)) && host+="-t${N_THREADS}"
 	((UBATCH > 0)) && host+="-u${UBATCH}"
 	((KVQ8 != 0)) && host+="-kvq8"
+	((FLASH_ATTN >= 0)) && host+="-fa${FLASH_ATTN}"
 	((GPU_LAYERS > 0)) && host+="-g${GPU_LAYERS}"
 	((IGNORE_EOG != 0)) && host+="-noeog"
 	((PROMPT_LOOKUP != 0)) && host+="-plookup"
@@ -502,6 +516,8 @@ printf '%d' "$N_PREDICT" >"${TMPDIR_LOCAL}/bench_npredict.txt"
 printf '%d' "$MAX_LEN" >"${TMPDIR_LOCAL}/bench_maxlen.txt"
 printf '%d' "$UBATCH" >"${TMPDIR_LOCAL}/bench_ubatch.txt"
 printf '%d' "$KVQ8" >"${TMPDIR_LOCAL}/bench_kvq8.txt"
+# Always written: -1 restores auto after an A/B arm.
+printf '%d' "$FLASH_ATTN" >"${TMPDIR_LOCAL}/bench_flash_attn.txt"
 printf '%d' "$GPU_LAYERS" >"${TMPDIR_LOCAL}/bench_gpu_layers.txt"
 printf '%d' "$IGNORE_EOG" >"${TMPDIR_LOCAL}/bench_ignore_eog.txt"
 printf '%d' "$PROMPT_LOOKUP" >"${TMPDIR_LOCAL}/bench_prompt_lookup.txt"
@@ -570,6 +586,7 @@ for ((run = 1; run <= N_RUNS; run++)); do
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_maxlen.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_ubatch.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_kvq8.txt"
+	upload_to_localstate "${TMPDIR_LOCAL}/bench_flash_attn.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_gpu_layers.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_ignore_eog.txt"
 	if ((PROMPT_LOOKUP != 0)); then
@@ -686,6 +703,14 @@ for ((run = 1; run <= N_RUNS; run++)); do
 			if [[ "$got_host" != *"-kvq8"* ]]; then
 				echo "Error: the console ignored --kv-q8: host column says '${got_host}'." >&2
 				echo "  The installed MSIX predates bench_kvq8.txt — redeploy before measuring." >&2
+				exit 1
+			fi
+		fi
+		if ((FLASH_ATTN >= 0)); then
+			got_host=$(awk -F, '{print $15}' <<<"$data_row")
+			if [[ "$got_host" != *"-fa${FLASH_ATTN}"* ]]; then
+				echo "Error: the console ignored --flash-attn: host column says '${got_host}'." >&2
+				echo "  The installed MSIX predates bench_flash_attn.txt — redeploy before measuring." >&2
 				exit 1
 			fi
 		fi

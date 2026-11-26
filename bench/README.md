@@ -63,7 +63,9 @@ this structural check does not verify provenance or reproduce a measurement.
   `backend` is `cpu` or `d3d12` for llama.cpp rows (`d3d12` = GGUF layers on
   the d3d12 backend, host tag `-gN`) and `ort-genai-cpu` /
   `ort-genai-dml` for ORT rows. `-noeog` in `host` means the run decoded
-  exactly `n_predict` tokens (`--ignore-eog`).
+  exactly `n_predict` tokens (`--ignore-eog`). `-fa0` / `-fa1` mean flash
+  attention was forced off or on (`--flash-attn`, #582). A row without either
+  tag ran llama.cpp's auto, which this pin resolves to on for the CPU backend.
 
   `prefill_ms` is prompt-processing duration. `ttft_ms` is measured from
   prefill start until the first generated token is ready; zero means that no
