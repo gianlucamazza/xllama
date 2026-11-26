@@ -299,7 +299,16 @@ python3 scripts/paired-bench-summary.py bench/results/<campaign>/<cell> --gates 
 
 The summary gives each gate's median paired ratio (or memory delta) with a
 paired percentile bootstrap 95 % interval and the preregistered margins of
-#313; a gate whose interval crosses its margin is inconclusive. Freeze the
+#313; a gate whose interval crosses its margin is inconclusive.
+
+A knob that `bench-xbox-ort.sh` owns (`--flash-attn`, `--ubatch`, `--kv-q8`)
+goes to one arm with `--b-arg` (or `--a-arg`), repeated once per word, instead
+of `--knob`: the harness rewrites those files on every run. `--retries N`
+reruns an arm whose harness call failed before writing a row, such as a Device
+Portal upload timeout; each such attempt is a `retry` line in the ledger, and
+the summary ignores it. An estimate with no preregistered margin (#582) uses
+`paired-bench-summary.py --report <gates>`: the same medians and intervals,
+without a verdict. Freeze the
 manifest before the first cell runs. First campaign:
 [`docs/research/evidence/2026-11-16-c4-performance/`](../docs/research/evidence/2026-11-16-c4-performance/README.md).
 

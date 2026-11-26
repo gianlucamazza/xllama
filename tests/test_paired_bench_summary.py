@@ -102,6 +102,33 @@ class PairedSummaryTests(unittest.TestCase):
         _, v = self.run_cell(cell, "prefill")
         self.assertEqual(v["pairs"], 4)
 
+    def test_report_gives_the_interval_without_a_verdict(self):
+        # #582: an estimate, no preregistered margin. No speed-up would fail
+        # --gates prefill; --report states the ratio and exits 0.
+        cell = write_cell(self.root / "c", rows(5, 100, 50, 1000, 800, 1),
+                          rows(5, 60, 50, 1600, 790, 2))
+        out = self.root / "r.json"
+        r = subprocess.run([sys.executable, str(SCRIPT), str(cell), "--report", "prefill,peak",
+                            "--json-out", str(out)], capture_output=True, text=True, check=False)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        v = json.loads(out.read_text())
+        self.assertEqual(v["verdict"], "report")
+        self.assertAlmostEqual(v["gates"]["prefill"]["median"], 0.6, delta=0.03)
+        self.assertNotIn("verdict", v["gates"]["prefill"])
+        self.assertNotIn("margin", v["gates"]["prefill"])
+
+    def test_a_retried_attempt_is_not_a_pair(self):
+        # bench-paired-knob.sh --retries: an attempt that wrote no row is a
+        # "retry" line before the arm's ok line; the pair still counts.
+        cell = write_cell(self.root / "c", rows(4, 100, 50, 1000, 800, 1),
+                          rows(4, 130, 50, 770, 800, 2))
+        ledger = cell / "ledger.jsonl"
+        lines = ledger.read_text().splitlines()
+        lines.insert(1, json.dumps({"pair": 1, "order": "AB", "arm": "B", "status": "retry"}))
+        ledger.write_text("\n".join(lines) + "\n")
+        _, v = self.run_cell(cell, "prefill")
+        self.assertEqual(v["pairs"], 4)
+
     def test_bias_add_profile_uses_preregistered_margins(self):
         a = bias_rows(20, 100, 50, 1000, 800, 1)
         b = bias_rows(20, 98, 53, 1020, 805, 2)
