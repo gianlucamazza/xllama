@@ -23,6 +23,7 @@
     #include <psapi.h>
     #include <unknwn.h>
     #include <winrt/Windows.Storage.h>
+    #include <winrt/Windows.System.h>
     #include <dxgi1_4.h>
 // clang-format on
 #endif
@@ -117,6 +118,19 @@ std::size_t working_set_mb() noexcept {
     }
     std::fclose(fp);
     return kb / 1024;
+#endif
+}
+
+std::size_t app_memory_limit_mb() noexcept {
+#ifdef XLLAMA_UWP
+    try {
+        return static_cast<std::size_t>(
+            winrt::Windows::System::MemoryManager::AppMemoryUsageLimit() / (1024ull * 1024ull));
+    } catch (...) {
+        return 0;
+    }
+#else
+    return 0;
 #endif
 }
 

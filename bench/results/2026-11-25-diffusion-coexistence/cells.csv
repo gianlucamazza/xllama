@@ -1,0 +1,7 @@
+cell,outcome,detail,wall_s,process_peak_ws_mb,max_sampled_private_ws_mb
+none,ok,stage=done,16,2537,2484
+lfm25-350m,ok,chat=200 image=200,14,3555,2862
+lfm25-1.2b-instruct,ok,chat=200 image=200,14,3555,3295
+qwen25-coder-1.5b,ok,chat=200 image=200,14,3741,3660
+llama32-3b,ok,chat=200 image=200,13,4442,4355
+lfm25-8b-a1b,fail,chat=200 image=500 error=image generation failed: stage=error,5,,4469

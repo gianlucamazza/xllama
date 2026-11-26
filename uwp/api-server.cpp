@@ -28,6 +28,7 @@
     #include "xllama/chat_prompt.h"
     #include "xllama/compute_admission.h"
     #include "xllama/diffusion/request.h"
+    #include "xllama/diffusion/residency.h"
     #include "xllama/http_framing.h"
     #include "xllama/local_knob.h"
     #include "xllama/model_provision.h"
@@ -1638,6 +1639,12 @@ std::string handle_images_locked(const std::string& body, const char*& status) {
             ::xllama::utf8_to_wstring(::xllama::resolve_local_path("diffuse-cancel.flag")).c_str());
     }
 
+    // The caller holds hub.mtx. Free the resident chat model first when the
+    // pipeline would not fit next to it (#548).
+    if (::xllama::diffusion::make_room_for_diffusion_locked(
+            ::xllama::session_hub(), ::xllama::working_set_mb(), ::xllama::app_memory_limit_mb()))
+        ::xllama::log_output(
+            "[xllama] api: released the resident chat model to fit the image pipeline\n");
     ::xllama::bridge::run_diffuse();
 
     const std::string stage = ::xllama::read_local_text("diffuse-progress.txt");

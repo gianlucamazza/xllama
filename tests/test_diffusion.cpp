@@ -16,6 +16,7 @@
 
 #include <cmath>
 #include <fstream>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -25,6 +26,7 @@
 #include "xllama/diffusion/lcm_scheduler.h"
 #include "xllama/diffusion/png_writer.h"
 #include "xllama/diffusion/request.h"
+#include "xllama/diffusion/residency.h"
 
 using nlohmann::json;
 
@@ -248,4 +250,43 @@ TEST_CASE("diffusion request: diffuse-*.txt round-trips what the surfaces write"
     CHECK(seed_from_knob("4294967296") == kDefaultSeed);
     CHECK(seed_from_knob("-1") == kDefaultSeed);
     CHECK(seed_from_knob("") == kDefaultSeed);
+}
+
+namespace {
+struct StubSession final : xllama::Session {
+    xllama::InferenceResult generate(const xllama::GenerateParams&) override {
+        return {};
+    }
+    int count_tokens(const std::string&) override {
+        return 0;
+    }
+};
+} // namespace
+
+TEST_CASE("diffusion residency: release the chat session only when the pipeline would not fit") {
+    using xllama::diffusion::diffusion_needs_session_release;
+    using xllama::diffusion::kDiffusionHeadroomMb;
+    constexpr std::size_t kLimit = 5120; // Series S, Game designation
+    // Working sets after context from the 2026-11-25 Series S receipt.
+    CHECK_FALSE(diffusion_needs_session_release(345, kLimit));  // lfm25-350m: generated
+    CHECK_FALSE(diffusion_needs_session_release(1838, kLimit)); // llama32-3b: generated
+    CHECK(diffusion_needs_session_release(3574, kLimit));       // lfm25-8b-a1b: bad allocation
+    CHECK_FALSE(diffusion_needs_session_release(kLimit - kDiffusionHeadroomMb, kLimit));
+    CHECK(diffusion_needs_session_release(kLimit - kDiffusionHeadroomMb + 1, kLimit));
+    CHECK_FALSE(diffusion_needs_session_release(100000, 0)); // no known limit (host)
+}
+
+TEST_CASE("diffusion residency: make_room releases through the hub and bumps its generation") {
+    using xllama::diffusion::make_room_for_diffusion_locked;
+    xllama::SessionHub hub;
+    CHECK_FALSE(make_room_for_diffusion_locked(hub, 4000, 5120)); // nothing resident
+    hub.session = std::make_unique<StubSession>();
+    hub.model = "lfm25-8b-a1b";
+    const auto gen = hub.generation;
+    CHECK_FALSE(make_room_for_diffusion_locked(hub, 1000, 5120)); // fits: keep it
+    CHECK(hub.session);
+    CHECK(make_room_for_diffusion_locked(hub, 3574, 5120));
+    CHECK_FALSE(hub.session);
+    CHECK(hub.model.empty());
+    CHECK(hub.generation == gen + 1);
 }

@@ -1,0 +1,4 @@
+cell,outcome,detail,wall_s,process_peak_ws_mb,max_sampled_private_ws_mb
+lfm25-8b-a1b,ok,chat=200 image=200,13,3578,2506
+llama32-3b,ok,chat=200 image=200,13,4331,4194
+lfm25-350m,ok,chat=200 image=200,13,3555,2697

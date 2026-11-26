@@ -1,0 +1,13 @@
+12:16:53.226 [caprec] AppRecordingManager present=0 GraphicsCaptureSession present=1
+[gcprobe] session_present=1 item_present=1 viable=0 encoder=0 presence_error=0 duration_us=98
+[xllama] ws after model load: 3546 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[xllama] ws after model load: 320 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[xllama] ws after context: 345 MB
+[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0) prefix_snapshot=1
+[xllama] session generate: n=8 prefill=78.6ms (25 tok) reuse=0 drafted=0 spec_accept=0
+[xllama] diffuse: model='sd-turbo-fp16' steps=1 seed=42 scheduler=euler prompt='a red sports car on a mountain road at sunset'
+[xllama] diffuse: unet input fp16, hidden_dim 1024, ts rank 1, te+unet load 7529 ms
+[xllama] diffuse: te 1053 ms | unet 3008 ms (1 step, 3008 ms/step) | vae 1584 ms | total 5645 ms | process_peak_ws_mb=3555
+[xllama] diffuse: wrote diffuse-out.png (512x512)
