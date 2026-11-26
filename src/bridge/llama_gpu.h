@@ -22,7 +22,8 @@
 namespace xllama {
 
 // llama/ggml log lines worth keeping in xllama.log on every GGUF load, CPU or
-// d3d12: placement and buffer sizes, graph splits, and every warning or error.
+// d3d12: placement and buffer sizes, graph splits, how flash attention's auto
+// setting resolved (#582), and every warning or error.
 // Before this was installed for all loads, a CPU-only load's warnings went to
 // llama's default stderr logger, which UWP never shows (found in a community
 // fork, SamirCharleston/xllama). Runs on llama.cpp's threads through a C
@@ -32,7 +33,8 @@ inline void llama_bridge_log(ggml_log_level level, const char* text, void*) noex
         return;
     const bool keep = level == GGML_LOG_LEVEL_WARN || level == GGML_LOG_LEVEL_ERROR ||
                       std::strstr(text, "buffer size") || std::strstr(text, "offload") ||
-                      std::strstr(text, "graph splits") || std::strstr(text, "D3D12");
+                      std::strstr(text, "graph splits") || std::strstr(text, "D3D12") ||
+                      std::strstr(text, "Flash Attention");
     if (!keep)
         return;
     try {
