@@ -22,6 +22,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def mainpage_sources() -> str:
+    """MainPageController is split across uwp/MainPage.cpp and uwp/mainpage-*.cpp
+    (#549); checks that look for code in it read all of them, so moving a
+    function between those files cannot make a check pass or fail by accident."""
+    uwp = ROOT / "uwp"
+    files = [uwp / "MainPage.cpp", *sorted(uwp.glob("mainpage-*.cpp"))]
+    return "\n".join(p.read_text(encoding="utf-8") for p in files)
+
+
 def main() -> int:
     errors: list[str] = []
     warnings: list[str] = []
@@ -159,7 +168,7 @@ def main() -> int:
                 )
 
     # --- code defaults ---
-    mp = (ROOT / "uwp/MainPage.cpp").read_text(encoding="utf-8")
+    mp = mainpage_sources()
     taesd_license = license_dir / "madebyollin-taesd-LICENSE"
     if taesd_license.is_file():
         taesd_sha = hashlib.sha256(taesd_license.read_bytes()).hexdigest()
@@ -534,7 +543,7 @@ def main() -> int:
         ops = set(re.findall(r'"([a-z_]+)"', table.group(1)))
         if not ops:
             err("autopilot.cpp: kOps table is empty")
-        mpcpp = (ROOT / "uwp/MainPage.cpp").read_text(encoding="utf-8")
+        mpcpp = mainpage_sources()
         missing = [o for o in sorted(ops) if f'a.op == "{o}"' not in mpcpp]
         for o in missing:
             err(
