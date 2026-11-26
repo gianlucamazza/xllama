@@ -26,6 +26,7 @@ import math
 import os
 import re
 import subprocess
+import tempfile
 import sys
 import time
 import urllib.request
@@ -109,10 +110,16 @@ def fetch(spec: dict, cache: Path) -> None:
         if path.is_file() and sha256_file(path) == ds["sha256"]:
             print(f"ok      {name}")
             continue
-        tmp = path.with_suffix(path.suffix + ".part")
-        with urllib.request.urlopen(ds["url"], timeout=120) as resp, tmp.open("wb") as out:
-            while chunk := resp.read(1 << 20):
-                out.write(chunk)
+        # A private temp file per process: two concurrent fetches must not share one.
+        fd, tmp_name = tempfile.mkstemp(dir=cache, prefix=ds["file"] + ".", suffix=".part")
+        tmp = Path(tmp_name)
+        try:
+            with urllib.request.urlopen(ds["url"], timeout=120) as resp, os.fdopen(fd, "wb") as out:
+                while chunk := resp.read(1 << 20):
+                    out.write(chunk)
+        except BaseException:
+            tmp.unlink(missing_ok=True)
+            raise
         got = sha256_file(tmp)
         if got != ds["sha256"]:
             tmp.unlink()
@@ -154,14 +161,36 @@ def parse_output(mode: str, text: str) -> dict:
     raise EvalError(f"unknown mode {mode}")
 
 
+def hellaswag_task_count(data: Path) -> int:
+    """llama-perplexity reads six lines per HellaSwag task."""
+    with data.open(encoding="utf-8") as f:
+        return sum(1 for _ in f) // 6
+
+
 def perplexity_args(task: dict, data: Path) -> list[str]:
     mode = task["mode"]
     n = str(task["tasks"])
     if mode == "hellaswag":
+        # --hellaswag-tasks 0 scores nothing upstream; 0 means "all" in the spec.
+        if task["tasks"] == 0:
+            n = str(hellaswag_task_count(data))
         return ["-f", str(data), "--hellaswag", "--hellaswag-tasks", n]
     if mode == "winogrande":
         return ["-f", str(data), "--winogrande", "--winogrande-tasks", n]
     return ["-bf", str(data), "--multiple-choice", "--multiple-choice-tasks", n]
+
+
+def evaluator_version(binary: Path) -> str:
+    """The build line the selected llama-perplexity prints, e.g. '0.6.0-dev (build 1, commit d81235049)'."""
+    try:
+        proc = subprocess.run([str(binary), "--version"], capture_output=True, text=True,
+                              timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    for line in (proc.stdout + proc.stderr).splitlines():
+        if line.startswith("version:"):
+            return line.removeprefix("version:").strip()
+    return ""
 
 
 def llama_pin() -> str:
@@ -176,7 +205,7 @@ def llama_pin() -> str:
 def run_task(args: argparse.Namespace, spec: dict, name: str, model_sha: str) -> dict:
     task = spec["tasks"][name]
     data = dataset_path(spec, task["dataset"], args.cache)
-    cmd = [str(args.perplexity), "-m", str(args.model), "-c", str(task["n_ctx"]),
+    cmd = [str(args.perplexity.resolve()), "-m", str(args.model), "-c", str(task["n_ctx"]),
            "-np", str(task["n_parallel"]), "-t", str(args.threads), *perplexity_args(task, data)]
     start = time.monotonic()
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
@@ -204,7 +233,9 @@ def run_task(args: argparse.Namespace, spec: dict, name: str, model_sha: str) ->
         "n_ctx": task["n_ctx"],
         "n_parallel": task["n_parallel"],
         "threads": args.threads,
-        "llama_cpp": llama_pin(),
+        "evaluator_version": args.evaluator_version,
+        "evaluator_sha256": args.evaluator_sha256,
+        "llama_cpp_gitlink": llama_pin(),
         "elapsed_s": round(elapsed, 1),
     }
 
@@ -240,6 +271,10 @@ def main(argv: list[str] | None = None) -> int:
         if unknown:
             raise EvalError(f"unknown task(s): {', '.join(unknown)}")
         model_sha = sha256_file(args.model)
+        # Record the binary that scored, not only the repo's gitlink: --perplexity may
+        # point at a build of another revision.
+        args.evaluator_sha256 = sha256_file(args.perplexity.resolve())
+        args.evaluator_version = evaluator_version(args.perplexity.resolve())
         args.out.parent.mkdir(parents=True, exist_ok=True)
         for name in names:
             row = run_task(args, spec, name, model_sha)

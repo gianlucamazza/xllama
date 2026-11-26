@@ -111,6 +111,24 @@ class SpecTests(unittest.TestCase):
             with self.assertRaises(MODULE.EvalError):
                 MODULE.dataset_path(spec, "mmlu", Path(d))
 
+    def test_hellaswag_zero_means_every_task(self):
+        # Upstream caps --hellaswag-tasks to the value given, so 0 would score nothing.
+        with tempfile.TemporaryDirectory() as d:
+            data = Path(d) / "hs.txt"
+            data.write_text("x\n" * 18)
+            args = MODULE.perplexity_args({"mode": "hellaswag", "tasks": 0}, data)
+            self.assertEqual(args[-1], "3")
+            args = MODULE.perplexity_args({"mode": "hellaswag", "tasks": 2}, data)
+            self.assertEqual(args[-1], "2")
+
+    def test_evaluator_version_reads_build_line(self):
+        with tempfile.TemporaryDirectory() as d:
+            fake = Path(d) / "llama-perplexity"
+            fake.write_text("#!/bin/sh\necho 'version: 0.6.0-dev (build 1, commit d81235049)' >&2\n")
+            fake.chmod(0o755)
+            self.assertEqual(MODULE.evaluator_version(fake), "0.6.0-dev (build 1, commit d81235049)")
+            self.assertEqual(MODULE.evaluator_version(Path(d) / "missing"), "")
+
     def test_perplexity_args_per_mode(self):
         p = Path("/data/x")
         self.assertEqual(MODULE.perplexity_args({"mode": "hellaswag", "tasks": 400}, p)[:3],

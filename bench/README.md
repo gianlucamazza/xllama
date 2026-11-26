@@ -288,6 +288,7 @@ about Series S speed, and the LAN API cannot run it (`logprobs` is null).
 H9 stays the promotion gate.
 
 ```bash
+./scripts/apply-llama-patches.sh   # configure refuses an unpatched pin
 cmake --preset linux-release && cmake --build build/linux-release -j"$(nproc)"
 ./scripts/eval-host-standard.py --fetch          # into ~/.cache/xllama/eval-datasets
 ./scripts/eval-host-standard.py --model ~/models/<model>.gguf \
@@ -300,7 +301,9 @@ dataset is committed. Task counts, `n_ctx` and `n_parallel` are pinned there too
 400 tasks, the others complete), and `llama-perplexity` selects subsets with a
 fixed seed, so a re-run scores the same items. Each JSONL row records the model
 and dataset SHA256, accuracy and its binomial stderr in percent, chance level,
-`n_ctx`, threads, the llama.cpp pin and the declared `--hardware`. `--out`
+`n_ctx`, threads, the declared `--hardware`, and the evaluator: the
+selected `llama-perplexity` build line and SHA256, plus the repo's llama.cpp
+gitlink. `--out`
 appends, so one dated file can hold several models. HellaSwag with 400 tasks
 has a stderr of about 2.5 points: a gap smaller than about twice that is noise.
 
