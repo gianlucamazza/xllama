@@ -49,6 +49,7 @@ std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err);
 #endif
 #ifdef XLLAMA_USE_LLAMA
 std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err);
+std::optional<SessionMemory> estimate_llama(const SessionParams& sp, std::string* err);
 #endif
 } // namespace detail
 } // namespace xllama
@@ -451,7 +452,12 @@ std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err) {
     #include "llama_gpu.h"
     #include "sampler_chain.h" // shared sampler chain (#125); needs llama.h
     #include "xllama/llama_raii.h"
+    #include "xllama/memory_admission.h"
     #include "xllama/session_spec.h"
+
+    // llama_get_memory_breakdown: exported by libllama, declared outside
+    // include/ (common/fit.cpp includes it the same way).
+    #include "../src/llama-ext.h"
 
     #include <vector>
 
@@ -459,6 +465,97 @@ namespace xllama {
 
 static_assert(kGgufNThreadsMax == GGML_MAX_N_THREADS,
               "session_spec.h kGgufNThreadsMax must track the llama.cpp pin");
+
+// The one place a GGUF context's parameters are decided: the session's own
+// context (ensure_ctx) and the memory dry run (estimate_session_memory) both
+// build them here, so the admission measures the context that will be made.
+llama_context_params make_context_params(int n_ctx, int n_threads, int n_batch, int n_ubatch,
+                                         int gpu_layers, bool kv_q8, bool prompt_lookup,
+                                         bool for_embedding) {
+    llama_context_params cparams = llama_context_default_params();
+    cparams.n_ctx = static_cast<uint32_t>(n_ctx);
+    cparams.n_threads = n_threads;
+    // Prefill (any ubatch > 1 token) runs on n_threads_batch, whose default is
+    // GGML_DEFAULT_N_THREADS (4) regardless of n_threads — left unset it caps
+    // prefill at 4 threads while decode gets 6 (#168).
+    cparams.n_threads_batch = n_threads;
+    if (n_batch > 0)
+        cparams.n_batch = static_cast<uint32_t>(n_batch);
+    if (n_ubatch > 0)
+        cparams.n_ubatch = static_cast<uint32_t>(n_ubatch);
+    apply_gguf_gpu_context(gpu_layers, cparams, gguf_gpu_outputs_max(for_embedding, prompt_lookup));
+    if (for_embedding) {
+        // Non-causal embedding graphs cannot split a sequence into physical
+        // micro-batches (llama.cpp asserts instead of failing).
+        cparams.n_batch = std::min(cparams.n_batch, cparams.n_ctx);
+        cparams.n_ubatch = cparams.n_batch;
+        cparams.embeddings = true;
+    }
+    if (kv_q8) {
+        // #171: quantized V requires flash attention (the pin throws at context
+        // creation with FA disabled, and AUTO may resolve to disabled) — force
+        // it; ensure_ctx falls back to the default types if the arch refuses.
+        cparams.type_k = GGML_TYPE_Q8_0;
+        cparams.type_v = GGML_TYPE_Q8_0;
+        cparams.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;
+    }
+    return cparams;
+}
+
+// llama.cpp's dry run: the model and a context are created with no_alloc, and
+// llama_get_memory_breakdown reports the bytes every buffer would take. Not
+// common_get_device_memory_data (common/fit.h): it drops buffers whose device is
+// the CPU but that are not host buffers (CPU_REPACK holds most Q4_0 weights on
+// AVX2: 105 of ~700 MB counted for LFM2.5-1.2B) and it swaps the process-wide
+// logger, which install_llama_log sets once. nullopt when the dry run fails;
+// the real load then reports why.
+std::optional<SessionMemory> estimate_session_memory(const std::string& path,
+                                                     const llama_model_params& mparams,
+                                                     const llama_context_params& cparams) {
+    llama_model_params dry = mparams;
+    dry.no_alloc = true;
+    dry.load_mode = LLAMA_LOAD_MODE_NONE;
+    LlamaModelPtr model(llama_model_load_from_file(path.c_str(), dry));
+    if (!model)
+        return std::nullopt;
+    LlamaContextPtr ctx(llama_init_from_model(model.get(), cparams));
+    if (!ctx)
+        return std::nullopt;
+    constexpr std::size_t kMb = 1024 * 1024;
+    std::size_t model_b = 0, context_b = 0, compute_b = 0, device_b = 0;
+    for (const auto& [buft, mb] : llama_get_memory_breakdown(ctx.get())) {
+        const ggml_backend_dev_t dev = ggml_backend_buft_get_device(buft);
+        const enum ggml_backend_dev_type type =
+            dev ? ggml_backend_dev_type(dev) : GGML_BACKEND_DEVICE_TYPE_CPU;
+        const bool on_device =
+            !ggml_backend_buft_is_host(buft) &&
+            (type == GGML_BACKEND_DEVICE_TYPE_GPU || type == GGML_BACKEND_DEVICE_TYPE_IGPU);
+        if (on_device)
+            device_b += mb.model + mb.context + mb.compute;
+        // System memory: CPU buffer types, host buffers, and an integrated GPU's
+        // buffers (it uses host memory; D3D12 reports IGPU).
+        if (!on_device || type == GGML_BACKEND_DEVICE_TYPE_IGPU) {
+            model_b += mb.model;
+            context_b += mb.context;
+            compute_b += mb.compute;
+        }
+    }
+    SessionMemory m;
+    m.host_model_mb = model_b / kMb;
+    m.host_context_mb = context_b / kMb;
+    m.host_compute_mb = compute_b / kMb;
+    m.device_mb = device_b / kMb;
+    return m;
+}
+
+::xllama::MemoryVerdict admit_memory(const std::optional<SessionMemory>& need, int n_ctx) {
+    if (!need)
+        return {};
+    const GpuMemInfo gpu = gpu_mem_info();
+    return admit_session_memory(*need, n_ctx, working_set_mb(), app_memory_limit_mb(),
+                                gpu.available ? gpu.current_mb : 0,
+                                gpu.available ? gpu.budget_mb : 0);
+}
 
 class LlamaSession final : public Session {
     // Prefix checkpoints hold only the partial (recurrent / SWA) state.
@@ -503,6 +600,8 @@ class LlamaSession final : public Session {
     std::vector<uint8_t> m_prefix_blob;
     bool m_needs_prefix_snapshot = false;
 
+    std::string m_model_path;       // the .gguf the session loaded, for the memory dry run
+    llama_model_params m_mparams;   // as loaded (GPU placement included)
     bool m_kv_q8 = false;           // #171: q8_0 KV + forced flash attention
     bool m_prompt_lookup = false;   // #210: draft-free speculative decoding
     bool m_prefix_snapshots = true; // hybrid prefix snapshots; false = opt out
@@ -517,11 +616,23 @@ class LlamaSession final : public Session {
 
     explicit LlamaSession(LlamaModelPtr model, LlamaAdapterLoraPtr adapter, float lora_scale,
                           int n_ctx, int n_threads, int n_batch, int n_ubatch, bool kv_q8,
-                          bool prompt_lookup, bool prefix_snapshots, int gpu_layers)
+                          bool prompt_lookup, bool prefix_snapshots, int gpu_layers,
+                          std::string model_path, const llama_model_params& mparams)
         : m_model(std::move(model)), m_adapter(std::move(adapter)), m_lora_scale(lora_scale),
           m_n_ctx(n_ctx), m_n_threads(n_threads), m_n_batch(n_batch), m_n_ubatch(n_ubatch),
           m_kv_q8(kv_q8), m_prompt_lookup(prompt_lookup), m_prefix_snapshots(prefix_snapshots),
-          m_gpu_layers(gpu_layers) {}
+          m_gpu_layers(gpu_layers), m_model_path(std::move(model_path)), m_mparams(mparams) {}
+
+    // Admission for a context other than the one the session was admitted
+    // with (an embedding context). The weights are already resident, so only
+    // the context and compute parts of the dry run are new.
+    ::xllama::MemoryVerdict admit_context(const llama_context_params& cparams) const {
+        std::optional<SessionMemory> need =
+            estimate_session_memory(m_model_path, m_mparams, cparams);
+        if (need)
+            need->host_model_mb = 0;
+        return admit_memory(need, static_cast<int>(cparams.n_ctx));
+    }
 
     const void* resident_llama_model() const override {
         return m_model.get();
@@ -534,42 +645,28 @@ class LlamaSession final : public Session {
         if (m_ctx)
             return true;
         {
-            llama_context_params cparams = llama_context_default_params();
-            cparams.n_ctx = m_n_ctx;
-            cparams.n_threads = m_n_threads;
-            // Prefill (any ubatch > 1 token) runs on n_threads_batch, whose
-            // default is GGML_DEFAULT_N_THREADS (4) regardless of n_threads —
-            // left unset it caps prefill at 4 threads while decode gets 6 (#168).
-            cparams.n_threads_batch = m_n_threads;
-            if (m_n_batch > 0)
-                cparams.n_batch = static_cast<uint32_t>(m_n_batch);
-            if (m_n_ubatch > 0)
-                cparams.n_ubatch = static_cast<uint32_t>(m_n_ubatch);
-            apply_gguf_gpu_context(m_gpu_layers, cparams,
-                                   gguf_gpu_outputs_max(for_embedding, m_prompt_lookup));
-            if (for_embedding) {
-                // Non-causal embedding graphs cannot split a sequence into
-                // physical micro-batches (llama.cpp asserts instead of failing).
-                cparams.n_batch = std::min(cparams.n_batch, cparams.n_ctx);
-                cparams.n_ubatch = cparams.n_batch;
-                cparams.embeddings = true;
-            }
-            const llama_flash_attn_type fa_requested = cparams.flash_attn_type;
-            if (m_kv_q8) {
-                // #171: quantized V requires flash attention (the pin throws at
-                // context creation with FA disabled, and AUTO may resolve to
-                // disabled) — force it and fall back below if the arch refuses.
-                cparams.type_k = GGML_TYPE_Q8_0;
-                cparams.type_v = GGML_TYPE_Q8_0;
-                cparams.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;
+            llama_context_params cparams =
+                make_context_params(m_n_ctx, m_n_threads, m_n_batch, m_n_ubatch, m_gpu_layers,
+                                    m_kv_q8, m_prompt_lookup, for_embedding);
+            if (for_embedding && !m_model_path.empty()) {
+                // The session was admitted for chat; an embedding context batches
+                // the whole input in one ubatch, so its compute buffer is larger.
+                // Check that context before creating it (the weights are resident).
+                const ::xllama::MemoryVerdict v = admit_context(cparams);
+                if (!v.ok) {
+                    if (err)
+                        *err = v.message;
+                    log_output("[xllama] session: " + v.message + "\n");
+                    return false;
+                }
             }
             m_ctx.reset(llama_init_from_model(m_model.get(), cparams));
             if (!m_ctx && m_kv_q8) {
                 log_output("[xllama] session: q8_0 KV context failed — falling back "
                            "to default cache types (#171)\n");
-                cparams.type_k = llama_context_default_params().type_k;
-                cparams.type_v = llama_context_default_params().type_v;
-                cparams.flash_attn_type = fa_requested;
+                cparams =
+                    make_context_params(m_n_ctx, m_n_threads, m_n_batch, m_n_ubatch, m_gpu_layers,
+                                        /*kv_q8=*/false, m_prompt_lookup, for_embedding);
                 m_kv_q8 = false;
                 m_ctx.reset(llama_init_from_model(m_model.get(), cparams));
             }
@@ -1553,26 +1650,86 @@ class LlamaSession final : public Session {
 };
 
 namespace detail {
-std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err) {
+// Everything a GGUF load is decided from, built once for both the load and
+// the memory estimate.
+struct LlamaLoadPlan {
+    std::string path; // the .gguf file
+    llama_model_params mparams;
+    int gpu_layers = 0;
+    int n_threads = 0;
+    int n_ctx = 0;
+    llama_context_params chat_cparams; // the context ensure_ctx() will create
+};
+
+std::optional<LlamaLoadPlan> plan_llama_load(const SessionParams& sp, std::string* err) {
     // resolve_model_path yields a FILE path on Linux (a direct .gguf) but the
     // model DIRECTORY on UWP (catalogue layout LocalState\models\<name>\). llama
     // loads a file, so descend into a directory and pick the single .gguf inside.
     // Exclude LoRA basename so dirs with model.gguf + adapter.gguf load the base.
     std::string lora_base;
-    if (!sp.lora_path.empty()) {
+    if (!sp.lora_path.empty())
         lora_base = std::filesystem::path(sp.lora_path).filename().string();
-    }
-    std::string abs_path = first_gguf_in_dir(resolve_model_path(sp.model_path), lora_base);
-    if (abs_path.empty()) {
+    LlamaLoadPlan plan;
+    plan.path = first_gguf_in_dir(resolve_model_path(sp.model_path), lora_base);
+    if (plan.path.empty()) {
         if (err)
             *err = "no .gguf file in model dir: " + resolve_model_path(sp.model_path);
-        return nullptr;
+        return std::nullopt;
     }
+    plan.mparams = llama_model_default_params();
+    plan.gpu_layers = apply_gguf_gpu_layers(sp.n_gpu_layers, plan.mparams, plan.path);
+    plan.n_threads = sp.n_threads > 0 ? sp.n_threads : detect_threads_llama();
+    plan.n_ctx = sp.n_ctx > 0 ? sp.n_ctx : kDefaultNCtx;
+    plan.chat_cparams =
+        make_context_params(plan.n_ctx, plan.n_threads, sp.n_batch, sp.n_ubatch, plan.gpu_layers,
+                            sp.kv_q8, sp.prompt_lookup, /*for_embedding=*/false);
+    return plan;
+}
 
-    llama_model_params mparams = llama_model_default_params();
-    const int gpu_layers = apply_gguf_gpu_layers(sp.n_gpu_layers, mparams, abs_path);
+std::optional<SessionMemory> estimate_llama(const SessionParams& sp, std::string* err) {
+    const std::optional<LlamaLoadPlan> plan = plan_llama_load(sp, err);
+    if (!plan)
+        return std::nullopt;
+    install_llama_log();
+    return estimate_session_memory(plan->path, plan->mparams, plan->chat_cparams);
+}
+
+std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err) {
+    const std::optional<LlamaLoadPlan> plan = plan_llama_load(sp, err);
+    if (!plan)
+        return nullptr;
+    const std::string& abs_path = plan->path;
+    llama_model_params mparams = plan->mparams;
+    const int gpu_layers = plan->gpu_layers;
+    const int n_threads = plan->n_threads;
+    const int n_ctx = plan->n_ctx;
 
     install_llama_log();
+    // Admission before any weight is read: the dry run sizes weights, context
+    // (the real per-layer KV and recurrent state) and compute buffers for the
+    // context this session will create, against the app's memory limit and
+    // the GPU budget.
+    {
+        const std::optional<SessionMemory> need =
+            estimate_session_memory(abs_path, mparams, plan->chat_cparams);
+        if (need)
+            log_output("[xllama] Session: memory estimate n_ctx=" + std::to_string(n_ctx) +
+                       " host " + std::to_string(need->host_mb()) + " MB (weights " +
+                       std::to_string(need->host_model_mb) + ", context " +
+                       std::to_string(need->host_context_mb) + ", compute " +
+                       std::to_string(need->host_compute_mb) + "), device " +
+                       std::to_string(need->device_mb) + " MB, " +
+                       std::to_string(working_set_mb()) + " MB in use\n");
+        else
+            log_output("[xllama] Session: memory dry run failed; loading without admission\n");
+        const ::xllama::MemoryVerdict v = admit_memory(need, n_ctx);
+        if (!v.ok) {
+            log_output("[xllama] Session: " + v.message + "\n");
+            if (err)
+                *err = v.message;
+            return nullptr;
+        }
+    }
     llama_model* raw_model = llama_model_load_from_file(abs_path.c_str(), mparams);
     log_gguf_ws("after model load");
     if (!raw_model) {
@@ -1594,12 +1751,11 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
         log_output("[xllama] Session: GGUF LoRA adapter loaded (runtime)\n");
     }
 
-    int n_threads = sp.n_threads > 0 ? sp.n_threads : detect_threads_llama();
-    int n_ctx = sp.n_ctx > 0 ? sp.n_ctx : kDefaultNCtx;
     log_output("[xllama] Session: GGUF model loaded via llama.cpp (persistent)\n");
-    return std::make_unique<LlamaSession>(
-        LlamaModelPtr(raw_model), std::move(adapter), sp.lora_scale, n_ctx, n_threads, sp.n_batch,
-        sp.n_ubatch, sp.kv_q8, sp.prompt_lookup, sp.prefix_snapshots, gpu_layers);
+    return std::make_unique<LlamaSession>(LlamaModelPtr(raw_model), std::move(adapter),
+                                          sp.lora_scale, n_ctx, n_threads, sp.n_batch, sp.n_ubatch,
+                                          sp.kv_q8, sp.prompt_lookup, sp.prefix_snapshots,
+                                          gpu_layers, abs_path, mparams);
 }
 } // namespace detail
 
@@ -1636,6 +1792,16 @@ Backend Session::backend_for(const SessionParams& sp) {
     (void)sp;
     return Backend::LlamaCpp;
 #endif
+}
+
+std::optional<SessionMemory> Session::estimate_memory(const SessionParams& sp, std::string* err) {
+#if defined(XLLAMA_USE_LLAMA)
+    if (backend_for(sp) == Backend::LlamaCpp)
+        return detail::estimate_llama(sp, err);
+#endif
+    if (err)
+        *err = "memory estimate is available for GGUF sessions only";
+    return std::nullopt;
 }
 
 std::unique_ptr<Session> Session::create(const SessionParams& sp, std::string* err) {

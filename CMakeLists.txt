@@ -84,6 +84,7 @@ add_library(xllama STATIC
     src/bridge/utf8_utils.cpp
     src/bridge/chat_prompt.cpp
     src/bridge/prompt_budget.cpp
+    src/bridge/memory_admission.cpp
     src/bridge/tool_budget.cpp
     src/bridge/moe_streaming.cpp
     src/bridge/http_framing.cpp

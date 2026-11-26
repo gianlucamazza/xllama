@@ -8,11 +8,13 @@
 #include "xllama/embedding.h"
 #include "xllama/grammar_spec.h"
 #include "xllama/inference_params.h"
+#include "xllama/memory_admission.h"
 
 #include <atomic>
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -183,6 +185,13 @@ struct Session {
     // Create a session by loading the model once.
     // On failure returns nullptr and sets *err.
     static std::unique_ptr<Session> create(const SessionParams& params, std::string* err = nullptr);
+
+    // What a GGUF session with these parameters would need (llama.cpp's no_alloc
+    // dry run: weights, context, compute; memory_admission.h), without loading
+    // it. create() admits against this. nullopt with *err for non-GGUF sessions
+    // or when the dry run fails.
+    static std::optional<SessionMemory> estimate_memory(const SessionParams& params,
+                                                        std::string* err = nullptr);
 
     virtual InferenceResult generate(const GenerateParams& params) = 0;
 

@@ -259,6 +259,7 @@ Load-bearing headers agents usually touch:
 | `routing_policy.h`                   | ORT CPU-vs-DML routing and prompt budget                       |
 | `model_file_plan.h`                  | Per-file catalogue fetch plan; `files[].role`; GPU marker heal |
 | `prompt_budget.h`                    | `fit_prompt` and `fit_tool_transcript`                         |
+| `memory_admission.h`                 | Pre-load GGUF memory admission (weights + KV + compute)        |
 | `tool_budget.h`                      | Tool-proposal `prompt too long` text, `code`, and `param`      |
 | `sampling.h`                         | Sampler defaults shared by CLI, bench, GUI, API                |
 | `chat_prompt.h`                      | `ChatFormat` and stop sequences                                |

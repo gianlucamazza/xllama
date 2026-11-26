@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Session memory admission counts the KV.** A GGUF session is admitted before any weight is read: llama.cpp's no_alloc dry run sizes weights, context (KV and recurrent state at the requested `n_ctx`) and compute buffers, and a session that would not fit the app's memory limit (or a GPU split over the GPU budget) fails with an `insufficient memory: …` breakdown instead of inside an allocation. The API answers it with `400`. This replaces the embedding-only weights × 1.12 estimate and its fixed 3584 MB gate.
+
 - **Context shift evicts whole turns.** A long chat past `n_ctx` dropped a raw token count after the system prompt, which could cut a message or a chat-template marker in half. The shift now ends right after the format's turn terminator (`GenerateParams::turn_close`, set by the chat UI from `ChatFormat::turn_close`); with no boundary that frees enough room it fails fast and the full-prompt retry drops whole turns. A host recall probe found no evicted-turn fact surviving in LFM2.5 or Granite-4.0-H recurrent state.
 
 - **Hybrid conversations restored from disk keep their prefix checkpoint.** The `LocalState\kv\<id>.kv` snapshot now ends with an optional `xllama-ckpt` trailer holding the partial-state checkpoint. After switching back to a conversation, an edited reply re-prefills only the tail instead of the whole history. Files without the trailer still load, and older builds ignore it.

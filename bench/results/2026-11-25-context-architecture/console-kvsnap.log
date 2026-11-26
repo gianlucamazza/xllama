@@ -1,0 +1,15 @@
+=== #170b KV snapshot across a conversation switch ===
+GianlucaMazza.xllama_1.8.1.1814_x64__pj67f1fcj4n14 is not running.
+  injected: 16 messages, est ~392 tok (budget 1800)
+GianlucaMazza.xllama_1.8.1.1814_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 11s.
+  autopilot: ok
+  ok: snapshot written on the way out
+  ok: snapshot restored on the way back
+  note: hybrid cache refused tail rewind after restore
+  ok: prefix reuse kept tokens after restore
+  cold prefill 551 tok -> returning prefill 19 tok
+  ok: returning turn pays a delta (19 tok, 3% of cold)
+GianlucaMazza.xllama_1.8.1.1814_x64__pj67f1fcj4n14 is not running.
+#170b KV snapshot: PASS

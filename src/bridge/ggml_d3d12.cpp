@@ -1980,8 +1980,13 @@ void dev_memory(ggml_backend_dev_t, size_t* free, size_t* total) {
                     : 0;
     }
 }
+// An integrated GPU using host memory: init_gpu refuses an adapter that is not
+// cache-coherent UMA, so every D3D12 buffer lives in the process's system
+// memory and counts against the app's limit (the session admission relies on
+// this, memory_admission.h). xllama always passes the device explicitly
+// (apply_gguf_gpu_layers), so llama.cpp's GPU-before-iGPU device pick never runs.
 enum ggml_backend_dev_type dev_type(ggml_backend_dev_t) {
-    return GGML_BACKEND_DEVICE_TYPE_GPU;
+    return GGML_BACKEND_DEVICE_TYPE_IGPU;
 }
 void dev_props(ggml_backend_dev_t dev, ggml_backend_dev_props* props) {
     props->name = dev_name(dev);

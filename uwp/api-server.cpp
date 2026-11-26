@@ -990,7 +990,8 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
         }
         session = ::xllama::session_hub().ensure_locked(model, sp, &err);
         if (!session) {
-            status = "500 Internal Server Error";
+            status =
+                ::xllama::is_memory_refusal(err) ? "400 Bad Request" : "500 Internal Server Error";
             return error_json("session create failed: " + err);
         }
     }
@@ -1216,37 +1217,6 @@ std::string embedding_error_json(EmbeddingApi api, const std::string& message) {
     return api == EmbeddingApi::OpenAI ? error_json(message) : ollama_error_json(message);
 }
 
-// Conservative GGUF preflight based on the console gate used for xllama's
-// catalogue scouting: model weight bytes × the measured 1.12 load overhead.
-// This runs before Session::create so a known oversized embedding model cannot
-// pressure the process past its working-set budget during a load attempt.
-uint64_t estimate_gguf_peak_mb(const std::string& model) {
-    const std::filesystem::path path(::xllama::resolve_model_path(model));
-    std::error_code ec;
-    uint64_t weight_bytes = 0;
-    const auto add_gguf = [&](const std::filesystem::path& file) {
-        if (file.extension() != ".gguf" || file.filename() == "adapter.gguf")
-            return;
-        const uint64_t size = std::filesystem::file_size(file, ec);
-        if (!ec)
-            weight_bytes += size;
-        ec.clear();
-    };
-    if (std::filesystem::is_regular_file(path, ec)) {
-        add_gguf(path);
-    } else if (std::filesystem::is_directory(path, ec)) {
-        for (const auto& entry : std::filesystem::directory_iterator(path, ec)) {
-            if (ec)
-                break;
-            add_gguf(entry.path());
-        }
-    }
-    if (weight_bytes == 0)
-        return 0; // Let normal model loading report missing/unreadable files.
-    const double peak_bytes = static_cast<double>(weight_bytes) * 1.12;
-    return static_cast<uint64_t>(peak_bytes / (1024.0 * 1024.0) + 0.5);
-}
-
 std::string handle_embedding_locked(const std::string& body, const char*& status, EmbeddingApi api,
                                     ::xllama::ApiActivity::Ticket& ticket) {
     JsonObject root{nullptr};
@@ -1341,17 +1311,6 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
         return embedding_error_json(api, "model is not a catalogue embedding GGUF");
     }
     const auto started = std::chrono::steady_clock::now();
-    if (::xllama::model_uses_llama_backend(model)) {
-        constexpr uint64_t kEmbeddingPeakGateMb = 3584;
-        const uint64_t estimated_peak_mb = estimate_gguf_peak_mb(model);
-        if (estimated_peak_mb > kEmbeddingPeakGateMb) {
-            status = "400 Bad Request";
-            return embedding_error_json(api, "estimated GGUF peak memory is " +
-                                                 std::to_string(estimated_peak_mb) +
-                                                 " MB, above the Xbox embedding "
-                                                 "gate of 3584 MB; choose a smaller GGUF model");
-        }
-    }
     ::xllama::Session* session = nullptr;
     std::string err;
     ::xllama::SessionParams sp = ::xllama::CatalogueSessionParams(model); // ADR 0007
@@ -1377,7 +1336,8 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
     // A different num_ctx is a different load: ensure_locked reloads it.
     session = ::xllama::session_hub().ensure_locked(model, sp, &err);
     if (!session) {
-        status = "500 Internal Server Error";
+        // A model or num_ctx that does not fit is the request's choice.
+        status = ::xllama::is_memory_refusal(err) ? "400 Bad Request" : "500 Internal Server Error";
         return embedding_error_json(api, "session create failed: " + err);
     }
     const auto loaded = std::chrono::steady_clock::now();

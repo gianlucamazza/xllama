@@ -68,7 +68,10 @@ live XAML chat UI.
   to a full prefill. A model id that is neither resident nor a loadable
   `LocalState\models\<id>` directory gets **`404`** "model '<id>' is not on this
   console; see GET /v1/models" (chat and embeddings), before any load is
-  attempted.
+  attempted. A GGUF model (or `options.num_ctx`) whose weights, context and
+  compute buffers do not fit the app's memory limit gets **`400`**
+  "session create failed: insufficient memory: …" with the breakdown, before
+  any weight is read ([architecture](architecture.md#session-memory-admission)).
 - **GGUF GPU layers:** a GGUF session gets the catalogue entry's `gpu_layers`
   (D3 default per model). `LocalState\gguf_gpu_layers.txt`, when present,
   overrides it for the GUI and this API alike; `0` forces the CPU. A change

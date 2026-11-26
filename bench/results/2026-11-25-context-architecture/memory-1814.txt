@@ -1,0 +1,209 @@
+[xllama] ws after model load: 326 MB
+[xllama] ws after model load: 3560 MB
+[xllama] ws after context: 3581 MB
+[xllama] ws after model load: 3546 MB
+[xllama] ws after model load: 320 MB
+[xllama] ws after context: 345 MB
+[xllama] ws after model load: 3546 MB
+[xllama] gguf gpu layers: 99 on D3D12
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 793 MB
+[xllama] ws after context: 889 MB
+[xllama] ws after model load: 3546 MB
+[xllama] ws after model load: 1077 MB
+[xllama] ws after context: 1191 MB
+[xllama] ws after model load: 1611 MB
+[xllama] ws after context: 1838 MB
+[xllama] ws after model load: 3546 MB
+[xllama] ws after context: 3574 MB
+[xllama] ws after model load: 3546 MB
+[xllama] ws after context: 3568 MB
+[xllama] ws after model load: 3546 MB
+[xllama] ws after model load: 1611 MB
+[xllama] ws after context: 1837 MB
+[xllama] ws after model load: 3546 MB
+[xllama] ws after model load: 320 MB
+[xllama] ws after context: 346 MB
+[xllama] gguf gpu layers: 99 on D3D12
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 822 MB
+[xllama] ws after context: 906 MB
+load_tensors: offloaded 0/17 layers to GPU
+[xllama] ws after model load: 371 MB
+[xllama] ws after context: 395 MB
+[xllama] gguf gpu layers: 99 on D3D12
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 825 MB
+[xllama] ws after context: 921 MB
+load_tensors: offloaded 0/17 layers to GPU
+[xllama] ws after model load: 372 MB
+[xllama] ws after context: 397 MB
+[xllama] gguf gpu layers: 99 on D3D12
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 825 MB
+[xllama] ws after context: 921 MB
+load_tensors: offloaded 0/25 layers to GPU
+[xllama] ws after model load: 3595 MB
+[xllama] gguf gpu layers: 99 on D3D12
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 826 MB
+[xllama] ws after context: 923 MB
+load_tensors: offloaded 0/17 layers to GPU
+[xllama] ws after model load: 372 MB
+[xllama] ws after context: 397 MB
+[xllama] gguf gpu layers: 99 on D3D12
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 827 MB
+[xllama] ws after context: 923 MB
+load_tensors: offloaded 0/17 layers to GPU
+[xllama] ws after model load: 372 MB
+[xllama] ws after context: 397 MB
+[xllama] gguf gpu layers: 99 on D3D12
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 828 MB
+[xllama] ws after context: 924 MB
+load_tensors: offloaded 0/25 layers to GPU
+[xllama] ws after model load: 3597 MB
+[xllama] ws after context: 3618 MB
+[xllama] gguf gpu layers: 99 on D3D12
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 821 MB
+[xllama] ws after context: 917 MB
+load_tensors: offloaded 0/17 layers to GPU
+[xllama] ws after model load: 372 MB
+[xllama] ws after context: 398 MB
+[xllama] gguf gpu layers: 99 on D3D12
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 829 MB
+[xllama] ws after context: 926 MB
+load_tensors: offloaded 0/17 layers to GPU
+[xllama] ws after model load: 375 MB
+[xllama] ws after context: 401 MB
+load_tensors: offloaded 0/25 layers to GPU
+[xllama] ws after model load: 3597 MB
+[xllama] ws after context: 3624 MB
+load_tensors: offloaded 0/29 layers to GPU
+[xllama] ws after model load: 1661 MB
+[xllama] ws after context: 1889 MB
+[xllama] gguf gpu layers: 99 on D3D12
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 829 MB
+[xllama] ws after context: 925 MB
+load_tensors: offloaded 0/17 layers to GPU
+[xllama] ws after model load: 370 MB
+[xllama] ws after context: 395 MB
+[xllama] gguf gpu layers: 99 on D3D12
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 828 MB
+[xllama] ws after context: 924 MB
+load_tensors: offloaded 0/17 layers to GPU
+[xllama] ws after model load: 368 MB
+[xllama] ws after context: 393 MB
+[xllama] gguf gpu layers: 99 on D3D12
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 829 MB
+[xllama] ws after context: 924 MB
+load_tensors: offloaded 0/17 layers to GPU
+[xllama] ws after model load: 375 MB
+[xllama] ws after context: 400 MB
+[xllama] gguf gpu layers: 99 on D3D12
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 828 MB
+[xllama] ws after context: 925 MB
+load_tensors: offloaded 0/29 layers to GPU
+[xllama] ws after model load: 1661 MB
+[xllama] ws after context: 1889 MB
+load_tensors: offloaded 0/25 layers to GPU
+[xllama] ws after model load: 3597 MB
+[xllama] ws after context: 3625 MB
+load_tensors: offloaded 0/17 layers to GPU
+[xllama] ws after model load: 378 MB
+[xllama] ws after context: 404 MB
+[xllama] gguf gpu layers: 99 on D3D12
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 830 MB
+[xllama] ws after context: 927 MB
+load_tensors: offloaded 0/29 layers to GPU
+[xllama] ws after model load: 1662 MB
+[xllama] ws after context: 1889 MB
+load_tensors: offloaded 0/25 layers to GPU
+[xllama] ws after model load: 3597 MB
+[xllama] ws after context: 3618 MB
+load_tensors: offloaded 0/17 layers to GPU
+[xllama] ws after model load: 380 MB
+[xllama] ws after context: 407 MB
+[xllama] gguf gpu layers: 99 on D3D12
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 828 MB
+[xllama] ws after context: 925 MB
+load_tensors: offloaded 0/29 layers to GPU
+[xllama] ws after model load: 1662 MB
+[xllama] ws after context: 1889 MB
+[xllama] Session: memory estimate n_ctx=2048 host 3693 MB (weights 3397, context 24, compute 272), device 0 MB
+[xllama] ws after model load: 3543 MB
+[xllama] Session: memory estimate n_ctx=2048 host 370 MB (weights 206, context 24, compute 140), device 0 MB
+[xllama] ws after model load: 326 MB
+[xllama] ws after context: 345 MB
+[xllama] Session: memory estimate n_ctx=2048 host 370 MB (weights 206, context 24, compute 140), device 0 MB
+[xllama] ws after model load: 324 MB
+[xllama] ws after context: 350 MB
+[xllama] Session: memory estimate n_ctx=2048 host 370 MB (weights 206, context 24, compute 140), device 0 MB
+[xllama] ws after model load: 339 MB
+[xllama] ws after context: 350 MB
+[xllama] Session: memory estimate n_ctx=2048 host 370 MB (weights 206, context 24, compute 140), device 0 MB
+[xllama] ws after model load: 319 MB
+[xllama] Session: memory estimate n_ctx=4096 host 730 MB (weights 373, context 48, compute 309), device 0 MB
+[xllama] ws after model load: 521 MB
+[xllama] ws after context: 570 MB
+[xllama] Session: memory estimate n_ctx=4096 host 730 MB (weights 373, context 48, compute 309), device 0 MB
+[xllama] ws after model load: 520 MB
+[xllama] ws after context: 569 MB
+[xllama] Session: memory estimate n_ctx=4096 host 730 MB (weights 373, context 48, compute 309), device 0 MB
+[xllama] ws after model load: 519 MB
+[xllama] Session: memory estimate n_ctx=2048 host 370 MB (weights 206, context 24, compute 140), device 0 MB
+[xllama] ws after model load: 318 MB
+[xllama] ws after context: 343 MB
+[xllama] Session: memory estimate n_ctx=4096 host 730 MB (weights 373, context 48, compute 309), device 0 MB
+[xllama] ws after model load: 519 MB
+[xllama] Session: memory estimate n_ctx=2048 host 370 MB (weights 206, context 24, compute 140), device 0 MB
+[xllama] ws after model load: 319 MB
+[xllama] ws after context: 344 MB
+[xllama] Session: memory estimate n_ctx=4096 host 730 MB (weights 373, context 48, compute 309), device 0 MB
+[xllama] ws after model load: 519 MB
+[xllama] Session: memory estimate n_ctx=2048 host 370 MB (weights 206, context 24, compute 140), device 0 MB
+[xllama] ws after model load: 318 MB
+[xllama] ws after context: 344 MB
+[xllama] Session: memory estimate n_ctx=4096 host 730 MB (weights 373, context 48, compute 309), device 0 MB
+[xllama] ws after model load: 519 MB
+[xllama] gguf gpu layers: 99 on D3D12
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] Session: memory estimate n_ctx=2048 host 164 MB (weights 0, context 24, compute 140), device 660 MB
+load_tensors: offloaded 17/17 layers to GPU
+[xllama] ws after model load: 790 MB
+[xllama] ws after context: 886 MB
+[xllama] Session: memory estimate n_ctx=4096 host 730 MB (weights 373, context 48, compute 309), device 0 MB
+[xllama] ws after model load: 518 MB
+[xllama] ws after context: 567 MB
+[xllama] Session: memory estimate n_ctx=4096 host 730 MB (weights 373, context 48, compute 309), device 0 MB
+[xllama] ws after model load: 525 MB
+[xllama] ws after context: 573 MB
+[xllama] Session: memory estimate n_ctx=4096 host 730 MB (weights 373, context 48, compute 309), device 0 MB
+[xllama] ws after model load: 520 MB
+[xllama] Session: memory estimate n_ctx=2048 host 370 MB (weights 206, context 24, compute 140), device 0 MB
+[xllama] ws after model load: 325 MB
+[xllama] ws after context: 350 MB
+[xllama] Session: memory estimate n_ctx=2048 host 370 MB (weights 206, context 24, compute 140), device 0 MB
+[xllama] ws after model load: 331 MB
+[xllama] ws after context: 344 MB
+[xllama] Session: memory estimate n_ctx=2048 host 370 MB (weights 206, context 24, compute 140), device 0 MB
+[xllama] ws after model load: 330 MB
+[xllama] ws after context: 355 MB
+[xllama] Session: memory estimate n_ctx=2048 host 370 MB (weights 206, context 24, compute 140), device 0 MB
+[xllama] ws after model load: 321 MB
+[xllama] ws after context: 346 MB
+[xllama] Session: memory estimate n_ctx=2048 host 370 MB (weights 206, context 24, compute 140), device 0 MB
+[xllama] ws after model load: 321 MB
+[xllama] ws after context: 346 MB
+[xllama] Session: memory estimate n_ctx=2048 host 370 MB (weights 206, context 24, compute 140), device 0 MB
+[xllama] ws after model load: 321 MB
+[xllama] ws after context: 347 MB
