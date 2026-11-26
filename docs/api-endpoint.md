@@ -178,7 +178,8 @@ to branch on (`include/xllama/api_discovery.h`):
     "reasoning_content": true,
     "reasoning_tokens": true,
     "cached_tokens": true
-  }
+  },
+  "sampling": ["temperature", "top_p", "top_k", "repetition_penalty", "seed"]
 }
 ```
 
@@ -186,7 +187,9 @@ to branch on (`include/xllama/api_discovery.h`):
 is the contract version; it increases when a documented response shape or
 status mapping changes in a way a client must branch on. `capabilities` lists
 what the installed build serves: the llama.cpp-only package reports
-`images: false`.
+`images: false`. `sampling` lists the sampling fields a chat request may set
+(`include/xllama/api_sampling.h`, the table the request is validated against),
+so a client sends only those instead of assuming them per version.
 
 Each `/v1/models` entry keeps OpenAI's `id`, `object`, `created` and `owned_by`
 and adds non-standard fields that clients may ignore:
@@ -250,11 +253,17 @@ state is invalidated — see Model above).
 
 Request body (subset): `model`, `messages[]`, optional `max_completion_tokens` /
 `max_tokens` (default 512; the former wins — `max_tokens` is the deprecated OpenAI
-alias), `temperature`, `top_p`, `seed`, and `stop` (string or array). Numbers are
-checked before the model loads, and a bad one is `400` naming the field: the token
-count is a whole number from 1 to the catalogue `n_ctx` minus 1, `temperature` is
-0–2, `top_p` is 0–1, and `seed` is a whole number (a negative seed keeps the
-default, llama.cpp's `-1`). `stream: true` answers with SSE; see the streaming
+alias), the sampling fields `temperature`, `top_p`, `top_k`, `repetition_penalty`
+(or llama.cpp's spelling `repeat_penalty`, not both) and `seed`, and `stop` (string
+or array). Numbers are checked before the model loads, and a bad one is `400`
+naming the field: the token count is a whole number from 1 to the catalogue `n_ctx`
+minus 1, `temperature` is 0–2, `top_p` is 0–1, `top_k` is a whole number ≥ 0 (0
+keeps every token), `repetition_penalty` is 0–2 (1 is no penalty, 0 drops the
+stage), and `seed` is a whole number (a negative seed keeps the default,
+llama.cpp's `-1`). An absent field keeps the default in `include/xllama/sampling.h`;
+on ORT GenAI models the same values go to its search options (`ort_sampling.h`),
+whose repetition penalty covers the whole sequence rather than llama.cpp's last 64
+tokens. `stream: true` answers with SSE; see the streaming
 paragraph under [Protocol (v1)](#protocol-v1). Most other fields are ignored.
 
 Plain chat (no tool schema, `tools: []`, or `tool_choice` `"none"`) keeps
