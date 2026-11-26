@@ -40,8 +40,10 @@
 #   disconnect  a streamed client that leaves during a long prefill releases
 #          the session (#581): the keepalive write fails, the prefill aborts,
 #          and a probe is served within DISCONNECT_LIMIT_S (default 30) while the
-#          prefill alone would take a minute. DISCONNECT_MODEL (default
-#          llama32-3b) must be slow enough for that. Not part of `all`.
+#          prefill alone would take a minute. It runs once for plain chat and
+#          once for a streamed tool proposal (#594). DISCONNECT_MODEL (default
+#          llama32-3b) must be slow enough for that and a GGUF with a tool
+#          template. Not part of `all`.
 #   prefs  POST /v1/preferences -> appends a like sample (#118).
 #   train  GET /v1/training/status -> JSON with state + usable_samples (#118).
 #   all    spike + chat + embed + budget + tools + prefs + train + pull (images are manual).
@@ -389,33 +391,12 @@ else:
 	return $verdict
 }
 
-# --- client disconnect during prefill (#581) -------------------------------
+# --- client disconnect during prefill (#581, #594) -------------------------
 
-validate_disconnect() {
-	echo "=== disconnect: a client gone during prefill releases the session ==="
-	local model="${DISCONNECT_MODEL:-llama32-3b}" limit="${DISCONNECT_LIMIT_S:-30}"
-	local long_req probe_req code start elapsed
-	# About 1600 tokens: inside a 2048 context, a minute of CPU prefill on a 3B.
-	# The nonce keeps a cached prefix from making it fast.
-	long_req=$(python3 -c '
-import json, sys, uuid
-filler = ("Entry %s: the harbour master logged tide tables, cargo manifests and the crane "
-          "maintenance schedule for pier seven. ")
-text = "".join(filler % i for i in range(70))
-print(json.dumps({"model": sys.argv[1], "stream": True, "max_tokens": 16,
-                  "messages": [{"role": "user", "content": uuid.uuid4().hex + " " + text +
-                                "Summarise the log."}]}))
-' "$model")
-	probe_req=$(printf '{"model":"%s","messages":[{"role":"user","content":"Say OK."}],"max_tokens":1}' "$model")
-	# Load the model first, so the timing below is the prefill, not the load.
-	code=$(curl -sS -m 300 -o /dev/null -w "%{http_code}" -H 'Content-Type: application/json' \
-		-d "$probe_req" "${API_URL}/v1/chat/completions" || echo "000")
-	if [[ "$code" != "200" ]]; then
-		echo "  FAIL: warm-up on ${model} was HTTP ${code}"
-		echo "disconnect: FAIL"
-		return 1
-	fi
-	# The client gives up after 3 s, in the middle of the prefill.
+# One leave-and-probe round: the client gives up 3 s into the prefill of
+# |long_req|, then a short request must get the session within |limit| s.
+disconnect_round() {
+	local label="$1" long_req="$2" probe_req="$3" limit="$4" code start elapsed
 	printf '%s' "$long_req" | curl -sS -N -m 3 -o /dev/null -H 'Content-Type: application/json' \
 		--data-binary @- "${API_URL}/v1/chat/completions" 2>/dev/null || true
 	start=$(date +%s)
@@ -429,13 +410,49 @@ print(json.dumps({"model": sys.argv[1], "stream": True, "max_tokens": 16,
 		fi
 		sleep 1
 	done
-	echo "  probe after the disconnect: HTTP ${code} in ${elapsed}s (limit ${limit}s)"
-	if [[ "$code" == "200" ]] && ((elapsed <= limit)); then
-		echo "disconnect: PASS"
-		return 0
+	echo "  ${label}: probe after the disconnect: HTTP ${code} in ${elapsed}s (limit ${limit}s)"
+	[[ "$code" == "200" ]] && ((elapsed <= limit))
+}
+
+validate_disconnect() {
+	echo "=== disconnect: a client gone during prefill releases the session ==="
+	local model="${DISCONNECT_MODEL:-llama32-3b}" limit="${DISCONNECT_LIMIT_S:-30}"
+	local plain_req tool_req probe_req code verdict=0
+	# About 1600 tokens: inside a 2048 context, a minute of CPU prefill on a 3B.
+	# The nonce keeps a cached prefix from making it fast. The tool variant
+	# streams a tool proposal, whose stream opens before generation (#594).
+	long_request() {
+		python3 -c '
+import json, sys, uuid
+filler = ("Entry %s: the harbour master logged tide tables, cargo manifests and the crane "
+          "maintenance schedule for pier seven. ")
+text = "".join(filler % i for i in range(70))
+body = {"model": sys.argv[1], "stream": True, "max_tokens": 16,
+        "messages": [{"role": "user", "content": uuid.uuid4().hex + " " + text +
+                      "Summarise the log."}]}
+if sys.argv[2] == "tool":
+    body["tools"] = [{"type": "function", "function": {
+        "name": "file_report", "description": "File a summary of the harbour log",
+        "parameters": {"type": "object", "properties": {"summary": {"type": "string"}},
+                       "required": ["summary"]}}}]
+print(json.dumps(body))
+' "$model" "$1"
+	}
+	plain_req=$(long_request plain)
+	tool_req=$(long_request tool)
+	probe_req=$(printf '{"model":"%s","messages":[{"role":"user","content":"Say OK."}],"max_tokens":1}' "$model")
+	# Load the model first, so the timing below is the prefill, not the load.
+	code=$(curl -sS -m 300 -o /dev/null -w "%{http_code}" -H 'Content-Type: application/json' \
+		-d "$probe_req" "${API_URL}/v1/chat/completions" || echo "000")
+	if [[ "$code" != "200" ]]; then
+		echo "  FAIL: warm-up on ${model} was HTTP ${code}"
+		echo "disconnect: FAIL"
+		return 1
 	fi
-	echo "disconnect: FAIL"
-	return 1
+	disconnect_round "plain stream" "$plain_req" "$probe_req" "$limit" || verdict=1
+	disconnect_round "tool proposal stream" "$tool_req" "$probe_req" "$limit" || verdict=1
+	[[ $verdict -eq 0 ]] && echo "disconnect: PASS" || echo "disconnect: FAIL"
+	return $verdict
 }
 
 # --- compute admission (streamed permit hold) ------------------------------
