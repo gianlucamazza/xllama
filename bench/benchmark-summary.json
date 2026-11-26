@@ -352,7 +352,8 @@
         "gsm8k"
       ],
       "sources": [
-        "2026-11-26-standard/series-s-generative.jsonl"
+        "2026-11-26-standard/series-s-generative.jsonl",
+        "2026-11-26-standard/host-generative.jsonl"
       ]
     }
   }

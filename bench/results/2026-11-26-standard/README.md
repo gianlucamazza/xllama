@@ -11,6 +11,7 @@ promotion gate. The published table is generated into
 | --------------------------- | -------------------------------------------------------------------------------------- |
 | `host-loglikelihood.jsonl`  | `scripts/eval-host-standard.py`, one row per model and task                            |
 | `series-s-generative.jsonl` | `scripts/eval-standard-generative.py` against the Series S LAN API: item rows, summary |
+| `host-generative.jsonl`     | the same subset against host `llama-server`: item rows, summary                        |
 
 ## Setup
 
@@ -28,6 +29,10 @@ promotion gate. The published table is generated into
   ships it (`n_ctx` 2048). The 200 frozen items in
   `bench/eval/standard-generative.json`, temperature 0, seed 42,
   `max_completion_tokens` 1024. The run took about 14 minutes.
+- Host generative: `llama-server` from the same pin (`d81235049`), CPU, 8
+  threads, `-c 2048 -np 1 --jinja`, the same GGUF and the same request
+  settings. The first attempt was stopped by an external shutdown of the
+  server after 19 items and discarded; this file is the complete rerun.
 
 ## Results
 
@@ -41,6 +46,10 @@ Series S, `lfm25-1.2b-instruct`: IFEval strict 82/100 (instruction level
 88.2 %), GSM8K 80/100. No request failed. 4 IFEval and 5 GSM8K replies hit the
 1024-token limit and count as failures.
 
+Host `llama-server`, same model: IFEval strict 85/100 (instruction level
+90.7 %), GSM8K 83/100. No request failed. 2 IFEval and 5 GSM8K replies hit the
+limit.
+
 ## Reading
 
 - The 1.2B is ahead of the 350M clearly on HellaSwag, WinoGrande and MMLU
@@ -52,11 +61,18 @@ Series S, `lfm25-1.2b-instruct`: IFEval strict 82/100 (instruction level
   figures compare across xllama runs at this pin, not with published model
   cards. There is no llama.cpp reference figure for these GGUFs to check
   against.
-- All 80 GSM8K passes carry an explicit `Answer:` line; the last-number
+- On Series S, all 80 GSM8K passes carry an explicit `Answer:` line; the last-number
   fallback decided none of them.
-- The host-vs-console comparison on the generative subset is not in this
-  campaign. The host `llama-server` run reached under 1 tok/s on the shared
-  machine and was stopped; it will be added with its own file.
+- Host and console agree within stderr: IFEval 85 vs 82 and GSM8K 83 vs 80,
+  each a 3-point gap against a combined standard error of about 5.3 and 5.5.
+  Per item, IFEval passes on both for 78 prompts, on the host only for 7 and
+  on the console only for 4; GSM8K 75, 8 and 5. Discordant counts that small
+  are not a significant difference, so the shipped path (template, stops,
+  token limit, thinking split) shows no loss on this subset.
+- The replies are not byte-identical (5 of 100 IFEval, 1 of 100 GSM8K match
+  exactly): the console and host backends differ numerically, and greedy
+  decoding amplifies small logit differences into different text.
+- On the host, 82 of the 83 GSM8K passes carry an explicit `Answer:` line.
 
 ## Reproduce
 
@@ -71,4 +87,10 @@ source ~/.config/xllama/xbox-env
 ./scripts/eval-standard-generative.py --base-url "http://${XBOX_IP}:11434" \
   --model lfm25-1.2b-instruct --hardware xbox-series-s-declared \
   --endpoint-label series-s-lan-api-<version> --out series-s-generative.jsonl
+
+build/llama-server/bin/llama-server -m <gguf> -c 2048 -np 1 -t 8 --jinja \
+  --host 127.0.0.1 --port 18089 &
+./scripts/eval-standard-generative.py --base-url http://127.0.0.1:18089 \
+  --model lfm25-1.2b-instruct --hardware linux-host-declared \
+  --endpoint-label host-llama-server-<pin>-cpu --out host-generative.jsonl
 ```
