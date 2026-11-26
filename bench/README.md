@@ -304,6 +304,8 @@ and dataset SHA256, accuracy and its binomial stderr in percent, chance level,
 appends, so one dated file can hold several models. HellaSwag with 400 tasks
 has a stderr of about 2.5 points: a gap smaller than about twice that is noise.
 
+### Xbox Series S — paired A/B campaigns
+
 For a change that one LocalState knob switches on or off (the #313
 four-column kernel, `d3d12-prefill-columns.txt`), `scripts/bench-paired-knob.sh`
 runs matched pairs of `bench-xbox-ort.sh` invocations: arm A without the knob,
