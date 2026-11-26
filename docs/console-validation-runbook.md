@@ -385,18 +385,18 @@ only after the #243 scorer fix, which moved its Q4_K_M baseline from 2/8 to 1/8.
 - Reinstall with a higher package revision for an in-place update; a same-version
   package with different contents is rejected.
 - **LAN API unreachable although the log says `api: listening on 0.0.0.0:11434`**
-  (#603). TCP to 11434 times out while Device Portal on 11443 answers. It was
-  seen once, on Series S, after the same package version (`1.8.1.1943`) had
-  been installed in place 12 times in about 15 minutes, with the app started
-  and stopped around each install. Restarting the app did not help; an
-  in-place install of a newer revision (`1.8.1.1956`) did, and `/health`
-  answered right after launch. Fix: install a newer revision, not the same one
-  again. `deploy.sh` now skips a version that is already installed (it reads
-  Name and Version from the package's manifest) unless given
-  `--force-reinstall`, so a harness that reinstalls per run keeps the package
-  it has. The cause is unconfirmed: the hypothesis is that re-registering the
-  same version does not re-create the inbound rule the OS derives from
-  `privateNetworkClientServer`.
+  (#603). TCP connections to 11434 time out, packets dropped rather than
+  refused, while Device Portal on 11443 answers. Cause: installing in place a
+  package version that is already installed. Reproduced on Series S
+  (OS 26100.9662) with 1.9.0.1976 and 1.9.0.1977: one such install was enough,
+  whether the app was stopped first or not. Restarting the app does not help.
+  Installing a newer revision in place does, and `/health` answers on the
+  first launch. The likely mechanism is that re-registering the same version
+  does not re-create the inbound rule the OS derives from
+  `privateNetworkClientServer`. `deploy.sh` therefore skips a version that is
+  already installed (it reads Name and Version from the package's manifest)
+  unless given `--force-reinstall`, which reproduces the fault. To recover,
+  install any newer revision.
 - Detailed Device Portal behavior: [device-portal.md](device-portal.md).
 
 ## Release acceptance

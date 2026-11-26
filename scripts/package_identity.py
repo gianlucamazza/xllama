@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Package identity of an .msix, and whether that exact version is installed.
 
-#603: installing the same package version in place, over and over, once left
+#603: installing in place a package version that is already installed leaves
 the console dropping every inbound connection on the LAN API port while the
-app logged "listening". A newer revision fixed it. deploy.sh therefore does
-not reinstall a version that is already registered, unless asked to.
+app logs "listening"; a newer revision fixes it. deploy.sh therefore does not
+reinstall a version that is already registered, unless asked to.
 
   package_identity.py identity <package.msix>
       prints "<Name> <Version>" from the AppxManifest.xml inside the package

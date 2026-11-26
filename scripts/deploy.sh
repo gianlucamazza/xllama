@@ -554,11 +554,13 @@ fi
 APPX_NAME=$(basename "$APPX")
 APPX_DIR=$(dirname "$APPX")
 
-# #603: the same package version installed in place over and over once left
-# the console dropping every inbound connection on the LAN API port while the
-# app logged "listening"; a newer revision fixed it. A version that is already
-# registered is therefore not installed again: there is nothing to update, and
-# a harness that reinstalls per run gets the package it asked for.
+# #603: installing in place a version that is already installed leaves the
+# console dropping every inbound connection on the LAN API port while the app
+# logs "listening" (one such install is enough on Series S, app stopped first
+# or not); restarting the app does not help, a newer revision does. A version
+# that is already registered is therefore not installed again: there is
+# nothing to update, and a harness that reinstalls per run keeps the package
+# it asked for.
 if [[ $FORCE_REINSTALL -eq 0 ]]; then
 	INSTALLED=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/api/app/packagemanager/packages" |
 		python3 "${DEPLOY_SCRIPT_DIR}/package_identity.py" installed "$APPX") || {
