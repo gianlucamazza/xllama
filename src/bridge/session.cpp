@@ -986,6 +986,8 @@ class LlamaSession final : public Session {
             if (wd.stalled()) {
                 res.stalled = true;
                 res.error_msg = wd.stall_error();
+            } else if (wd.aborted()) {
+                res.error_msg = "aborted during prefill"; // Stop or a gone client (#580)
             } else {
                 res.error_msg = "prompt decode failed";
             }

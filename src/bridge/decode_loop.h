@@ -42,6 +42,35 @@ namespace xllama {
 // Phase 15 W2 (#210) adds optional draft-free prompt-lookup inside this same
 // loop so CLI and Session cannot drift on speculation either.
 
+// Abort inside a prefill batch (#580). While prefill_chunked runs, llama.cpp's
+// abort callback returns wd->aborted(): the caller's abort_flag (Stop, API
+// disconnect) or a fired stall detector. ggml-cpu polls it between graph nodes,
+// and llama_decode returns 2 between ubatches. Before, an abort waited for the
+// end of an n_batch chunk (up to 2048 tokens, ~90 s for a 3B model on Series S),
+// and a stuck llama_decode could not be ended at all. The ubatches already
+// processed stay in the KV, as after any failed chunk, so the caller drops its
+// resident record (Session's fail_prefill does). The D3D12 backend has no abort
+// hook: offloaded layers stop at the next ubatch. Decode steps are not covered;
+// one token is short, and decode_loop checks the flag before each one.
+class ScopedPrefillAbort {
+  public:
+    ScopedPrefillAbort(llama_context* ctx, InferenceWatchdog* wd) : ctx_(wd ? ctx : nullptr) {
+        if (ctx_)
+            llama_set_abort_callback(
+                ctx_, [](void* data) { return static_cast<InferenceWatchdog*>(data)->aborted(); },
+                wd);
+    }
+    ~ScopedPrefillAbort() {
+        if (ctx_)
+            llama_set_abort_callback(ctx_, nullptr, nullptr);
+    }
+    ScopedPrefillAbort(const ScopedPrefillAbort&) = delete;
+    ScopedPrefillAbort& operator=(const ScopedPrefillAbort&) = delete;
+
+  private:
+    llama_context* ctx_;
+};
+
 // Feed |n_tokens| tokens through the context, chunked at the model's logical
 // batch. Returns false if a chunk fails to decode; the caller owns what that
 // means for its cache, since the two callers answer that differently.
@@ -58,6 +87,7 @@ namespace xllama {
 inline bool prefill_chunked(llama_context* ctx, const llama_token* tokens, int n_tokens,
                             InferenceWatchdog* wd = nullptr, int done_base = 0) {
     const int n_batch = std::max(1, static_cast<int>(llama_n_batch(ctx)));
+    const ScopedPrefillAbort abort_scope(ctx, wd);
     for (int off = 0; off < n_tokens; off += n_batch) {
         if (wd && wd->aborted())
             return false;

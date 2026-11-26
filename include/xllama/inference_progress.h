@@ -136,10 +136,12 @@ inline void write_inference_stall_marker(const std::string& body) {
 /// Progress is noted on the inference thread (phase change, finished prefill
 /// chunk, generated token). A helper thread wakes every |poll_ms| and, if
 /// nothing has been noted for |stall_timeout_s|, logs the phase/position,
-/// writes `inference-stall.txt`, and sets the abort flag. A hang inside a
-/// single blocking `llama_decode` / `AppendTokenSequences` cannot be cancelled
-/// from this thread; the marker is what lets the bench harness record the run
-/// instead of waiting forever.
+/// writes `inference-stall.txt`, and sets the abort flag. During a GGUF prefill,
+/// llama.cpp's abort callback reads aborted(), so a stuck CPU `llama_decode`
+/// ends at the next graph node (decode_loop.h, ScopedPrefillAbort, #580). A hang
+/// in a D3D12 kernel or in ORT's `AppendTokenSequences` still cannot be
+/// cancelled from this thread; there the marker is what lets the bench harness
+/// record the run instead of waiting forever.
 class InferenceWatchdog {
   public:
     InferenceWatchdog(const InferenceProgressConfig& cfg, std::atomic<bool>* abort_flag,

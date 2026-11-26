@@ -10,11 +10,13 @@
 #include <chrono>
 #include <doctest/doctest.h>
 
+#include <atomic>
 #include <climits>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <thread>
 
 TEST_CASE("SessionHub: failed create leaves the hub empty and bumps generation") {
     auto& hub = xllama::session_hub();
@@ -1010,4 +1012,78 @@ TEST_CASE("Session::estimate_memory: a GGUF n_ctx above the trained context is c
     MESSAGE("context at the trained n_ctx: " << context_mb[0] << " MB");
     CHECK(context_mb[0] > 0);
     CHECK(context_mb[0] == context_mb[1]);
+}
+
+TEST_CASE("Session: an abort ends a prefill inside its batch, and the next turn is clean "
+          "(opt-in: XLLAMA_TEST_MODEL)") {
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    // One logical batch for the whole prompt: before #580 an abort was only seen
+    // between n_batch chunks, so it waited for the full prefill here.
+    xllama::SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 4096;
+    sp.n_batch = 4096;
+    std::string error;
+    auto s = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(s, error);
+
+    // Two prompts of the same length that share no prefix: the aborted run must
+    // prefill from scratch. Repeating the warm-up prompt would restore its KV or
+    // hybrid prefix checkpoint and finish before the abort.
+    const auto make_prompt = [](const char* noun) {
+        std::string filler;
+        for (int i = 0; i < 140; ++i)
+            filler += std::string(noun) + " " + std::to_string(i) +
+                      ": the archive lists a lantern, a compass and a copper signal near the "
+                      "harbor. ";
+        return "<|im_start|>user\n" + filler + "Reply OK.<|im_end|>\n<|im_start|>assistant\n";
+    };
+    const std::string warm_prompt = make_prompt("Entry");
+    const std::string long_prompt = make_prompt("Record");
+
+    const auto t_full0 = std::chrono::steady_clock::now();
+    const auto full = s->generate(greedy_turn(warm_prompt, true, true));
+    const double full_ms =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_full0)
+            .count();
+    REQUIRE_MESSAGE(full.success, full.error_msg);
+    REQUIRE(full.n_p_eval > 2048); // more than one ubatch, so the abort can land inside
+
+    const uint64_t epoch_before = s->kv_epoch();
+    std::atomic<bool> abort{false};
+    auto gp = greedy_turn(long_prompt, true, true);
+    gp.abort_flag = &abort;
+    const double abort_after_ms = full_ms / 10;
+    std::thread stopper([&abort, abort_after_ms] {
+        std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(abort_after_ms));
+        abort.store(true);
+    });
+    const auto t0 = std::chrono::steady_clock::now();
+    const auto aborted = s->generate(gp);
+    const double aborted_ms =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    stopper.join();
+    MESSAGE("full prefill " << full_ms << " ms; aborted after " << abort_after_ms
+                            << " ms, returned at " << aborted_ms << " ms");
+    CHECK_FALSE(aborted.success);
+    CHECK(aborted.error_msg == "aborted during prefill");
+    CHECK(aborted_ms < full_ms / 2);
+
+    // The partial prefill was dropped and the KV epoch renewed: a continuation
+    // written against the earlier context is refused...
+    const std::string q = "<|im_start|>user\nSay hi.<|im_end|>\n<|im_start|>assistant\n";
+    CHECK(s->kv_epoch() != epoch_before);
+    auto cont = greedy_turn("<|im_start|>user\nAnd?<|im_end|>\n", true, false);
+    cont.expected_kv_epoch = epoch_before;
+    CHECK_FALSE(s->generate(cont).success);
+    // ...and the caller's full-prompt turn answers like a fresh session.
+    const auto next = s->generate(greedy_turn(q, true, true));
+    REQUIRE_MESSAGE(next.success, next.error_msg);
+    auto fresh = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(fresh, error);
+    const auto ref = fresh->generate(greedy_turn(q, true, true));
+    REQUIRE_MESSAGE(ref.success, ref.error_msg);
+    CHECK(next.output_text == ref.output_text);
 }
