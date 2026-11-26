@@ -23,6 +23,9 @@ TEST_CASE("health_json keeps the original fields first and adds version, api, ca
     CHECK(j["capabilities"]["reasoning_tokens"] == false);
     CHECK(j["capabilities"]["cached_tokens"] == false);
     CHECK(j["capabilities"].size() == 10);
+    // The accepted sampling fields, from the same table the request is checked against.
+    CHECK(j["sampling"] ==
+          json::array({"temperature", "top_p", "top_k", "repetition_penalty", "seed"}));
     // The pin and every applied patch (#611), so a client can tell which upstream fixes it has.
     CHECK(j["runtime"]["llama_cpp"] == "d812350");
     REQUIRE(j["runtime"]["patches"].size() == xllama::kLlamaPatches.size());

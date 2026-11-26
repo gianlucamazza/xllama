@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #include "xllama/api_discovery.h"
 
+#include "xllama/api_sampling.h"
 #include "xllama/json_utils.h"
 #include "xllama/llama_patches.h"
 
@@ -64,7 +65,12 @@ std::string health_json(const std::string& version, const ApiCapabilities& caps,
     out += ",\"reasoning_content\":" + std::string(boolean(caps.reasoning_content));
     out += ",\"reasoning_tokens\":" + std::string(boolean(caps.reasoning_tokens));
     out += ",\"cached_tokens\":" + std::string(boolean(caps.cached_tokens));
-    out += "}";
+    // The sampling fields a chat request may set (api_sampling.h, #609); a
+    // client sends only these instead of assuming them per version.
+    out += "},\"sampling\":[";
+    for (std::size_t i = 0; i < kApiSamplingFields.size(); ++i)
+        out += std::string(i ? "," : "") + quoted(kApiSamplingFields[i].key);
+    out += "]";
     if (!llama_cpp.empty()) {
         out += ",\"runtime\":{\"llama_cpp\":" + quoted(llama_cpp) + ",\"patches\":[";
         for (std::size_t i = 0; i < kLlamaPatches.size(); ++i)

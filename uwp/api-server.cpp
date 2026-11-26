@@ -28,6 +28,7 @@
     #include "xllama/api_failure.h"
     #include "xllama/api_policy.h"
     #include "xllama/api_pull_policy.h"
+    #include "xllama/api_sampling.h"
     #include "xllama/chat_prompt.h"
     #include "xllama/compute_admission.h"
     #include "xllama/diffusion/request.h"
@@ -66,6 +67,7 @@
     #include <mutex>
     #include <optional>
     #include <string>
+    #include <string_view>
     #include <unordered_map>
     #include <vector>
 
@@ -829,39 +831,25 @@ void append_client_stops(JsonObject const& root, std::vector<std::string>& stops
     return out;
 }
 
-// Sampling numbers, validated before any model load (F01). Ranges are
-// OpenAI's: temperature 0..2, top_p 0..1. A seed is a whole number; a negative
-// one (llama.cpp's "-1 = random") keeps the default seed.
-std::string check_sampling(JsonObject const& root) {
-    struct Range {
-        const char* key;
-        double lo, hi;
-        bool whole;
-    };
-    for (const Range& r : {Range{"temperature", 0.0, 2.0, false}, Range{"top_p", 0.0, 1.0, false},
-                           Range{"seed", -2147483648.0, 4294967295.0, true}}) {
-        const winrt::hstring name = winrt::to_hstring(r.key);
+// The request's numbers, for the WinRT-free sampling table (api_sampling.h).
+::xllama::ApiNumberLookup json_numbers(JsonObject const& root) {
+    return [&root](std::string_view key) -> std::optional<double> {
+        const winrt::hstring name = winrt::to_hstring(std::string(key));
         if (!root.HasKey(name))
-            continue;
-        std::string err =
-            ::xllama::validate_api_number(r.key, root.GetNamedNumber(name), r.lo, r.hi, r.whole);
-        if (!err.empty())
-            return err;
-    }
-    return std::string();
+            return std::nullopt;
+        return root.GetNamedNumber(name);
+    };
+}
+
+// Sampling numbers, validated before any model load (F01): the fields and
+// ranges of xllama/api_sampling.h, which /health also reports.
+std::string check_sampling(JsonObject const& root) {
+    return ::xllama::validate_api_sampling(json_numbers(root));
 }
 
 // Copies the sampling numbers that check_sampling already accepted.
 void fill_sampling(JsonObject const& root, ::xllama::GenerateParams& gp) {
-    if (root.HasKey(L"temperature"))
-        gp.temperature = static_cast<float>(root.GetNamedNumber(L"temperature"));
-    if (root.HasKey(L"top_p"))
-        gp.top_p = static_cast<float>(root.GetNamedNumber(L"top_p"));
-    if (root.HasKey(L"seed")) { // reproducibility for a research endpoint
-        const double seed = root.GetNamedNumber(L"seed");
-        if (seed >= 0)
-            gp.seed = static_cast<uint32_t>(seed);
-    }
+    ::xllama::apply_api_sampling(json_numbers(root), gp);
 }
 
 // One OpenAI chat.completion body. `message` is choices[0].message.

@@ -43,9 +43,10 @@ ApiCapabilities build_api_capabilities();
 std::string build_llama_cpp();
 
 // {"status":"ok","service":"xllama","version":…,"api":…,"capabilities":{…},
-//  "runtime":{"llama_cpp":…,"patches":[…]}}. The first two fields are the
-// original body and stay first. "runtime" (#611) names the llama.cpp pin and
-// the patches applied to it (llama_patches.h); it is left out when
+//  "sampling":[…],"runtime":{"llama_cpp":…,"patches":[…]}}. The first two
+// fields are the original body and stay first. "sampling" lists the chat
+// fields of api_sampling.h (#609). "runtime" (#611) names the llama.cpp pin
+// and the patches applied to it (llama_patches.h); it is left out when
 // |llama_cpp| is empty (a build without llama.cpp).
 std::string health_json(const std::string& version, const ApiCapabilities& caps,
                         const std::string& llama_cpp);
