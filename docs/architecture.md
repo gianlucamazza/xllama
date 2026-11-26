@@ -908,6 +908,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_api_config.cpp`              | LAN API config validation (`uwp/api-server.h`)                                                                         |
 | `test_api_policy.cpp`              | `api_policy.h` numeric admission (F01)                                                                                 |
 | `test_api_pull.cpp`                | `api_pull_policy.h`, `withdrawn_models.h`                                                                              |
+| `test_app_settings.cpp`            | `app_settings.h` — settings.json parse/format, per-field fallback, legacy file, round trip                             |
 | `test_autopilot.cpp`               | `autopilot.h`                                                                                                          |
 | `test_bench.cpp`                   | bench CSV (`inference.h`), `platform.h`, `benchmark_identity.h`                                                        |
 | `test_cancel_policy.cpp`           | `cancel_policy.h`                                                                                                      |
