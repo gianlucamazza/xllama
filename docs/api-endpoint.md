@@ -131,6 +131,11 @@ xllama has no `/api/version` or `/api/chat`.
   are on the same network.
 - `busy` (503): another request or console chat turn is running. Retry when it
   ends.
+- `out of memory` (503): the request ran the console out of memory. Use a
+  smaller model, context or batch. `internal error` (500): the server failed.
+  `xllama.log` (`./scripts/deploy.sh get-log`) holds an `[xllama] api: <route>
+failed` line with the cause. `malformed request body` (400) means only that a
+  field had the wrong type or was missing.
 - Ollama connection "verify" fails with "no such endpoint": use the OpenAI API
   connection type.
 

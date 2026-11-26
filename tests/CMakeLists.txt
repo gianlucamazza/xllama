@@ -65,6 +65,7 @@ add_executable(xllama-tests
     test_debug_dashboard.cpp
     test_compute_admission.cpp
     test_api_connection.cpp
+    test_api_failure.cpp
     test_api_pull.cpp
     test_embedding.cpp
     test_autopilot.cpp

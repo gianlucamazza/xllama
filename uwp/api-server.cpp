@@ -25,6 +25,7 @@
     #include "xllama/api_activity.h"
     #include "xllama/api_connection.h"
     #include "xllama/api_discovery.h"
+    #include "xllama/api_failure.h"
     #include "xllama/api_policy.h"
     #include "xllama/api_pull_policy.h"
     #include "xllama/chat_prompt.h"
@@ -646,6 +647,35 @@ std::string error_json(const std::string& msg, const char* code = nullptr,
     return winrt::to_string(root.Stringify());
 }
 
+// #591: the status for an exception that escaped a route handler, logged so a
+// 5xx is diagnosable from xllama.log. Call only from inside a catch handler.
+// Only a Json accessor failure is a 400; out of memory is 503, the rest 500.
+::xllama::ApiFailureReply reply_for_current_exception(const char* route, const char* malformed,
+                                                      const char* internal) {
+    ::xllama::ApiFailure kind = ::xllama::ApiFailure::Internal;
+    std::string detail;
+    try {
+        throw;
+    } catch (winrt::hresult_error const& e) {
+        const auto hr = static_cast<std::int32_t>(e.code().value);
+        kind = ::xllama::classify_api_hresult(hr);
+        char buf[32];
+        snprintf(buf, sizeof(buf), "hresult 0x%08X", static_cast<unsigned>(hr));
+        detail = buf;
+        try {
+            const std::string text = winrt::to_string(e.message());
+            if (!text.empty())
+                detail += ": " + text;
+        } catch (...) {
+        }
+    } catch (...) {
+        kind = ::xllama::classify_std_exception(std::current_exception(), detail);
+    }
+    ::xllama::log_output(std::string("[xllama] api: ") + route + " failed (" +
+                         ::xllama::api_failure_name(kind) + "): " + detail + "\n");
+    return ::xllama::api_failure_reply(kind, malformed, internal);
+}
+
 // ---------------------------------------------------------------------------
 // OpenAI /v1/chat/completions
 // ---------------------------------------------------------------------------
@@ -866,6 +896,8 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
                                                     request.choice, request.forced_name);
             },
             [session](const std::string& text) { return session->count_tokens(text); });
+    } catch (const std::bad_alloc&) {
+        throw; // #591: the route handler answers 503, not a 400 naming bad_alloc
     } catch (const std::exception& ex) {
         status = "400 Bad Request";
         return error_json(ex.what());
@@ -976,7 +1008,9 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
         sse.finish(finish_reason.c_str(), chat_usage(generated, n_reasoning));
         status = "200 OK";
     } catch (...) {
-        status = "500 Internal Server Error";
+        status = reply_for_current_exception("chat tool stream", "malformed request body",
+                                             "generation failed")
+                     .status;
     }
     return {}; // The SSE head owns the response from here on.
 }
@@ -1230,8 +1264,10 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
             // Generation or JSON serialization failed after the head was sent.
             // write_error is noexcept; the empty body keeps the outer handler
             // from writing a plain HTTP response on top of the stream.
-            status = "500 Internal Server Error";
-            sse->write_error("generation failed");
+            const ::xllama::ApiFailureReply failure = reply_for_current_exception(
+                "chat stream", "malformed request body", "generation failed");
+            status = failure.status;
+            sse->write_error(failure.message);
         }
         return std::string(); // handle_connection must not write a second response
     }
@@ -2191,8 +2227,10 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             try {
                 json = handle_chat_locked(req.body, status, ticket, socket, stream);
             } catch (...) {
-                status = "400 Bad Request";
-                json = error_json("malformed request body");
+                const ::xllama::ApiFailureReply failure =
+                    reply_for_current_exception("chat", "malformed request body", "internal error");
+                status = failure.status;
+                json = error_json(failure.message);
             }
             // Record before writing: a client that disconnects makes
             // write_response throw, and the request was still served.
@@ -2243,8 +2281,10 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             try {
                 json = handle_embedding_locked(req.body, status, embedding_api, ticket);
             } catch (...) {
-                status = "400 Bad Request";
-                json = embedding_error_json(embedding_api, "malformed embedding request");
+                const ::xllama::ApiFailureReply failure = reply_for_current_exception(
+                    "embeddings", "malformed embedding request", "internal error");
+                status = failure.status;
+                json = embedding_error_json(embedding_api, failure.message);
             }
             // Record before writing: a client that disconnects makes
             // write_response throw, and the request was still served.
@@ -2260,8 +2300,10 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             try {
                 json = handle_preferences(req.body, status);
             } catch (...) {
-                status = "400 Bad Request";
-                json = error_json("malformed request body");
+                const ::xllama::ApiFailureReply failure = reply_for_current_exception(
+                    "preferences", "malformed request body", "internal error");
+                status = failure.status;
+                json = error_json(failure.message);
             }
             write_response(socket, status, json);
             return;
@@ -2302,8 +2344,10 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             try {
                 json = handle_images_locked(req.body, status);
             } catch (...) {
-                status = "500 Internal Server Error";
-                json = error_json("image generation failed");
+                const ::xllama::ApiFailureReply failure = reply_for_current_exception(
+                    "images", "malformed request body", "image generation failed");
+                status = failure.status;
+                json = error_json(failure.message);
             }
             // Record before writing: a client that disconnects makes
             // write_response throw, and the request was still served.

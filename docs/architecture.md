@@ -39,6 +39,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `session_hub.h`                    | `SessionHub` — the ONE process-wide resident-Session owner (GUI + LAN API); locking + `generation` contract                                                                                           |
 | `compute_admission.h`              | Process-wide RAII lease for resource-heavy jobs across UI and LAN API; acquire before `session_hub().mtx` (proposed ADR 0008)                                                                         |
 | `api_connection.h`                 | Bounded LAN in-flight slots and the HTTP 200/503 mapping for a compute admit (proposed ADR 0008)                                                                                                      |
+| `api_failure.h`                    | HTTP status for an exception that escapes a LAN API route: 400 only for a Json accessor failure, 503 out of memory, else 500 (#591)                                                                   |
 | `debug_dashboard.h`                | Optional debug dashboard snapshot: compose real hub / LAN / inference readings; missing sources stay `unavailable`                                                                                    |
 | `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125)                                                                                                                          |
 | `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON                                                                                                                                        |
@@ -906,6 +907,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_thinking_split.cpp`          | `thinking_split.h` (batch and stream reasoning split, spans, reasoning token count, `split_output`)                    |
 | `test_compute_admission.cpp`       | `compute_admission.h`                                                                                                  |
 | `test_api_connection.cpp`          | `api_connection.h` — overlapping compute requests are 200+503; connection-gate bound                                   |
+| `test_api_failure.cpp`             | `api_failure.h` — HRESULT and std exception classification, status per kind                                            |
 | `test_debug_dashboard.cpp`         | `debug_dashboard.h`                                                                                                    |
 | `test_api_config.cpp`              | LAN API config validation (`uwp/api-server.h`)                                                                         |
 | `test_api_policy.cpp`              | `api_policy.h` numeric admission (F01)                                                                                 |
