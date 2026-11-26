@@ -20,21 +20,26 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
-import hashlib
 import json
 import math
 import os
 import re
 import subprocess
-import tempfile
 import sys
 import time
-import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+from eval_datasets import (  # noqa: E402
+    DEFAULT_CACHE,
+    EvalError,
+    dataset_path,
+    fetch,
+    sha256_file,
+    validate_datasets,
+)
 SPEC_PATH = ROOT / "bench/eval/standard-datasets.json"
-DEFAULT_CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "xllama/eval-datasets"
 DEFAULT_BIN = ROOT / "build/linux-release/bin/llama-perplexity"
 MODES = ("hellaswag", "winogrande", "multiple-choice")
 
@@ -46,10 +51,6 @@ MC_FINAL = re.compile(r"Final result: ([0-9.]+) \+/- ([0-9.]+)")
 MC_CHANCE = re.compile(r"Random chance: ([0-9.]+) \+/- ([0-9.]+)")
 
 
-class EvalError(RuntimeError):
-    pass
-
-
 def load_spec(path: Path = SPEC_PATH) -> dict:
     spec = json.loads(path.read_text(encoding="utf-8"))
     validate_spec(spec)
@@ -59,16 +60,9 @@ def load_spec(path: Path = SPEC_PATH) -> dict:
 def validate_spec(spec: dict) -> None:
     datasets = spec.get("datasets") or {}
     tasks = spec.get("tasks") or {}
-    if not datasets or not tasks:
-        raise EvalError("spec needs datasets and tasks")
-    for name, ds in datasets.items():
-        for key in ("file", "url", "sha256", "upstream", "upstream_licence"):
-            if not ds.get(key):
-                raise EvalError(f"dataset {name}: missing {key}")
-        if not re.fullmatch(r"[0-9a-f]{64}", ds["sha256"]):
-            raise EvalError(f"dataset {name}: sha256 is not 64 hex digits")
-        if not ds["url"].startswith("https://"):
-            raise EvalError(f"dataset {name}: url must be https")
+    validate_datasets(datasets)
+    if not tasks:
+        raise EvalError("spec needs tasks")
     for name, task in tasks.items():
         if task.get("dataset") not in datasets:
             raise EvalError(f"task {name}: unknown dataset {task.get('dataset')!r}")
@@ -82,50 +76,6 @@ def validate_spec(spec: dict) -> None:
         # task has up to 5 choices, and too few sequences aborts the run mid-way.
         if not isinstance(task.get("n_parallel"), int) or task["n_parallel"] < 4:
             raise EvalError(f"task {name}: n_parallel must be an int >= 4")
-
-
-def sha256_file(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def dataset_path(spec: dict, name: str, cache: Path) -> Path:
-    ds = spec["datasets"][name]
-    path = cache / ds["file"]
-    if not path.is_file():
-        raise EvalError(f"{path} missing; run with --fetch")
-    got = sha256_file(path)
-    if got != ds["sha256"]:
-        raise EvalError(f"{path}: sha256 {got} != pinned {ds['sha256']}")
-    return path
-
-
-def fetch(spec: dict, cache: Path) -> None:
-    cache.mkdir(parents=True, exist_ok=True)
-    for name, ds in spec["datasets"].items():
-        path = cache / ds["file"]
-        if path.is_file() and sha256_file(path) == ds["sha256"]:
-            print(f"ok      {name}")
-            continue
-        # A private temp file per process: two concurrent fetches must not share one.
-        fd, tmp_name = tempfile.mkstemp(dir=cache, prefix=ds["file"] + ".", suffix=".part")
-        tmp = Path(tmp_name)
-        try:
-            with urllib.request.urlopen(ds["url"], timeout=120) as resp, os.fdopen(fd, "wb") as out:
-                while chunk := resp.read(1 << 20):
-                    out.write(chunk)
-        except BaseException:
-            tmp.unlink(missing_ok=True)
-            raise
-        got = sha256_file(tmp)
-        if got != ds["sha256"]:
-            tmp.unlink()
-            raise EvalError(f"{name}: fetched sha256 {got} != pinned {ds['sha256']}")
-        tmp.replace(path)
-        print(f"fetched {name}")
 
 
 def binomial_stderr(p: float, n: int) -> float:
