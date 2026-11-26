@@ -10,8 +10,8 @@ performance belongs in `docs/benchmarks.md`.
   showcase shell; the LAN OpenAI-compat endpoint is the current
   integration probe. Limits and non-claims:
   [docs/positioning.md](docs/positioning.md).
-- Current manifest: **1.8.1.0** under the **`GianlucaMazza.xllama`** identity.
-  See the [release notes](docs/releases/v1.8.1.md) and
+- Current manifest: **1.9.0.0** under the **`GianlucaMazza.xllama`** identity.
+  See the [release notes](docs/releases/v1.9.0.md) and
   [installation guide](docs/install-release.md) for updates from earlier builds.
 - Shipping artifact: unified ORT GenAI + llama.cpp, with pinned patched runtime
   DLLs while upstream fixes have not reached NuGet. The UWP ggml build now
@@ -51,6 +51,11 @@ performance belongs in `docs/benchmarks.md`.
   the cut can be regenerated with `scripts/edit-demo-video.sh`.
 
 ### Current follow-up priorities
+
+Open work is grouped in the GitHub
+[milestones](https://github.com/gianlucamazza/xllama/milestones): the next
+release (v1.10.0), the GPU program, catalogue candidates, the blocked
+llama.cpp pin bump, SSD MoE / out-of-core research and new model types.
 
 1. **Vendor pin drops** (#84/#85/#86) — blocked until NuGet moves
    (`scripts/check-vendor-nuget-status.sh`, poll 2026-11-16: still required;

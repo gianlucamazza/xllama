@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.0]
+
+User-facing notes: [docs/releases/v1.9.0.md](docs/releases/v1.9.0.md).
+
 - **A LAN API failure is no longer reported as a malformed request (#591).** Chat, embeddings, preferences and images answered every exception that escaped the handler with `400 malformed request body`, out of memory included, and logged nothing. Only a Json accessor failure (a field of the wrong type, a missing key) is still a 400. Out of memory is `503` `out of memory`, anything else `500`, and every case is logged as `[xllama] api: <route> failed (…)` with the HRESULT or `what()`. The mapping lives in `api_failure.h`. Reported downstream by christopherbearman (`d330574`).
 - **Standard benchmarks on the host (#597).** `scripts/eval-host-standard.py` scores a GGUF on HellaSwag, WinoGrande, ARC and MMLU through `llama-perplexity`, over datasets pinned by revision and SHA256 in `bench/eval/standard-datasets.json`, and appends JSONL rows with accuracy and stderr. `scripts/eval-standard-generative.py` scores frozen 100-item IFEval and GSM8K subsets through any OpenAI-compatible endpoint, so the same subset runs on host `llama-server` and on the console LAN API. The numbers are informational: H9 stays the promotion gate, and the loglikelihood tasks cannot run on the console because the LAN API returns no logprobs.
 - **Long-prompt prefill knobs measured on Series S (#582).** 36 paired A/B runs (`bench/results/2026-11-26-prefill-knobs/`): the shipped configuration (auto flash attention, which this pin resolves to on for the CPU, `n_ubatch` 512, f16 KV) is within 3 % of the fastest arm. Flash attention off costs 31–54 %, q8_0 KV 51–76 % (it saves 44–420 MiB), `n_ubatch` 256 3–5 %; 1024 gains 0.5–2.9 % for 43–73 MiB. Defaults are unchanged. To measure it: `bench-xbox-ort.sh --flash-attn 0|1` (`bench_flash_attn.txt`, host tag `-fa0/-fa1`), `bench-paired-knob.sh --a-arg/--b-arg` and `--retries`, `paired-bench-summary.py --report`, and llama.cpp's flash attention resolution now reaches `xllama.log`.
