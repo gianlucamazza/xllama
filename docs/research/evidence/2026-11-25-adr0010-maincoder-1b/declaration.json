@@ -1,0 +1,121 @@
+{
+  "schema": "xllama.control-declaration/v2",
+  "model": "maincoder-1b",
+  "reference": {
+    "nmse_limit": 1e-07,
+    "captures": [
+      {
+        "prompt": "c1",
+        "last_layer": 31
+      },
+      {
+        "prompt": "u03",
+        "last_layer": 5
+      }
+    ]
+  },
+  "distribution": {
+    "kld_ratio_limit": 1.5,
+    "top1_margin": 0.01,
+    "confidence": 0.95,
+    "min_positions": 4000,
+    "bootstrap": 2000,
+    "seed": 1,
+    "prompts": [
+      "u01",
+      "u02",
+      "u03",
+      "u04",
+      "u05",
+      "u06",
+      "u07",
+      "u08",
+      "u09",
+      "u10",
+      "u11",
+      "u12",
+      "u13",
+      "u14",
+      "u15",
+      "u16"
+    ]
+  },
+  "prompts": [
+    {
+      "id": "c1",
+      "sha256": "b3f6713b9000854b057f2e6603809f48e2ed8941c0e395b2ea502cbdc7c27775"
+    },
+    {
+      "id": "u01",
+      "sha256": "af5e9a1679d786834284ebf4d9141571646e0632a21554026cc7fd83ceea004b"
+    },
+    {
+      "id": "u02",
+      "sha256": "318d7ed519f74c871f17529c3befdb0f292696d6a3d12ca895c1d70693d13440"
+    },
+    {
+      "id": "u03",
+      "sha256": "6e0a66dab02773b49746d2d510764b1b1fb9a0b551e2a7a6215c726bebd8a5ed"
+    },
+    {
+      "id": "u04",
+      "sha256": "dde7eee4dd89fa0ca03818ce0a83b94b3a1bd8477db49a9c22bc28cf4e829488"
+    },
+    {
+      "id": "u05",
+      "sha256": "cb64310592561317fd092235d8e1b7a478a076fd2b3da0843d5dc6a9eea651fa"
+    },
+    {
+      "id": "u06",
+      "sha256": "f7b69b93763a5ac5a856e1887e60ef9a20c5ccae7fb2d72295e10406cad330bd"
+    },
+    {
+      "id": "u07",
+      "sha256": "bab2400ab6df5f5346ed6481632855e7899d80d47d9d64a6a955fdd02f157518"
+    },
+    {
+      "id": "u08",
+      "sha256": "b6a837334ded8eeeb357f08ab4f578243b91390fe47fabf90d1149524d2c02fd"
+    },
+    {
+      "id": "u09",
+      "sha256": "a8c7b79f7812ebbdf7e4f050084aebe23fc08181d6d90373f3ca7091f1e724fc"
+    },
+    {
+      "id": "u10",
+      "sha256": "7d0de4d5b5395e9729a313307e70ea28278f882b8c30cae6eec5358795f73fa8"
+    },
+    {
+      "id": "u11",
+      "sha256": "09604d168a3c38bfbb45be7bca6a1a43ca6550faa45354a76864bfd7f7e9dc57"
+    },
+    {
+      "id": "u12",
+      "sha256": "f8efc4047e05c37baf0c85b6bdf5ec09f6aac0d90b211fc017370135d7cbb04d"
+    },
+    {
+      "id": "u13",
+      "sha256": "4bcd6481c54606a53ba8a1e804e0b46aed97bf4df448ebd22727209e4ebbffd9"
+    },
+    {
+      "id": "u14",
+      "sha256": "8fb3f2da263e3cc91364e105fcb6f4098b021469321646e247f1dd93dc23f131"
+    },
+    {
+      "id": "u15",
+      "sha256": "97bf0dfa6b4dd8de5b769662f8aa3fd9c788935a7d68bb4d7bdc4439e48293d8"
+    },
+    {
+      "id": "u16",
+      "sha256": "f761fcd77d25284990fdb8c1168943f9cd00579ee42c40853aa3a8a816db99c1"
+    }
+  ],
+  "arms": {
+    "gpu": "console, gpu_layers 99",
+    "cpu_console": "console, gpu_layers 0",
+    "cpu_host_floor": "host-no-repack",
+    "reported_not_judged": [
+      "host-release against the console CPU arm"
+    ]
+  }
+}

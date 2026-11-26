@@ -1,0 +1,1 @@
+Explain briefly why a stack built on a linked list needs no resizing, then say when an array-backed stack is the better choice for it.
