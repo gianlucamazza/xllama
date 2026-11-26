@@ -18,6 +18,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Hybrid prefix snapshots may start a few tokens before the prompt end.** On a long hybrid/recurrent full-prompt prefill the session captures the head, then prefills the tail, so a later prompt that diverges only in those last tokens can restore instead of prefilling from scratch. Exact regenerate of the same prompt still Clears and prefills the whole prompt so the last token reseeds logits. The opt-out knob and non-hybrid rewind are unchanged. On host (LFM2.5-1.2B, CPU) the head/tail split produces the same greedy output as `hybrid-prefix-snapshots=0`; an opt-in `XLLAMA_TEST_MODEL` case guards it. Watchdog prompt progress stays absolute across the split.
 
 - **Host tests run without the stall watchdog.** `xllama-tests` now has its own `tests/test_main.cpp`, which sets `XLLAMA_INFER_STALL_TIMEOUT_S=0` unless the caller exported a value. A model-backed opt-in case in a Debug or ASan build could outlast the 180 s product watchdog, fail as "stalled" and leave `inference-stall.txt` in the working directory.
+
+- **SmolLM3-3B chat renderer.** Added `ChatFormatKind::SmolLM3` with a frozen /no_think metadata header and host goldens; no catalogue entry.
+
 - **`tool_choice` `required` or a named function always starts with the call (#563).** The template grammar allowed free text before the call marker, so a model could fill `max_tokens` with prose ("Ho controllato la directory…") and return no call. `patches/0005` makes a required choice admit only reasoning, then calls, as llama.cpp's Gemma 4 parser already does, for LFM2 and every autoparsed template (ADR 0005 amendment).
 
 - **OLMoE-1B-7B-0125-Instruct chat renderer.** Added `ChatFormatKind::Olmoe` with host goldens; no catalogue entry.
