@@ -32,6 +32,7 @@ TEST_CASE("build_api_capabilities follows the compiled backends") {
     CHECK_FALSE(caps.images);
 #endif
     CHECK(caps.pull);
+    CHECK(caps.reasoning_content);
 }
 
 TEST_CASE("models_list_json is an OpenAI list with xllama's per-model fields") {

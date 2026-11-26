@@ -3,6 +3,8 @@
 
 #include "xllama/chat_prompt.h"
 
+#include "xllama/thinking_split.h"
+
 #include <algorithm>
 #include <cctype>
 #include <utility>
@@ -137,44 +139,7 @@ std::string strip_empty_thinking_tags(std::string text) {
 }
 
 std::string strip_thinking_blocks(std::string text) {
-    constexpr char kOpen[] = "<think>";
-    constexpr char kClose[] = "</think>";
-    // Unbalanced closer first: a model whose template opens the reasoning for it
-    // (or a stop sequence that ate the opener) streams "reasoning…</think>answer"
-    // with no <think> at all. Without this the whole chain of thought AND the raw
-    // tag reach the screen and the saved history.
-    {
-        const size_t first_close = text.find(kClose);
-        if (first_close != std::string::npos) {
-            const size_t first_open = text.find(kOpen);
-            if (first_open == std::string::npos || first_open > first_close)
-                text.erase(0, first_close + sizeof(kClose) - 1);
-        }
-    }
-    // Complete blocks (may appear more than once).
-    for (;;) {
-        const size_t o = text.find(kOpen);
-        if (o == std::string::npos)
-            break;
-        const size_t c = text.find(kClose, o + sizeof(kOpen) - 1);
-        if (c == std::string::npos) {
-            // Truncated mid-thought: drop the open and everything after.
-            text.erase(o);
-            break;
-        }
-        text.erase(o, (c + sizeof(kClose) - 1) - o);
-    }
-    // A closer still standing after the balanced pass is a stray tag, not a
-    // block boundary ("<think>a</think>answer</think>"): drop the tag and keep
-    // the answer. Everything BEFORE the first closer was already dropped above
-    // when no opener preceded it.
-    for (size_t c = text.find(kClose); c != std::string::npos; c = text.find(kClose))
-        text.erase(c, sizeof(kClose) - 1);
-    ltrim_inplace(text);
-    // Trailing whitespace after the answer.
-    while (!text.empty() && std::isspace(static_cast<unsigned char>(text.back())))
-        text.pop_back();
-    return text;
+    return split_thinking(text).content;
 }
 
 bool apply_stop_sequences(std::string& output, const std::vector<std::string>& stops) {
@@ -395,9 +360,17 @@ std::string ChatFormat::render_delta(const std::string& user, bool prev_ended_wi
 }
 
 std::string ChatFormat::postprocess_output(std::string text) const {
-    if (strip_thinking_content)
-        text = strip_thinking_blocks(std::move(text));
-    return strip_empty_thinking_tags(std::move(text));
+    return split_output(std::move(text)).content;
+}
+
+ThinkingSplit ChatFormat::split_output(std::string text) const {
+    ThinkingSplit out;
+    if (strip_thinking_content) {
+        out = split_thinking(text);
+        text = std::move(out.content);
+    }
+    out.content = strip_empty_thinking_tags(std::move(text));
+    return out;
 }
 
 } // namespace xllama

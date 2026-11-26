@@ -44,6 +44,7 @@
     #include "xllama/session_hub.h"
     #include "xllama/sse.h"
     #include "xllama/stop_sequence_filter.h"
+    #include "xllama/thinking_split.h"
     #include "xllama/tool_budget.h"
     #include "xllama/tool_request.h"
     #include "xllama/tool_template.h"
@@ -394,12 +395,15 @@ class SseStream {
     // (llama_token_to_piece returns bytes, not code points). Buffer the trailing
     // bytes and emit only complete UTF-8 sequences; an invalid byte becomes
     // U+FFFD and is dropped so the rest of the reply keeps flowing.
-    void write_delta(std::string_view piece) {
+    // |reasoning| sends the piece as delta.reasoning_content (#564). Each field
+    // keeps its own split-sequence buffer, so a code point is never emitted
+    // under the wrong key.
+    void write_delta(std::string_view piece, bool reasoning = false) {
         if (m_finished || piece.empty())
             return;
-        m_pending.append(piece.data(), piece.size());
+        (reasoning ? m_pending_reasoning : m_pending).append(piece.data(), piece.size());
         try {
-            drain_pending(false);
+            drain_pending(reasoning, false);
         } catch (...) {
             stop();
         }
@@ -438,7 +442,8 @@ class SseStream {
         if (m_finished)
             return;
         try {
-            drain_pending(true);
+            drain_pending(true, true);
+            drain_pending(false, true);
         } catch (...) {
             stop();
         }
@@ -460,30 +465,32 @@ class SseStream {
   private:
     // Emits one delta chunk from text already known to end on a code-point
     // boundary.
-    void emit_delta(std::string_view text) {
+    void emit_delta(std::string_view text, bool reasoning) {
         JsonObject delta;
-        delta.Insert(L"content", JsonValue::CreateStringValue(winrt::to_hstring(text)));
+        delta.Insert(reasoning ? L"reasoning_content" : L"content",
+                     JsonValue::CreateStringValue(winrt::to_hstring(text)));
         send_chunk(delta, JsonValue::CreateNullValue(), nullptr);
     }
 
     // Emits complete code points, replaces invalid bytes and advances, and at
     // finish replaces any truncated tail. Looping is what keeps a malformed byte
     // from blocking the bytes behind it.
-    void drain_pending(bool finishing) {
+    void drain_pending(bool reasoning, bool finishing) {
+        std::string& pending = reasoning ? m_pending_reasoning : m_pending;
         for (;;) {
-            if (m_finished || m_pending.empty())
+            if (m_finished || pending.empty())
                 return;
-            const ::xllama::SseUtf8Step step = ::xllama::sse_utf8_step(m_pending, finishing);
+            const ::xllama::SseUtf8Step step = ::xllama::sse_utf8_step(pending, finishing);
             if (step.wait)
                 return;
             if (step.replace) {
-                m_pending.erase(0, 1);
-                emit_delta("\xEF\xBF\xBD");
+                pending.erase(0, 1);
+                emit_delta("\xEF\xBF\xBD", reasoning);
                 continue;
             }
-            const std::string text = m_pending.substr(0, step.take);
-            m_pending.erase(0, step.take);
-            emit_delta(text);
+            const std::string text = pending.substr(0, step.take);
+            pending.erase(0, step.take);
+            emit_delta(text, reasoning);
         }
     }
 
@@ -570,7 +577,8 @@ class SseStream {
     DataWriter m_writer{nullptr};
     std::string m_model;
     std::string m_id;
-    std::string m_pending; // trailing bytes of a split UTF-8 sequence
+    std::string m_pending;           // trailing bytes of a split UTF-8 sequence (content)
+    std::string m_pending_reasoning; // the same for reasoning_content
     std::atomic<bool>* m_abort = nullptr;
     // Written by the request thread and the keepalive thread; frames are
     // serialized by m_write_mu.
@@ -874,7 +882,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
         " parse_us=" + std::to_string(elapsed_us(generated_at, parsed_at)) + "\n");
     const ::xllama::ChoiceAssembly assembly =
         ::xllama::assemble_choice(generated.output_text, parsed.content, parsed.calls, hit_cap,
-                                  ::xllama::model_is_thinking(model));
+                                  ::xllama::model_is_thinking(model), parsed.reasoning);
 
     JsonObject message;
     if (assembly.content_null) {
@@ -884,6 +892,9 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
         message.Insert(L"content",
                        JsonValue::CreateStringValue(winrt::to_hstring(assembly.content)));
     }
+    if (!assembly.reasoning.empty())
+        message.Insert(L"reasoning_content",
+                       JsonValue::CreateStringValue(winrt::to_hstring(assembly.reasoning)));
     if (!assembly.tool_calls.empty()) {
         JsonArray calls;
         for (const ::xllama::ToolCall& call : assembly.tool_calls) {
@@ -1136,10 +1147,29 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
         // The decode loop reports a piece before it checks the stop list, so the
         // stream withholds any suffix that could still become a stop.
         ::xllama::StopSequenceFilter stop_filter(gp.stop_sequences);
-        gp.on_token = [&sse, &stop_filter](std::string_view piece) {
+        // A thinking model's <think> block goes out as delta.reasoning_content,
+        // split after the stop filter so a stop is matched on the raw text.
+        std::optional<::xllama::ThinkingStreamSplitter> thinking;
+        if (fmt.strip_thinking_content)
+            thinking.emplace();
+        const auto send = [&sse, &thinking](std::string_view text, bool finishing) {
+            if (!thinking) {
+                sse->write_delta(text);
+                return;
+            }
+            ::xllama::ThinkingSplit split = thinking->push(text);
+            if (finishing) {
+                const ::xllama::ThinkingSplit tail = thinking->finish();
+                split.reasoning += tail.reasoning;
+                split.content += tail.content;
+            }
+            sse->write_delta(split.reasoning, /*reasoning=*/true);
+            sse->write_delta(split.content);
+        };
+        gp.on_token = [&stop_filter, &send](std::string_view piece) {
             const std::string text = stop_filter.push(piece);
             if (!text.empty())
-                sse->write_delta(text);
+                send(text, false);
         };
         try {
             const ::xllama::InferenceResult r = session->generate(gp);
@@ -1154,9 +1184,7 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
             }
             // Generation can end on EOG or the token cap while a stop prefix is
             // still held; it never completed a stop, so it is ordinary text.
-            const std::string tail = stop_filter.finish();
-            if (!tail.empty())
-                sse->write_delta(tail);
+            send(stop_filter.finish(), /*finishing=*/true);
             const bool streamed_cap = r.n_eval >= gp.n_predict;
             sse->finish(streamed_cap ? L"length" : L"stop", r.n_prompt, r.n_eval);
             status = "200 OK";
@@ -1175,11 +1203,14 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
         return error_json("generation failed: " + r.error_msg);
     }
     ticket.tokens(r.n_prompt, r.n_eval);
-    const std::string content = fmt.postprocess_output(r.output_text);
+    const ::xllama::ThinkingSplit reply = fmt.split_output(r.output_text);
 
     JsonObject message;
     message.Insert(L"role", JsonValue::CreateStringValue(L"assistant"));
-    message.Insert(L"content", JsonValue::CreateStringValue(winrt::to_hstring(content)));
+    message.Insert(L"content", JsonValue::CreateStringValue(winrt::to_hstring(reply.content)));
+    if (!reply.reasoning.empty())
+        message.Insert(L"reasoning_content",
+                       JsonValue::CreateStringValue(winrt::to_hstring(reply.reasoning)));
     // "length" only when we actually hit the token cap; a model that ends on its
     // EOS token before the cap stops naturally, which ended_with_stop (a textual
     // stop-sequence match) does not capture — deduce it from the token count.

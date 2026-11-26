@@ -31,7 +31,7 @@ ApiCapabilities build_api_capabilities() {
     caps.pull = true;
     caps.preferences = true;
     caps.training_status = true;
-    caps.reasoning_content = false;
+    caps.reasoning_content = true; // #564: JSON, SSE and tool replies
     return caps;
 }
 

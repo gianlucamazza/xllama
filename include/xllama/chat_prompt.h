@@ -3,6 +3,8 @@
 // Chat prompt / output helpers shared by UWP UI and unit tests.
 #pragma once
 
+#include "xllama/thinking_split.h"
+
 #include <string>
 #include <vector>
 
@@ -73,7 +75,8 @@ bool model_is_minicpm5(const std::string& model_id);
 // Remove leading empty </think> blocks (whitespace-only inside tags).
 std::string strip_empty_thinking_tags(std::string text);
 
-// Remove complete <think>…</think> blocks (any content). If an unclosed
+// split_thinking(text).content (thinking_split.h). Removes complete
+// <think>…</think> blocks (any content). If an unclosed
 // <think> remains (n_predict cut mid-thought), drop from that open to EOF so
 // the UI does not keep raw reasoning — which can leave an EMPTY string, and
 // callers must handle that (see the empty-after-postprocess path in
@@ -170,6 +173,9 @@ struct ChatFormat {
     // Output post-processing before display/persist: empty Qwen3 no-think tags;
     // full think blocks when strip_thinking_content (thinking catalogue models).
     std::string postprocess_output(std::string text) const;
+    // The same, keeping what it removes: reasoning (thinking models only) and
+    // the displayed content. postprocess_output(t) == split_output(t).content.
+    ThinkingSplit split_output(std::string text) const;
 };
 
 // Select the chat format for a catalogue id / filename (as model_is_qwen does today).

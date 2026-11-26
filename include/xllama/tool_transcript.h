@@ -78,6 +78,7 @@ struct ChoiceAssembly {
     std::string content;
     std::vector<ToolCall> tool_calls;
     std::string finish_reason; // "stop", "length", or "tool_calls"
+    std::string reasoning;     // message.reasoning_content; empty when none
 };
 
 // Build the OpenAI choice. A complete call wins over the token cap. A call the
@@ -85,10 +86,13 @@ struct ChoiceAssembly {
 // the content. Missing ids become call_1, call_2, … in parse order. Arguments
 // are always a JSON string. `content` is null only when calls were emitted and
 // the model wrote no text (`parsed_text` empty).
-// `strip_thinking` removes <think> reasoning from the text, as plain chat does for
-// thinking models (a reply cut off mid-thought leaves no text).
+// `strip_thinking` moves <think> reasoning out of the text into `reasoning`, as
+// plain chat does for thinking models (a reply cut off mid-thought leaves no
+// text). `parsed_reasoning` is what the template's parser already extracted;
+// it comes first.
 ChoiceAssembly assemble_choice(const std::string& raw_text, const std::string& parsed_text,
                                const std::vector<IncomingCall>& calls, bool hit_cap,
-                               bool strip_thinking = false);
+                               bool strip_thinking = false,
+                               const std::string& parsed_reasoning = {});
 
 } // namespace xllama
