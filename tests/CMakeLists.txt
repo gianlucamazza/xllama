@@ -115,3 +115,9 @@ add_test(NAME test-admission-allocation COMMAND test-admission-allocation)
 add_executable(xllama-cpu-smoke cpu_smoke.cpp)
 target_include_directories(xllama-cpu-smoke PRIVATE ${PROJECT_SOURCE_DIR}/llama.cpp/vendor)
 target_link_libraries(xllama-cpu-smoke PRIVATE xllama)
+
+# run-cpu-smoke.py provides its pinned GGUF for this public Session regression.
+add_executable(test-context-admission test_context_admission.cpp)
+target_link_libraries(test-context-admission PRIVATE xllama)
+target_link_options(test-context-admission PRIVATE "LINKER:--wrap=llama_init_from_model"
+                    "LINKER:--wrap=_ZN6xllama19app_memory_limit_mbEv")

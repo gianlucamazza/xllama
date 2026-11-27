@@ -643,7 +643,11 @@ otherwise `Session::create` fails with an `insufficient memory: …` message
 (weights / context / compute / limit) instead of failing inside an allocation.
 The API answers that refusal with `400`. An embedding context, which batches the
 whole input, is admitted again for its own context and compute buffers. Already
-resident weights are present in the measured usage on both UMA budgets. Every
+resident weights are present in the measured usage on both UMA budgets. If a
+quantized KV context fails, the session checks the default-KV configuration
+against the current budgets before allocating it. If an alternate context cannot
+be sized, a known budget or a context beyond the unmeasured cap requires a
+refusal. The session can retry after memory becomes available. Every
 load logs the estimate beside the `ws after model load / after context` lines,
 which is the console calibration of the margin. Not `common/fit.h`: it drops
 non-host CPU buffers (CPU_REPACK) and swaps the process-wide llama logger.
@@ -1049,6 +1053,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_tensor_capture.cpp`          | `tensor_capture.h`                                                                                                                                    |
 | `test_manifest_merge.cpp`          | `manifest_merge.h`, `withdrawn_models.h`                                                                                                              |
 | `test_membw.cpp`                   | `membw.h`                                                                                                                                             |
+| `test_context_admission.cpp`       | Public GGUF session, failed quantized context, default-KV admission under pressure and retry after relief (pinned CPU fixture)                        |
 | `test_memory_admission.cpp`        | `memory_admission.h` (host limit, GPU budget, refusal prefix); `Session::estimate_memory` opt-in in `test_session.cpp`                                |
 | `test_model_provision.cpp`         | `model_provision.h`                                                                                                                                   |
 | `test_model_file_plan.cpp`         | `model_file_plan.h`                                                                                                                                   |
