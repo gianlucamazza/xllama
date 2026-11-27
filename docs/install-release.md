@@ -86,6 +86,24 @@ sha256sum -c SHA256SUMS
 
 On macOS use `shasum -a 256 -c SHA256SUMS`.
 
+For builds produced after the unified-package attestation workflow is enabled,
+also verify the downloaded MSIX with a GitHub CLI that supports
+`gh attestation verify`. Read the full `source_sha` from the **package-bound
+console receipt** for that release and select its exact MSIX. The app tag
+can point to a later commit that adds the receipts.
+
+```bash
+gh attestation verify "$msix" --repo gianlucamazza/xllama \
+  --signer-workflow gianlucamazza/xllama/.github/workflows/build-uwp.yml \
+  --source-ref refs/heads/main --source-digest "$source_sha"
+```
+
+Set `msix` to the local package path and `source_sha` to that full commit
+before running the command. This verifies the build identity and package
+digest. A missing attestation leaves build provenance unverified. Existing
+releases retain their checksums and hardware receipts. The attestation only
+covers the unified MSIX.
+
 ### 5. Install via Device Portal
 
 Microsoft's
