@@ -483,7 +483,11 @@ prefill. The same estimate, on message text only, predicts whether a backend
 that cannot shift its context would overflow on a KV-reuse attempt, and so
 whether to try one. Getting either estimate wrong costs a routing decision or a
 fail-fast retry, never an answer: which turns the model sees is decided once,
-by `fit_prompt`, in tokens.
+by `fit_prompt`, in tokens. A GUI delta gets one full-prompt retry only when
+the session explicitly refuses continuation before generation (changed resident
+state, incompatible ORT generator, or insufficient context) and cancellation
+has not been requested. A load, prefill or decode failure reaches the UI even
+if the engine has completed zero decode steps.
 
 **The two ceilings are separate on purpose.**
 `max_prompt_tokens_for_n_ctx(n_ctx)` → `n_ctx − 250`, floor 256, with the shipping

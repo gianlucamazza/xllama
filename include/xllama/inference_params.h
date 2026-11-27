@@ -291,6 +291,24 @@ struct InferenceResult {
             return !ended_with_stop && n_eval >= requested;
         return termination == DecodeTermination::TokenLimit;
     }
+
+    /// A continuation precondition refused the delta before generation. Its caller
+    /// may retry once with the complete conversation if the request is still live.
+    bool retry_full_prompt = false;
+
+    bool user_cancelled(bool requested) const noexcept {
+        if (termination == DecodeTermination::Cancelled)
+            return true;
+        // Preserve voluntary cancellation for ORT and a native abort callback.
+        // A racing Cancel cannot relabel a fatal decode or watchdog stall.
+        return requested && !stalled &&
+               (success || termination == DecodeTermination::BackendAbort ||
+                termination == DecodeTermination::Unspecified);
+    }
+
+    bool completed_reply(bool cancel_requested) const noexcept {
+        return success && !user_cancelled(cancel_requested);
+    }
 };
 
 } // namespace xllama
