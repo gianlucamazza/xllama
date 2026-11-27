@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **LFM2/LFM2.5 tool calls: two upstream parser fixes backported (#610).** `patches/0006` (llama.cpp #31937): a pythonic call with a raw newline or tab inside a string argument no longer fails to parse. `patches/0007` (llama.cpp #32164, adapted): with `tool_choice` `auto`, a call to a tool the request did not declare comes back as that call instead of being forced onto a declared tool or returned as text; `required` and a named choice still only produce calls to offered tools. `/health` `runtime.patches` lists both.
+
 ## [1.10.0]
 
 User-facing notes: [docs/releases/v1.10.0.md](docs/releases/v1.10.0.md).

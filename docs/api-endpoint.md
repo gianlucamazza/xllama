@@ -299,6 +299,11 @@ A non-empty `tools` array, or a legacy `functions` array on its own, is a propos
 `"required"` and a named choice constrain the reply to start with the call (reasoning
 first, for a thinking model): no text can come before it (`patches/0005`, #563). A reply
 that reaches `max_tokens` before the call completes is `finish_reason` `length`.
+Under `"required"` and a named choice the call is always to a tool the request
+offered. Under `"auto"`, an LFM2/LFM2.5 model that calls a tool outside `tools`
+gets that call back as it made it, rather than forced onto a declared tool or
+dropped as text (`patches/0007`, #610): the client decides what to do with an
+unknown name, as it would with any tool error.
 Content may be a string, null, or an array of `{type:"text",text}` parts joined
 with no separator. Anything else, including an image part, is `400`. A `tool`
 message requires `tool_call_id`. The last message must be `user` or `tool`.
