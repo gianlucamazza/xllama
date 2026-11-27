@@ -133,7 +133,7 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
   tests/test_research_package.py tests/test_xab_contract.py \
   tests/test_release_metadata.py tests/test_release_bundle.py \
   tests/test_make_shape_gguf.py tests/test_bench_run_status.py \
-  tests/test_wdp_curl_auth.py \
+  tests/test_wdp_curl_auth.py tests/test_package_identity.py \
   tests/test_console_run_log.py tests/test_console_temp_chats.py \
   tests/test_console_taesd_result.py tests/test_api_framing_status.py \
   tests/test_measure_api_ttfb.py \

@@ -384,6 +384,19 @@ only after the #243 scorer fix, which moved its Q4_K_M baseline from 2/8 to 1/8.
   `install-latest-build.sh --bench` is used.
 - Reinstall with a higher package revision for an in-place update; a same-version
   package with different contents is rejected.
+- **LAN API unreachable although the log says `api: listening on 0.0.0.0:11434`**
+  (#603). TCP connections to 11434 time out, packets dropped rather than
+  refused, while Device Portal on 11443 answers. Cause: installing in place a
+  package version that is already installed. Reproduced on Series S
+  (OS 26100.9662) with 1.9.0.1976 and 1.9.0.1977: one such install was enough,
+  whether the app was stopped first or not. Restarting the app does not help.
+  Installing a newer revision in place does, and `/health` answers on the
+  first launch. The likely mechanism is that re-registering the same version
+  does not re-create the inbound rule the OS derives from
+  `privateNetworkClientServer`. `deploy.sh` therefore skips a version that is
+  already installed (it reads Name and Version from the package's manifest)
+  unless given `--force-reinstall`, which reproduces the fault. To recover,
+  install any newer revision.
 - Detailed Device Portal behavior: [device-portal.md](device-portal.md).
 
 ## Release acceptance
