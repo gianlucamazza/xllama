@@ -272,6 +272,7 @@ Run an individual gate while debugging:
 ./scripts/validate-console.sh genroom
 ./scripts/validate-console.sh taesd
 ./scripts/validate-api.sh all          # spike + chat + stream + admission + embed + budget + tools + framing + prefs + train + pull
+./scripts/validate-api.sh compat       # native Ollama /api/chat and /api/generate (not in all)
 ./scripts/validate-console-training.sh rate   # preference UI path
 ./scripts/validate-console-training.sh rate-stale   # negative control (F04)
 ```

@@ -247,6 +247,68 @@ TEST_CASE("tool request admits text content and rejects a transcript that cannot
     CHECK(both.error == "tools and functions cannot be combined");
 }
 
+TEST_CASE("the developer role is a system message on both chat paths") {
+    const xllama::ToolRequest proposal = xllama::parse_tool_request(
+        R"({"messages":[{"role":"developer","content":"be brief"},{"role":"user","content":"hi"}],)"
+        R"("tools":[{"type":"function","function":{"name":"ping"}}]})");
+    REQUIRE_MESSAGE(proposal.error.empty(), proposal.error);
+    REQUIRE(proposal.messages.size() == 2);
+    CHECK(proposal.messages[0].role == xllama::ChatRole::System);
+    CHECK(proposal.messages[0].content == "be brief");
+
+    const xllama::PlainChatRequest plain = xllama::parse_plain_chat(
+        R"({"messages":[{"role":"system","content":"a"},{"role":"developer","content":"b"},)"
+        R"({"role":"user","content":"hi"}]})");
+    REQUIRE_MESSAGE(plain.error.empty(), plain.error);
+    CHECK(plain.system == "a\nb");
+    CHECK(plain.final_user == "hi");
+}
+
+TEST_CASE("plain chat reads text parts and refuses any other content") {
+    const xllama::PlainChatRequest parts = xllama::parse_plain_chat(
+        R"({"messages":[{"role":"system","content":[{"type":"text","text":"sys"}]},)"
+        R"({"role":"user","content":[{"type":"text","text":"ab"},{"type":"text","text":"c"}]},)"
+        R"({"role":"assistant","content":[{"type":"text","text":"reply"}]},)"
+        R"({"role":"user","content":"next"}]})");
+    REQUIRE_MESSAGE(parts.error.empty(), parts.error);
+    CHECK(parts.system == "sys");
+    REQUIRE(parts.history.size() == 1);
+    CHECK(parts.history[0].user == "abc");
+    CHECK(parts.history[0].assistant == "reply");
+    CHECK(parts.final_user == "next");
+
+    // Null content is an empty turn, as on the tool path; consecutive user
+    // turns close the earlier one unanswered.
+    const xllama::PlainChatRequest empty = xllama::parse_plain_chat(
+        R"({"messages":[{"role":"user","content":null},{"role":"user","content":"x"}]})");
+    REQUIRE(empty.error.empty());
+    REQUIRE(empty.history.size() == 1);
+    CHECK(empty.history[0].user.empty());
+    CHECK(empty.final_user == "x");
+
+    const xllama::PlainChatRequest image = xllama::parse_plain_chat(
+        R"({"messages":[{"role":"user","content":[{"type":"text","text":"see"},)"
+        R"({"type":"image_url","image_url":{"url":"data:,"}}]}]})");
+    CHECK(image.error == "unsupported message content");
+    CHECK(xllama::parse_plain_chat(R"({"messages":[{"role":"user","content":7}]})").error ==
+          "unsupported message content");
+    CHECK(xllama::parse_plain_chat(R"({"messages":[{"content":"no role"}]})").error ==
+          "unknown message role");
+    CHECK(xllama::parse_plain_chat(R"({"messages":"hi"})").error ==
+          "missing or non-array 'messages'");
+
+    // Roles plain chat cannot render are skipped, not refused.
+    const xllama::PlainChatRequest tool = xllama::parse_plain_chat(
+        R"({"messages":[{"role":"tool","content":"r"},{"role":"user","content":"q"}]})");
+    CHECK(tool.error.empty());
+    CHECK(tool.history.empty());
+    CHECK(tool.final_user == "q");
+    const xllama::PlainChatRequest trailing = xllama::parse_plain_chat(
+        R"({"messages":[{"role":"user","content":"q"},{"role":"assistant","content":"a"}]})");
+    CHECK(trailing.error.empty());
+    CHECK(trailing.final_user.empty());
+}
+
 TEST_CASE("tool choice assembly emits calls, synthesized ids, and drops a truncated call") {
     xllama::IncomingCall call;
     call.name = "think";

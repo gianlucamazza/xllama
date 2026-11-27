@@ -33,6 +33,7 @@ struct ApiCapabilities {
     bool reasoning_tokens = false;  // usage.completion_tokens_details.reasoning_tokens
     bool cached_tokens = false;     // usage.prompt_tokens_details.cached_tokens
     bool model_sampling = false;    // /v1/models "sampling"; omitted fields take it
+    bool ollama_chat = false;       // native /api/chat and /api/generate (api_ollama.h)
 };
 
 // The capabilities of the compiled build: GGUF paths need XLLAMA_USE_LLAMA,
@@ -64,6 +65,7 @@ struct ModelInfo {
     bool tools = false;  // its chat template renders a tool schema
     bool reasoning = false;
     bool embedding = false;
+    bool ollama_chat = false; // /api/chat and /api/generate serve it (ollama_chat_model)
     // The sampling a request that sets none of the fields gets, and where each
     // value came from (model_sampling.h). Written for chat models only.
     bool has_sampling = false;
