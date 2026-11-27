@@ -27,6 +27,9 @@
     <RootNamespace>llamacommonuwp</RootNamespace>
     <DefaultLanguage>en-US</DefaultLanguage>
     <MinimumVisualStudioVersion>17.0</MinimumVisualStudioVersion>
+    <!-- The 32-bit hosted compiler (HostX86) runs out of address space in the
+         /GL pass 2 of large TUs (C1002 on model-downloader.cpp in CI). -->
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
     <AppContainerApplication>true</AppContainerApplication>
     <ApplicationType>Windows Store</ApplicationType>
     <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
