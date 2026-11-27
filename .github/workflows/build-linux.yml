@@ -196,11 +196,18 @@ jobs:
           done
           echo "OK ${#jobs[@]} train job(s)"
 
-      - name: Run unit tests
-        run: ctest --test-dir build/linux-test --output-on-failure
-
       - name: Native CPU GGUF numerical smoke
         run: python3 scripts/run-cpu-smoke.py --build-dir build/linux-test --model build/cpu-smoke/model.gguf
+
+      - name: Test GGUF decode failure and session recovery
+        env:
+          XLLAMA_TEST_DECODE_FAULT_MODEL: ${{ github.workspace }}/build/cpu-smoke/model.gguf
+        run: |
+          test -s "$XLLAMA_TEST_DECODE_FAULT_MODEL"
+          ctest --test-dir build/linux-test --output-on-failure --no-tests=error -R '^test-decode-faults$'
+
+      - name: Run remaining unit tests
+        run: ctest --test-dir build/linux-test --output-on-failure --no-tests=error -E '^test-decode-faults$'
 
       - name: Verify the test-suite size
         run: |

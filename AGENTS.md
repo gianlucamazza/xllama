@@ -129,8 +129,11 @@ python3 scripts/check-coherence.py
 python3 scripts/generate-benchmark-summary.py --check
 python3 scripts/build-research-package.py --check
 python3 scripts/check-release-metadata.py
-# after the linux-test build; it writes its own GGUF fixture
+# After the linux-test build, reuse the smoke's verified GGUF for the public
+# Session and run_inference failure/recovery case, as in required Linux CI.
 python3 scripts/run-cpu-smoke.py --build-dir build/linux-test --model build/cpu-smoke/model.gguf
+XLLAMA_TEST_DECODE_FAULT_MODEL="$PWD/build/cpu-smoke/model.gguf" \
+  ctest --test-dir build/linux-test --output-on-failure --no-tests=error -R '^test-decode-faults$'
 python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sidecar.py \
   tests/test_research_package.py tests/test_xab_contract.py \
   tests/test_release_metadata.py tests/test_release_bundle.py \
