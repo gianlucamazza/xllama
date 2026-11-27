@@ -665,3 +665,29 @@ curl -s http://<ip-xbox>:11434/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{"model":"<catalogue-id>","messages":[{"role":"user","content":"Say hi"}]}'
 ```
+
+### Interoperability evidence
+
+The reference for the shared fields is the [OpenAI Chat Completions API](https://developers.openai.com/api/reference/resources/chat), a provider contract. The table describes the subset in the handlers in `uwp/api-server.cpp`, the shared policy in `include/xllama/api_sampling.h` and the installed-model representation in `src/bridge/api_discovery.cpp`. The [Series S v1.10.0.2000 LAN receipt](../bench/results/2026-11-27-v1100-series-s-release/receipts/validate-api.log) identifies the package tested. Its results apply to the models and requests recorded there.
+
+| Surface                      | Implemented contract                                                                                                                                           | Evidence and boundary                                                                                                                                                                                                                                |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Discovery and versioning     | `/v1/models` returns a list of installed models. `/health` reports the package version, contract version and server capabilities.                              | The discovery gate reads the model extensions. These extra fields and `/health` belong to xllama.                                                                                                                                                    |
+| Chat and request validation  | Text chat, one choice, model selection, output limits and the sampling fields listed by `/health`.                                                             | The chat and budget gates cover completion, a reused prefix, history trimming and refusal of an oversized final message. General JSON Schema structured output (`response_format`) has no handler. A 200 response does not imply schema enforcement. |
+| Streaming and usage          | Indexed SSE deltas, finish reason and `[DONE]`. The final choice carries usage with prompt, completion, cached and reasoning token counts.                     | The stream gate exercises the current layout. The OpenAI `stream_options.include_usage` convention adds a separate final chunk with empty `choices`. xllama does not implement that option. `reasoning_content` is an extension.                     |
+| Tool choice and transcripts  | GGUF template-based proposals support auto, none, required and named choices. The client executes tools. Tool deltas are emitted after generation and parsing. | The tools gate exercises named calls, a tool result, unsupported ONNX and overflow. Parse the arguments and validate them against the external tool's schema before executing. See [ADR 0004](adr/0004-tool-proposals.md).                           |
+| Errors and cancellation      | HTTP status plus an error envelope. Some errors provide code and parameter. Disconnect handling releases streamed compute admission.                           | The [disconnect gate](../bench/results/2026-11-27-v1100-series-s-release/receipts/validate-api-disconnect.log) records two cases. Clients must handle the local error type, late stream failure and foreground suspension.                           |
+| Embeddings                   | Text or text batch, float or base64 encoding, catalogue-dependent dimensions.                                                                                  | The embedding gate covers real vectors. The optional client replay below checks serialization and vector decoding for one released model. Token-array inputs are outside the implemented subset.                                                     |
+| Open WebUI and agent clients | Use the OpenAI-compatible connection and the tools-capable GGUF path. MCP clients or adapters own discovery and execution of external tools.                   | The raw HTTP gate exercises the provider side. A specific WebUI, SDK chat or agent release needs its own client run before claiming compatibility.                                                                                                   |
+
+To replay the captured `/v1/embeddings` success responses with both official SDKs, run from the repository root on a host with Python 3 and Node.js 22 or later. The pinned clients are optional test dependencies installed outside the source tree. The SDK transports compare the serialized request against the capture, return the recorded response and check every decoded value against the on-wire data. One case sends explicit float encoding and one exercises the SDK default base64 path. The replay performs no inference or LAN I/O.
+
+```bash
+sdk_dir=$(mktemp -d)
+python3 -m venv "$sdk_dir/venv"
+"$sdk_dir/venv/bin/pip" install openai==3.60.0
+npm install --prefix "$sdk_dir/node" --ignore-scripts --no-audit --no-fund openai@7.65.0
+receipt=bench/results/2026-11-23-v180-series-s-release/receipts/api-embed-nomic-v2-moe.json
+"$sdk_dir/venv/bin/python" scripts/check-sdk-embedding-receipt.py "$receipt"
+NODE_PATH="$sdk_dir/node/node_modules" node scripts/check-sdk-embedding-receipt.cjs "$receipt"
+```
