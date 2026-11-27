@@ -11,6 +11,7 @@
 #include "xllama/prefix_snapshot.h"
 #include "xllama/session.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <doctest/doctest.h>
@@ -318,6 +319,19 @@ static std::vector<int32_t> saved_token_ids(Session& session, const std::filesys
     return ids;
 }
 
+// Keep the first differing IDs in the CI receipt even when a sequence ends early.
+static std::string first_id_difference(const std::vector<int32_t>& warm,
+                                       const std::vector<int32_t>& cold) {
+    const auto [w, c] = std::mismatch(warm.begin(), warm.end(), cold.begin(), cold.end());
+    if (w == warm.end() && c == cold.end())
+        return {};
+    std::ostringstream message;
+    message << "index=" << (w - warm.begin())
+            << " warm=" << (w == warm.end() ? "<end>" : std::to_string(*w))
+            << " cold=" << (c == cold.end() ? "<end>" : std::to_string(*c));
+    return message.str();
+}
+
 TEST_CASE("Session: granitehybrid cold continuation on identical surviving tokens" *
           doctest::skip(!granite_h_tiny_path())) {
     const char* model = granite_h_tiny_path();
@@ -406,10 +420,12 @@ TEST_CASE("Session: granitehybrid cold continuation on identical surviving token
     };
     const auto warm = measure(true);
     const auto cold = measure(false);
-    REQUIRE(warm.prefix == cold.prefix);
+    const auto prefix_difference = first_id_difference(warm.prefix, cold.prefix);
+    REQUIRE_MESSAGE(prefix_difference.empty(), "surviving token IDs: " << prefix_difference);
     CAPTURE(warm.text);
     CAPTURE(cold.text);
-    CHECK(warm.terminal == cold.terminal);
+    const auto terminal_difference = first_id_difference(warm.terminal, cold.terminal);
+    CHECK_MESSAGE(terminal_difference.empty(), "terminal token IDs: " << terminal_difference);
     CHECK(warm.text == cold.text);
     CHECK(warm.stop == cold.stop);
     CHECK(warm.generated_count == cold.generated_count);

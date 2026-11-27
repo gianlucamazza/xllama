@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -16,6 +17,7 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 CASE = "Session: granitehybrid cold continuation on identical surviving tokens"
 PIN = ROOT / "bench/results/2026-11-24-granite40-h-tiny/manifest.override.json"
+MODEL_REVISION = "240a43d5efe7bdcfa4205b0019bb95e4cc6e5315"
 
 
 def write_fixture(path):
@@ -99,8 +101,28 @@ def sha256(path):
     return digest.hexdigest()
 
 
+def download_checkpoint(directory, pin):
+    # save_state writes a replacement snapshot before renaming it over the old one.
+    snapshot_reserve = 256 * 1024 * 1024
+    available = shutil.disk_usage(directory).free
+    needed = pin["approx_bytes"] + snapshot_reserve
+    print(f"scratch_available_bytes={available} minimum_bytes={needed}", flush=True)
+    if available < needed:
+        raise SystemExit(f"Insufficient disk space for the checkpoint and snapshots: {available} < {needed}")
+    model = directory / pin["filename"]
+    url = f"https://huggingface.co/ibm-granite/granite-4.0-h-tiny-GGUF/resolve/{MODEL_REVISION}/{model.name}"
+    print(f"Downloading {url}", flush=True)
+    subprocess.run([
+        "curl", "--fail", "--location", "--silent", "--show-error", "--proto", "=https",
+        "--proto-redir", "=https", "--connect-timeout", "20", "--max-time", "600",
+        "--retry", "2", "--retry-all-errors", "--retry-max-time", "720",
+        "--max-filesize", str(pin["approx_bytes"]), "--output", str(model), url,
+    ], check=True)
+    return model
+
+
 def run(binary, model, report):
-    env = dict(os.environ, XLLAMA_GRANITE_H_TINY=str(model.resolve()))
+    env = dict(os.environ, XLLAMA_GRANITE_H_TINY=str(model.resolve()), TMPDIR=str(report.parent))
     command = [str(binary.resolve()), "--no-skip", f"--test-case={CASE}", "--reporters=xml", f"--out={report}"]
     result = subprocess.run(command, env=env)
     if not report.is_file():
@@ -130,20 +152,22 @@ def main():
     selection = parser.add_mutually_exclusive_group(required=True)
     selection.add_argument("--fixture", action="store_true", help="generate tiny random weights locally")
     selection.add_argument("--model", type=Path, help="verify the campaign Q3_K_S checkpoint and run it")
+    selection.add_argument("--download-checkpoint", action="store_true",
+                           help="download the pinned official Q3_K_S file for this run")
     args = parser.parse_args()
     if not args.test_binary.is_file():
         parser.error(f"test binary missing: {args.test_binary}")
-    with tempfile.TemporaryDirectory(prefix="xllama-granite-shift-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="xllama-granite-shift-", dir=os.environ.get("RUNNER_TEMP")) as tmp:
         if args.fixture:
             model = Path(tmp) / "granite-shift-fixture.gguf"
             write_fixture(model)
             digest = sha256(model)
             print(f"Synthetic F32 Mamba2/attention MoE fixture, SHA-256 {digest}", flush=True)
         else:
-            model = args.model
             models = json.loads(PIN.read_text())["models"]
             granite = next(entry for entry in models if entry["name"] == "granite40-h-tiny")
             pin = next(f for f in granite["files"] if f["filename"] == "granite-4.0-h-tiny-Q3_K_S.gguf")
+            model = download_checkpoint(Path(tmp), pin) if args.download_checkpoint else args.model
             if not model.is_file():
                 parser.error(f"checkpoint missing: {model}")
             if model.stat().st_size != pin["approx_bytes"] or sha256(model) != pin["sha256"]:
