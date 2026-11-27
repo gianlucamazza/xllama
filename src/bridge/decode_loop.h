@@ -82,7 +82,7 @@ class ScopedPrefillAbort {
 // process. This is the LOGICAL batch only; the physical ubatch stays at the #172
 // optimum of 512, which is what every published prefill rate was measured on.
 // |done_base| is how many prompt tokens of this prefill were already decoded by
-// an earlier call (hybrid head/tail split), so the watchdog's prompt progress
+// an earlier call (hybrid checkpoint split, #601), so the watchdog's prompt progress
 // stays absolute and monotonic across calls.
 inline bool prefill_chunked(llama_context* ctx, const llama_token* tokens, int n_tokens,
                             InferenceWatchdog* wd = nullptr, int done_base = 0) {

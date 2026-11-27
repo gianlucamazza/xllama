@@ -73,7 +73,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `diskbw.h`                         | `measure_diskbw` — NVMe/disk bandwidth probe (sequential + random patterns)                                                                                                                           |
 | `d3d12_dyn.h`                      | Dynamic d3d12.dll entry-point resolve (PE hygiene for AppContainer)                                                                                                                                   |
 | `speculative.h`                    | `prompt_lookup_draft` — Phase 15 W2 draft-free prompt lookup (pure, host-testable)                                                                                                                    |
-| `prefix_snapshot.h`                | `plan_prefix_snapshot` — hybrid-cache prefix restore vs #170a rewind vs full prefill (pure, host-testable)                                                                                            |
+| `prefix_snapshot.h`                | `plan_prefix_snapshot` — hybrid-cache prefix restore (longest shared checkpoint, #601) vs #170a rewind vs full prefill; checkpoint grid and budget (pure, host-testable)                              |
 | `gpubw.h`                          | Phase 15 W3: GPU STREAM probe helpers + kill gate (#211)                                                                                                                                              |
 | `gpugemv.h`                        | Phase 15 H6.1–H6.3: Q4_K GEMV density probe, naive/wave32/rows/dot4 kernels (#228)                                                                                                                    |
 | `gpustep.h`                        | GGUF GPU decode probe D1: model shapes, cost model, D1 gates and ladder ([gguf-gpu-decode.md](gguf-gpu-decode.md))                                                                                    |
@@ -238,23 +238,34 @@ Leaving a conversation writes its KV to `LocalState\kv\<id>.kv` and the first
 turn back restores it. A matching token prefix costs a delta prefill instead of
 the history. If re-rendered history diverges inside the saved tail, a hybrid
 recurrent cache can refuse the rewind. For an in-session API or multi-turn
-full prompt, `LlamaSession` then restores a prefix checkpoint
-(`prefix_snapshot.h`) when that prefix is a strict prefix of the new prompt
-and its attention cells are still resident, so only the suffix prefills. The
-checkpoint is partial state (`llama_state_seq_*_ext` with `PARTIAL_ONLY`, as
+full prompt, `LlamaSession` then restores the longest prefix checkpoint
+(`prefix_snapshot.h`) that is a strict prefix of the new prompt and whose
+attention cells are still resident, so only the suffix prefills. A checkpoint
+is partial state (`llama_state_seq_*_ext` with `PARTIAL_ONLY`, as
 llama-server's context checkpoints): only the recurrent cells, 160 KiB for
 LFM2.5-1.2B and 55 MiB for Granite-4.0-H-Tiny, independent of `n_ctx`. A
-restore puts that state back and truncates the attention KV to it. On a long
-prompt the checkpoint sits a few tokens before the prompt end, so a later turn
-that diverges only in that tail, an exact regenerate included, still restores;
-checkpoint plus tail is the cold head/tail computation, so the output matches
-a cold run. `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. The disk
-snapshot of a hybrid conversation also carries its prefix checkpoint, as an
-optional `xllama-ckpt` trailer after the state (older readers stop before it;
-upstream persists checkpoints the same way, llama.cpp #26004), so after a load a
-turn that diverges inside the tail, such as an edited reply, restores the head
-instead of prefilling the whole history. A missing or malformed trailer only
-means no checkpoint. The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
+restore puts that state back and truncates the attention KV to it. A long
+prefill captures them in two kinds (#601):
+
+- **Head.** One sits a few tokens before the prompt end, so a later turn that
+  diverges only in that tail, an exact regenerate included, still restores.
+  Checkpoint plus tail is the cold head/tail computation, so the output
+  matches a cold run. Only the latest head is kept.
+- **Grid.** Others sit on a grid: every 512 tokens to 2048, then doubling
+  (`prefix_checkpoint_positions`). The grid is a multiple of the 512 ubatch,
+  so splitting the prefill there leaves the ubatches unchanged. A new
+  conversation with the same system prompt and tools, or a re-rendered turn
+  that diverges early, restores the longest grid point it shares. Grid
+  checkpoints are held while they fit in 32 MiB together
+  (`kPrefixCheckpointGridBytes`). The memory admission does not count them:
+  on LFM2 every point fits, and on Granite-4.0-H-Tiny none does and only the
+  head is held. `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. The disk
+  snapshot of a hybrid conversation also carries its longest prefix checkpoint, as an
+  optional `xllama-ckpt` trailer after the state (older readers stop before it;
+  upstream persists checkpoints the same way, llama.cpp #26004), so after a load a
+  turn that diverges inside the tail, such as an edited reply, restores the head
+  instead of prefilling the whole history. A missing or malformed trailer only
+  means no checkpoint. The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
 
 - **Fingerprinted** (model, n_ctx, KV quant, LoRA) — stale snapshots are
   harmless by construction (they fall back to a normal prefill).
@@ -900,70 +911,70 @@ the case and assertion totals (`Verify the test-suite size`); this page does
 not keep a second copy. Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 (`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 
-| Test file                          | Under test                                                                                                             |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `test_api_activity.cpp`            | `api_activity.h`                                                                                                       |
-| `test_api_discovery.cpp`           | `api_discovery.h` (`/health` and `/v1/models` shapes)                                                                  |
-| `test_thinking_split.cpp`          | `thinking_split.h` (batch and stream reasoning split, spans, reasoning token count, `split_output`)                    |
-| `test_compute_admission.cpp`       | `compute_admission.h`                                                                                                  |
-| `test_api_connection.cpp`          | `api_connection.h` — overlapping compute requests are 200+503; connection-gate bound                                   |
-| `test_api_failure.cpp`             | `api_failure.h` — HRESULT and std exception classification, status per kind                                            |
-| `test_debug_dashboard.cpp`         | `debug_dashboard.h`                                                                                                    |
-| `test_api_config.cpp`              | LAN API config validation (`uwp/api-server.h`)                                                                         |
-| `test_api_policy.cpp`              | `api_policy.h` numeric admission (F01)                                                                                 |
-| `test_api_pull.cpp`                | `api_pull_policy.h`, `withdrawn_models.h`                                                                              |
-| `test_app_settings.cpp`            | `app_settings.h` — settings.json parse/format, per-field fallback, legacy file, round trip                             |
-| `test_autopilot.cpp`               | `autopilot.h`                                                                                                          |
-| `test_bench.cpp`                   | bench CSV (`inference.h`), `platform.h`, `benchmark_identity.h`                                                        |
-| `test_cancel_policy.cpp`           | `cancel_policy.h`                                                                                                      |
-| `test_capture_probe.cpp`           | `capture_probe.h`                                                                                                      |
-| `test_chat_history.cpp`            | `uwp/chat-history.h`                                                                                                   |
-| `test_chat_prompt.cpp`             | `chat_prompt.h`                                                                                                        |
-| `test_main.cpp`                    | doctest entry point; stall watchdog off unless `XLLAMA_INFER_STALL_TIMEOUT_S` is exported                              |
-| `test_cli.cpp`                     | `cli.h`                                                                                                                |
-| `test_decode_loop.cpp`             | `decode_loop.h` via `run_inference` (opt-in model)                                                                     |
-| `test_inference_progress.cpp`      | `inference_progress.h` cadence, stall policy, watchdog                                                                 |
-| `test_local_knob.cpp`              | `local_knob.h` LocalState file read/write, CRLF/trim normalisation, strict integer knobs                               |
-| `test_device_train.cpp`            | `device_train.h`                                                                                                       |
-| `test_diffusion.cpp`               | `diffusion/` (Euler golden vectors, LCM step table, LCM-off = Euler, request contract, residency rule)                 |
-| `test_diskbw.cpp`                  | `diskbw.h`                                                                                                             |
-| `test_embedding.cpp`               | `embedding.h`                                                                                                          |
-| `test_ggml_d3d12.cpp`              | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`; optional MMV fallback; IQ3 55 GB/s measured decode floor; others 100         |
-| `test_gpubw.cpp`                   | `gpubw.h`                                                                                                              |
-| `test_gpugemv.cpp`                 | `gpugemv.h`                                                                                                            |
-| `test_gpustep.cpp`                 | `gpustep.h`                                                                                                            |
-| `test_http_framing.cpp`            | `http_framing.h`                                                                                                       |
-| `test_json_utils.cpp`              | `json_utils.h`                                                                                                         |
-| `test_kv_store.cpp`                | `kv_store.h`                                                                                                           |
-| `test_logit_parity.cpp`            | `logit_dump.h` (opt-in model)                                                                                          |
-| `test_tensor_capture.cpp`          | `tensor_capture.h`                                                                                                     |
-| `test_manifest_merge.cpp`          | `manifest_merge.h`, `withdrawn_models.h`                                                                               |
-| `test_membw.cpp`                   | `membw.h`                                                                                                              |
-| `test_memory_admission.cpp`        | `memory_admission.h` (host limit, GPU budget, refusal prefix); `Session::estimate_memory` opt-in in `test_session.cpp` |
-| `test_model_provision.cpp`         | `model_provision.h`                                                                                                    |
-| `test_model_file_plan.cpp`         | `model_file_plan.h`                                                                                                    |
-| `test_moe_streaming.cpp`           | `moe_streaming.h`                                                                                                      |
-| `test_model_write.cpp`             | `model_write.h`                                                                                                        |
-| `test_path.cpp`                    | `path_utils.h`                                                                                                         |
-| `test_personalize.cpp`             | `personalize.h`                                                                                                        |
-| `test_preference_capture.cpp`      | `preference_capture.h`                                                                                                 |
-| `test_prefix_snapshot.cpp`         | `prefix_snapshot.h` — extension keeps; slack restore; regenerate restores; attention prefix required                   |
-| `test_context_shift.cpp`           | `context_shift.h` — #169 shift admission (`memory_can_shift`, SWA guard); turn-aligned discard                         |
-| `test_granite_hybrid_snapshot.cpp` | #512 restore on Granite-4.0-H-Tiny (opt-in `XLLAMA_GRANITE_H_TINY`; skips in CI)                                       |
-| `test_prompt_budget.cpp`           | `prompt_budget.h`                                                                                                      |
-| `test_ramceil.cpp`                 | `ramceil.h`                                                                                                            |
-| `test_routing_policy.cpp`          | `routing_policy.h`                                                                                                     |
-| `test_sampling.cpp`                | `sampling.h` (CLI/Session parity opt-in)                                                                               |
-| `test_session.cpp`                 | `session.h`, `session_hub.h`                                                                                           |
-| `test_session_spec.cpp`            | `session_spec.h`, hub reuse rule                                                                                       |
-| `test_speculative.cpp`             | `speculative.h`                                                                                                        |
-| `test_sse.cpp`                     | `sse.h` framing and UTF-8 boundaries                                                                                   |
-| `test_stability_attribution.cpp`   | `stability_attribution.h`                                                                                              |
-| `test_stop_filter.cpp`             | `stop_sequence_filter.h` parity with `apply_stop_sequences`                                                            |
-| `test_tool_budget.cpp`             | `tool_budget.h`                                                                                                        |
-| `test_tool_proposal.cpp`           | `api_policy.h`, `tool_request.h`, `tool_transcript.h`, `prompt_budget.h`, `tool_template.h`                            |
-| `test_training.cpp`                | `training.h` / `training_params.h`                                                                                     |
-| `test_utf8.cpp`                    | `utf8_utils.h`                                                                                                         |
+| Test file                          | Under test                                                                                                                                            |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test_api_activity.cpp`            | `api_activity.h`                                                                                                                                      |
+| `test_api_discovery.cpp`           | `api_discovery.h` (`/health` and `/v1/models` shapes)                                                                                                 |
+| `test_thinking_split.cpp`          | `thinking_split.h` (batch and stream reasoning split, spans, reasoning token count, `split_output`)                                                   |
+| `test_compute_admission.cpp`       | `compute_admission.h`                                                                                                                                 |
+| `test_api_connection.cpp`          | `api_connection.h` — overlapping compute requests are 200+503; connection-gate bound                                                                  |
+| `test_api_failure.cpp`             | `api_failure.h` — HRESULT and std exception classification, status per kind                                                                           |
+| `test_debug_dashboard.cpp`         | `debug_dashboard.h`                                                                                                                                   |
+| `test_api_config.cpp`              | LAN API config validation (`uwp/api-server.h`)                                                                                                        |
+| `test_api_policy.cpp`              | `api_policy.h` numeric admission (F01)                                                                                                                |
+| `test_api_pull.cpp`                | `api_pull_policy.h`, `withdrawn_models.h`                                                                                                             |
+| `test_app_settings.cpp`            | `app_settings.h` — settings.json parse/format, per-field fallback, legacy file, round trip                                                            |
+| `test_autopilot.cpp`               | `autopilot.h`                                                                                                                                         |
+| `test_bench.cpp`                   | bench CSV (`inference.h`), `platform.h`, `benchmark_identity.h`                                                                                       |
+| `test_cancel_policy.cpp`           | `cancel_policy.h`                                                                                                                                     |
+| `test_capture_probe.cpp`           | `capture_probe.h`                                                                                                                                     |
+| `test_chat_history.cpp`            | `uwp/chat-history.h`                                                                                                                                  |
+| `test_chat_prompt.cpp`             | `chat_prompt.h`                                                                                                                                       |
+| `test_main.cpp`                    | doctest entry point; stall watchdog off unless `XLLAMA_INFER_STALL_TIMEOUT_S` is exported                                                             |
+| `test_cli.cpp`                     | `cli.h`                                                                                                                                               |
+| `test_decode_loop.cpp`             | `decode_loop.h` via `run_inference` (opt-in model)                                                                                                    |
+| `test_inference_progress.cpp`      | `inference_progress.h` cadence, stall policy, watchdog                                                                                                |
+| `test_local_knob.cpp`              | `local_knob.h` LocalState file read/write, CRLF/trim normalisation, strict integer knobs                                                              |
+| `test_device_train.cpp`            | `device_train.h`                                                                                                                                      |
+| `test_diffusion.cpp`               | `diffusion/` (Euler golden vectors, LCM step table, LCM-off = Euler, request contract, residency rule)                                                |
+| `test_diskbw.cpp`                  | `diskbw.h`                                                                                                                                            |
+| `test_embedding.cpp`               | `embedding.h`                                                                                                                                         |
+| `test_ggml_d3d12.cpp`              | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`; optional MMV fallback; IQ3 55 GB/s measured decode floor; others 100                                        |
+| `test_gpubw.cpp`                   | `gpubw.h`                                                                                                                                             |
+| `test_gpugemv.cpp`                 | `gpugemv.h`                                                                                                                                           |
+| `test_gpustep.cpp`                 | `gpustep.h`                                                                                                                                           |
+| `test_http_framing.cpp`            | `http_framing.h`                                                                                                                                      |
+| `test_json_utils.cpp`              | `json_utils.h`                                                                                                                                        |
+| `test_kv_store.cpp`                | `kv_store.h`                                                                                                                                          |
+| `test_logit_parity.cpp`            | `logit_dump.h` (opt-in model)                                                                                                                         |
+| `test_tensor_capture.cpp`          | `tensor_capture.h`                                                                                                                                    |
+| `test_manifest_merge.cpp`          | `manifest_merge.h`, `withdrawn_models.h`                                                                                                              |
+| `test_membw.cpp`                   | `membw.h`                                                                                                                                             |
+| `test_memory_admission.cpp`        | `memory_admission.h` (host limit, GPU budget, refusal prefix); `Session::estimate_memory` opt-in in `test_session.cpp`                                |
+| `test_model_provision.cpp`         | `model_provision.h`                                                                                                                                   |
+| `test_model_file_plan.cpp`         | `model_file_plan.h`                                                                                                                                   |
+| `test_moe_streaming.cpp`           | `moe_streaming.h`                                                                                                                                     |
+| `test_model_write.cpp`             | `model_write.h`                                                                                                                                       |
+| `test_path.cpp`                    | `path_utils.h`                                                                                                                                        |
+| `test_personalize.cpp`             | `personalize.h`                                                                                                                                       |
+| `test_preference_capture.cpp`      | `preference_capture.h`                                                                                                                                |
+| `test_prefix_snapshot.cpp`         | `prefix_snapshot.h` — extension keeps; slack restore; regenerate restores; attention prefix required; longest shared checkpoint; grid and byte budget |
+| `test_context_shift.cpp`           | `context_shift.h` — #169 shift admission (`memory_can_shift`, SWA guard); turn-aligned discard                                                        |
+| `test_granite_hybrid_snapshot.cpp` | #512 restore on Granite-4.0-H-Tiny (opt-in `XLLAMA_GRANITE_H_TINY`; skips in CI)                                                                      |
+| `test_prompt_budget.cpp`           | `prompt_budget.h`                                                                                                                                     |
+| `test_ramceil.cpp`                 | `ramceil.h`                                                                                                                                           |
+| `test_routing_policy.cpp`          | `routing_policy.h`                                                                                                                                    |
+| `test_sampling.cpp`                | `sampling.h` (CLI/Session parity opt-in)                                                                                                              |
+| `test_session.cpp`                 | `session.h`, `session_hub.h`                                                                                                                          |
+| `test_session_spec.cpp`            | `session_spec.h`, hub reuse rule                                                                                                                      |
+| `test_speculative.cpp`             | `speculative.h`                                                                                                                                       |
+| `test_sse.cpp`                     | `sse.h` framing and UTF-8 boundaries                                                                                                                  |
+| `test_stability_attribution.cpp`   | `stability_attribution.h`                                                                                                                             |
+| `test_stop_filter.cpp`             | `stop_sequence_filter.h` parity with `apply_stop_sequences`                                                                                           |
+| `test_tool_budget.cpp`             | `tool_budget.h`                                                                                                                                       |
+| `test_tool_proposal.cpp`           | `api_policy.h`, `tool_request.h`, `tool_transcript.h`, `prompt_budget.h`, `tool_template.h`                                                           |
+| `test_training.cpp`                | `training.h` / `training_params.h`                                                                                                                    |
+| `test_utf8.cpp`                    | `utf8_utils.h`                                                                                                                                        |
 
 ## UWP headless flag registry
 
