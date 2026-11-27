@@ -2,10 +2,14 @@
 // SPDX-License-Identifier: MIT
 
 #include "xllama/cli.h"
+#include "xllama/session_spec.h" // kGgufNThreadsMax
 
+#include <charconv>
 #include <cstdlib>
 #include <getopt.h>
-#include <string>
+#include <iostream>
+#include <limits>
+#include <string_view>
 
 namespace xllama {
 
@@ -21,7 +25,7 @@ static void print_help(const char* prog) {
                  "  -c, --ctx <N>        Context size (default: 2048)\n"
                  "  -t, --threads <N>    Thread count; 0 = auto (default: 0)\n"
                  "      --temp <float>   Sampling temperature (default: 0.8)\n"
-                 "      --seed <int>     RNG seed; 0 = random (default: 0)\n"
+                 "      --seed <int>     RNG seed; -1 = random (default: -1)\n"
                  "      --top-p <float>  Nucleus sampling cutoff (default: 0.9)\n"
                  "      --top-k <N>      Top-k cutoff (default: 40)\n"
                  "      --repetition-penalty <float>\n"
@@ -110,6 +114,27 @@ static void print_usage(const char* prog) {
     print_help(prog);
 }
 
+// Parse into the destination type before applying the option's range. from_chars
+// is locale-independent; requiring the end pointer rejects partial conversions.
+template <class T>
+static bool parse_number(std::string_view text, T& out, T lo = std::numeric_limits<T>::lowest(),
+                         T hi = std::numeric_limits<T>::max()) {
+    // from_chars excludes the leading plus sign accepted by the original CLI.
+    if (!text.empty() && text.front() == '+') {
+        text.remove_prefix(1);
+        if (!text.empty() && text.front() == '-')
+            return false;
+    }
+    T value{};
+    const char* end = text.data() + text.size();
+    const auto parsed = std::from_chars(text.data(), end, value);
+    // Positive membership in finite bounds excludes both NaN and infinities.
+    if (parsed.ec != std::errc{} || parsed.ptr != end || !(value >= lo && value <= hi))
+        return false;
+    out = value;
+    return true;
+}
+
 bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
     optind = 1; // reset getopt_long state for re-entrant use
     opterr = 0; // silence getopt error messages
@@ -166,8 +191,12 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
 
-    int opt;
-    while ((opt = getopt_long(argc, argv, "m:p:n:c:t:h", long_opts, nullptr)) != -1) {
+    for (;;) {
+        int long_index = -1;
+        const int opt = getopt_long(argc, argv, "m:p:n:c:t:h", long_opts, &long_index);
+        if (opt == -1)
+            break;
+        bool valid = true;
         switch (opt) {
         case 'm':
             out.model_path = optarg;
@@ -177,28 +206,35 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             out.embed_inputs.push_back(optarg); // Collect for --embed mode
             break;
         case 'n':
-            out.n_predict = std::atoi(optarg);
+            valid = parse_number(optarg, out.n_predict, 0);
             break;
         case 'c':
-            out.n_ctx = std::atoi(optarg);
+            valid = parse_number(optarg, out.n_ctx, 0);
             break;
         case 't':
-            out.n_threads = std::atoi(optarg);
+            valid = parse_number(optarg, out.n_threads, 0, kGgufNThreadsMax);
             break;
         case 1:
-            out.temperature = static_cast<float>(std::atof(optarg));
+            valid = parse_number(optarg, out.temperature);
             break;
-        case 2:
-            out.seed = static_cast<uint32_t>(std::atoi(optarg));
+        case 2: {
+            // Signed 32-bit seeds retain their prior bit pattern (-1 is random).
+            // The unsigned spelling can address every GGUF seed directly.
+            int64_t seed{};
+            valid = parse_number<int64_t>(optarg, seed, std::numeric_limits<int32_t>::min(),
+                                          std::numeric_limits<uint32_t>::max());
+            if (valid)
+                out.seed = static_cast<uint32_t>(seed);
             break;
+        }
         case 3:
             out.chat_template = true;
             break;
         case 4:
-            out.n_batch = std::atoi(optarg);
+            valid = parse_number(optarg, out.n_batch, 0);
             break;
         case 5:
-            out.n_ubatch = std::atoi(optarg);
+            valid = parse_number(optarg, out.n_ubatch, 0);
             break;
         case 6:
             out.run_membw = true;
@@ -224,16 +260,16 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             out.lora_path = optarg;
             break;
         case 13:
-            out.lora_scale = static_cast<float>(std::atof(optarg));
+            valid = parse_number(optarg, out.lora_scale);
             break;
         case 14:
-            out.top_p = static_cast<float>(std::atof(optarg));
+            valid = parse_number(optarg, out.top_p, 0.0f, 1.0f);
             break;
         case 15:
-            out.top_k = std::atoi(optarg);
+            valid = parse_number(optarg, out.top_k);
             break;
         case 16:
-            out.repetition_penalty = static_cast<float>(std::atof(optarg));
+            valid = parse_number(optarg, out.repetition_penalty);
             break;
         case 17:
             out.system_prompt = optarg;
@@ -260,7 +296,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             out.run_embed = true;
             break;
         case 25:
-            out.embed_dimensions = std::atoi(optarg);
+            valid = parse_number(optarg, out.embed_dimensions, 0);
             break;
         case 26:
             out.run_gpustep = true;
@@ -269,16 +305,16 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             out.gpustep_verdict_csv = optarg;
             break;
         case 28:
-            out.n_gpu_layers = std::atoi(optarg);
+            valid = parse_number(optarg, out.n_gpu_layers, 0);
             break;
         case 29:
-            out.decode_log_every_n = std::atoi(optarg);
+            valid = parse_number(optarg, out.decode_log_every_n, 0);
             break;
         case 30:
-            out.decode_log_every_ms = std::atoi(optarg);
+            valid = parse_number(optarg, out.decode_log_every_ms, 0);
             break;
         case 31:
-            out.stall_timeout_s = std::atoi(optarg);
+            valid = parse_number(optarg, out.stall_timeout_s, 0);
             break;
         case 32:
             out.tensor_capture_dir = optarg;
@@ -287,17 +323,21 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             out.tensor_capture_spec = optarg;
             break;
         case 34:
-            out.dump_logits_stride = std::atoi(optarg);
-            if (out.dump_logits_stride < 1) {
-                std::fprintf(stderr, "--dump-logits-stride must be a positive integer\n");
-                return false;
-            }
+            valid = parse_number(optarg, out.dump_logits_stride, 1);
             break;
         case 'h':
             print_help(argv[0]);
             std::exit(0);
         default:
             print_usage(argv[0]);
+            return false;
+        }
+        if (!valid) {
+            if (long_index >= 0)
+                std::cerr << "Invalid numeric value for --" << long_opts[long_index].name;
+            else
+                std::cerr << "Invalid numeric value for -" << static_cast<char>(opt);
+            std::cerr << ": '" << optarg << "'\n";
             return false;
         }
     }

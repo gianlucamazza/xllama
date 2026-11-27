@@ -1094,7 +1094,7 @@ write's `on_done` so the two do not contend for the single gate.
 | `-c, --ctx <N>`                   | Context size                                                         |
 | `-t, --threads <N>`               | Thread count (0 = auto)                                              |
 | `--temp <float>`                  | Sampling temperature                                                 |
-| `--seed <int>`                    | RNG seed (0 = random)                                                |
+| `--seed <int>`                    | RNG seed (-1 = random)                                               |
 | `--top-p <float>`                 | Nucleus cutoff                                                       |
 | `--top-k <N>`                     | Top-k cutoff                                                         |
 | `--repetition-penalty <float>`    | Repetition penalty (last 64 tokens)                                  |
