@@ -6,6 +6,8 @@
 
 #include "mainpage-internal.h"
 
+#include <charconv>
+
 #ifdef XLLAMA_UWP
 
 namespace xllama {
@@ -22,10 +24,7 @@ xllama::AppSettings MainPageController::CurrentSettings() const {
     s.gpu_model = m_gpu_model;
     s.diffuse_taesd_vae = m_diffuse_taesd;
     s.diffuse_seed = m_diffuse_seed;
-    s.temperature = m_temperature;
-    s.top_p = m_top_p;
-    s.top_k = m_top_k;
-    s.repetition_penalty = m_repetition_penalty;
+    s.sampling = m_sampling;
     s.n_predict = m_n_predict;
     return s;
 }
@@ -47,10 +46,7 @@ void MainPageController::LoadSettings() {
         m_gpu_model = s.gpu_model;
         m_diffuse_taesd = s.diffuse_taesd_vae;
         m_diffuse_seed = s.diffuse_seed;
-        m_temperature = s.temperature;
-        m_top_p = s.top_p;
-        m_top_k = s.top_k;
-        m_repetition_penalty = s.repetition_penalty;
+        m_sampling = s.sampling;
         m_n_predict = s.n_predict;
     }
 
@@ -152,14 +148,89 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
         return s;
     };
     namespace lim = ::xllama::settings_limits; // the ranges settings.json enforces
-    auto tempSlider = make_slider(m_temperature, lim::kTemperatureMin, lim::kTemperatureMax, 0.05,
-                                  L"Temperature (0–2)");
-    auto topPSlider = make_slider(m_top_p, lim::kTopPMin, lim::kTopPMax, 0.05, L"Top-p (0–1)");
-    auto repSlider = make_slider(m_repetition_penalty, lim::kRepetitionPenaltyMin,
-                                 lim::kRepetitionPenaltyMax, 0.05, L"Repetition penalty (1–2)");
+    // Sampling: a slider shows the value a turn on the selected model uses
+    // (model_sampling.h: global < model < user). Moving one makes it the user's
+    // value; "Use the model's values" clears them. Only the user's values are
+    // saved, so a model with its own values gets them unless the user chose.
+    struct SamplingEdit {
+        ::xllama::SamplingOverrides model; // the selected model's catalogue values
+        ::xllama::SamplingOverrides user;  // what the user chose
+        bool syncing = false;              // set while code moves a slider
+    };
+    auto edit = std::make_shared<SamplingEdit>();
+    edit->user = m_sampling;
+    auto model_values = [manifest](const std::wstring& name) {
+        const auto* e = ::xllama::FindManifestEntry(manifest, name);
+        return e ? e->sampling : ::xllama::SamplingOverrides{};
+    };
+    edit->model = model_values(m_model_filename);
+    const ::xllama::ResolvedSampling shown = ::xllama::resolve_sampling(edit->model, edit->user);
+    auto tempSlider = make_slider(shown.temperature, lim::kTemperatureMin, lim::kTemperatureMax,
+                                  0.05, L"Temperature");
+    auto topPSlider = make_slider(shown.top_p, lim::kTopPMin, lim::kTopPMax, 0.05, L"Top-p");
+    auto repSlider = make_slider(shown.repetition_penalty, lim::kRepetitionPenaltyMin,
+                                 lim::kRepetitionPenaltyMax, 0.05, L"Repetition penalty");
 
     // top_k and n_predict as simple Sliders (NumberBox not available in older SDK targets)
-    auto topKSlider = make_slider(m_top_k, lim::kTopKMin, lim::kTopKMax, 1.0, L"Top-k (1–200)");
+    auto topKSlider = make_slider(shown.top_k, lim::kTopKMin, lim::kTopKMax, 1.0, L"Top-k");
+
+    // "Temperature (0–2): 0.1, model's value": the exact value (a slider snaps
+    // to its step) and the layer it comes from.
+    auto sampling_header = [](const wchar_t* label, double value, ::xllama::SamplingSource from) {
+        char buf[32];
+        const auto res = std::to_chars(buf, buf + sizeof(buf), static_cast<float>(value));
+        const wchar_t* source = from == ::xllama::SamplingSource::User    ? L"your value"
+                                : from == ::xllama::SamplingSource::Model ? L"model's value"
+                                                                          : L"default";
+        return winrt::box_value(
+            winrt::hstring(std::wstring(label) + L": " +
+                           ::xllama::utf8_to_wstring(std::string(buf, res.ptr)) + L", " + source));
+    };
+    auto refresh_sampling = [edit, tempSlider, topPSlider, topKSlider, repSlider,
+                             sampling_header](bool move_sliders) {
+        const ::xllama::ResolvedSampling r = ::xllama::resolve_sampling(edit->model, edit->user);
+        if (move_sliders) {
+            edit->syncing = true;
+            tempSlider.Value(r.temperature);
+            topPSlider.Value(r.top_p);
+            topKSlider.Value(r.top_k);
+            repSlider.Value(r.repetition_penalty);
+            edit->syncing = false;
+        }
+        tempSlider.Header(
+            sampling_header(L"Temperature (0–2)", r.temperature, r.temperature_source));
+        topPSlider.Header(sampling_header(L"Top-p (0–1)", r.top_p, r.top_p_source));
+        topKSlider.Header(sampling_header(L"Top-k (1–200)", r.top_k, r.top_k_source));
+        repSlider.Header(sampling_header(L"Repetition penalty (1–2)", r.repetition_penalty,
+                                         r.repetition_penalty_source));
+    };
+    refresh_sampling(false);
+    auto on_user_move = [edit, refresh_sampling](auto set_user) {
+        return [edit, refresh_sampling, set_user](winrt::Windows::Foundation::IInspectable const&,
+                                                  winrt::Windows::UI::Xaml::Controls::Primitives::
+                                                      RangeBaseValueChangedEventArgs const& args) {
+            if (edit->syncing)
+                return;
+            set_user(edit->user, args.NewValue());
+            refresh_sampling(false);
+        };
+    };
+    tempSlider.ValueChanged(on_user_move(
+        [](::xllama::SamplingOverrides& u, double v) { u.temperature = static_cast<float>(v); }));
+    topPSlider.ValueChanged(on_user_move(
+        [](::xllama::SamplingOverrides& u, double v) { u.top_p = static_cast<float>(v); }));
+    topKSlider.ValueChanged(on_user_move(
+        [](::xllama::SamplingOverrides& u, double v) { u.top_k = static_cast<int>(v); }));
+    repSlider.ValueChanged(on_user_move([](::xllama::SamplingOverrides& u, double v) {
+        u.repetition_penalty = static_cast<float>(v);
+    }));
+    winrt::Windows::UI::Xaml::Controls::Button samplingReset;
+    samplingReset.Content(winrt::box_value(L"Use the model's sampling values"));
+    samplingReset.Click([edit, refresh_sampling](winrt::Windows::Foundation::IInspectable const&,
+                                                 winrt::Windows::UI::Xaml::RoutedEventArgs const&) {
+        edit->user = {};
+        refresh_sampling(true);
+    });
     auto nPredSlider = make_slider(m_n_predict, lim::kNPredictMin, lim::kNPredictMax, 16.0,
                                    L"Max new tokens (16–2048)");
 
@@ -251,11 +322,17 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     };
     sync_backend_toggles(model_sel);
     modelBox.SelectionChanged(
-        [sync_backend_toggles](
-            winrt::Windows::Foundation::IInspectable const& sender,
-            winrt::Windows::UI::Xaml::Controls::SelectionChangedEventArgs const&) {
+        [sync_backend_toggles, edit, refresh_sampling, model_values,
+         model_keys](winrt::Windows::Foundation::IInspectable const& sender,
+                     winrt::Windows::UI::Xaml::Controls::SelectionChangedEventArgs const&) {
             auto box = sender.as<winrt::Windows::UI::Xaml::Controls::ComboBox>();
-            sync_backend_toggles(box.SelectedIndex());
+            const int idx = box.SelectedIndex();
+            sync_backend_toggles(idx);
+            // The values the user did not choose follow the newly picked model.
+            if (idx >= 0 && idx < static_cast<int>(model_keys.size())) {
+                edit->model = model_values(model_keys[static_cast<size_t>(idx)]);
+                refresh_sampling(true);
+            }
         });
 
     // --- Phase 11 personalize (#116) ---
@@ -288,6 +365,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     panel.Children().Append(topPSlider);
     panel.Children().Append(topKSlider);
     panel.Children().Append(repSlider);
+    panel.Children().Append(samplingReset);
     panel.Children().Append(nPredSlider);
     panel.Children().Append(kvToggle);
     panel.Children().Append(debugToggle);
@@ -336,10 +414,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     // role → kCodingSystemPrompt (routing_policy / chat_prompt).
     self->m_system_prompt = ::xllama::wstring_to_utf8(std::wstring(sysPromptBox.Text().c_str()));
     int mi = modelBox.SelectedIndex();
-    self->m_temperature = static_cast<float>(tempSlider.Value());
-    self->m_top_p = static_cast<float>(topPSlider.Value());
-    self->m_top_k = static_cast<int>(topKSlider.Value());
-    self->m_repetition_penalty = static_cast<float>(repSlider.Value());
+    self->m_sampling = edit->user; // only what the user chose; the rest is the model's
     // Slider first — model switch may override with a catalogue n_predict
     // (thinking tier 1024). The slider still shows the previous model’s value
     // until Settings is reopened, so a stale read must not clobber the knob.

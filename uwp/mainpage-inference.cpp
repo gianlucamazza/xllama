@@ -380,10 +380,13 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
     const std::string system_prompt = m_system_prompt;
     int plan_n_ctx = plan.n_ctx; // replaced by the loaded session's n_ctx in the worker
     const int plan_n_predict = m_n_predict;
+    // The same layers the LAN API applies (model_sampling.h), resolved here on
+    // the UI thread, where the catalogue cache and m_sampling live.
+    const ::xllama::ResolvedSampling sampling = ModelSampling(::xllama::utf8_to_wstring(model));
 
     std::thread([self, full_prompt, delta_prompt, do_reuse, kv_reuse, ep_kv_ok, model, fmt,
                  sys_prefix, kv_path, dispatcher, plan_turns, user_text, system_prompt, plan_n_ctx,
-                 plan_n_predict, compute_permit, prompt_w]() mutable {
+                 plan_n_predict, sampling, compute_permit, prompt_w]() mutable {
         try {
             if (!compute_permit) {
                 compute_permit = ::xllama::try_acquire_compute_job_while_preloading(
@@ -485,10 +488,7 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
                 xllama::GenerateParams gp;
                 gp.prompt = p;
                 gp.n_predict = self->m_n_predict;
-                gp.temperature = self->m_temperature;
-                gp.top_p = self->m_top_p;
-                gp.top_k = self->m_top_k;
-                gp.repetition_penalty = self->m_repetition_penalty;
+                ::xllama::apply_resolved_sampling(sampling, gp);
                 gp.abort_flag = &self->m_abort;
                 gp.stop_sequences = fmt.stop_sequences;
                 gp.reuse_kv = reuse;

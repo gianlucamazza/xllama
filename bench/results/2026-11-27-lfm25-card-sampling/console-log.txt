@@ -1,0 +1,13 @@
+accepted ['repetition_penalty', 'seed', 'temperature', 'top_k', 'top_p']
+== lfm25-1.2b-instruct base sampling=Sampling(temperature=0.1, top_p=None, top_k=None, repetition_penalty=None) cases=160 x3
+   passed 358/480 pass_rate 0.746 ci [0.681, 0.808] abst 60/63 lang 166/186 empty 0/480 median_s 1.4
+== lfm25-1.2b-instruct card sampling=Sampling(temperature=0.1, top_p=None, top_k=50, repetition_penalty=1.05) cases=160 x3
+   passed 359/480 pass_rate 0.748 ci [0.681, 0.815] abst 60/63 lang 165/185 empty 0/480 median_s 1.38
+   compare card vs base: {"cases": 160, "pass_rate": "75% \u2192 75%", "pass_rate_change": 0.002, "change_ci95": [-0.008, 0.013], "cases_changed": {"better": 4, "worse": 3}, "p_value": 1.0, "within_noise": true, "fixed": [], "broken": []}
+== lfm25-8b-a1b base sampling=Sampling(temperature=0.1, top_p=None, top_k=None, repetition_penalty=None) cases=95 x2
+   passed 160/190 pass_rate 0.842 ci [0.774, 0.9] abst 21/42 lang 92/118 empty 0/190 median_s 16.94
+== lfm25-8b-a1b card sampling=Sampling(temperature=0.2, top_p=None, top_k=80, repetition_penalty=1.05) cases=95 x2
+   passed 163/190 pass_rate 0.858 ci [0.795, 0.916] abst 19/42 lang 92/117 empty 1/190 (length 1) median_s 16.08
+   compare card vs base: {"cases": 95, "pass_rate": "84% \u2192 86%", "pass_rate_change": 0.016, "change_ci95": [-0.042, 0.074], "cases_changed": {"better": 10, "worse": 9}, "p_value": 1.0, "within_noise": true, "fixed": ["abstain-en-0", "abstain-en-5", "abstain-en-6", "abstain-it-0", "abstain-it-2", "abstain-it-7", "chat-it-3", "irrel-8", "multi-invented-ls-it", "single-read-8"], "broken": ["abstain-en-2", "abstain-en-3", "abstain-en-4", "abstain-en-8", "abstain-it-4", "abstain-it-8", "abstain-it-9", "abstain-multi-it", "single-grep-5"]}
+
+[exited with code 0]
