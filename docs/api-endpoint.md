@@ -1082,9 +1082,29 @@ records the connection, the complete response header, the first body byte, the
 first non-empty content delta and `[DONE]`, all measured from the start of the
 request. It writes `xllama-api-ttfb/1` JSON. Failed attempts are kept with
 their error: timeouts, non-200 status, stream error records, malformed SSE, no
-content or a missing `[DONE]`. These times include the network, HTTP handling
+content, missing or repeated `[DONE]`, or an interrupted chunked response. These times include the network, HTTP handling
 and any model load. They are not the in-app `ttft_ms` and not a throughput
 result. The hardware label is a declaration made by the operator.
+
+`latency_distribution.percentiles_ms` records P50, P95 and P99 for each
+request milestone across the `completed_requests` successful attempts.
+Sort the observations, take zero-based rank `(n - 1) * p`, and interpolate
+linearly between adjacent values (R-7). Durations are in milliseconds to three
+decimal places. `median_ms` exposes the same P50 as before. With one completion
+all three percentiles equal the observed time. With none, each is null.
+`error_rate` is the fraction of all attempted requests that failed. A run with
+four completions and two HTTP 503 responses therefore records four latency
+samples, six raw attempts and an error rate of 2/6. Small batches describe
+their own observations. Tail-latency comparisons need repeated requests under
+matched load and startup conditions. Each measured milestone belongs to a
+request. Token emission intervals require per-token observations.
+
+The loopback test exercises that mixed six-request example and recomputes the
+percentiles from the raw timestamps.
+
+```bash
+python3 -m unittest tests.test_measure_api_ttfb.MeasureApiTtfbTests.test_request_quantiles_include_only_completions_and_failures_count_towards_error_rate
+```
 
 Images are not in `all` (need SD-Turbo on device; use the curl example above). Chat round-trip:
 

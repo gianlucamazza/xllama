@@ -35,6 +35,28 @@ import time
 from datetime import datetime, timezone
 
 
+STAGES = ("connect_ms", "headers_ms", "first_byte_ms", "first_content_ms", "done_ms")
+
+
+def request_percentiles(completed):
+    """Linear sample quantiles of client-observed request milestones (milliseconds)."""
+    result = {}
+    for stage in STAGES:
+        values = sorted(attempt[stage] for attempt in completed)
+        estimates = {}
+        for percentile in (50, 95, 99):
+            value = None
+            if values:
+                index, remainder = divmod((len(values) - 1) * percentile, 100)
+                value = values[index]
+                if remainder:
+                    weight = remainder / 100
+                    value = round(value * (1 - weight) + values[index + 1] * weight, 3)
+            estimates[f"p{percentile}"] = value
+        result[stage] = estimates
+    return result
+
+
 def ms_since(t0: float) -> float:
     return round((time.perf_counter() - t0) * 1000.0, 3)
 
@@ -79,7 +101,8 @@ def one_attempt(host, port, model, prompt, max_tokens, timeout):
         raw = rest
         if raw:
             rec["first_byte_ms"] = ms_since(t0)
-        decoded, text = b"", ""
+        decoded, text_chars = b"", 0
+        previous_cr = False
 
         def dechunk(data):
             """Return (decoded payload, leftover undecoded bytes, finished)."""
@@ -89,14 +112,20 @@ def one_attempt(host, port, model, prompt, max_tokens, timeout):
                 if line_end < 0:
                     return out, data, False
                 size_txt = data[:line_end].split(b";", 1)[0].strip()
-                try:
-                    size = int(size_txt, 16)
-                except ValueError:
-                    raise ValueError(f"malformed chunk size: {size_txt!r}") from None
+                if not size_txt or any(c not in b"0123456789abcdefABCDEF" for c in size_txt):
+                    raise ValueError(f"malformed chunk size: {size_txt!r}")
+                size = int(size_txt, 16)
                 if size == 0:
-                    return out, b"", True
+                    # The terminal chunk includes a (possibly empty) trailer
+                    # section followed by a blank line. It may span reads.
+                    trailers = data[line_end + 2:]
+                    if trailers.startswith(b"\r\n") or b"\r\n\r\n" in trailers:
+                        return out, b"", True
+                    return out, data, False
                 if len(data) < line_end + 2 + size + 2:
                     return out, data, False
+                if data[line_end + 2 + size:line_end + 4 + size] != b"\r\n":
+                    raise ValueError("malformed chunk delimiter")
                 out += data[line_end + 2:line_end + 2 + size]
                 data = data[line_end + 2 + size + 2:]
 
@@ -107,38 +136,55 @@ def one_attempt(host, port, model, prompt, max_tokens, timeout):
                 payload, pending, finished = dechunk(pending)
             else:
                 payload, pending = pending, b""
-            decoded += payload
+            if payload:
+                # SSE permits LF, CR and CRLF. A CR and its optional LF can
+                # arrive in separate HTTP chunks or socket reads.
+                if previous_cr and payload.startswith(b"\n"):
+                    payload = payload[1:]
+                previous_cr = payload.endswith(b"\r")
+                decoded += payload.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
             while b"\n\n" in decoded:
                 event, decoded = decoded.split(b"\n\n", 1)
-                for line in event.decode("utf-8").splitlines():
-                    if not line.startswith("data:"):
-                        continue
-                    data = line[5:].strip()
-                    if data == "[DONE]":
-                        rec["done_ms"] = ms_since(t0)
-                        continue
-                    if rec["done_ms"] is not None:
-                        raise ValueError("data after [DONE]")
-                    obj = json.loads(data)
-                    if "error" in obj:
-                        raise ValueError(f"stream error record: {obj['error']}")
-                    choices = obj.get("choices") or []
-                    delta = (choices[0].get("delta") or {}) if choices else {}
-                    piece = delta.get("content") or ""
-                    if piece:
-                        rec["content_chunks"] += 1
-                        text += piece
-                        if rec["first_content_ms"] is None:
-                            rec["first_content_ms"] = ms_since(t0)
+                lines = event.decode("utf-8").split("\n")
+                data_lines = [line[5:].removeprefix(" ") for line in lines if line.startswith("data:")]
+                if not data_lines:
+                    continue
+                data = "\n".join(data_lines).strip()
+                if rec["done_ms"] is not None:
+                    raise ValueError("data after [DONE]")
+                if data == "[DONE]":
+                    rec["done_ms"] = ms_since(t0)
+                    continue
+                obj = json.loads(data)
+                if not isinstance(obj, dict):
+                    raise ValueError("stream event must be a JSON object")
+                if "error" in obj:
+                    raise ValueError(f"stream error record: {obj['error']}")
+                choices = obj.get("choices", [])
+                if not isinstance(choices, list) or (choices and not isinstance(choices[0], dict)):
+                    raise ValueError("invalid stream choices")
+                delta = choices[0].get("delta") if choices else None
+                if delta is not None and not isinstance(delta, dict):
+                    raise ValueError("invalid stream delta")
+                piece = delta.get("content") if delta else None
+                if piece is not None and not isinstance(piece, str):
+                    raise ValueError("invalid stream content")
+                if piece:
+                    rec["content_chunks"] += 1
+                    text_chars += len(piece)
+                    if rec["first_content_ms"] is None:
+                        rec["first_content_ms"] = ms_since(t0)
             if finished:
                 break
             data = sock.recv(65536)
             if not data:
+                if chunked:
+                    raise ValueError("chunked response closed before terminal chunk completed")
                 break
             if rec["first_byte_ms"] is None:
                 rec["first_byte_ms"] = ms_since(t0)
             pending += data
-        rec["text_chars"] = len(text)
+        rec["text_chars"] = text_chars
         if rec["done_ms"] is None:
             raise ValueError("stream ended without data: [DONE]")
         if rec["first_content_ms"] is None:
@@ -179,13 +225,8 @@ def main() -> int:
               f"done={rec['done_ms']} ms  {state}")
 
     ok = [a for a in attempts if a["error"] is None]
-
-    def median(key):
-        vals = sorted(a[key] for a in ok)
-        if not vals:
-            return None
-        mid = len(vals) // 2
-        return vals[mid] if len(vals) % 2 else round((vals[mid - 1] + vals[mid]) / 2, 3)
+    percentiles = request_percentiles(ok)
+    failed = len(attempts) - len(ok)
 
     out = {
         "schema": "xllama-api-ttfb/1",
@@ -195,9 +236,14 @@ def main() -> int:
         "max_tokens": args.max_tokens, "hardware_declared": args.hardware,
         "scope": "client-observed LAN timing incl. network, HTTP and any model load; "
                  "not the in-app ttft_ms and not a throughput result",
-        "attempts": attempts, "complete": len(ok), "failed": len(attempts) - len(ok),
-        "median_ms": {k: median(k) for k in
-                      ("connect_ms", "headers_ms", "first_byte_ms", "first_content_ms", "done_ms")},
+        "attempts": attempts, "complete": len(ok), "failed": failed,
+        "error_rate": failed / len(attempts),
+        "median_ms": {stage: estimates["p50"] for stage, estimates in percentiles.items()},
+        "latency_distribution": {
+            "completed_requests": len(ok),
+            "method": "linear (R-7)",
+            "percentiles_ms": percentiles,
+        },
     }
     with open(args.json_out, "w") as f:
         json.dump(out, f, indent=1)
