@@ -1,0 +1,32 @@
+{
+  "device": {
+    "Platform": "Xbox Series S",
+    "OsVersion": "26100.9662.amd64fre.xb_flt_2610ge.261104-2200",
+    "OsEdition": "SystemOS"
+  },
+  "package": {
+    "version": "1.10.0.2000",
+    "sku": "Developer Mode unified CI MSVC (xllama-appx, build-uwp push workflow run 45935512254 on the source commit)",
+    "install": "in-place update over 1.9.0.1982 via Device Portal; LocalState listing (top level, models, chats, kv) identical before and after the update",
+    "health": {
+      "api": 1,
+      "runtime": {
+        "llama_cpp": "d812350",
+        "patches": [
+          "0001-uwp-appcontainer-guards",
+          "0003-kv-cache-k-shift-unallocated-input",
+          "0004-recurrent-state-fill-zero",
+          "0005-required-tool-call-no-content-prefix"
+        ]
+      },
+      "sampling": [
+        "temperature",
+        "top_p",
+        "top_k",
+        "repetition_penalty",
+        "seed"
+      ]
+    }
+  },
+  "source_sha": "7c36f95ec20d3cd2f28e53436f4fecdb12795f6d"
+}

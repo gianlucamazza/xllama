@@ -1,0 +1,75 @@
+{
+  "command": "scripts/validate-api.sh all + disconnect",
+  "env": {
+    "ORT_MODEL": "smollm2-360m-cpu-int4"
+  },
+  "gates": [
+    {
+      "gate": "spike",
+      "result": "PASS"
+    },
+    {
+      "gate": "discovery",
+      "result": "PASS"
+    },
+    {
+      "gate": "chat",
+      "result": "PASS"
+    },
+    {
+      "gate": "stream",
+      "result": "PASS"
+    },
+    {
+      "gate": "admission",
+      "result": "PASS"
+    },
+    {
+      "gate": "embed",
+      "result": "PASS",
+      "note": "embed-nomic-v2-moe, 17 live requests"
+    },
+    {
+      "gate": "budget",
+      "result": "PASS"
+    },
+    {
+      "gate": "tools",
+      "result": "PASS"
+    },
+    {
+      "gate": "framing",
+      "result": "PASS"
+    },
+    {
+      "gate": "prefs",
+      "result": "PASS"
+    },
+    {
+      "gate": "train",
+      "result": "PASS"
+    },
+    {
+      "gate": "pull",
+      "result": "PASS"
+    },
+    {
+      "gate": "disconnect",
+      "result": "PASS",
+      "rounds": [
+        {
+          "stream": "plain stream",
+          "probe_http": 200,
+          "seconds": 9,
+          "limit_s": 30
+        },
+        {
+          "stream": "tool proposal stream",
+          "probe_http": 200,
+          "seconds": 10,
+          "limit_s": 30
+        }
+      ]
+    }
+  ]
+}
