@@ -500,13 +500,7 @@ class SseStream {
         if (m_finished)
             return;
         try {
-            JsonObject error;
-            error.Insert(L"message", JsonValue::CreateStringValue(winrt::to_hstring(message)));
-            error.Insert(L"type", JsonValue::CreateStringValue(L"xllama_error"));
-            JsonObject out;
-            out.Insert(L"error", error);
-            send(winrt::to_string(out.Stringify()));
-            end();
+            end(&message);
         } catch (...) {
             stop();
         }
@@ -632,7 +626,7 @@ class SseStream {
         return write_frame(::xllama::chunk_frame(::xllama::sse_event(payload)));
     }
 
-    void end() {
+    void end(const std::string* error = nullptr) {
         if (m_finished)
             return;
         stop_keepalive(); // nothing may follow the final chunk
@@ -641,8 +635,7 @@ class SseStream {
             return;
         m_finished = true;
         try {
-            m_writer.WriteString(winrt::to_hstring(::xllama::chunk_frame(::xllama::sse_done()) +
-                                                   ::xllama::chunk_final()));
+            m_writer.WriteString(winrt::to_hstring(::xllama::sse_terminal_frames(error)));
             m_writer.StoreAsync().get();
             m_writer.FlushAsync().get();
             m_writer.DetachStream();

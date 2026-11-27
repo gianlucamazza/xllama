@@ -70,6 +70,9 @@ std::string chunk_frame(std::string_view payload);
 // The last chunk of a chunked response.
 std::string chunk_final();
 
+// Terminal HTTP chunks. A failed generation emits an error event before [DONE].
+std::string sse_terminal_frames(const std::string* error = nullptr);
+
 // One step over the bytes buffered between token callbacks. A token piece from
 // llama_token_to_piece() can end midway through a multibyte character, so the
 // streamed writer holds the trailing bytes until the next piece completes them.

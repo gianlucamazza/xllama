@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 #include "xllama/sse.h"
 
+#include "xllama/json_utils.h"
+
 #include <charconv>
 #include <system_error>
 
@@ -87,6 +89,16 @@ std::string chunk_frame(std::string_view payload) {
 
 std::string chunk_final() {
     return "0\r\n\r\n";
+}
+
+std::string sse_terminal_frames(const std::string* error) {
+    std::string frames;
+    if (error) {
+        const std::string payload =
+            "{\"error\":{\"message\":\"" + json_escape(*error) + "\",\"type\":\"xllama_error\"}}";
+        frames = chunk_frame(sse_event(payload));
+    }
+    return frames + chunk_frame(sse_done()) + chunk_final();
 }
 
 namespace {
