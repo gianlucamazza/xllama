@@ -65,5 +65,8 @@ ZENODO_TOKEN=... python3 scripts/zenodo-deposit.py --upload-from-state
 ```
 
 The GitHub release is created by `.github/workflows/release-research.yml`.
+A manual run must start from the tag itself, so that the tested source is the
+attested one: `gh workflow run release-research.yml --ref research-v<version> -f tag=research-v<version>`.
+The workflow stops when the tag, the run's commit and the checkout differ.
 Do not enable a GitHub-to-Zenodo webhook for the same repository: the API-driven
 deposit is canonical and prevents duplicate records.
