@@ -230,6 +230,9 @@ jobs:
       - name: Smoke test
         run: ./build/linux-test/bin/xllama-cli --help
 
+      - name: Compare Granite context shift against a cold session (offline fixture)
+        run: python3 scripts/check-granite-shift.py --fixture
+
       - name: Verify UWP gate
         run: |
           output=$(cmake -B build-uwp-test -DXLLAMA_TARGET=uwp 2>&1 || true)

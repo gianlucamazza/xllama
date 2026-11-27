@@ -1,16 +1,32 @@
 # M0 / E2 — Mamba2 hybrid `can_shift=1` investigation
 
-**Disposition:** mechanism **confirmed in code**; product impact
-**NOT_RUN** (no cold vs post-shift continuation measurement on Granite).
-Narrow follow-up proposed; **no default change** in this slice.
+**Current disposition.** The native host fixture passes a cold-versus-shifted continuation on identical surviving token IDs. The official Q3_K_S comparison is **BLOCKED** on a host with the complete pinned checkpoint and adequate temporary storage and memory. The Series S long-chat check and Series X hardware checks are **NOT_RUN**.
 
-**Date:** 2026-11-24  
-**Hypothesis (from [#527](https://github.com/gianlucamazza/xllama/pull/527)):**
-session logs `can_shift=1` on `granitehybrid`; context shift on recurrent
-state may be unsound. Refs #512.
+## Executable host comparison
 
-Source follow-up (host-testable predicate + opt-in overflow case) is a
-**separate PR** so this docs slice stays docs-only.
+The [native Session test](../../../tests/test_granite_hybrid_snapshot.cpp) uses a 128-token CPU context, four threads and greedy decoding. A long, closed assistant turn forces eviction before appending a fixed question. A separate cold session prefills only the pinned system turn, the surviving conversation and the question. Both arms save their actual resident token IDs. The gate requires exact prefix IDs, exact terminal IDs, matching generated text, matching stop reason and at least one generated token. A difference on the official checkpoint identifies a divergence for this prompt, to be evaluated against the recurrent-state approximation below. This test measures greedy continuation. The SSD full-logit parity campaign has a separate declaration under #480.
+
+Run after building `linux-test`:
+
+```bash
+python3 scripts/check-granite-shift.py --fixture
+python3 scripts/check-granite-shift.py --model /path/to/granite-4.0-h-tiny-Q3_K_S.gguf
+```
+
+The [check](../../../scripts/check-granite-shift.py) generates its offline F32 fixture from the pin's bundled vocabulary, with one Mamba2 layer, one attention layer, four routed experts (two selected) and shared FFNs. It uses a no-RoPE configuration to exercise the K-shift guard. Linux CI runs this fixture. The official command verifies the Q3_K_S byte count and SHA-256 against the [campaign binding](../../../bench/results/2026-11-24-granite40-h-tiny/manifest.override.json). Both commands require a matching, executed native case with passing assertions.
+
+| Evidence                                                                                                 | Result                         | Scope                                                                                                                                                                                                                                       |
+| -------------------------------------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Random-weight native fixture, SHA-256 `09bbbd5236c8483de4721708bcedc131d1793a6bd0928b762507059685634aad` | PASS                           | 95 tokens evicted; cold and warm arms retained the same 46 IDs and produced the same eight greedy tokens.                                                                                                                                   |
+| Granite-4.0-H-Tiny Q3_K_S post-shift vs cold                                                             | BLOCKED                        | The full checkpoint was absent. Its 3,062,452,832 bytes exceeded the available checkout volume; the memory-backed filesystem shared system RAM with the build.                                                                              |
+| Prior host and Series S results                                                                          | PASS for their original checks | #527 covers the renderer, snapshot continuation, and T3. #533 records paired H9. #543 backported the no-RoPE K-shift fix. #569 measured recall of an evicted fact. Those tests answer different questions from exact survivor continuation. |
+| Granite tool calls, console context-overflow continuation and Series X                                   | NOT_RUN here                   | The recorded H9 conversation tasks contain no tool-call or forced-overflow case. Catalogue disposition remains with #525.                                                                                                                   |
+
+[Historical Granite receipts](../../../bench/results/2026-11-24-granite40-h-tiny/) · [No-RoPE K-shift fix](https://github.com/gianlucamazza/xllama/pull/543) · [Turn-aligned shifts and recall probe](https://github.com/gianlucamazza/xllama/pull/569) · [Granite product decision](https://github.com/gianlucamazza/xllama/issues/525).
+
+## Initial investigation, 2026-11-24
+
+The original hypothesis from [#527](https://github.com/gianlucamazza/xllama/pull/527) concerned `can_shift=1` on `granitehybrid`. The observations below describe that investigation before #531, #543 and #569.
 
 ## What #527 actually logged
 
@@ -79,7 +95,7 @@ A later fail-fast should be architecture-narrow (`granitehybrid` / Mamba2),
 and only after a measured cold vs post-shift mismatch — or an explicit
 owner decision to fail-fast without that measurement.
 
-## What was measured in this slice
+## Measurements in the original investigation
 
 | Check                                                         | Result                        | Evidence                                                                      |
 | ------------------------------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------- |
@@ -94,7 +110,7 @@ owner decision to fail-fast without that measurement.
 **E2 disposition: DEFERRED** on product verdict (approximation confirmed;
 correctness vs cold continuation unmeasured). Mechanism is not BLOCKED.
 
-## Narrow follow-up proposal (not executed here)
+## Follow-up proposed in the original investigation
 
 1. **Host test (opt-in `XLLAMA_GRANITE_H_TINY`):** small `n_ctx`, reuse
    turns until #169 shift fires, require `can_context_shift() == true`,
