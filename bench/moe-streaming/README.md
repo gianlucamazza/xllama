@@ -145,4 +145,8 @@ pair. A zero reference has NMSE zero for an identical row. For any nonzero
 candidate against a zero reference, the report uses JSON `null` for NMSE and
 marks the pair `FAIL`. Exit 0 means the requested check passed, 1 means
 numerical divergence, and 2 means invalid input or provenance. Keep the report
-with the candidate receipt and raw captures.
+with the candidate receipt and raw captures. After shared metadata and receipt
+validation, row preflight records every missing or invalid row or sidecar in
+`row_errors` with its arm, case, step and cause. Any row error withholds all
+numerical comparisons. Numerical divergence with valid inputs still reports
+every pair, including every failed row.
