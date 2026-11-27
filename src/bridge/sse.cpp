@@ -91,7 +91,14 @@ std::string chunk_final() {
     return "0\r\n\r\n";
 }
 
-std::string sse_terminal_frames(const std::string* error) {
+std::string ollama_error_json(const std::string& message) {
+    return "{\"error\":\"" + json_escape(message) + "\"}";
+}
+
+std::string chat_terminal_frames(ChatWire wire, const std::string* error) {
+    if (wire != ChatWire::OpenAI)
+        return (error ? chunk_frame(ollama_error_json(*error) + "\n") : std::string()) +
+               chunk_final();
     std::string frames;
     if (error) {
         const std::string payload =
