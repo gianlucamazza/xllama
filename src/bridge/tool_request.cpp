@@ -44,6 +44,22 @@ bool read_content(const json& message, std::string& content, std::string& error)
     return true;
 }
 
+// One role table for both parsers. `developer` is OpenAI's newer name for the
+// system role (o-series models and current SDK defaults).
+bool read_role(const std::string& role, ChatRole& out) {
+    if (role == "system" || role == "developer")
+        out = ChatRole::System;
+    else if (role == "user")
+        out = ChatRole::User;
+    else if (role == "assistant")
+        out = ChatRole::Assistant;
+    else if (role == "tool")
+        out = ChatRole::Tool;
+    else
+        return false;
+    return true;
+}
+
 bool read_tool(const json& item, ToolSpec& tool, std::string& error) {
     if (!item.is_object()) {
         error = "tool is missing a name";
@@ -99,16 +115,7 @@ bool read_message(const json& item, ChatMessage& message, std::string& error) {
         error = "unknown message role";
         return false;
     }
-    const std::string role = item.at("role").get<std::string>();
-    if (role == "system")
-        message.role = ChatRole::System;
-    else if (role == "user")
-        message.role = ChatRole::User;
-    else if (role == "assistant")
-        message.role = ChatRole::Assistant;
-    else if (role == "tool")
-        message.role = ChatRole::Tool;
-    else {
+    if (!read_role(item.at("role").get<std::string>(), message.role)) {
         error = "unknown message role";
         return false;
     }
@@ -296,6 +303,52 @@ ToolRequest parse_tool_request(const std::string& body) {
         out.disposition = ApiToolDisposition::Invalid;
         out.error = admitted.error;
     }
+    return out;
+}
+
+PlainChatRequest parse_plain_chat(const std::string& body) {
+    PlainChatRequest out;
+    json root;
+    try {
+        root = json::parse(body);
+    } catch (const std::exception&) {
+        out.error = "invalid JSON body";
+        return out;
+    }
+    if (!root.is_object() || !root.contains("messages") || !root.at("messages").is_array()) {
+        out.error = "missing or non-array 'messages'";
+        return out;
+    }
+    std::string cur_user;
+    bool have_user = false;
+    for (const json& item : root.at("messages")) {
+        if (!item.is_object() || !item.contains("role") || !item.at("role").is_string()) {
+            out.error = "unknown message role";
+            return out;
+        }
+        ChatRole role = ChatRole::User;
+        const bool known = read_role(item.at("role").get<std::string>(), role);
+        std::string content;
+        if (!read_content(item, content, out.error))
+            return out;
+        if (!known || role == ChatRole::Tool)
+            continue; // plain chat has no turn to render them in
+        if (role == ChatRole::System) {
+            if (!out.system.empty())
+                out.system += "\n";
+            out.system += content;
+        } else if (role == ChatRole::User) {
+            if (have_user) // consecutive user turns: close the previous unanswered
+                out.history.push_back({cur_user, ""});
+            cur_user = std::move(content);
+            have_user = true;
+        } else if (have_user) { // assistant
+            out.history.push_back({cur_user, std::move(content)});
+            have_user = false;
+        }
+    }
+    if (have_user)
+        out.final_user = cur_user; // trailing user turn is the one we answer
     return out;
 }
 

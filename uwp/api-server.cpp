@@ -796,35 +796,6 @@ CatalogueSessionPolicy catalogue_session_policy(const std::string& model) {
     return p;
 }
 
-// Turn the OpenAI messages[] into (system, history, final_user) for render_prompt.
-void split_messages(JsonArray const& messages, std::string& system,
-                    std::vector<::xllama::ChatTurn>& history, std::string& final_user) {
-    std::string cur_user;
-    bool have_user = false;
-    for (uint32_t i = 0; i < messages.Size(); ++i) {
-        const JsonObject m = messages.GetObjectAt(i);
-        const std::string role = winrt::to_string(m.GetNamedString(L"role", L""));
-        const std::string content = winrt::to_string(m.GetNamedString(L"content", L""));
-        if (role == "system") {
-            if (!system.empty())
-                system += "\n";
-            system += content;
-        } else if (role == "user") {
-            if (have_user) // consecutive user turns: close the previous unanswered
-                history.push_back({cur_user, ""});
-            cur_user = content;
-            have_user = true;
-        } else if (role == "assistant") {
-            if (have_user) {
-                history.push_back({cur_user, content});
-                have_user = false;
-            }
-        }
-    }
-    if (have_user)
-        final_user = cur_user; // trailing user turn is the one we answer
-}
-
 // True when the console can serve `model` now: the resident model, or a
 // LocalState\models\<id> directory with a loadable layout. Raw paths (model.txt
 // may name one) are left to the session loader. The caller holds hub.mtx, so
@@ -1144,15 +1115,18 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
         return error_json(model_not_found(model));
     }
 
+    // Roles and content parts follow the tool parser's rules (tool_request.h).
     std::string system, final_user;
     std::vector<::xllama::ChatTurn> history;
     if (!proposal) {
-        if (!root.HasKey(L"messages") ||
-            root.GetNamedValue(L"messages").ValueType() != JsonValueType::Array) {
+        ::xllama::PlainChatRequest plain = ::xllama::parse_plain_chat(body);
+        if (!plain.error.empty()) {
             status = "400 Bad Request";
-            return error_json("missing or non-array 'messages'");
+            return error_json(plain.error);
         }
-        split_messages(root.GetNamedArray(L"messages"), system, history, final_user);
+        system = std::move(plain.system);
+        history = std::move(plain.history);
+        final_user = std::move(plain.final_user);
         if (final_user.empty()) {
             status = "400 Bad Request";
             return error_json("no user message to complete");
