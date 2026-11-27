@@ -180,7 +180,8 @@ chat`. On a coding session that ceiling is 4096 tokens, roughly 13 KB of dense
     missing GPU model, stay on CPU. The threshold (1550) is a product call, not
     a physical constant: the re-derivation concluded no single prompt-length
     crossover exists — see [docs/uwp-constraints.md §5d](./uwp-constraints.md).
-- **LAN API** — enables or stops the OpenAI-compatible endpoint immediately,
+- **LAN API** — enables or stops the OpenAI-compatible and native Ollama
+  endpoint (`/api/chat`, `/api/generate`, `/api/ps`) immediately,
   without restarting the app. The port must be 1025–49151 except 11443. The
   status line reports the active listener, with the full base URL, or the bind
   error; the main screen's LAN API panel (above) shows live activity. Besides chat, the
@@ -190,7 +191,9 @@ chat`. On a coding session that ceiling is 4096 tokens, roughly 13 KB of dense
   with the chat UI**: a LAN request while you are generating on the pad gets
   a "busy" reply, and a LAN request naming a different model swaps the loaded
   model under your conversation (the next pad turn transparently re-reads the
-  full context). It is unauthenticated: enable it only on a
+  full context). An Ollama client's `keep_alive` never expires or unloads a
+  model you are using in the app
+  ([model residency](api-endpoint.md#model-residency-keep_alive-apips)). It is unauthenticated: enable it only on a
   trusted LAN; see [api-endpoint.md](api-endpoint.md). Open WebUI: see
   [api-endpoint.md § Open WebUI](api-endpoint.md#open-webui). Embedding models are API-only
   and do not appear in the chat picker. If another GUI/API download is writing,
