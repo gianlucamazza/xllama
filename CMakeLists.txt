@@ -67,6 +67,20 @@ if(NOT XLLAMA_PATCH_CHECK EQUAL 0)
 endif()
 message(STATUS "${XLLAMA_PATCH_CHECK_OUT}")
 
+# Set directory options before creating targets so llama-common, llama and the
+# ggml C/C++ backends receive the same instrumentation as their callers.
+if(XLLAMA_ENABLE_ASAN OR XLLAMA_ENABLE_UBSAN)
+    add_compile_options(-fno-omit-frame-pointer)
+endif()
+if(XLLAMA_ENABLE_ASAN)
+    add_compile_options(-fsanitize=address)
+    add_link_options(-fsanitize=address)
+endif()
+if(XLLAMA_ENABLE_UBSAN)
+    add_compile_options(-fsanitize=undefined)
+    add_link_options(-fsanitize=undefined)
+endif()
+
 add_subdirectory(llama.cpp)
 
 # ------------------------------------------------------------------
@@ -144,16 +158,6 @@ target_compile_definitions(xllama PUBLIC
     XLLAMA_USE_LLAMA=1
     XLLAMA_DEVICE_TRAIN=1
 )
-
-# Sanitizers (Linux / Clang/GCC only)
-if(XLLAMA_ENABLE_ASAN)
-    target_compile_options(xllama PUBLIC -fsanitize=address -fno-omit-frame-pointer)
-    target_link_options(xllama PUBLIC -fsanitize=address)
-endif()
-if(XLLAMA_ENABLE_UBSAN)
-    target_compile_options(xllama PUBLIC -fsanitize=undefined)
-    target_link_options(xllama PUBLIC -fsanitize=undefined)
-endif()
 
 # ------------------------------------------------------------------
 # xllama-cli
