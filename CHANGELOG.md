@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A model's sampling defaults live in the catalogue.** Sampling defaults were global, the same for every model, so a client that wanted a model card's values had to keep its own table, and the console app and each client disagreed.
+  - A catalogue entry may carry a `sampling` object (`temperature`, `top_p`, `top_k`, `repetition_penalty`). The layers apply in one order: global defaults, then the model, then the user, then the request (`include/xllama/model_sampling.h`).
+  - A LAN API chat request that omits a field gets the model's value. `/v1/models` reports each chat model's `sampling` with a `source` per field, and `/health` lists the `model_sampling` capability.
+  - No entry sets values yet, so replies are unchanged. A model gets values only after a measured console run.
+- **LFM2/LFM2.5 tool calls: two upstream parser fixes backported (#610).** `patches/0006` (llama.cpp #31937): a pythonic call with a raw newline or tab inside a string argument no longer fails to parse. `patches/0007` (llama.cpp #32164, adapted): with `tool_choice` `auto`, a call to a tool the request did not declare comes back as that call instead of being forced onto a declared tool or returned as text; `required` and a named choice still only produce calls to offered tools. `/health` `runtime.patches` lists both.
 - **Chat refuses a `response_format` it cannot honour.** An explicit `json_object` or `json_schema` was ignored, so a client asking for structured output got free text with 200. It is now HTTP 400 `unsupported_response_format` (`error.param` `response_format`), before compute admission. `null`, `{"type":"text"}` and an absent field are plain chat as before. `/health` lists `"response_formats":["text"]` so a client can check first; the `api` contract stays 1.
 
 ## [1.10.0]

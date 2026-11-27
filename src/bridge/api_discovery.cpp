@@ -6,6 +6,8 @@
 #include "xllama/json_utils.h"
 #include "xllama/llama_patches.h"
 
+#include <charconv>
+
 #ifdef XLLAMA_USE_LLAMA
     #include "build-info.h"
 #endif
@@ -16,6 +18,23 @@ namespace {
 
 std::string quoted(const std::string& s) {
     return "\"" + json_escape(s) + "\"";
+}
+
+// The shortest text that reads back as |f|: 0.9f is written 0.9.
+std::string number(float f) {
+    char buf[32];
+    const auto res = std::to_chars(buf, buf + sizeof(buf), f);
+    return std::string(buf, res.ptr);
+}
+
+std::string sampling_json(const ResolvedSampling& s) {
+    auto source = [](SamplingSource from) { return quoted(sampling_source_name(from)); };
+    return "{\"temperature\":" + number(s.temperature) + ",\"top_p\":" + number(s.top_p) +
+           ",\"top_k\":" + std::to_string(s.top_k) +
+           ",\"repetition_penalty\":" + number(s.repetition_penalty) +
+           ",\"source\":{\"temperature\":" + source(s.temperature_source) +
+           ",\"top_p\":" + source(s.top_p_source) + ",\"top_k\":" + source(s.top_k_source) +
+           ",\"repetition_penalty\":" + source(s.repetition_penalty_source) + "}}";
 }
 
 const char* boolean(bool b) {
@@ -40,6 +59,7 @@ ApiCapabilities build_api_capabilities() {
     caps.reasoning_content = true; // #564: JSON, SSE and tool replies
     caps.reasoning_tokens = true;  // #585: the same replies' usage
     caps.cached_tokens = true;     // #595: prompt tokens the KV prefix reuse skipped
+    caps.model_sampling = true;    // catalogue "sampling" applies to omitted fields
     return caps;
 }
 
@@ -65,6 +85,7 @@ std::string health_json(const std::string& version, const ApiCapabilities& caps,
     out += ",\"reasoning_content\":" + std::string(boolean(caps.reasoning_content));
     out += ",\"reasoning_tokens\":" + std::string(boolean(caps.reasoning_tokens));
     out += ",\"cached_tokens\":" + std::string(boolean(caps.cached_tokens));
+    out += ",\"model_sampling\":" + std::string(boolean(caps.model_sampling));
     // The sampling fields a chat request may set (api_sampling.h, #609); a
     // client sends only these instead of assuming them per version.
     out += "},\"sampling\":[";
@@ -100,6 +121,8 @@ std::string models_list_json(const std::vector<ModelInfo>& models, std::int64_t 
         out += ",\"role\":" + quoted(m.role);
         if (m.n_ctx > 0)
             out += ",\"n_ctx\":" + std::to_string(m.n_ctx);
+        if (m.has_sampling)
+            out += ",\"sampling\":" + sampling_json(m.sampling);
 
         out += ",\"capabilities\":{\"tools\":" + std::string(boolean(m.tools)) +
                ",\"reasoning\":" + boolean(m.reasoning) + ",\"embedding\":" + boolean(m.embedding) +

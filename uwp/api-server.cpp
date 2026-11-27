@@ -738,6 +738,8 @@ struct CatalogueSessionPolicy {
     bool coding = false;
     bool gguf = false;
     bool embedding = false;
+    // The catalogue's sampling layer: a request field it omits takes this.
+    ::xllama::SamplingOverrides sampling;
 };
 
 CatalogueSessionPolicy catalogue_session_policy(const std::string& model) {
@@ -754,6 +756,7 @@ CatalogueSessionPolicy catalogue_session_policy(const std::string& model) {
         p.n_ctx = ::xllama::catalogue_n_ctx(entry->n_ctx, p.gguf);
         p.coding = ::xllama::role_is_coding(::xllama::wstring_to_utf8(entry->role));
         p.embedding = ::xllama::role_is_embedding(::xllama::wstring_to_utf8(entry->role));
+        p.sampling = entry->sampling;
     }
     return p;
 }
@@ -855,8 +858,12 @@ std::string check_sampling(JsonObject const& root) {
     return ::xllama::validate_api_sampling(json_numbers(root));
 }
 
-// Copies the sampling numbers that check_sampling already accepted.
-void fill_sampling(JsonObject const& root, ::xllama::GenerateParams& gp) {
+// The model's values (model_sampling.h: global < model), then the sampling
+// numbers that check_sampling already accepted, so a field the request omits
+// keeps the model's value.
+void fill_sampling(JsonObject const& root, const ::xllama::SamplingOverrides& model_sampling,
+                   ::xllama::GenerateParams& gp) {
+    ::xllama::apply_resolved_sampling(::xllama::resolve_sampling(model_sampling), gp);
     ::xllama::apply_api_sampling(json_numbers(root), gp);
 }
 
@@ -982,6 +989,7 @@ std::string write_tool_proposal(::xllama::GenerateParams& gp, const ::xllama::To
 std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRequest& request,
                                         ::xllama::Session* session, const std::string& model,
                                         bool model_is_coding, int policy_n_ctx, int n_predict,
+                                        const ::xllama::SamplingOverrides& model_sampling,
                                         ::xllama::ApiActivity::Ticket& ticket, const char*& status,
                                         StreamSocket const& socket, bool stream) {
     using Clock = std::chrono::steady_clock;
@@ -1004,7 +1012,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
     ::xllama::GenerateParams gp;
     gp.reuse_kv = false;
     gp.n_predict = n_predict;
-    fill_sampling(root, gp);
+    fill_sampling(root, model_sampling, gp);
     ::xllama::ToolTemplateFit fit;
     try {
         const void* llama_model = session->resident_llama_model();
@@ -1123,6 +1131,7 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
     bool model_is_coding = false;
     int policy_n_ctx = ::xllama::kDefaultNCtx;
     int n_predict = 0;
+    ::xllama::SamplingOverrides model_sampling;
     {
         std::string err;
         const CatalogueSessionPolicy policy = catalogue_session_policy(model);
@@ -1136,6 +1145,7 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
         }
 
         model_is_coding = policy.coding;
+        model_sampling = policy.sampling;
         // ADR 0007: the GUI's resolver, adapter included (audit F03). Its n_ctx is
         // the request the session loads with (same_load pins it). The reply limit
         // is validated against it here, before any load (F01). A GGUF session may
@@ -1183,7 +1193,8 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
 
     if (proposal)
         return handle_tool_proposal_locked(root, request, session, model, model_is_coding,
-                                           policy_n_ctx, n_predict, ticket, status, socket, stream);
+                                           policy_n_ctx, n_predict, model_sampling, ticket, status,
+                                           socket, stream);
 
     // Small instruct models degrade badly with an empty system turn (they
     // hallucinate the next role instead of answering); the chat UI always seeds
@@ -1222,7 +1233,7 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
                                  "\n");
         gp.prompt = fit.prompt;
     }
-    fill_sampling(root, gp);
+    fill_sampling(root, model_sampling, gp);
     // Client-supplied stop: a string or an array of strings, added to the
     // format's own stops so clients can bound output.
     if (root.HasKey(L"stop")) {
@@ -1449,6 +1460,10 @@ std::string models_json() {
         m.embedding = ::xllama::role_is_embedding(m.role);
         m.reasoning = ::xllama::model_is_thinking(id);
         m.tools = m.kind == "gguf" && !m.embedding && gguf_model_renders_tools(id);
+        // What a chat request that sets no sampling field gets for this model.
+        m.has_sampling = !m.embedding && m.kind != "diffusion";
+        m.sampling =
+            ::xllama::resolve_sampling(entry ? entry->sampling : ::xllama::SamplingOverrides{});
         models.push_back(std::move(m));
     }
     return ::xllama::models_list_json(models, static_cast<std::int64_t>(time(nullptr)));
