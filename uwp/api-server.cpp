@@ -1266,13 +1266,6 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
     const bool proposal = request.disposition == ::xllama::ApiToolDisposition::Proposal ||
                           request.disposition == ::xllama::ApiToolDisposition::Legacy;
 
-    if (!stream_usage(root, stream)) {
-        status = "400 Bad Request";
-        return error_json("stream_options requires stream:true and an object whose "
-                          "include_usage, if present, is a boolean",
-                          "invalid_value", "stream_options");
-    }
-
     std::string model = winrt::to_string(root.GetNamedString(L"model", L""));
     if (model.empty())
         model = ::xllama::read_local_text("model.txt"); // field-test fallback
@@ -2476,6 +2469,16 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 return;
             }
             const bool stream = native ? native->stream : root.GetNamedBoolean(L"stream", false);
+            // Like response_format: a malformed option is the client's error
+            // (400), not a reason to wait behind inference or report busy.
+            if (!stream_usage(root, stream)) {
+                const std::string message = "stream_options requires stream:true and an object "
+                                            "whose include_usage, if present, is a boolean";
+                write_response(socket, "400 Bad Request",
+                               native ? ollama_error_json(message)
+                                      : error_json(message, "invalid_value", "stream_options"));
+                return;
+            }
             auto compute_permit = acquire_compute_job_or_busy();
             if (!compute_permit) {
                 activity().busy();
