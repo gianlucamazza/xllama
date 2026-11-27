@@ -116,6 +116,30 @@ xllama has no `/api/version` or `/api/chat`.
    The server validates the token budget for each request with the resident
    tokenizer.
 
+#### Client qualification
+
+A client version qualifies only for the interactions observed on a named package and model. The following host-only Python check uses the [official SDK](https://github.com/openai/openai-python). Run from the repository root:
+
+```bash
+sdk_env=$(mktemp -d)
+python3 -m venv "$sdk_env"
+"$sdk_env/bin/pip" install openai==3.60.0
+"$sdk_env/bin/python" tests/sdk_chat_journey.py
+```
+
+The offline test is not in the CI unittest list: it needs the pinned SDK, which CI does not install.
+
+The offline test uses synthetic HTTP/SSE frames to exercise SDK serialization, tool-call validation, tool-result IDs, streaming and typed HTTP errors. For a live run, keep the console in the foreground on a trusted LAN, choose an installed tool-capable GGUF and use the expected package revision from the MSIX validation receipt:
+
+```bash
+"$sdk_env/bin/python" scripts/check-sdk-chat-journey.py \
+  --origin "http://${XBOX_IP}:11434" --model lfm25-350m --package 1.10.0.2000
+```
+
+The probe discovers models, requests one harmless named function, validates its arguments, supplies a fixed result and consumes a streamed answer. It closes another stream after its first chunk, which is usually still during prefill, and requires a subsequent chat within 30 seconds. Keep its JSON result alongside the package SHA-256, device/OS, model hash, UTC timestamp and gate logs. It measures client-visible recovery; the interruption gate in `scripts/validate-api.sh disconnect` separately exercises cancellation during prefill. A failed probe exits nonzero. Save the stage/error with the same inputs.
+
+For a separate Open WebUI qualification, pin the image tag and record its digest (for example [v0.13.5](https://github.com/open-webui/open-webui/releases/tag/v0.13.5) as a candidate). Follow the connection steps above. Use a workspace model backed by the discovered GGUF and turn off its built-in tools capability so their schemas do not consume the small model's context. In a new chat select that model, ask for a long count, observe incremental text, press **Stop**, then send a short prompt and record whether it completes. With Native function calling enabled, use **More → Tools** to select only a reviewed local `get_weather(city)` fixture returning `18 C, light rain`. Ask for the weather in Paris and inspect the proposed name, arguments and displayed follow-up. Record the version/digest, connection mode, enabled tools, model, package, device, observed outcomes and redacted transcript. Mark absent or unobservable steps explicitly. SDK fixture results do not qualify Open WebUI or console execution.
+
 **Troubleshooting**
 
 - `tools require a GGUF chat template` (`error.code`
@@ -668,6 +692,26 @@ curl -sS -o /tmp/xllama-gui-busy.json -w '%{http_code}\n' \
   (PR #161/#164)**: server and UI share the one `session_hub()` Session behind
   the same mutex — two loaded copies can no longer happen.
 
+### Chat response format
+
+When `GET /health` contains `"response_formats":["text"]`, omit
+`response_format`, send `null` (OpenAI's "not given") or send `{"type":"text"}`
+for ordinary chat. All other values, including `json_object`, `json_schema`
+and extra object members, receive HTTP 400 with `error.code` equal to
+`unsupported_response_format` and `error.param` equal to `response_format`.
+This validation precedes compute admission, model lookup and the SSE response
+head, as does the check that the body is JSON (`invalid JSON body`).
+The decision is `api_response_format_supported` in `include/xllama/api_policy.h`. Tool proposals keep their own grammar and execution boundary.
+Earlier packages omitted the discovery field and could silently ignore an
+explicit format. A client requiring structured output must verify support
+before sending a request.
+
+For a live response-format check, keep the app in the foreground, install
+`openai==3.60.0` in a host Python environment and run
+`python scripts/validate-api-response-format.py http://<console-ip>:11434/v1 lfm25-350m`.
+The SDK checks successful default and explicit-text chat and inspects the HTTP
+400 code and parameter for malformed and unsupported formats with streaming requested.
+
 ## Validation
 
 See `scripts/validate-api.sh` (`spike|discovery|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all`). Run it **from another host on the LAN**,
@@ -706,4 +750,20 @@ Images are not in `all` (need SD-Turbo on device; use the curl example above). C
 curl -s http://<ip-xbox>:11434/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{"model":"<catalogue-id>","messages":[{"role":"user","content":"Say hi"}]}'
+```
+
+### SDK replay of the embedding receipts
+
+The contract each surface implements is in its own section above: [Discovery](#discovery-health-and-v1models), [chat request fields](#protocol-v1), streaming and tool proposals ([ADR 0004](adr/0004-tool-proposals.md)), and [embeddings](#embeddings-apiembed-apiembeddings-v1embeddings). The [Series S v1.10.0.2000 LAN receipt](../bench/results/2026-11-27-v1100-series-s-release/receipts/validate-api.log) records which package and models those gates ran on; its results apply to the requests recorded there. That package ignored `response_format` and `stream_options`; later packages refuse an unsupported `response_format` and honour `stream_options.include_usage` (see `CHANGELOG.md`). A specific Open WebUI, SDK or agent release needs its own client run before claiming compatibility.
+
+To replay the captured `/v1/embeddings` success responses with both official SDKs, run from the repository root on a host with Python 3 and Node.js 22 or later. The pinned clients are optional test dependencies installed outside the source tree. The SDK transports compare the serialized request against the capture, return the recorded response and check every decoded value against the on-wire data. One case sends explicit float encoding and one exercises the SDK default base64 path. The replay performs no inference or LAN I/O.
+
+```bash
+sdk_dir=$(mktemp -d)
+python3 -m venv "$sdk_dir/venv"
+"$sdk_dir/venv/bin/pip" install openai==3.60.0
+npm install --prefix "$sdk_dir/node" --ignore-scripts --no-audit --no-fund openai@7.65.0
+receipt=bench/results/2026-11-23-v180-series-s-release/receipts/api-embed-nomic-v2-moe.json
+"$sdk_dir/venv/bin/python" scripts/check-sdk-embedding-receipt.py "$receipt"
+NODE_PATH="$sdk_dir/node/node_modules" node scripts/check-sdk-embedding-receipt.cjs "$receipt"
 ```

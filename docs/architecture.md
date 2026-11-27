@@ -937,6 +937,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_thinking_split.cpp`          | `thinking_split.h` (batch and stream reasoning split, spans, reasoning token count, `split_output`)                                                   |
 | `test_compute_admission.cpp`       | `compute_admission.h`                                                                                                                                 |
 | `test_api_connection.cpp`          | `api_connection.h` — overlapping compute requests are 200+503; connection-gate bound                                                                  |
+| `test_admission_allocation.cpp`    | Isolated allocation-failure test for connection and compute permit ownership                                                                          |
 | `test_api_failure.cpp`             | `api_failure.h` — HRESULT and std exception classification, status per kind                                                                           |
 | `test_debug_dashboard.cpp`         | `debug_dashboard.h`                                                                                                                                   |
 | `test_api_config.cpp`              | LAN API config validation (`uwp/api-server.h`)                                                                                                        |
@@ -1115,7 +1116,7 @@ write's `on_done` so the two do not contend for the single gate.
 | `-c, --ctx <N>`                   | Context size                                                         |
 | `-t, --threads <N>`               | Thread count (0 = auto)                                              |
 | `--temp <float>`                  | Sampling temperature                                                 |
-| `--seed <int>`                    | RNG seed (0 = random)                                                |
+| `--seed <int>`                    | RNG seed (-1 = random)                                               |
 | `--top-p <float>`                 | Nucleus cutoff                                                       |
 | `--top-k <N>`                     | Top-k cutoff                                                         |
 | `--repetition-penalty <float>`    | Repetition penalty (last 64 tokens)                                  |
@@ -1146,6 +1147,8 @@ write's `on_done` so the two do not contend for the single gate.
 | `--train-job <job.json>`          | Run a training job                                                   |
 | `--training-capabilities`         | Print the training capability matrix                                 |
 | `-h, --help`                      | Usage                                                                |
+
+Numeric options are parsed strictly: the whole text, base 10 for whole numbers (`parse_knob_i64`, the LocalState knob reader), and a finite value the field can hold. `--temp`, `--top-p`, `--top-k`, `--repetition-penalty` and `--seed` take the bounds a LAN API request has (`kApiSamplingFields` in `api_sampling.h`), so the CLI, the API and the catalogue refuse the same values; `--temp 0` is greedy. A bad value exits with the option name and the reason.
 
 Machine-readable output: `SPEC_STATS` line on stderr for bench scripts.
 

@@ -1,11 +1,12 @@
 # MoE streaming: models to validate
 
-Desk list, 2026-11-16. Which MoE checkpoints the optional SSD expert-streaming
-path (#479–#481, [plan](../superpowers/plans/2026-11-16-ssd-moe-upstream.md))
-should be validated on, and in what order. It selects inputs for those
-stages; it admits nothing to the catalogue and changes no verdict in [#273]
-or [model-matrix.md §I1](../model-matrix.md#i1-moe-post-h2-fail). Status of
-each stage stays with the trackers.
+Desk list, 2026-11-16. It records the candidate checkpoints and filters
+considered for optional SSD expert streaming (#479–#481). The
+[MoE engineering program](../superpowers/plans/2026-11-24-moe-engineering-program.md)
+owns current sequencing and acceptance. Stage status stays with the
+[readiness report](moe-upstream-readiness.md) and the corresponding tracker.
+Catalogue admission remains governed by [#273] and
+[model-matrix.md §I1](../model-matrix.md#i1-moe-post-h2-fail).
 
 Sizes below come from public file listings and third-party pages (sources at
 the end). They are desk figures: read the exact byte count from the chosen
@@ -18,7 +19,7 @@ repository before a download, and bind it by SHA-256 in the campaign.
 | LFM2.5-24B-A2B Q4_K_M                                                                                                 | 0.72 / 1.00 tok/s (2 / 512 slots), EOS ([evidence](evidence/2026-11-16-moe-24b-console/README.md))                              | does not fit                                                                            | `lfm2moe` loads and decodes                   |
 | LFM2.5-8B-A1B Q4_K_M                                                                                                  | 1.18 / 2.47 tok/s, native EOS; record flagged by the 24B-sized trace ([evidence](evidence/2026-11-16-moe-8b-console/README.md)) | loads, compute buffer refused ([rows](../../bench/results/2026-11-16-moe-8b/README.md)) | same                                          |
 | LFM2.5-8B-A1B UD-IQ3_S (H2)                                                                                           | not run                                                                                                                         | 14.42 tok/s decode, 3560 MiB                                                            | same                                          |
-| Ling-mini-2.0, ERNIE-4.5-21B-A3B, SmallThinker-21B, gpt-oss-20b, Gemma 4 26B-A4B, Trinity Mini, Maple-Preview 20B-A1B | needs the provider beyond `lfm2moe` (plan Task 5)                                                                               | —                                                                                       | each architecture's fixture loads and decodes |
+| Ling-mini-2.0, ERNIE-4.5-21B-A3B, SmallThinker-21B, gpt-oss-20b, Gemma 4 26B-A4B, Trinity Mini, Maple-Preview 20B-A1B | needs the provider beyond `lfm2moe` (historical architecture proposal, Task 5)                                                  | —                                                                                       | each architecture's fixture loads and decodes |
 
 Maple-Preview 20B-A1B (`maple`) joins the list: its official TQ1_0/TQ2_0
 files (4.98 / 5.9 GB, 1B active) were excluded by the resident #273 envelope,
@@ -47,6 +48,8 @@ A model enters the list only if all hold:
    CPU stage alone.
 
 ## Order of validation
+
+Desk recommendation as of 2026-11-16.
 
 ### 0. Parity anchor: `lfm25-8b-a1b` (already on the console)
 
@@ -109,7 +112,7 @@ active set, and an official GGUF in a GPU-bridge type.
 
 ## What each validation needs
 
-Per model, in the stage order of the plan: checkpoint SHA-256 and template
+Per model, in the stage order of the MoE engineering program: checkpoint SHA-256 and template
 bound before the run; host fixture and, where the host can hold it,
 full-checkpoint resident-versus-streamed parity (#480); a console CPU run with
 two cache sizes, native stop and normal teardown (#481 CPU); GPU stage only

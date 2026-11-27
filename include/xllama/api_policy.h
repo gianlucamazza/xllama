@@ -4,9 +4,34 @@
 #pragma once
 
 #include <cmath>
+#include <cstddef>
 #include <string>
 
 namespace xllama {
+
+// The only explicit chat response_format both backends satisfy. /health lists
+// it under "response_formats".
+inline constexpr char kTextResponseFormat[] = "text";
+
+// A chat request's `response_format`, as the JSON parser saw it.
+struct ApiResponseFormat {
+    enum class Kind { Absent, Null, Object, Other };
+    Kind kind = Kind::Absent;
+    std::size_t members = 0;     // keys of the object
+    bool type_is_string = false; // `type` present and a string
+    std::string type;
+};
+
+// Absent or null (OpenAI's "not given") is plain text. An object must be
+// exactly {"type":"text"}: an extra key such as a JSON schema would be a
+// constraint this server silently drops, so it is refused instead.
+inline bool api_response_format_supported(const ApiResponseFormat& f) {
+    using Kind = ApiResponseFormat::Kind;
+    if (f.kind == Kind::Absent || f.kind == Kind::Null)
+        return true;
+    return f.kind == Kind::Object && f.members == 1 && f.type_is_string &&
+           f.type == kTextResponseFormat;
+}
 
 // How a chat request names tools. The JSON parser fills this; the classifier
 // stays free of WinRT and of llama.cpp so host tests can pin it.

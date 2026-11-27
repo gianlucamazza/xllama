@@ -141,9 +141,11 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
   tests/test_diffusion_export.py \
   tests/test_redact_recorded_path.py tests/test_host_model_trust.py \
   tests/test_dependency_monitoring.py tests/test_host_training_env.py \
+  tests/test_prepare_ort_source.py \
   tests/test_d3d12_layer_log.py tests/test_ort_profile.py \
   tests/test_bench_kv_driver.py tests/test_eval_standard.py tests/test_hellaswag_token_mean.py \
-  tests/test_eval_standard_generative.py tests/test_benchmark_summary_standard.py
+  tests/test_eval_standard_generative.py tests/test_benchmark_summary_standard.py \
+  tests/test_apply_llama_patches.py
 ```
 
 The numerical comparator tests need numpy (and `pyyaml` for gguf-py in `test_make_moe_fixture.py`), which CI installs for them:
@@ -371,19 +373,19 @@ build them locally.
 If you change a contract, update the owning doc in the same PR
 ([docs/README.md](docs/README.md) ownership table):
 
-| Change                                            | Update                                                                                                                                 |
-| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| MoE milestone, sequence or gate                   | `docs/superpowers/plans/2026-11-24-moe-engineering-program.md` (plan of record)                                                        |
-| SSD MoE contribution stage or acceptance evidence | `docs/research/moe-upstream-readiness.md`, corresponding `ROADMAP.md` stage and #479–#481 tracker; preserve revision-specific evidence |
-| Product intent / public positioning               | `docs/positioning.md` and `docs/reuse-in-a-game.md`                                                                                    |
-| Module boundaries, routing, session ownership     | `docs/architecture.md`                                                                                                                 |
-| Training lanes or Phase 11                        | `docs/training-architecture.md` and `training/README.md`                                                                               |
-| User-facing UI steps                              | `docs/using-the-app.md`                                                                                                                |
-| LAN routes                                        | `docs/api-endpoint.md`                                                                                                                 |
-| Bench CSV schema or numbers                       | `bench/README.md`, then regenerate `docs/benchmarks.md`                                                                                |
-| Release behaviour                                 | `CHANGELOG.md` (and `ROADMAP.md` when a phase closes)                                                                                  |
-| Package identity                                  | `docs/install-release.md` and this file's Versioning section                                                                           |
-| Repo layout agents rely on                        | this file                                                                                                                              |
+| Change                                            | Update                                                                                             |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| MoE milestone, sequence or gate                   | `docs/superpowers/plans/2026-11-24-moe-engineering-program.md` (plan of record)                    |
+| SSD MoE contribution stage or acceptance evidence | `docs/research/moe-upstream-readiness.md` (evidence), `ROADMAP.md` (summary), #479–#481 (tracking) |
+| Product intent / public positioning               | `docs/positioning.md` and `docs/reuse-in-a-game.md`                                                |
+| Module boundaries, routing, session ownership     | `docs/architecture.md`                                                                             |
+| Training lanes or Phase 11                        | `docs/training-architecture.md` and `training/README.md`                                           |
+| User-facing UI steps                              | `docs/using-the-app.md`                                                                            |
+| LAN routes                                        | `docs/api-endpoint.md`                                                                             |
+| Bench CSV schema or numbers                       | `bench/README.md`, then regenerate `docs/benchmarks.md`                                            |
+| Release behaviour                                 | `CHANGELOG.md` (and `ROADMAP.md` when a phase closes)                                              |
+| Package identity                                  | `docs/install-release.md` and this file's Versioning section                                       |
+| Repo layout agents rely on                        | this file                                                                                          |
 
 ## Security
 
