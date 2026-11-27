@@ -62,8 +62,12 @@ class ScopedPrefillAbort {
                 wd);
     }
     ~ScopedPrefillAbort() {
-        if (ctx_)
+        if (ctx_) {
+            // The scheduler can return with backend work queued. Keep its
+            // callback and watchdog alive until that work has drained.
+            llama_synchronize(ctx_);
             llama_set_abort_callback(ctx_, nullptr, nullptr);
+        }
     }
     ScopedPrefillAbort(const ScopedPrefillAbort&) = delete;
     ScopedPrefillAbort& operator=(const ScopedPrefillAbort&) = delete;

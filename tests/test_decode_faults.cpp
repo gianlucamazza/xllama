@@ -20,6 +20,7 @@ struct Script {
     int fail_call = 0;
     int rc = -3;
     bool rewind = true;
+    bool pending = false;
 };
 Script script;
 bool real_model = false;
@@ -28,6 +29,8 @@ bool real_model = false;
 extern "C" {
 int32_t __real_llama_decode(llama_context*, llama_batch);
 int32_t __wrap_llama_decode(llama_context* ctx, llama_batch batch) {
+    if (real_model)
+        script.pending = true;
     if (++script.calls == script.fail_call) {
         // llama.cpp can retain processed ubatches on abort/fatal. Exercise
         // callers against an already mutated context on those returns.
@@ -43,6 +46,23 @@ int32_t __wrap_llama_decode(llama_context* ctx, llama_batch batch) {
         return __real_llama_decode(ctx, batch);
     script.cells.insert(script.cells.end(), batch.token, batch.token + batch.n_tokens);
     return 0;
+}
+void __real_llama_synchronize(llama_context*);
+void __wrap_llama_synchronize(llama_context* ctx) {
+    script.pending = false;
+    __real_llama_synchronize(ctx);
+}
+void __real_llama_memory_clear(llama_memory_t, bool);
+void __wrap_llama_memory_clear(llama_memory_t mem, bool data) {
+    if (real_model && script.calls == script.fail_call && script.calls > 0)
+        CHECK_FALSE(script.pending);
+    __real_llama_memory_clear(mem, data);
+}
+void __real_llama_set_abort_callback(llama_context*, ggml_abort_callback, void*);
+void __wrap_llama_set_abort_callback(llama_context* ctx, ggml_abort_callback cb, void* data) {
+    if (real_model && !cb)
+        CHECK_FALSE(script.pending);
+    __real_llama_set_abort_callback(ctx, cb, data);
 }
 llama_token __wrap_llama_sampler_sample(llama_sampler*, llama_context* ctx, int32_t) {
     if (real_model) {

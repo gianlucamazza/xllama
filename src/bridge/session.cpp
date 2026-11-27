@@ -1017,6 +1017,8 @@ class LlamaSession final : public Session {
         bool captured_head = false;
 
         auto invalidate_cache = [&] {
+            // llama_memory_clear does not drain queued backend work.
+            llama_synchronize(ctx);
             m_sampler.reset();
             m_kv_tokens.clear();
             drop_prefix_snapshot();
