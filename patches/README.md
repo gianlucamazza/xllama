@@ -8,10 +8,8 @@ the bench-only `llamacpp` variant. So host tests run the source the console
 ships. `scripts/apply-llama-patches.sh` applies them in order and is idempotent
 per patch; CMake configure runs it with `--check` and stops if one is missing.
 
-Two kinds of patch live here: AppContainer guards (no-ops off Windows) and
-backports of upstream fixes the pin predates. A backport names its upstream
-commit and is dropped at the next pin bump, when the script fails on it
-because the pin already contains the change.
+The numbered series contains AppContainer guards, xllama-specific fixes and
+backports. Each backport identifies its upstream source for the next pin review.
 
 ## Active patches
 
@@ -41,10 +39,7 @@ git submodule update --init --recursive
 
 ## Rebasing after a submodule bump
 
-Each patch is a plain `git diff`. A backport that no longer applies is usually
-already upstream: check, then delete it. If `0001` no longer applies, redo the three guards
-by hand (they are one-liners plus a small `#if` block — see the patch body) and
-regenerate with `git -C llama.cpp diff > patches/0001-uwp-appcontainer-guards.patch`.
+For the [#522 pin review](https://github.com/gianlucamazza/xllama/issues/522), inspect each cited upstream change on a clean candidate checkout before applying the local series. The script checks `git apply --reverse --check` first and counts a reverse-applicable patch as already present, including when upstream supplies the hunk. Changed surrounding code can also prevent either direction from applying. Compare the implementation and run the relevant regression before dropping a backport. Rebase any remaining xllama-specific behavior, including required AppContainer guards, into tracked patches.
 
 Run `scripts/check-uwp-sources.sh` on the patched candidate before building both
 UWP variants. It compares the llama, ggml/CPU and chat source directories with
