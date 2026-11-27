@@ -4,11 +4,15 @@
 #include "xllama/api_ollama.h"
 
 #include "xllama/api_sampling.h"
-#include "xllama/chat_prompt.h"
+#include "xllama/reasoning_control.h"
 
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <charconv>
+#include <chrono>
+#include <cmath>
+#include <iterator>
 #include <optional>
 #include <unordered_set>
 #include <utility>
@@ -18,6 +22,58 @@ namespace xllama {
 namespace {
 
 using Json = nlohmann::json;
+using Milliseconds = std::chrono::milliseconds;
+
+// Seconds as a number, or a Go time.ParseDuration string as Ollama accepts.
+// Bounded well inside steady_clock so a deadline never overflows.
+std::optional<Milliseconds> keep_alive_duration(const Json& value) {
+    double ms = 0;
+    bool negative = false;
+    if (value.is_number()) {
+        const double seconds = value.get<double>();
+        negative = seconds < 0;
+        ms = std::abs(seconds) * 1000;
+    } else if (value.is_string()) {
+        std::string_view rest = value.get_ref<const std::string&>();
+        if (!rest.empty() && (rest.front() == '-' || rest.front() == '+')) {
+            negative = rest.front() == '-';
+            rest.remove_prefix(1);
+        }
+        if (rest.empty())
+            return std::nullopt;
+        if (rest == "0")
+            return Milliseconds(0);
+        while (!rest.empty()) {
+            double count = 0;
+            const char* end = rest.data() + rest.size();
+            const auto parsed = std::from_chars(rest.data(), end, count, std::chars_format::fixed);
+            if (rest.front() == '-' || rest.front() == '+' || parsed.ec != std::errc{} ||
+                parsed.ptr == end || !std::isfinite(count))
+                return std::nullopt;
+            rest.remove_prefix(parsed.ptr - rest.data());
+            const std::pair<std::string_view, double> units[] = {
+                {"ms", 1},       {"us", .001},   {"\xC2\xB5s", .001}, {"\xCE\xBCs", .001},
+                {"ns", .000001}, {"h", 3600000}, {"m", 60000},        {"s", 1000}};
+            const auto unit = std::find_if(std::begin(units), std::end(units), [&](const auto& u) {
+                return rest.substr(0, u.first.size()) == u.first;
+            });
+            if (unit == std::end(units))
+                return std::nullopt;
+            ms += count * unit->second;
+            rest.remove_prefix(unit->first.size());
+        }
+    } else {
+        return std::nullopt;
+    }
+    const auto max_ms =
+        std::chrono::duration_cast<Milliseconds>(std::chrono::steady_clock::duration::max() / 2)
+            .count();
+    if (!std::isfinite(ms) || ms > static_cast<double>(max_ms))
+        return std::nullopt;
+    if (negative && ms > 0)
+        return Milliseconds(-1);
+    return Milliseconds(static_cast<Milliseconds::rep>(std::ceil(ms)));
+}
 
 // Native Ollama names a tool call by function name and passes its arguments
 // as an object. The template bridge reads the OpenAI transcript, so each call
@@ -125,7 +181,13 @@ std::string normalize_options(const Json& options, Json& body) {
     for (const auto& [key, value] : options.items()) {
         if (value.is_null())
             continue;
-        if (key == "num_predict") {
+        if (key == "num_ctx") {
+            // Checked against the model's catalogue context by the handler,
+            // before admission (validate_context_override).
+            if (!value.is_number())
+                return "options.num_ctx must be an integer";
+            body["options"]["num_ctx"] = value;
+        } else if (key == "num_predict") {
             if (!value.is_number())
                 return "options.num_predict must be an integer";
             // -1 is Ollama's "no limit": xllama keeps its bounded default.
@@ -186,6 +248,11 @@ OllamaRequest parse_ollama_request(std::string_view body, OllamaRoute route) {
             return fail("stream must be boolean");
         result.stream = input["stream"].get<bool>();
     }
+    if (input.contains("keep_alive") && !input["keep_alive"].is_null()) {
+        result.keep_alive = keep_alive_duration(input["keep_alive"]);
+        if (!result.keep_alive)
+            return fail("keep_alive must be seconds or a duration such as \"5m\"");
+    }
     // Fields that would change the reply in a way xllama cannot honour are
     // refused when set to anything but their default.
     const auto requested = [&](const char* key, const Json& default_value) {
@@ -205,12 +272,20 @@ OllamaRequest parse_ollama_request(std::string_view body, OllamaRoute route) {
     }
     if (requested("top_logprobs", 0))
         return fail("top_logprobs is unsupported");
-    // `think` may restate what the model does; changing it is #648.
-    if (input.contains("think") && !input["think"].is_null() &&
-        (!input["think"].is_boolean() || input["think"].get<bool>() != model_is_thinking(model)))
-        return fail(kOllamaThinkUnsupported);
-
     Json normalized{{"model", model}};
+    // `think` maps onto the OpenAI reasoning fields; whether the model can
+    // honour it is decided with them (decide_reasoning, reasoning_control.h).
+    if (input.contains("think") && !input["think"].is_null()) {
+        const Json& think = input["think"];
+        if (think.is_boolean())
+            normalized["chat_template_kwargs"] = {{"enable_thinking", think.get<bool>()}};
+        else if (think.is_string() &&
+                 reasoning_effort_switch(think.get_ref<const std::string&>()) ==
+                     ReasoningSwitch::On)
+            normalized["reasoning_effort"] = think;
+        else
+            return fail(kOllamaThinkInvalid);
+    }
     if (input.contains("options") && !input["options"].is_null()) {
         if (const auto error = normalize_options(input["options"], normalized); !error.empty())
             return fail(error);
@@ -243,8 +318,9 @@ OllamaRequest parse_ollama_request(std::string_view body, OllamaRoute route) {
         }
     }
     if (messages.empty()) {
-        result.stream = false; // Ollama answers a load with one JSON object
-        result.action = OllamaAction::Load;
+        result.stream = false; // Ollama answers a load or unload with one JSON object
+        result.action = result.keep_alive && result.keep_alive->count() == 0 ? OllamaAction::Unload
+                                                                             : OllamaAction::Load;
     }
     normalized["messages"] = std::move(messages);
     result.body = normalized.dump();
