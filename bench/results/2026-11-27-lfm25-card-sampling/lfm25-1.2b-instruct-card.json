@@ -1,7 +1,8 @@
 {
  "suite": "v1",
  "model": "lfm25-1.2b-instruct",
- "variant": "card",
+ "variant": "base",
+ "arm": "card",
  "base_url": "http://console:11434/v1",
  "started": "2026-11-27T08:55:31",
  "results": [

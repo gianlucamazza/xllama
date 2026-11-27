@@ -1,7 +1,8 @@
 {
  "suite": "v1",
  "model": "lfm25-8b-a1b",
- "variant": "card",
+ "variant": "base",
+ "arm": "card",
  "base_url": "http://console:11434/v1",
  "started": "2026-11-27T10:16:31",
  "results": [

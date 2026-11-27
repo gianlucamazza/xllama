@@ -2,6 +2,7 @@
  "suite": "v1",
  "model": "lfm25-8b-a1b",
  "variant": "base",
+ "arm": "base",
  "base_url": "http://console:11434/v1",
  "started": "2026-11-27T09:08:59",
  "results": [

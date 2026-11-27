@@ -2,6 +2,7 @@
  "suite": "v1",
  "model": "lfm25-1.2b-instruct",
  "variant": "base",
+ "arm": "base",
  "base_url": "http://console:11434/v1",
  "started": "2026-11-27T08:41:54",
  "results": [

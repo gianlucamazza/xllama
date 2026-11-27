@@ -22,7 +22,7 @@ model cards' sampling values go into the catalogue (`uwp/models/manifest.json`, 
 A client's agent eval suite (v1) ran each case through `/v1/chat/completions`. The cases are a
 tool proposal, irrelevant tools, a multi-turn tool chain, abstention (declining to act without the
 tools for it), and plain chat, in English and Italian. Each case is scored by checks on the tool,
-arguments, content, abstention and reply language. Seeds are 0..n-1, one block per variant.
+arguments, content, abstention and reply language. Seeds are 0..n-1, one block per sampling arm.
 
 - **base:** temperature 0.1 from the request, with `top_p` 0.9, `top_k` 40 and
   `repetition_penalty` 1.1 from `include/xllama/sampling.h`.
@@ -44,8 +44,8 @@ console's address reads `console`.
 | `lfm25-1.2b-instruct` |        160 × 3 | 0.746 [0.681, 0.808] | 0.748 [0.681, 0.815] | +0.002 [−0.008, +0.013]     |          4 / 3 |   p = 1.0 |
 | `lfm25-8b-a1b`        |         95 × 2 | 0.842 [0.774, 0.900] | 0.858 [0.795, 0.916] | +0.016 [−0.042, +0.074]     |         10 / 9 |   p = 1.0 |
 
-- Empty replies: 0 in each arm, except one on the 8B card arm, which stopped at the token limit
-  (`finish_reason: length`).
+- Empty replies: 0 in each arm, except one on the 8B card arm (`abstain-it-8`, trial 0), which
+  spent its whole 1834-token budget reasoning and stopped at the limit (`finish_reason: length`).
 - Median latency: 1.4 s on the 1.2B and 17 s on the 8B, the same in both arms.
 - On the 8B, the cases that changed are abstention cases in both directions.
 
@@ -69,6 +69,8 @@ sampling, and they matter to anyone relying on its behaviour without tools.
 ## Files
 
 - `lfm25-1.2b-instruct-base.json`, `lfm25-1.2b-instruct-card.json`, `lfm25-8b-a1b-base.json`,
-  `lfm25-8b-a1b-card.json`: per-row results and summaries.
+  `lfm25-8b-a1b-card.json`: per-row results and summaries. `variant` is the suite's harness
+  configuration (`base`: its default prompt, environment and languages) in all four files; `arm`
+  is the sampling arm (`base` or `card`), added here from the file name.
 - `console-log.txt`: the run log, with each arm's summary and the paired comparison.
 - `SHA256SUMS`: hashes of the files above as committed.
