@@ -7,6 +7,7 @@
 #include "xllama/session_spec.h"
 
 #include <cstdlib>
+#include <filesystem>
 #include <string>
 
 using xllama::CatalogueLoad;
@@ -43,15 +44,21 @@ TEST_CASE("resolve_session_params: one resolver for every surface (ADR 0007)") {
     g.gpu_layers = 32;
     g.lora = "adapter.gguf";
     g.lora_scale = 0.5f;
-    const auto a = resolve_session_params("smollm2-lora-rt", g, "D:\\m\\smollm2-lora-rt", -1);
+    const auto dir = std::filesystem::path("models/smollm2-lora-rt").make_preferred();
+    const auto a = resolve_session_params("smollm2-lora-rt", g, dir.string(), -1);
     CHECK(a.backend == xllama::Backend::LlamaCpp);
     CHECK(a.n_ctx == xllama::kMinSessionNCtx);
     CHECK(a.n_gpu_layers == 32);
-    CHECK(a.lora_path == "D:\\m\\smollm2-lora-rt\\adapter.gguf");
+    CHECK(a.lora_path == (dir / "adapter.gguf").string());
     CHECK(a.lora_scale == 0.5f);
     CHECK(a.n_threads == 0);
-    // A trailing separator is not doubled; the operator knob wins, 0 included.
-    CHECK(resolve_session_params("x", g, "D:\\m\\x\\", 0).lora_path == "D:\\m\\x\\adapter.gguf");
+    // Trailing separators, a bare relative directory and the empty directory.
+    CHECK(resolve_session_params("x", g, (dir / "").string(), 0).lora_path == a.lora_path);
+    CHECK(resolve_session_params("x", g, "models/", 0).lora_path == "models/adapter.gguf");
+    CHECK(resolve_session_params("x", g, "models", 0).lora_path ==
+          (std::filesystem::path("models") / "adapter.gguf").string());
+    CHECK(resolve_session_params("x", g, "", 0).lora_path == "adapter.gguf");
+    // The operator knob wins, 0 included.
     CHECK(resolve_session_params("x", g, "D:\\m\\x\\", 0).n_gpu_layers == 0);
     CHECK(resolve_session_params("x", g, "D:\\m\\x\\", 0).n_threads == 0);
     CHECK(resolve_session_params("x", g, "D:\\m\\x\\", 0, 4).n_threads == 4);

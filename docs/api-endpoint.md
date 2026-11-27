@@ -723,3 +723,19 @@ curl -s http://<ip-xbox>:11434/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{"model":"<catalogue-id>","messages":[{"role":"user","content":"Say hi"}]}'
 ```
+
+### SDK replay of the embedding receipts
+
+The contract each surface implements is in its own section above: [Discovery](#discovery-health-and-v1models), [chat request fields](#protocol-v1), streaming and tool proposals ([ADR 0004](adr/0004-tool-proposals.md)), and [embeddings](#embeddings-apiembed-apiembeddings-v1embeddings). The [Series S v1.10.0.2000 LAN receipt](../bench/results/2026-11-27-v1100-series-s-release/receipts/validate-api.log) records which package and models those gates ran on; its results apply to the requests recorded there. That package ignored `response_format` and `stream_options`; later packages refuse an unsupported `response_format` and honour `stream_options.include_usage` (see `CHANGELOG.md`). A specific Open WebUI, SDK or agent release needs its own client run before claiming compatibility.
+
+To replay the captured `/v1/embeddings` success responses with both official SDKs, run from the repository root on a host with Python 3 and Node.js 22 or later. The pinned clients are optional test dependencies installed outside the source tree. The SDK transports compare the serialized request against the capture, return the recorded response and check every decoded value against the on-wire data. One case sends explicit float encoding and one exercises the SDK default base64 path. The replay performs no inference or LAN I/O.
+
+```bash
+sdk_dir=$(mktemp -d)
+python3 -m venv "$sdk_dir/venv"
+"$sdk_dir/venv/bin/pip" install openai==3.60.0
+npm install --prefix "$sdk_dir/node" --ignore-scripts --no-audit --no-fund openai@7.65.0
+receipt=bench/results/2026-11-23-v180-series-s-release/receipts/api-embed-nomic-v2-moe.json
+"$sdk_dir/venv/bin/python" scripts/check-sdk-embedding-receipt.py "$receipt"
+NODE_PATH="$sdk_dir/node/node_modules" node scripts/check-sdk-embedding-receipt.cjs "$receipt"
+```

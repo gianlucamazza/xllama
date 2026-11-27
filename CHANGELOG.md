@@ -7,10 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **`xllama-cli` refuses malformed numbers.** `atoi`/`atof` turned `64typo` into 64 and `abc` into 0, so a typo ran with a value nobody chose. Numeric options now need the whole text to parse, and a bad one exits before dispatch, naming the option. The sampling options take the LAN API's bounds (`--temp` 0–2, `--top-p` 0–1, `--top-k` ≥ 0, `--repetition-penalty` 0–2): `--temp -1` and `--top-k -1` are refused; use `--temp 0` for greedy and `--top-k 0` for no cutoff. The `--seed` help now says `-1` is random, as it always was.
+- **LFM2.5 1.2B Instruct and 8B-A1B use their model cards' sampling values.** The 1.2B gets temperature 0.1, top_k 50 and repetition penalty 1.05; the 8B gets 0.2, 80 and 1.05. They come from Liquid AI's cards and apply wherever the user or the request does not set a value. A paired eval on Series S found no regression and no measured gain against the global defaults (`bench/results/2026-11-27-lfm25-card-sampling/`). On the console, the Temperature these two models start from changes from 0.8 to the card's value unless the user had set one.
 - **A model's sampling defaults live in the catalogue.** Sampling defaults were global, the same for every model, so a client that wanted a model card's values had to keep its own table, and the console app and each client disagreed.
   - A catalogue entry may carry a `sampling` object (`temperature`, `top_p`, `top_k`, `repetition_penalty`). The layers apply in one order: global defaults, then the model, then the user, then the request (`include/xllama/model_sampling.h`).
   - A LAN API chat request that omits a field gets the model's value. `/v1/models` reports each chat model's `sampling` with a `source` per field, and `/health` lists the `model_sampling` capability.
   - No entry sets values yet, so replies are unchanged. A model gets values only after a measured console run.
+- **Settings keeps only the sampling values you chose.** settings.json stored all four sampling values whatever the user did, so the app could not tell a chosen value from an untouched default, and a model's own values could never apply.
+  - An unset value follows the model's catalogue values, then the global default, the same order the LAN API uses (`include/xllama/model_sampling.h`). The file records `"schema": 2`.
+  - The Settings dialog shows each value's source (default, model's value, your value) and a **Use the model's sampling values** button. Picking another model updates the values you did not set.
+  - An older settings.json keeps any value you had changed. A value equal to the old default is read as unset, so it follows the model.
 - **LFM2/LFM2.5 tool calls: two upstream parser fixes backported (#610).** `patches/0006` (llama.cpp #31937): a pythonic call with a raw newline or tab inside a string argument no longer fails to parse. `patches/0007` (llama.cpp #32164, adapted): with `tool_choice` `auto`, a call to a tool the request did not declare comes back as that call instead of being forced onto a declared tool or returned as text; `required` and a named choice still only produce calls to offered tools. `/health` `runtime.patches` lists both.
 
 ## [1.10.0]
