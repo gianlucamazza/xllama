@@ -25,7 +25,76 @@ COUNTERS = ("requests", "requested_bytes", "hits", "hit_bytes", "misses", "evict
             "read_calls", "read_bytes", "failures")
 
 
-def replay_profile(directory, receipt, profile, slots):
+def token_fingerprint(ids):
+    # UA50TRC1 stores FNV-1a over little-endian 32-bit token IDs in its footer.
+    value = 14695981039346656037
+    for token in ids:
+        for byte in struct.pack("<i", token):
+            value = (value ^ byte) * 1099511628211 & 0xffffffffffffffff
+    return value
+
+
+def reader_phase_times(record, trace, frames):
+    # Each prompt token and subsequently fed token has its own synchronous
+    # native frame. Reader and acquire times in a frame are cumulative.
+    if (record["normal"] is not True or record["generation_complete"] is not True
+            or record["threads"] != 1 or record["main_gpu"] != -1 or record["nonfused"] is not True
+            or record["timing_includes_reader_wait"] is not True
+            or record["hash_load_excluded_from_generation_timing"] is not True):
+        raise ValueError("Reader timing requires a normal, serial, nonfused CPU generation")
+    max_new, context, threads, max_prompt, pid = struct.unpack_from("<5I", trace, 44)
+    prompt = record["prompt_ids"]
+    samples = record["generated_samples"]
+    if ((max_new, context, threads, pid) != (record["max_new"], record["context_resolved"], 1, record["pid"])
+            or not 0 < len(prompt) <= min(128, max_prompt) or not 0 < len(samples) <= min(384, max_new)
+            or frames != len(prompt) + len(samples) - 1):
+        raise ValueError("Reader timing: trace and output frame bindings differ")
+    generated = [sample["id"] for sample in samples]
+    token_ids = (token_fingerprint(prompt), token_fingerprint(generated))
+    if token_ids != struct.unpack_from("<2Q", trace, FOOTER_OFFSET + 14 * 8):
+        raise ValueError("Reader timing: trace and output token histories differ")
+    workload = json.dumps([record["template_sha256"], context, max_new, prompt, generated],
+                          separators=(",", ":")).encode()
+
+    start, prefilled, end = (record[k] for k in ("start_ns", "prefilled_ns", "end_ns"))
+    first_begin, first_end = (samples[0][key] for key in ("sample_begin_ns", "sample_end_ns"))
+    last_end = samples[-1]["sample_end_ns"]
+    opened, post_sha = record["opening_including_pre_sha_end_ns"], record["post_sha_begin_ns"]
+    clocks = (opened, start, prefilled, first_begin, first_end, last_end, end, post_sha,
+              record["prefill_ns"], record["ttft_first_sample_ns"])
+    if not all(type(value) is int and 0 <= value < 2**63 for value in clocks):
+        raise ValueError("invalid native clock value")
+    if not (opened <= start < prefilled <= first_begin <= first_end <= last_end <= end <= post_sha
+            and prefilled - start == record["prefill_ns"]
+            and first_end - start == record["ttft_first_sample_ns"]):
+        raise ValueError("invalid native generation interval")
+    previous_end, previous_acquire, previous_reader = start, 0, 0
+    for index in range(frames):
+        begin, finish, acquire, reader = struct.unpack_from("<4Q", trace, FRAMES_OFFSET + index * 64 + 16)
+        if not (previous_end <= begin <= finish <= end and
+                0 <= reader - previous_reader <= acquire - previous_acquire <= finish - begin):
+            raise ValueError(f"invalid frame timing at frame {index}")
+        if index < len(prompt):
+            if finish > prefilled:
+                raise ValueError(f"frame {index} crosses prefill end")
+            prefill_reader = reader
+        elif begin < prefilled:
+            raise ValueError(f"frame {index} begins before prefill end")
+        previous_end, previous_acquire, previous_reader = finish, acquire, reader
+
+    timing_names = ("acquire_ns_total", "acquire_ns_max", "reader_ns_total", "reader_ns_max", "clock_errors")
+    footer = struct.unpack_from("<5Q", trace, FOOTER_OFFSET + len(COUNTERS) * 8)
+    if (tuple(record["cache_ab"]["counters"][name] for name in timing_names) != footer
+            or (previous_acquire, previous_reader, 0) != (footer[0], footer[2], footer[4])):
+        raise ValueError("terminal Reader timing differs or clock error recorded")
+    return {
+        "workload_sha256": hashlib.sha256(workload).hexdigest(),
+        "prefill": {"wall_ns": prefilled - start, "reader_ns": prefill_reader},
+        "after_prefill": {"wall_ns": end - prefilled, "reader_ns": previous_reader - prefill_reader},
+    }
+
+
+def replay_profile(directory, receipt, profile, slots, reader_timing=False):
     run = receipt["runs"][profile]
     record_bytes = (directory / f"{profile}.output.json").read_bytes()
     if hashlib.sha256(record_bytes).hexdigest() != run["output_sha256"]:
@@ -98,28 +167,36 @@ def replay_profile(directory, receipt, profile, slots):
     ):
         raise ValueError(f"{profile}: summary counters disagree with the replay")
 
-    return {
+    report = {
         "trace_sha256": trace_hash,
         "route_sha256": hashlib.sha256(trace[SIZES_OFFSET:FRAMES_OFFSET] + keys).hexdigest(),
         "frames": frames, "slots": slots,
         **dict(zip(COUNTERS, computed)),
         "request_hit_rate": hits / requests, "byte_hit_rate": hit_bytes / requested_bytes,
     }
+    if reader_timing:
+        report["observed_phase_times"] = reader_phase_times(record, trace, frames)
+    return report
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path, help="console evidence directory with result.json")
+    parser.add_argument("--reader-timing", action="store_true",
+                        help="attribute archived synchronous Reader time to prefill and subsequent generation")
     args = parser.parse_args()
     try:
         receipt = json.loads((args.directory / "result.json").read_bytes())
         if receipt["schema"] != "xllama-moe-console-run-v1":
             raise ValueError("unsupported console receipt")
-        arms = {p: replay_profile(args.directory, receipt, p, slots)
+        arms = {p: replay_profile(args.directory, receipt, p, slots, args.reader_timing)
                 for p, slots in (("a2", 2), ("b512", 512))}
         if arms["a2"]["route_sha256"] != arms["b512"]["route_sha256"]:
             raise ValueError("profiles have different ordered requests or slice lengths")
-    except (OSError, ValueError, KeyError, TypeError) as exc:
+        if args.reader_timing and (arms["a2"]["observed_phase_times"]["workload_sha256"] !=
+                                   arms["b512"]["observed_phase_times"]["workload_sha256"]):
+            raise ValueError("profiles have different timing workloads")
+    except (OSError, ValueError, KeyError, TypeError, struct.error) as exc:
         parser.exit(2, f"replay refused: {exc}\n")
     print(json.dumps({"checkpoint_sha256": receipt["model"]["sha256"], **arms}, indent=2))
 
