@@ -6,7 +6,8 @@
 **Primary target:** Xbox Series S, Developer Mode, one resident session per process  
 **Secondary target:** Xbox Series X — this program's new tests run on Series S only. Any Series X figure is attributed exactly as "Series X figures measured by Joshua Henne (Eidon Labs Inc.), xllama contributor"; never "validated" or "certified".  
 **Baseline:** `main` observed at `5fc349a431df88fac571d44abbf54dac8ebf2894` on 2026-11-24; llama.cpp pin `d81235049384534c167caea52b85a694f6103d14`  
-**Proposed repository location:** `docs/superpowers/plans/2026-11-24-moe-engineering-program.md`  
+**Execution checkpoint:** [27 November component results, risks and reproducible checks](../../research/evidence/2026-11-27-moe-runtime/README.md)
+
 **Scope:** roadmap, architecture decisions, execution backlog, validation and release policy. This document does not authorize a merge, publication, hardware run, contributor assignment or change of product defaults. M0 (E0–E2) is the only accepted execution slice.
 
 > **Core decision:** first prove that resident MoE offers a useful product advantage on the existing hardware; then independently qualify selected-expert GPU execution and the SSD research path. Preserve model routing semantics, memory safety, numerical correctness, and reproducibility throughout.
@@ -15,7 +16,7 @@
 
 xLlama has an opportunity to make Mixture-of-Experts (MoE) inference practical on constrained unified-memory devices. A successful program is not measured by the largest checkpoint that emits a token, but by the set of models that deliver useful quality, acceptable interactive latency and reliable lifecycle behavior within a measured memory budget.
 
-The immediate opportunity is Granite-4.0-H-Tiny (approximately 7B total / 1B active). The merged [#527](https://github.com/gianlucamazza/xllama/pull/527) reports a CPU-only decode result of 21.73 tok/s versus 14.06 tok/s for Llama 3.2 3B (approximately +54.6%), with the preliminary Series S speed, TTFT and memory gate passing. The paired H9 same-quality bar is PASS (7/8 vs 6/8); receipts in [2026-11-24-moe-m0-granite-quality.md](2026-11-24-moe-m0-granite-quality.md). The result is not a GPU speedup or catalogue admission. #273 is pending owner decision.
+The immediate opportunity is Granite-4.0-H-Tiny (approximately 7B total / 1B active). The merged [#527](https://github.com/gianlucamazza/xllama/pull/527) reports a CPU-only decode result of 21.73 tok/s versus 14.06 tok/s for Llama 3.2 3B (approximately +54.6%), with the preliminary Series S speed, TTFT and memory gate passing. The paired H9 same-quality bar is PASS (7/8 vs 6/8); receipts in [2026-11-24-moe-m0-granite-quality.md](2026-11-24-moe-m0-granite-quality.md). The resident gate remains open under #273. The owner tracks the Granite catalogue decision in [#525](https://github.com/gianlucamazza/xllama/issues/525).
 
 In parallel, [#479](https://github.com/gianlucamazza/xllama/issues/479)–[#481](https://github.com/gianlucamazza/xllama/issues/481) track the existing contributor-led SSD expert streaming work. A 24B fork CPU run has been independently reproduced, but full native resident-versus-streamed numerical parity and upstream activation remain separate acceptance stages.
 
@@ -39,7 +40,7 @@ In parallel, [#479](https://github.com/gianlucamazza/xllama/issues/479)–[#481]
 - Parallel reimplementation of a contributor's pending cache extraction; preserve attribution and agree ownership.
 - Adding a new public API, GUI control, or catalogue entry before qualification.
 
-## 2. Baseline and evidence inventory
+## 2. Baseline and evidence inventory, 24 November
 
 | Area               | Observed state                                                                                                                                                                                                      | Evidence / owner issue                                                                                                                                                         |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -56,7 +57,7 @@ In parallel, [#479](https://github.com/gianlucamazza/xllama/issues/479)–[#481]
 | llama.cpp pin bump | Owner-approved to happen after 1.8.1; first a full-catalogue regression PR. Changes the measurement baseline, so it is sequenced before any M1 GPU work. Not an automatic pin bump                                  | [#522](https://github.com/gianlucamazza/xllama/issues/522)                                                                                                                     |
 | Release baseline   | v1.8.1.0 is published ([release](https://github.com/gianlucamazza/xllama/releases/tag/v1.8.1.0), package 1.8.1.1764)                                                                                                | [#529](https://github.com/gianlucamazza/xllama/pull/529), #530                                                                                                                 |
 
-Known issue: #527 notes `can_shift=1` on the Mamba2 hybrid. This is a hypothesis of incorrect recurrent-state shifting, not a confirmed bug. Investigate before qualifying multi-turn/context-overflow behavior.
+Subsequent investigation separated two effects. [#543](https://github.com/gianlucamazza/xllama/pull/543) fixed a reproducible no-RoPE K-shift abort. An eviction can also retain earlier information in compressed Mamba2 state. The full-checkpoint comparison against a cold execution of the surviving token IDs remains under #525.
 
 ### Baseline preflight (mandatory)
 
@@ -346,16 +347,16 @@ Disable detailed tracing by default; cap size/time and calibrate overhead. No cr
 
 Execute after baseline preflight. This is a dependency-driven queue, not a calendar estimate or a contributor commitment.
 
-- [ ] **E0** — Reconcile #524 and #395 with #527 results; update proposed program links, no duplicate umbrella. Proposed GitHub text: [2026-11-24-moe-m0-issue-alignment.md](2026-11-24-moe-m0-issue-alignment.md) (not posted).
-- [x] **E1** — Granite quality campaign (#525/#273): H9 PASS (7/8 vs 6/8), recorded separately from T3 speed/memory. Protocol and receipts: [2026-11-24-moe-m0-granite-quality.md](2026-11-24-moe-m0-granite-quality.md). #273 pending owner decision.
-- [ ] **E2** — Investigate Mamba2 `can_shift=1` and cold/continuation parity; open narrowly scoped follow-up if needed. Findings: [2026-11-24-moe-m0-e2-can-shift.md](2026-11-24-moe-m0-e2-can-shift.md).
+- [x] **E0** — The [architecture umbrella](https://github.com/gianlucamazza/xllama/issues/524#issuecomment-7229833485) and [excellence tracker](https://github.com/gianlucamazza/xllama/issues/395#issuecomment-7229833793) now record the Granite outcome, the contributor handoff and current PRs.
+- [x] **E1** — Granite quality campaign (#525/#273): H9 PASS (7/8 vs 6/8), recorded separately from T3 speed/memory. Protocol and receipts: [2026-11-24-moe-m0-granite-quality.md](2026-11-24-moe-m0-granite-quality.md). Granite catalogue decision pending in #525.
+- [ ] **E2** — The [required native probe](https://github.com/gianlucamazza/xllama/pull/713) compares a shifted session with a cold session on the exact surviving token IDs. Synthetic Granite passed. Full-checkpoint recurrent acceptance remains tracked in [#525](https://github.com/gianlucamazza/xllama/issues/525#issuecomment-7229965912). Findings: [2026-11-24-moe-m0-e2-can-shift.md](2026-11-24-moe-m0-e2-can-shift.md).
 - [ ] **E3** — Prepare resident expert graph/profile capture and freeze `MUL_MAT_ID`/Q3_K design experiment under #421.
-- [ ] **E4** — In parallel, agree #479 contributor review boundary; reuse cache harness and prepare actual-candidate test binding. No unapproved handoff.
+- [x] **E4** — Stan agreed the attributed maintainer draft in #479. The portable suite runs against the implementation in [#668](https://github.com/gianlucamazza/xllama/pull/668). [Review evidence](https://github.com/gianlucamazza/xllama/issues/479#issuecomment-7229804639) records the tested source. E7 still requires the foundation to merge.
 - [ ] **Pin (#522)** — After M0 and before any M1 GPU work: llama.cpp pin bump via a full-catalogue regression PR. Not an automatic bump. Owner-approved to happen after 1.8.1.
 - [ ] **E5** — Implement host fixtures and first minimal GPU candidate only after E3 **and** after #522 has landed or been explicitly deferred; keep Q3_K and routed operator changes separately attributable.
 - [ ] **E6** — Execute model-level parity and matched Series S trials after correctness; use existing daily console cap.
 - [ ] **E7** — After #479 merge, advance #480 then #481 using existing parity references and native lifecycle gates.
-- [ ] **E8** — Prepare offline trace replay when representative traces exist; do not block foundational work on predictor research.
+- [ ] **E8** — [#696](https://github.com/gianlucamazza/xllama/pull/696) reproduces the fixed-slot baseline on one archived routing workload. Comparing policies requires additional complete, held-out traces and a later M3 decision.
 - [ ] **E9** — Review model expansion and publication readiness after respective gates.
 
 ### Definition of program completion
@@ -373,4 +374,4 @@ The program is complete when every accepted milestone has a documented PASS, FAI
 
 Primary sources are the repository issues and PRs linked above, especially [#524](https://github.com/gianlucamazza/xllama/issues/524), [#273](https://github.com/gianlucamazza/xllama/issues/273), [#527](https://github.com/gianlucamazza/xllama/pull/527), [#513](https://github.com/gianlucamazza/xllama/pull/513), [#479](https://github.com/gianlucamazza/xllama/issues/479)–[#481](https://github.com/gianlucamazza/xllama/issues/481), and [#421](https://github.com/gianlucamazza/xllama/issues/421)–[#422](https://github.com/gianlucamazza/xllama/issues/422). Existing streamed architecture plan: `docs/superpowers/plans/2026-11-16-moe-streaming-all-models.md`; consult current revision before editing. Research leads for a later source audit include activation-aware caching, predictive prefetch, grouped expert execution, and upstream llama.cpp expert-cache changes; no specific external paper performance claim is a dependency of this plan.
 
-**Planning limitations:** based on the GitHub issue/PR and fork inspection already performed on 2026-11-24; no device execution was performed for this document. Exact implementation interfaces, tolerance declarations, sample counts, available hardware and contributor assignments are intentionally not fabricated. Repository paths, baseline and pending issues must be revalidated at execution. GitHub issues are not edited from this document; proposed issue text for M0/E0 lives in `2026-11-24-moe-m0-issue-alignment.md`.
+**Planning limitations:** based on the GitHub issue/PR and fork inspection already performed on 2026-11-24; no device execution was performed for this document. Exact implementation interfaces, tolerance declarations, sample counts, available hardware and contributor assignments are intentionally not fabricated. Repository paths, baseline and pending issues must be revalidated at execution. The original E0 proposal is preserved in `2026-11-24-moe-m0-issue-alignment.md`. Section 10 links the subsequent tracker updates.

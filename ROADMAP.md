@@ -62,9 +62,10 @@ a gamepad UI and an opt-in LAN integration surface. The
    [new model types milestone](https://github.com/gianlucamazza/xllama/milestone/7).
    Keep each candidate behind host smoke and console qualification. Keep the
    models in [#522](https://github.com/gianlucamazza/xllama/issues/522)
-   blocked on the separately tracked llama.cpp pin work. The issue and MoE
-   program describe different scheduling states for the pin bump. Reconcile
-   them before scheduling the full-catalogue regression or beginning M1.
+   blocked on the separately tracked llama.cpp pin work. The owner approved a
+   post-M0 evaluation. Selecting a revision and running the full-catalogue
+   regression need a separate PR. M1 also requires its own approval and
+   either a landed pin bump or an explicit deferral.
 5. **Vendor lifecycle.** Follow
    [#85](https://github.com/gianlucamazza/xllama/issues/85) and the
    [vendor lifecycle plan](docs/vendor-lifecycle-plan.md) for the patched
