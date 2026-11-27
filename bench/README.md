@@ -312,7 +312,8 @@ has a stderr of about 2.5 points: a gap smaller than about twice that is noise.
 and `sha256` pins that prefix (`--fetch` cuts before it checks). Every mode of
 `llama-perplexity` scores a choice by its mean log-probability per token.
 `scripts/hellaswag_token_mean.py` applies the same HellaSwag rule with
-transformers to the items of an lm-evaluation-harness `--log_samples` run. The
+transformers to the items of an lm-evaluation-harness `--log_samples` run, or
+to a file in llama-perplexity's own layout (`--klosax`). The
 [HellaSwag anchor](results/2026-11-27-hellaswag-anchor/README.md) uses both to
 check `llama-perplexity` against an independent implementation (#608).
 

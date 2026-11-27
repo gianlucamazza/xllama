@@ -51,20 +51,37 @@ class ChooseTest(unittest.TestCase):
 
 class SamplesTest(unittest.TestCase):
     def test_items_read_lm_eval_samples(self) -> None:
-        row = {"arguments": {f"gen_args_{i}": {"arg_0": "Ctx: a man", "arg_1": f" ending {i}."}
+        row = {"doc_id": 7, "arguments": {f"gen_args_{i}": {"arg_0": "Ctx: a man", "arg_1": f" ending {i}."}
                              for i in range(4)}, "target": 2}
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "samples.jsonl"
             path.write_text(json.dumps(row) + "\n")
-            [(context, texts, gold)] = list(MODULE.items(path))
+            [(doc_id, context, texts, gold)] = list(MODULE.items(path))
         self.assertEqual(context, "Ctx: a man")
         self.assertEqual(texts[3], "Ctx: a man ending 3.")
         self.assertEqual(gold, 2)
+        self.assertEqual(doc_id, 7)
+
+    def test_klosax_items_join_like_perplexity_cpp(self) -> None:
+        text = "Ctx: a man\n2\nends a.\nends b.\nends c.\nends d.\n" * 2
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "tasks.txt"
+            path.write_text(text)
+            rows = list(MODULE.klosax_items(path))
+        self.assertEqual(len(rows), 2)
+        doc_id, context, texts, gold = rows[1]
+        self.assertEqual((doc_id, context, gold), (1, "Ctx: a man", 2))
+        self.assertEqual(texts[0], "Ctx: a man ends a.")
 
     def test_binomial(self) -> None:
         acc, stderr = MODULE.binomial(50, 101)
         self.assertAlmostEqual(acc, 49.50, places=2)
         self.assertAlmostEqual(stderr, 5.0, places=1)
+
+    def test_binomial_one_item_has_no_stderr_and_none_is_refused(self) -> None:
+        self.assertEqual(MODULE.binomial(1, 1), (100.0, None))
+        with self.assertRaises(ValueError):
+            MODULE.binomial(0, 0)
 
 
 if __name__ == "__main__":
