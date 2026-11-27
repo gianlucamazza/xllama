@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **`validate-console.sh` leaves the console's settings and app as it found them (#645).** The `settings` gate seeded its own `settings.json` and saved test values (system prompt, sampling overrides, `kv_reuse`, `diffuse_taesd_vae`, model), and the other gates' `set_model` / `set_sampling` ops saved theirs, without keeping the user's file. Every run also ended with the app closed, so the LAN API stayed down until someone relaunched it.
+  - Before the first gate, the script saves the user's `settings.json`, or notes that there was none. On exit (pass, fail or interrupt) it puts the file back, or deletes the gates' copy, after a verified stop. A restore that fails fails the run and keeps the copy. Gates inside `all` see each other's settings as before.
+  - When the app was running before the first gate, the script relaunches it on exit. `cleanup` does neither.
+  - `tests/test_console_settings_restore.py` covers both against a stubbed Device Portal.
 - **LFM2.5 1.2B Instruct and 8B-A1B use their model cards' sampling values.** The 1.2B gets temperature 0.1, top_k 50 and repetition penalty 1.05; the 8B gets 0.2, 80 and 1.05. They come from Liquid AI's cards and apply wherever the user or the request does not set a value. A paired eval on Series S found no regression and no measured gain against the global defaults (`bench/results/2026-11-27-lfm25-card-sampling/`). On the console, the Temperature these two models start from changes from 0.8 to the card's value unless the user had set one.
 - **A model's sampling defaults live in the catalogue.** Sampling defaults were global, the same for every model, so a client that wanted a model card's values had to keep its own table, and the console app and each client disagreed.
   - A catalogue entry may carry a `sampling` object (`temperature`, `top_p`, `top_k`, `repetition_penalty`). The layers apply in one order: global defaults, then the model, then the user, then the request (`include/xllama/model_sampling.h`).
