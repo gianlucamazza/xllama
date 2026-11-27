@@ -1,0 +1,37 @@
+{
+ "reasoning_control_caps": {
+  "qwen3-4b": true,
+  "lfm25-8b-a1b": false,
+  "lfm25-350m": false
+ },
+ "qwen3-4b_effort_none": {
+  "status": 200,
+  "has_reasoning": false,
+  "content": "51",
+  "reasoning_tokens": 0
+ },
+ "qwen3-4b_effort_high": {
+  "status": 200,
+  "has_reasoning": true,
+  "content": "51",
+  "reasoning_tokens": 223
+ },
+ "lfm25-8b-a1b_effort_none": {
+  "status": 400,
+  "code": "reasoning_control_unsupported"
+ },
+ "ollama_think_false_qwen3-4b": {
+  "status": 200,
+  "has_thinking": false,
+  "content": "51"
+ },
+ "issue655_qwen3-4b_tool": {
+  "status": 200,
+  "has_reasoning": false,
+  "tool_calls": [
+   "get_weather {\"city\":\"Rome\"}"
+  ],
+  "finish": "tool_calls",
+  "reasoning_tokens": 0
+ }
+}

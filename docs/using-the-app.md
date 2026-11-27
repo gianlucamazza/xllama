@@ -62,7 +62,7 @@ the output, **Y** jumps to the prompt box, and inside a dialog **B** closes it.
 Every completed assistant response has **Like**, **Dislike**, and **Correct**
 actions. A correction requires the preferred answer. Each response can be rated
 once; the choice is stored with the conversation and appended to
-`LocalState\training\samples.jsonl`. Cancelled/partial responses cannot be rated.
+`LocalState\training\samples.jsonl`. A cancelled or failed turn keeps any visible answer in history as `[incomplete]`. Feedback is available only for completed replies.
 
 ## Model tiers: chat, coding, thinking
 

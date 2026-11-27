@@ -288,7 +288,10 @@ TEST_CASE("model_is_thinking is the one reasoning decision plain chat applies (#
         CAPTURE(id);
         CHECK(model_is_thinking(id));
         const ChatFormat f = chat_format_for(id);
-        CHECK(f.gen_suffix.empty());
+        // The MiniCPM5 template opens <think> itself when thinking (#648).
+        const bool opens = model_is_minicpm5(id);
+        CHECK(f.gen_suffix == (opens ? "<think>\n" : ""));
+        CHECK(f.reasoning_opened == opens);
         CHECK(f.strip_thinking_content);
     }
     // MiniCPM5 keeps its template BOS whichever way it reasons.

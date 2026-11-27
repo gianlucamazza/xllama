@@ -26,6 +26,11 @@ in Developer Mode. Times in the logs are Europe/Rome (UTC+1) unless they end in 
 | Bias ADD on/off logit parity         | `logits.flag`, stride 16, 99 GPU layers, ubatch 512 and 1, fresh process per arm | PASS: 12/12 byte-identical comparisons (final and per-position logits) for `qwen25-coder-3b`, `qwen25-coder-1.5b`, `lfm25-1.2b-instruct` | `receipts/bias-parity/`                                                                                                    |
 | SSD MoE 8B parity on the console     | n/a                                                                              | N/A                                                                                                                                      | see below                                                                                                                  |
 
+**Later gate.** These two selftest receipts predate `q5_k`, `iq4_xs` and `iq3_xxs` and the
+complete-receipt check in `scripts/verify-d3d12-selftest.py` (every expected case exactly once).
+That check applies from the v1.8.1 receipts on. Under it these files would report 10 missing cases;
+the PASS above is the gate of their own release.
+
 API attempt 1 passed every gate except `embed`. That gate failed because `embed-nomic-v2-moe`
 was not on the console, and the API returned 404 for it. The model was then pulled with the product pull path
 (`PULL_MODEL=embed-nomic-v2-moe PULL_MODEL_KIND=embedding validate-api.sh pull`, PASS). After that,
