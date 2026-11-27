@@ -420,10 +420,16 @@ def main() -> int:
     good("personalize surface OK")
 
     # --- sampling shared ---
-    if "sampling_defaults::kTemperature" not in mh:
-        err("MainPage must seed sampling from sampling_defaults")
+    # The GUI holds only the user's values and resolves a turn through the same
+    # layers as the LAN API (model_sampling.h), never its own default numbers.
+    model_cpp = (ROOT / "uwp/mainpage-model.cpp").read_text(encoding="utf-8")
+    api_cpp = (ROOT / "uwp/api-server.cpp").read_text(encoding="utf-8")
+    if "SamplingOverrides m_sampling" not in mh:
+        err("MainPage must hold the user's sampling as SamplingOverrides")
+    elif "resolve_sampling(" not in model_cpp or "resolve_sampling(" not in api_cpp:
+        err("GUI and LAN API must both resolve sampling through model_sampling.h")
     else:
-        good("GUI sampling shares sampling.h defaults")
+        good("GUI and API resolve sampling through model_sampling.h")
 
     # --- pillars separate ---
     inf = (ROOT / "src/bridge/inference.cpp").read_text(encoding="utf-8")
