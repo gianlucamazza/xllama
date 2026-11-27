@@ -5,6 +5,7 @@
 #include "xllama/api_sampling.h"
 #include "xllama/json_utils.h"
 #include "xllama/llama_patches.h"
+#include "xllama/withdrawn_models.h"
 
 #include <charconv>
 
@@ -60,6 +61,7 @@ ApiCapabilities build_api_capabilities() {
     caps.reasoning_tokens = true;  // #585: the same replies' usage
     caps.cached_tokens = true;     // #595: prompt tokens the KV prefix reuse skipped
     caps.model_sampling = true;    // catalogue "sampling" applies to omitted fields
+    caps.catalog = true;           // #658: the trusted catalogue, installed or not
     return caps;
 }
 
@@ -86,6 +88,7 @@ std::string health_json(const std::string& version, const ApiCapabilities& caps,
     out += ",\"reasoning_tokens\":" + std::string(boolean(caps.reasoning_tokens));
     out += ",\"cached_tokens\":" + std::string(boolean(caps.cached_tokens));
     out += ",\"model_sampling\":" + std::string(boolean(caps.model_sampling));
+    out += ",\"catalog\":" + std::string(boolean(caps.catalog));
     // The sampling fields a chat request may set (api_sampling.h, #609); a
     // client sends only these instead of assuming them per version.
     out += "},\"sampling\":[";
@@ -127,6 +130,30 @@ std::string models_list_json(const std::vector<ModelInfo>& models, std::int64_t 
         out += ",\"capabilities\":{\"tools\":" + std::string(boolean(m.tools)) +
                ",\"reasoning\":" + boolean(m.reasoning) + ",\"embedding\":" + boolean(m.embedding) +
                "}}";
+    }
+    out += "]}";
+    return out;
+}
+
+bool catalog_lists_entry(const std::string& id, const std::string& kind) {
+    return !id.empty() && kind != "diffusion" && !model_id_is_withdrawn(id);
+}
+
+std::string catalog_json(const std::vector<CatalogEntryInfo>& entries) {
+    std::string out = "{\"object\":\"list\",\"data\":[";
+    for (std::size_t i = 0; i < entries.size(); ++i) {
+        const CatalogEntryInfo& e = entries[i];
+        if (i)
+            out += ',';
+        out += "{\"id\":" + quoted(e.id) + ",\"display\":" + quoted(e.display) +
+               ",\"kind\":" + quoted(e.kind) + ",\"role\":" + quoted(e.role) +
+               ",\"n_ctx\":" + std::to_string(e.n_ctx) +
+               ",\"size_bytes\":" + std::to_string(e.size_bytes) +
+               ",\"installed\":" + boolean(e.installed) + ",\"pullable\":" + boolean(e.pullable);
+        if (e.has_sampling)
+            out += ",\"sampling\":" + sampling_json(e.sampling);
+        out += ",\"capabilities\":{\"reasoning\":" + std::string(boolean(e.reasoning)) +
+               ",\"embedding\":" + boolean(e.embedding) + "}}";
     }
     out += "]}";
     return out;

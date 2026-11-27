@@ -1960,6 +1960,75 @@ bool same_pull_manifest_entry(const ::xllama::ManifestEntry& a, const ::xllama::
     return true;
 }
 
+// The /api/pull admission descriptor of a bundled catalogue entry
+// (LoadModelManifest(&trust, false)): one home for handle_pull and the
+// "pullable" field of GET /api/catalog. A bundled entry is part of the
+// publisher-signed MSIX. Store additionally requires the catalogue's detached
+// RSA signature. Device Portal overrides are not in that list and can never
+// supply a pull URL or checksum.
+::xllama::PullModelDescriptor pull_descriptor(const ::xllama::ManifestEntry& entry,
+                                              const ::xllama::ManifestTrust& trust) {
+    ::xllama::PullModelDescriptor descriptor;
+    descriptor.name = ::xllama::wstring_to_utf8(entry.name);
+    descriptor.kind = ::xllama::wstring_to_utf8(entry.kind);
+    descriptor.role = ::xllama::wstring_to_utf8(entry.role);
+    descriptor.source_url = ::xllama::wstring_to_utf8(entry.hf_base_url);
+    #ifdef XLLAMA_STORE_SKU
+    descriptor.trusted_catalogue = trust.trusted;
+    #else
+    (void)trust;
+    descriptor.trusted_catalogue = true;
+    #endif
+    for (const auto& file : entry.files)
+        descriptor.sha256_pins.push_back(::xllama::wstring_to_utf8(file.sha256));
+    return descriptor;
+}
+
+// Chat and embedding inference use the merged runtime manifest. A same-name
+// LocalState override that would change backend, role, URL, or pinned files
+// shadows the bundled entry: /api/pull refuses it, so a pulled model is loaded
+// with the settings it was pulled under, and /api/catalog reports it not pullable.
+bool pull_entry_loads_as_bundled(const ::xllama::ManifestEntry& bundled,
+                                 const std::vector<::xllama::ManifestEntry>& effective_manifest) {
+    const auto* effective = ::xllama::FindManifestEntry(effective_manifest, bundled.name);
+    return effective && same_pull_manifest_entry(bundled, *effective);
+}
+
+// GET /api/catalog (#658): the package's trusted catalogue, the list /api/pull
+// downloads from, without withdrawn ids or diffusion assets
+// (catalog_lists_entry). /v1/models stays "servable"; this is "downloadable".
+// Fields come from the bundled entry with the rules /v1/models uses (n_ctx,
+// sampling, reasoning, embedding); "installed" is membership in /v1/models and
+// "pullable" is the pull admission above.
+std::string catalog_list_json() {
+    ::xllama::ManifestTrust trust;
+    const auto manifest = ::xllama::LoadModelManifest(&trust, false);
+    const auto effective_manifest = ::xllama::LoadModelManifest();
+    const std::vector<std::string> servable = servable_model_ids();
+    std::vector<::xllama::CatalogEntryInfo> entries;
+    for (const ::xllama::ManifestEntry& entry : manifest) {
+        ::xllama::CatalogEntryInfo e;
+        e.id = ::xllama::wstring_to_utf8(entry.name);
+        e.kind = ::xllama::wstring_to_utf8(entry.kind);
+        if (!::xllama::catalog_lists_entry(e.id, e.kind))
+            continue;
+        e.display = ::xllama::wstring_to_utf8(entry.display);
+        e.role = ::xllama::wstring_to_utf8(entry.role);
+        e.n_ctx = ::xllama::catalogue_n_ctx(entry.n_ctx, entry.kind == L"gguf");
+        for (const auto& file : entry.files)
+            e.size_bytes += file.approx_bytes;
+        e.installed = std::find(servable.begin(), servable.end(), e.id) != servable.end();
+        e.pullable = ::xllama::api_pull_model_allowed(pull_descriptor(entry, trust)) &&
+                     pull_entry_loads_as_bundled(entry, effective_manifest);
+        e.embedding = ::xllama::role_is_embedding(e.role);
+        e.reasoning = ::xllama::model_is_thinking(e.id);
+        e.has_sampling = !e.embedding;
+        e.sampling = ::xllama::resolve_sampling(entry.sampling);
+        entries.push_back(std::move(e));
+    }
+    return ::xllama::catalog_json(entries);
+}
+
 void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t generation) {
     JsonObject request{nullptr};
     if (!JsonObject::TryParse(winrt::to_hstring(body), request) || request == nullptr) {
@@ -2008,38 +2077,14 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
         return;
     }
 
-    // A bundled entry is part of the publisher-signed MSIX. Store additionally
-    // requires the catalogue's detached RSA signature. Device Portal overrides
-    // are excluded above and can never supply a pull URL or checksum.
-    bool package_catalogue_trusted = true;
-    #ifdef XLLAMA_STORE_SKU
-    package_catalogue_trusted = catalogue_trust.trusted;
-    #else
-    (void)catalogue_trust;
-    #endif
-
-    ::xllama::PullModelDescriptor descriptor;
-    descriptor.name = model_name;
-    descriptor.kind = ::xllama::wstring_to_utf8(entry->kind);
-    descriptor.role = ::xllama::wstring_to_utf8(entry->role);
-    descriptor.source_url = ::xllama::wstring_to_utf8(entry->hf_base_url);
-    descriptor.trusted_catalogue = package_catalogue_trusted;
-    for (const auto& file : entry->files)
-        descriptor.sha256_pins.push_back(::xllama::wstring_to_utf8(file.sha256));
-    if (!::xllama::api_pull_model_allowed(descriptor)) {
+    if (!::xllama::api_pull_model_allowed(pull_descriptor(*entry, catalogue_trust))) {
         write_response(
             socket, "403 Forbidden",
             ollama_error_json("model is not a trusted, pinned chat or embedding download"));
         return;
     }
 
-    // Chat and embedding inference use the merged runtime manifest. Reject a
-    // same-name LocalState override that would change backend, role, URL, or
-    // pinned files, so a successfully pulled model is loaded with these settings.
-    const auto effective_manifest = ::xllama::LoadModelManifest();
-    const auto* effective_entry =
-        ::xllama::FindManifestEntry(effective_manifest, ::xllama::utf8_to_wstring(model_name));
-    if (!effective_entry || !same_pull_manifest_entry(*entry, *effective_entry)) {
+    if (!pull_entry_loads_as_bundled(*entry, ::xllama::LoadModelManifest())) {
         write_response(socket, "403 Forbidden",
                        ollama_error_json("model is shadowed by a LocalState catalogue override"));
         return;
@@ -2265,6 +2310,11 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
         }
         if (req.method == "GET" && req.path == "/api/tags") {
             write_response(socket, "200 OK", tags_json());
+            return;
+        }
+        // What a client may offer to download (#658); not a servable list.
+        if (req.method == "GET" && req.path == "/api/catalog") {
+            write_response(socket, "200 OK", catalog_list_json());
             return;
         }
 

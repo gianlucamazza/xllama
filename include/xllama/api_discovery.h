@@ -3,7 +3,8 @@
 //
 // What the LAN API tells a client before it sends a request: GET /health
 // (build version, contract version, the routes this build serves) and the
-// per-model fields of GET /v1/models (context, kind, role, capabilities).
+// per-model fields of GET /v1/models (context, kind, role, capabilities), and
+// GET /api/catalog (the trusted catalogue a client may download from).
 // WinRT-free so the shapes are host-tested; uwp/api-server.cpp fills the
 // values from the package identity and the catalogue.
 #pragma once
@@ -33,6 +34,7 @@ struct ApiCapabilities {
     bool reasoning_tokens = false;  // usage.completion_tokens_details.reasoning_tokens
     bool cached_tokens = false;     // usage.prompt_tokens_details.cached_tokens
     bool model_sampling = false;    // /v1/models "sampling"; omitted fields take it
+    bool catalog = false;           // /api/catalog
 };
 
 // The capabilities of the compiled build: GGUF paths need XLLAMA_USE_LLAMA,
@@ -75,5 +77,36 @@ struct ModelInfo {
 // model's "sampling" is {"temperature":…,"top_p":…,"top_k":…,
 // "repetition_penalty":…,"source":{<field>:"default"|"model"}}.
 std::string models_list_json(const std::vector<ModelInfo>& models, std::int64_t created);
+
+// GET /api/catalog lists a bundled catalogue entry unless its id is withdrawn
+// (withdrawn_models.h) or it is a diffusion asset, which the image dialog owns
+// and /api/pull never fetches.
+bool catalog_lists_entry(const std::string& id, const std::string& kind);
+
+// One entry of the package's trusted catalogue. /v1/models stays "servable"
+// (on the console now); /api/catalog is "downloadable".
+struct CatalogEntryInfo {
+    std::string id;
+    std::string display;
+    std::string kind;             // "gguf" or "ort-genai"
+    std::string role;             // catalogue role ("", "coding", "embedding")
+    int n_ctx = 0;                // what a session of this entry opens with (catalogue_n_ctx)
+    std::uint64_t size_bytes = 0; // sum of files[].approx_bytes; 0 when unknown
+    bool installed = false;       // /v1/models lists it
+    bool pullable = false;        // POST /api/pull passes its catalogue checks
+    bool reasoning = false;       // model_is_thinking(id)
+    bool embedding = false;       // role_is_embedding(role)
+    // Chat models only, as in ModelInfo: the sampling a request that sets
+    // none of the fields gets once the model is installed.
+    bool has_sampling = false;
+    ResolvedSampling sampling;
+};
+
+// {"object":"list","data":[{"id":…,"display":…,"kind":…,"role":…,"n_ctx":…,
+//  "size_bytes":…,"installed":…,"pullable":…,"sampling":{…},
+//  "capabilities":{"reasoning":…,"embedding":…}}]}. "sampling" has the
+// /v1/models shape and is absent for an embedding model. "capabilities" holds
+// only what is known without the file: no "tools", which reads the GGUF.
+std::string catalog_json(const std::vector<CatalogEntryInfo>& entries);
 
 } // namespace xllama

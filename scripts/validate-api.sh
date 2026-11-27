@@ -194,10 +194,13 @@ validate_spike() {
 # --- discovery: /health and /v1/models fields (#565, #566) -----------------
 
 validate_discovery() {
-	echo "=== discovery: /health version + capabilities, /v1/models fields ==="
-	local health models
+	echo "=== discovery: /health version + capabilities, /v1/models and /api/catalog fields ==="
+	local health models catalog
 	health=$(curl -fsS -m 10 "${API_URL}/health" || true)
 	models=$(curl -fsS -m 10 "${API_URL}/v1/models" || true)
+	# Fetched always, checked only when /health reports the catalog capability
+	# (#658): an older build answers 404 and the body stays empty.
+	catalog=$(curl -fsS -m 10 "${API_URL}/api/catalog" || true)
 	echo "  GET /health -> ${health}"
 	if python3 -c '
 import json, sys
@@ -228,7 +231,36 @@ for entry in m["data"]:
         print("  %s: n_ctx=%s tools=%s reasoning=%s sampling=%s" % (entry["id"],
               entry.get("n_ctx"), entry["capabilities"]["tools"],
               entry["capabilities"]["reasoning"], entry.get("sampling")))
-' "$health" "$models"; then
+if caps.get("catalog"):
+    c = json.loads(sys.argv[3])
+    assert c["object"] == "list" and c["data"], c
+    served = {entry["id"] for entry in m["data"]}
+    for entry in c["data"]:
+        for key in ("id", "display", "kind", "role", "n_ctx", "size_bytes", "installed",
+                    "pullable", "capabilities"):
+            assert key in entry, (key, entry)
+        assert entry["kind"] in ("gguf", "ort-genai"), entry
+        assert isinstance(entry["size_bytes"], int) and entry["size_bytes"] >= 0, entry
+        assert isinstance(entry["n_ctx"], int) and entry["n_ctx"] > 0, entry
+        for key in ("installed", "pullable"):
+            assert isinstance(entry[key], bool), (key, entry)
+        for key in ("reasoning", "embedding"):
+            assert isinstance(entry["capabilities"][key], bool), entry
+        if entry["installed"]:
+            assert entry["id"] in served, ("installed but not in /v1/models", entry)
+        if entry["role"] != "embedding":
+            s = entry["sampling"]
+            for key in ("temperature", "top_p", "top_k", "repetition_penalty"):
+                assert isinstance(s[key], (int, float)), (key, entry)
+                assert s["source"][key] in ("default", "model"), (key, entry)
+            assert isinstance(s["top_k"], int), entry
+        else:
+            assert "sampling" not in entry, entry
+    print("  /api/catalog: %d entries, %d installed, %d pullable" % (len(c["data"]),
+          sum(e["installed"] for e in c["data"]), sum(e["pullable"] for e in c["data"])))
+else:
+    print("  /api/catalog: not in this build (capabilities.catalog absent)")
+' "$health" "$models" "$catalog"; then
 		echo "discovery: PASS"
 		return 0
 	fi

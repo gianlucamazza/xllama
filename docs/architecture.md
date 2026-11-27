@@ -933,7 +933,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | Test file                          | Under test                                                                                                                                            |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `test_api_activity.cpp`            | `api_activity.h`                                                                                                                                      |
-| `test_api_discovery.cpp`           | `api_discovery.h` (`/health` and `/v1/models` shapes)                                                                                                 |
+| `test_api_discovery.cpp`           | `api_discovery.h` (`/health`, `/v1/models` and `/api/catalog` shapes)                                                                                 |
 | `test_thinking_split.cpp`          | `thinking_split.h` (batch and stream reasoning split, spans, reasoning token count, `split_output`)                                                   |
 | `test_compute_admission.cpp`       | `compute_admission.h`                                                                                                                                 |
 | `test_api_connection.cpp`          | `api_connection.h` — overlapping compute requests are 200+503; connection-gate bound                                                                  |
