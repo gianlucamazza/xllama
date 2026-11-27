@@ -254,6 +254,17 @@ IQ4_XS / IQ3_XXS pipelines are optional: a failed PSO leaves that type on
 the CPU. Host tests emulate each kernel's lane mapping against the same
 dequantizers.
 
+For the current gate, replay an off-profile receipt with
+`python3 scripts/verify-d3d12-selftest.py RECEIPT.csv`. The default profile
+requires all six matmul types at their declared shapes and both GET_ROWS
+shapes. Each case must occur exactly once and carry the console writer's
+`xbox-series-s` host label and a UTC timestamp in `YYYY-MM-DDTHH:MM:SSZ` format. Select `--require-bias-add` or
+`--require-rope` for the corresponding enabled knob and provide
+`--run-log LOG` when replaying. The console driver captures the current run's
+log automatically. For capability testing, `--allow-unavailable-mmv` removes
+an optional type's cases only when the run log records its pipeline creation
+failure. Release checks use the full profile by default.
+
 ### D2a result (2026-10-01/02, three console runs)
 
 `scripts/bench-d3d12-selftest.sh`, GPU timestamps, rel_err against ggml's

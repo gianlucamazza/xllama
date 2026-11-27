@@ -1,5 +1,11 @@
 name: Linux sanitizers
 
+# ASan + UBSan over xllama, llama-common, llama and ggml CPU code. Coverage is
+# bounded by the fixture (scripts/cpu-smoke-fixture.py): every weight is F32 and
+# the KV cache is llama.cpp's default F16, so the run exercises F32 weight
+# kernels and never reaches the quantized ggml paths (Q4/Q8 dot products,
+# dequantization, Q8_0 KV). Instrumented is not the same as exercised.
+
 on:
   workflow_dispatch:
   pull_request:
@@ -64,6 +70,9 @@ jobs:
         run: |
           cmake --build build/linux-asan --parallel 2 --target xllama-cli
           cmake --build build/linux-asan/tests --parallel 2
+
+      - name: Test the instrumentation audit
+        run: python3 -m unittest tests/test_check_sanitizer_build.py
 
       - name: Audit compile and link commands
         run: python3 scripts/check-sanitizer-build.py build/linux-asan

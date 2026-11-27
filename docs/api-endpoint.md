@@ -1,7 +1,8 @@
-# LAN HTTP endpoint (OpenAI-compatible)
+# LAN HTTP endpoint (OpenAI and Ollama)
 
-**Status:** v1 — spike + chat (streaming via SSE on request) + UI parity surface (#118: preferences,
-training status, images). Opt-in, **default OFF**. Developer Mode / LAN research only.
+**Status:** v1 — spike + chat (streaming via SSE on request), native Ollama text
+generation (NDJSON) + UI parity surface (#118: preferences, training status,
+images). Opt-in, **default OFF**. Developer Mode / LAN research only.
 Not for public inbound.
 
 xllama can expose its inference core (`xllama::Session`) as an HTTP endpoint on the local
@@ -96,8 +97,10 @@ this is Developer Mode research, not a hosted service.
 
 ### Open WebUI
 
-Use an **OpenAI API** connection. The Ollama connection type is not supported:
-xllama has no `/api/version` or `/api/chat`.
+Use an **OpenAI API** connection. xllama serves `/api/chat` and
+`/api/generate` ([Native Ollama generation](#native-ollama-generation-apichat-apigenerate)),
+but Open WebUI's Ollama connection also probes `/api/version` and other
+model-management routes xllama does not have.
 
 1. On the console (Developer Mode), open xllama, enable **Settings → LAN API**,
    and keep the app in the foreground. The LAN API panel shows the base URL
@@ -164,8 +167,9 @@ For a separate Open WebUI qualification, pin the image tag and record its digest
   `xllama.log` (`./scripts/deploy.sh get-log`) holds an `[xllama] api: <route>
 failed` line with the cause. `malformed request body` (400) means only that a
   field had the wrong type or was missing.
-- Ollama connection "verify" fails with "no such endpoint": use the OpenAI API
-  connection type.
+- Ollama connection "verify" fails with "no such endpoint": the client probes
+  an Ollama management route xllama does not serve (`/api/version`,
+  `/api/show`). Use the OpenAI API connection type.
 
 ## Protocol (v1)
 
@@ -174,6 +178,10 @@ failed` line with the cause. `malformed request body` (400) means only that a
 | `GET`     | `/` or `/health`         | `200 {"status":"ok","service":"xllama",…}` plus build `version`, contract `api` and route `capabilities` ([Discovery](#discovery-health-and-v1models)).                             |
 | `GET`     | `/v1/models`             | OpenAI model discovery: every servable on-device model, with `active`, `kind`, `role`, `n_ctx` and `capabilities` ([Discovery](#discovery-health-and-v1models)).                    |
 | `GET`     | `/api/tags`              | Ollama model discovery — same list, Ollama shape.                                                                                                                                   |
+| `POST`    | `/api/chat`              | Native Ollama chat and tool proposals on GGUF models; NDJSON, or JSON with `stream: false` ([Native Ollama](#native-ollama-generation-apichat-apigenerate)).                        |
+| `POST`    | `/api/generate`          | Native Ollama prompt completion through the model's chat template; NDJSON or JSON as `/api/chat`.                                                                                   |
+| `GET`     | `/api/ps`                | Ollama resident-model discovery: zero or one model, its loaded context, who holds it, and the lease expiry ([Model residency](#model-residency-keep_alive-apips)).                  |
+| `GET`     | `/api/catalog`           | The downloadable catalogue: every trusted entry `/api/pull` may fetch, installed or not, with `size_bytes`, `installed` and `pullable` ([Catalogue](#catalogue-apicatalog)).        |
 | `POST`    | `/api/pull`              | Download a trusted chat or embedding model from the built-in model list (Ollama-style NDJSON progress), then load it.                                                               |
 | `POST`    | `/v1/chat/completions`   | OpenAI-compatible chat completion; one JSON body, or **SSE** chunk events when `stream: true`.                                                                                      |
 | `POST`    | `/api/embed`             | Ollama-style embeddings for one string or a batch, catalogue embedding GGUF/llama.cpp only.                                                                                         |
@@ -206,7 +214,12 @@ to branch on (`include/xllama/api_discovery.h`):
     "reasoning_content": true,
     "reasoning_tokens": true,
     "cached_tokens": true,
-    "model_sampling": true
+    "model_sampling": true,
+    "ollama_chat": true,
+    "ollama_keep_alive": true,
+    "chat_context": true,
+    "reasoning_control": true,
+    "catalog": true
   },
   "sampling": ["temperature", "top_p", "top_k", "repetition_penalty", "seed"],
   "runtime": {
@@ -229,7 +242,15 @@ what the installed build serves: the llama.cpp-only package reports
 (`include/xllama/api_sampling.h`, the table the request is validated against),
 so a client sends only those instead of assuming them per version.
 `model_sampling` means each chat model in `/v1/models` reports its `sampling`
-and a field a request omits takes that model's value (below). `runtime`
+and a field a request omits takes that model's value (below). `ollama_chat`
+means the build serves `/api/chat` and `/api/generate` (a build with
+llama.cpp); which models they accept is the per-model capability below.
+`ollama_keep_alive` means native `keep_alive` and `GET /api/ps` follow
+[Model residency](#model-residency-keep_alive-apips); `chat_context` means a chat
+request may reduce the context with `options.num_ctx`; `reasoning_control` means
+a chat request may switch reasoning where the model allows it
+([Reasoning control](#reasoning-control-reasoning_effort-enable_thinking-think)). `catalog` means the build
+serves `GET /api/catalog` ([Catalogue](#catalogue-apicatalog)). `runtime`
 names the llama.cpp commit the build compiles (llama.cpp's own build info; the
 commit only, since its build number counts the submodule history and reads 1 in
 a shallow checkout) and the patches applied to it
@@ -247,11 +268,17 @@ and adds non-standard fields that clients may ignore:
 | `kind`         | `gguf`, `ort-genai` or `diffusion`                                                                                                                                      |
 | `role`         | Catalogue role: `""`, `coding` or `embedding`                                                                                                                           |
 | `n_ctx`        | Context the session uses: the resident session's for the active model, else what a session of that entry opens with (`catalogue_n_ctx`: 512 floor, ONNX capped at 8192) |
-| `capabilities` | `tools` (the GGUF chat template renders a tool schema, the same check a tool proposal makes), `reasoning`, `embedding`                                                  |
+| `capabilities` | `tools` (the GGUF chat template renders a tool schema, the same check a tool proposal makes), `reasoning`, `reasoning_control`, `embedding`, `ollama_chat` (see below)  |
 | `sampling`     | Chat models only: the `temperature`, `top_p`, `top_k` and `repetition_penalty` a request that sets none of them gets, and a `source` per field (`default` or `model`)   |
 
 `tools` is read from the GGUF header's chat template without loading weights,
-and cached per file, size and write time.
+and cached per file, size and write time. `ollama_chat` is what the native
+routes accept: a GGUF text model, not an embedding model, whose id is a plain
+catalogue-style name (`ollama_chat_model`, `include/xllama/api_ollama.h`). ONNX
+models report `false` and stay on `/v1/chat/completions`. `reasoning` is whether
+the model reasons when a request does not say (`model_is_thinking`,
+`include/xllama/chat_prompt.h`); `reasoning_control` is whether a request may
+change that ([Reasoning control](#reasoning-control-reasoning_effort-enable_thinking-think)).
 
 `sampling` comes from one rule (`include/xllama/model_sampling.h`): the global
 defaults, then the model's catalogue values, then the request. A model entry in
@@ -276,6 +303,245 @@ table:
   }
 }
 ```
+
+### Catalogue (`/api/catalog`)
+
+`/v1/models` and `/api/catalog` answer two different questions, and neither
+replaces the other:
+
+- `/v1/models` is **servable**: the models on the console now, any of which a
+  chat request may name. OpenAI clients such as Open WebUI list it, so it never
+  shows a model that is not installed.
+- `/api/catalog` is **downloadable**: every entry of the catalogue bundled in
+  the installed package, the same list `POST /api/pull` downloads from
+  (`LoadModelManifest(&trust, false)`), installed or not. A LocalState catalogue
+  override is not in it. Withdrawn ids (`include/xllama/withdrawn_models.h`) and
+  diffusion assets are left out (`catalog_lists_entry` in
+  `include/xllama/api_discovery.h`).
+
+A client that suggests downloads reads `/api/catalog` instead of keeping its
+own copy of `uwp/models/manifest.json`. On a server whose `/health` has no
+`capabilities.catalog`, the route does not exist (404): the client should show
+no suggestions and say the server is too old for them.
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "lfm25-1.2b-instruct",
+      "display": "LFM2.5 1.2B Instruct (GGUF · GPU · balanced · QAD)",
+      "kind": "gguf",
+      "role": "",
+      "n_ctx": 2048,
+      "size_bytes": 695766084,
+      "installed": false,
+      "pullable": true,
+      "sampling": {
+        "temperature": 0.1,
+        "top_p": 0.9,
+        "top_k": 50,
+        "repetition_penalty": 1.05,
+        "source": {
+          "temperature": "model",
+          "top_p": "default",
+          "top_k": "model",
+          "repetition_penalty": "model"
+        }
+      },
+      "capabilities": { "reasoning": false, "embedding": false }
+    }
+  ]
+}
+```
+
+| Field          | Meaning                                                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`           | Catalogue id: the `model` of `POST /api/pull`, and of chat once installed                                                                        |
+| `display`      | Catalogue display name                                                                                                                           |
+| `kind`         | `gguf` or `ort-genai`                                                                                                                            |
+| `role`         | Catalogue role: `""`, `coding` or `embedding`                                                                                                    |
+| `n_ctx`        | Context a session of this entry opens with (`catalogue_n_ctx`, the rule `/v1/models` uses for a model that is not resident)                      |
+| `size_bytes`   | Sum of the entry's `files[].approx_bytes`: the approximate download, `0` when the catalogue gives no size                                        |
+| `installed`    | `true` when `/v1/models` lists the id                                                                                                            |
+| `pullable`     | `true` when `POST /api/pull` would pass its catalogue checks now: HTTPS source, SHA-256 pins, chat or embedding, Store signature, no override    |
+| `sampling`     | Chat models only (absent for `embedding`): the `/v1/models` `sampling` object, from the bundled entry                                            |
+| `capabilities` | What is known without the file: `reasoning` and `embedding`. `tools` is not here: it reads the GGUF's chat template, so only `/v1/models` has it |
+
+`pullable` comes from the same descriptor and admission `POST /api/pull` builds
+(`api_pull_model_allowed` in `include/xllama/api_pull_policy.h`), so it is
+`false` on a Store build whose catalogue signature does not verify, and on an
+entry a LocalState override shadows. It does not cover a busy pull gate or a
+full volume; those are answered by the pull itself. `installed` and `pullable`
+are independent: an installed entry keeps the `pullable` its catalogue checks
+give.
+
+### Native Ollama generation (`/api/chat`, `/api/generate`)
+
+Both routes translate the native body into the same chat request
+`/v1/chat/completions` serves (`parse_ollama_request`,
+`include/xllama/api_ollama.h`), before compute admission. The GGUF template,
+context budget, catalogue sampling, stops and the tool-proposal path are the
+same ones; only the reply is written as native Ollama objects.
+
+- `/api/chat` takes `messages` (roles `system`, `user`, `assistant`, `tool`;
+  string content) and optional `tools`. An assistant message replays its
+  `tool_calls` with `function.arguments` as an object; each result follows as
+  a `tool` message naming the call in `tool_name`. Results for a repeated name
+  bind in call order and are rendered in the order the assistant made the
+  calls. The follow-up may omit `tools`: the transcript still renders through
+  the GGUF template, with no tool offered.
+- `/api/generate` takes `prompt` and an optional `system`, rendered as one
+  user turn through the model's chat template (there is no raw mode).
+- `options` accepts `temperature`, `top_p`, `top_k`, `repeat_penalty` (or
+  `repetition_penalty`), `seed`, `stop`, `num_predict` and `num_ctx`, with the
+  ranges of the OpenAI fields above. `num_predict` is the reply limit; `-1`
+  (Ollama's "no limit") keeps xllama's bounded default. `num_ctx` follows
+  [Reduced context](#reduced-context-optionsnum_ctx). Any other option is 400
+  `unsupported options.<name>`, never silently ignored.
+- `stream` defaults to `true`: `Content-Type: application/x-ndjson` over
+  chunked transfer, one object per text piece
+  (`{"model","created_at","message":{"role":"assistant","content":…},"done":false}`,
+  or `response` for `/api/generate`), then a final object with `done: true`,
+  `done_reason` (`stop` or `length`; a tool call is `stop`), `total_duration`,
+  `load_duration`, `prompt_eval_count`, `prompt_eval_duration`, `eval_count`
+  and `eval_duration` (nanoseconds). A long prefill gets an empty
+  `done: false` object every 5 s, the NDJSON form of the SSE keepalive above.
+  A failure after the head ends the stream with `{"error":"…"}`. With
+  `stream: false` the reply is the final object with the whole message.
+- A tool proposal buffers generation as on the OpenAI path and sends one
+  object whose `message.tool_calls[]` is
+  `{type:"function",function:{index,name,arguments}}`, `arguments` an object
+  (a model that emits arguments that are not an object is a 500 error).
+- Reasoning follows the model as on the OpenAI path: a thinking model's
+  reasoning is `message.thinking` (`thinking` on `/api/generate`), and
+  `content` never carries the tags.
+- `think` is `true`, `false`, or a level (`"low"`, `"medium"`, `"high"`, which
+  mean `true`): a boolean is read as `chat_template_kwargs.enable_thinking` and
+  a level as `reasoning_effort`, so the same
+  [Reasoning control](#reasoning-control-reasoning_effort-enable_thinking-think)
+  rules and errors apply. Anything else is 400
+  `think must be a boolean or "low", "medium" or "high"`.
+- An empty `messages` (or none) on `/api/chat`, or an empty or missing
+  `prompt` on `/api/generate`, loads the model and answers one JSON object
+  with `done_reason: "load"`.
+- Refused with 400 before admission: `format` (structured output), `images`,
+  `raw`, `suffix`, `template`, `context`, `logprobs`, `top_logprobs`, and a
+  message's `images`, when set to anything but their empty default; a `model`
+  that is not a plain id. An ONNX or embedding model is 400 naming
+  `/v1/chat/completions`, and an unknown model is 404.
+- Errors are native: `{"error":"<text>"}` with the same status the OpenAI
+  route would return, `busy` (503) included.
+
+```bash
+curl -N http://<console-ip>:11434/api/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"lfm25-350m","messages":[{"role":"user","content":"Say hi"}]}'
+
+curl -s http://<console-ip>:11434/api/generate \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"lfm25-350m","prompt":"Say hi","stream":false,"options":{"num_predict":32}}'
+```
+
+### Reasoning control (`reasoning_effort`, `enable_thinking`, `think`)
+
+A chat request may turn reasoning off or on for that request only (#648), when
+`/health` lists `reasoning_control`:
+
+- `reasoning_effort` (OpenAI): `"none"` turns it off; `"low"`, `"medium"` and
+  `"high"` turn it on. The level is not modelled: a model that reasons does so
+  as its template does, whatever level is sent. Any other value (including
+  `"minimal"`) or type is 400 `invalid_value`, `param: "reasoning_effort"`.
+- `chat_template_kwargs.enable_thinking` (llama-server and vLLM spelling): a
+  boolean. `chat_template_kwargs` must be an object whose only key is
+  `enable_thinking`; another key is 400 rather than a template variable xllama
+  would drop.
+- Ollama `think` on `/api/chat` and `/api/generate` maps onto these (above).
+
+`null` or an absent field leaves the model's own behaviour
+(`capabilities.reasoning`). Both OpenAI fields at once must agree, or the
+request is 400 `reasoning_effort and chat_template_kwargs.enable_thinking disagree`.
+
+Which models honour a switch is `capabilities.reasoning_control` in
+`/v1/models`, from one decision (`decide_reasoning`,
+`include/xllama/reasoning_control.h`); a client reads it rather than keeping a
+list. A value that restates what the model does is always accepted. A value that
+changes it on a model with `reasoning_control: false` is 400 with
+`code: "reasoning_control_unsupported"` and `param` naming the field: a model
+that always reasons (its template has no off switch) cannot be turned off, and
+a model without a thinking path cannot be turned on. All of this is checked
+before compute admission.
+
+The effective value is what both paths render: plain chat takes the
+template's no-think prefill (off) or its thinking path (on, where a template
+that opens `<think>` in the prompt is split as such), and a tool proposal
+passes it as the template's `enable_thinking`. With reasoning on, the reply
+carries it as `reasoning_content` (`thinking` on the native routes) and counts
+it in `reasoning_tokens`, as for a model that reasons by default.
+
+### Model residency (`keep_alive`, `/api/ps`)
+
+The console app wins. `SessionHub` records who loaded or last used the
+resident session, the console app (GUI) or the LAN API, and the decision of what
+a `keep_alive` may do is `keep_alive_action` in
+`include/xllama/session_residency.h`:
+
+| `keep_alive` on `/api/chat` or `/api/generate` | Session loaded by the API, unused by the GUI since | Session the GUI loaded or used                     |
+| ---------------------------------------------- | -------------------------------------------------- | -------------------------------------------------- |
+| omitted or `null`                              | stays resident, no expiry                          | stays resident, no expiry                          |
+| negative                                       | stays resident, no expiry                          | stays resident, no expiry                          |
+| positive (`30`, `"5m"`, `"1h30m"`, `"750ms"`)  | released that long after the reply ends            | stays resident, no expiry                          |
+| `0`                                            | released when the reply ends                       | 409 `model is in use by the console app`, no reply |
+
+- **No expiry by default.** Ollama unloads an idle model after five minutes
+  when a request omits `keep_alive`; xllama does not. The model stays until a
+  request, the GUI or a `keep_alive` replaces or releases it, as on every other
+  route. Every request without `keep_alive` (OpenAI chat included) ends any
+  lease on the session it used.
+- **A GUI turn takes the session over.** A GUI turn or preload that uses the
+  resident model cancels its lease and makes the session the console app's;
+  from then on no client `keep_alive` expires or unloads it. A GUI model
+  selection releases the resident session as before and loads the GUI's model
+  as the console app's. A lease that falls due while a request, a GUI turn or
+  another job holds the console waits for it and is re-checked first.
+- An empty request (`messages: []` or no `prompt`) loads the model and returns
+  `done_reason: "load"`, with the lease its `keep_alive` asks for. The same
+  empty request with `keep_alive: 0` unloads it (`done_reason: "unload"`,
+  idempotent when the model is not resident), or answers 409 when the console
+  app holds it. A generation with `keep_alive: 0` on the console app's session
+  is refused with 409 before it generates.
+- `keep_alive` is seconds as a number or a Go duration string; anything else is
+  400 before admission.
+- `GET /api/ps` lists the resident model: `name`, `model`, `context_length`
+  (the loaded context), `owner` (`console` or `api`, an xllama field) and, only
+  while a lease runs, `expires_at`. It is `{"models":[]}` with nothing resident
+  and 503 `busy` while a turn holds the session.
+- A lease is in memory: stopping the LAN API leaves it running, and restarting
+  the app drops it.
+
+### Reduced context (`options.num_ctx`)
+
+A chat request may load the model with a smaller context: `options.num_ctx` on
+`/api/chat` and `/api/generate`, and the same object as an xllama extension on
+`/v1/chat/completions` (other `options` keys are ignored there). It is a whole
+number from 32 to the model's catalogue context (`catalogue_n_ctx`, the
+`n_ctx` `/v1/models` reports while the model is not resident), checked before
+compute admission (`validate_context_override`, `include/xllama/api_policy.h`).
+It only reduces: there is no larger context than the catalogue's.
+
+- **A different `n_ctx` reloads the model.** It is a different load
+  (`same_load`, ADR 0007), so the hub releases the resident session and loads
+  again. Two clients, or a client and the GUI, that alternate contexts reload
+  each other on every request; the GUI's next turn loads its catalogue context
+  again. Omitting `num_ctx` asks for the catalogue context.
+- `/v1/models` `n_ctx` for the active model, and `/api/ps` `context_length`,
+  report the loaded context, which can be the reduced one. The upper bound is
+  the catalogue's, not that value; a request above it is 400 naming the limit.
+- The reply limit is checked against the loaded context. Without one, a
+  request gets 512 tokens, or half the context when it is 1024 or less
+  (`default_max_tokens`). A context can be valid yet too small for the
+  template, the prompt and the reply reserve: that request is 400
+  `prompt too long`, as on any context.
 
 ### Model download (`POST /api/pull`)
 
@@ -323,7 +589,7 @@ loaded one (first request on a new model pays the load, and the GUI's KV-reuse
 state is invalidated — see Model above).
 
 Request body (subset): `model`, `messages[]`, optional `max_completion_tokens` /
-`max_tokens` (default 512; the former wins — `max_tokens` is the deprecated OpenAI
+`max_tokens` (default 512, less on a [reduced context](#reduced-context-optionsnum_ctx); the former wins — `max_tokens` is the deprecated OpenAI
 alias), the sampling fields `temperature`, `top_p`, `top_k`, `repetition_penalty`
 (or llama.cpp's spelling `repeat_penalty`, not both) and `seed`, and `stop` (string
 or array). Numbers are checked before the model loads, and a bad one is `400`
@@ -339,10 +605,18 @@ tokens. `stream: true` answers with SSE; see the streaming
 paragraph under [Protocol (v1)](#protocol-v1). Most other fields are ignored.
 
 Plain chat (no tool schema, `tools: []`, or `tool_choice` `"none"`) keeps
-`ChatFormat::render_prompt` (`include/xllama/chat_prompt.h`). Roles are system, user,
-and assistant, content is a string, and the transcript must end on a user turn, else
-`400`. `chat_format_for(model)` selects the template and its stops. Client `stop`
-values are added to those. When no system message is sent, a default one is injected.
+`ChatFormat::render_prompt` (`include/xllama/chat_prompt.h`). Roles are system,
+developer, user, and assistant; `developer` (OpenAI's newer name for the system
+role) is read as a system message, and several system or developer messages join
+with a newline in order. Content is a string, null, or an array of
+`{type:"text",text}` parts joined with no separator; any other part, an image
+included, is `400` `unsupported message content`. Every message needs a string
+`role`; `tool` and unknown roles are skipped, since plain chat has no turn for
+them. The transcript must end on a user turn, else `400`. The parser is
+`parse_plain_chat` (`include/xllama/tool_request.h`), with the same role and
+content rules as a tool proposal. `chat_format_for(model)` selects the template
+and its stops. Client `stop` values are added to those. When no system message
+is sent, a default one is injected.
 
 A non-empty `tools` array, or a legacy `functions` array on its own, is a proposal.
 `functions` is translated into `tools`. Sending both is `400`
@@ -357,15 +631,33 @@ offered. Under `"auto"`, an LFM2/LFM2.5 model that calls a tool outside `tools`
 gets that call back as it made it, rather than forced onto a declared tool or
 dropped as text (`patches/0007`, #610): the client decides what to do with an
 unknown name, as it would with any tool error.
-Whether the model reasons follows the model, as on plain chat (#655): the
-template's `enable_thinking` is `model_is_thinking(model)` (`chat_prompt.h`), the
-same decision as the plain-chat no-think prefill and `capabilities.reasoning` in
-`/v1/models`. A Qwen3, MiniCPM5 or SmolLM3 model that reports `reasoning: false`
-gets its template's empty think block and answers or calls directly; a thinking
-model still reasons first. A template without a thinking switch is unaffected.
+Whether the model reasons is decided as on plain chat (#655, #648): the
+template's `enable_thinking` is the request's effective reasoning
+(`decide_reasoning`, `reasoning_control.h`), which is `model_is_thinking(model)`
+(`chat_prompt.h`, `capabilities.reasoning` in `/v1/models`) unless the request
+switches it ([Reasoning control](#reasoning-control-reasoning_effort-enable_thinking-think)).
+A Qwen3, MiniCPM5 or SmolLM3 model with reasoning off gets its template's empty
+think block and answers or calls directly; a thinking model still reasons first.
+A template without a thinking switch is unaffected.
 Content may be a string, null, or an array of `{type:"text",text}` parts joined
-with no separator. Anything else, including an image part, is `400`. A `tool`
+with no separator. Anything else, including an image part, is `400`. A
+`developer` message is a system message, as on plain chat. A `tool`
 message requires `tool_call_id`. The last message must be `user` or `tool`.
+
+A replayed transcript renders each assistant `tool_calls` entry before its `tool`
+result. Some LFM2/LFM2.5 templates print only an assistant message's `content`
+(llama.cpp's `LFM2.5-Instruct.jinja` and `LFM2-8B-A1B.jinja`, the `lfm2-2.6b`
+GGUF), so for an LFM template whose source never names `tool_calls` xllama appends
+the calls to that content in the model's own syntax (#664,
+`src/bridge/tool_template.cpp`): `<|tool_call_start|>[name(arg=value, ...)]<|tool_call_end|>`.
+A string value is single-quoted with `\\`, `\'`, `\n` and `\r` escaped, booleans
+and null are `True`, `False` and `None`, and numbers, objects and arrays are JSON,
+as the LFM2.5 GGUF templates that do render calls write them; the LFM2 parser
+reads that text back to the same name and arguments. On these templates a call
+whose `arguments` is not a JSON object is `400`
+`tool call arguments must be a JSON object for this model`. Content that already
+holds `<|tool_call_start|>` is left as sent. A template that renders `tool_calls`
+itself (the `lfm25-*` GGUFs, Qwen, Llama) is unchanged.
 
 xllama does not execute the tool, a shell, the filesystem, or the network. The
 client does. One request is one generation, constrained by the template's grammar
@@ -489,7 +781,7 @@ An interrupted stream may end before the totals arrive. A non-null options
 object requires `stream:true`; `include_usage`, when present, must be a boolean, and
 other keys such as `include_obfuscation` are ignored. The option is checked before compute admission, so a malformed one is a 400 even while another job holds the console.
 
-A failure after the head travels as an `{"error":{...}}` event.
+A GGUF decode failure returns HTTP 500 for a non-streamed chat or generation. After the OpenAI streaming head, a failure travels as an `{"error":{...}}` event. Earlier token deltas can already be visible. The server skips the finish choice and usage summary and ends the stream with `[DONE]` if the socket is writable. Native Ollama chat and generate use an `{"error":"..."}` body for HTTP errors. A native stream ends with that NDJSON error line and omits the successful `done:true` object.
 
 A stream that has written nothing for 5 s (`kSseKeepaliveInterval`), as during a
 long prefill, gets an SSE comment line, `: keepalive` (#581). Clients skip
@@ -663,7 +955,7 @@ reply ends. Compute requests first acquire the process-wide RAII permit in
 `session_hub().mtx` with `try_lock`: a request arriving while another request,
 GUI turn, image generation, or device training is active gets **HTTP 503**
 `{"error":{"message":"busy"}}` for OpenAI-compatible routes and
-`{"error":"busy"}` for native Ollama embedding routes. The slot covers the
+`{"error":"busy"}` for native Ollama generation and embedding routes. The slot covers the
 whole process, including a streamed `/v1/chat/completions` reply (the permit
 stays held until the last SSE event, and is released if the client
 disconnects mid-stream). Native `/api/embed`, `/api/embeddings`,
@@ -673,7 +965,8 @@ exception: while the session **pre-load** is active (right after a model becomes
 Ready), API compute admission waits — bounded, ≤15 s, only while
 `hub.preloading` is set — instead of bouncing the client's very first request.
 Stopping the endpoint closes the listener only; the Session is hub-owned and is
-NOT released (the chat UI may be using it).
+NOT released (the chat UI may be using it). A `keep_alive` lease on an
+API-loaded session still runs ([Model residency](#model-residency-keep_alive-apips)).
 
 From a LAN host (console address is `XBOX_IP` / `API_PORT`, never hardcoded):
 
@@ -720,10 +1013,10 @@ The SDK checks successful default and explicit-text chat and inspects the HTTP
 
 ## Validation
 
-See `scripts/validate-api.sh` (`spike|discovery|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all`). Run it **from another host on the LAN**,
+See `scripts/validate-api.sh` (`spike|discovery|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|compat|all`). Run it **from another host on the LAN**,
 not from a client on the console itself — cross-device inbound needs no loopback exemption,
 but a same-host localhost client would (`CheckNetIsolation`). Spike gate first (`GET /` → 200
-proves the bind survives the Series S firewall/PLM), then chat / prefs / train as needed. `tools` checks the tool-proposal contract:
+proves the bind survives the Series S firewall/PLM), then chat / prefs / train as needed. `discovery` checks the `/health` and `/v1/models` fields and, when `/health` reports `capabilities.catalog`, the `/api/catalog` shape: every entry's fields, `sampling` with a `source` per field on chat entries, and each `installed` id present in `/v1/models`. `tools` checks the tool-proposal contract:
 a named `tool_choice` returns a `get_weather` call with JSON arguments, a `tool`
 result is answered, `tools` + `functions` is `400`, `tool_choice: "none"`
 stays plain chat, and an oversized `tools` array is `400` with the
@@ -732,6 +1025,17 @@ The gate also checks an indexed SSE tool call and the streamed answer to its
 result, including usage, finish reason and `[DONE]`.
 `TOOLS_MODEL` (default `MODEL`) must be a GGUF with a chat template; set
 `ORT_MODEL` to an ONNX id to also check its `400`.
+`compat` runs `scripts/validate-api-compat.py` against the native Ollama routes:
+NDJSON and JSON framing, the final counts, refused options and fields, `think`,
+load-only requests, busy while a native stream holds the permit, a tool
+proposal whose result is replayed without `tools`, a reduced `options.num_ctx`
+on both protocols, and the `keep_alive` lease, expiry and unload of an
+API-loaded model through `/api/ps`. Run it with the console app idle on another
+model, or the residency checks see the GUI's session. `MODEL` must be a GGUF chat
+model, `TOOLS_MODEL` a tool-capable GGUF, and `ORT_MODEL`, when set, an ONNX id
+the native routes must refuse. `API_COMPAT_SDKS=1` also drives the installed
+`openai` and `ollama` Python packages and prints their versions; record them
+with the package revision from `/health`. `compat` is not part of `all`.
 `all` includes pull and embeddings; provision `embed-nomic-v2-moe` first, or set
 `EMBED_MODEL=embed-bge-m3`. Set `XLLAMA_API_EVIDENCE_DIR` to retain the embedding
 requests and responses. The embedding gate verifies native widths, finite unit vectors,

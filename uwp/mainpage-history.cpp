@@ -205,7 +205,7 @@ void MainPageController::RenderConversation() {
         Run content;
         content.Text(::xllama::utf8_to_wstring(fmt.postprocess_output(msg.content)));
         if (msg.partial)
-            content.Text(content.Text() + L" [cancelled]");
+            content.Text(content.Text() + L" [incomplete]");
         p.Inlines().Append(content);
         if (msg.role == xllama::ui::MessageRole::Assistant)
             AppendFeedbackControls(p, message_index);

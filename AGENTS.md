@@ -114,17 +114,8 @@ One doctest case (wildcard, from the build directory's test binary):
 ./build/linux-test/tests/xllama-tests --test-case='*prompt_budget*'
 ```
 
-ASan and UBSan instrument the Linux bridge, CLI, tests, llama-common, llama and ggml CPU code. The sanitizer workflow runs on relevant pull requests, pushes to main and manual dispatch. Reproduce the combined gate with the Linux toolchain and the numerical smoke's Python dependencies:
-
-```bash
-cmake --preset linux-asan -DXLLAMA_ENABLE_UBSAN=ON -DCMAKE_CXX_FLAGS_DEBUG=-g1 -DCMAKE_C_FLAGS_DEBUG=-g1
-cmake --build build/linux-asan --parallel 2 --target xllama-cli
-cmake --build build/linux-asan/tests --parallel 2
-python3 scripts/check-sanitizer-build.py build/linux-asan
-export ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
-python3 scripts/run-cpu-smoke.py --build-dir build/linux-asan --model build/cpu-smoke/model.gguf
-XLLAMA_TEST_DECODE_FAULT_MODEL="$PWD/build/cpu-smoke/model.gguf" ctest --test-dir build/linux-asan --output-on-failure
-```
+ASan + UBSan (xllama, llama-common, llama and ggml CPU): the commands are
+[`.github/workflows/sanitizers.yml`](.github/workflows/sanitizers.yml). Its fixture has F32 weights only, so quantized ggml kernels are not exercised.
 
 Python checks that CI runs outside ctest:
 
@@ -147,7 +138,7 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
   tests/test_dependency_monitoring.py tests/test_host_training_env.py \
   tests/test_prepare_ort_source.py \
   tests/test_prepare_genai_source.py \
-  tests/test_d3d12_layer_log.py tests/test_ort_profile.py \
+  tests/test_d3d12_layer_log.py tests/test_d3d12_selftest.py tests/test_ort_profile.py \
   tests/test_bench_kv_driver.py tests/test_eval_standard.py tests/test_hellaswag_token_mean.py \
   tests/test_eval_standard_generative.py tests/test_benchmark_summary_standard.py \
   tests/test_apply_llama_patches.py
@@ -186,7 +177,7 @@ source ~/.config/xllama/xbox-env
 ./scripts/validate-console.sh <gate|all>
 # modes: serve|rate|serve-stale|rate-stale|lora-rt|device-train|all
 ./scripts/validate-console-training.sh <mode>
-./scripts/validate-api.sh <spike|discovery|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|all>
+./scripts/validate-api.sh <spike|discovery|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|compat|all>
 ```
 
 ## Code style
@@ -261,7 +252,7 @@ Load-bearing headers agents usually touch:
 | `platform.h` / `path_utils.h`        | Threads, logging, LocalState and model path resolution         |
 | `compute_admission.h`                | Process-wide RAII permit for resource-heavy GUI and API jobs   |
 | `api_connection.h`                   | Bounded LAN slots and HTTP 200/503 mapping for a compute admit |
-| `api_discovery.h`                    | `/health` capabilities and `/v1/models` per-model fields       |
+| `api_discovery.h`                    | `/health` capabilities, `/v1/models` and `/api/catalog` fields |
 | `debug_dashboard.h`                  | Optional debug dashboard snapshot (real readings)              |
 | `inference_params.h` / `inference.h` | Params, result, `run_inference`                                |
 | `inference_progress.h`               | Prefill/decode progress logs and stall watchdog                |

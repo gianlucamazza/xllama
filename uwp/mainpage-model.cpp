@@ -565,15 +565,19 @@ bool MainPageController::EnsureSession(const std::string& model, std::string* er
     // positive count; 0 or invalid stays auto. detect_threads_llama() is
     // capped at 6 on UWP. ORT reads intra_op_num_threads from genai_config.json.
     const xllama::SessionParams sp = ::xllama::CatalogueSessionParams(model);
+    // Every GUI turn, preload and model selection ensures its session here, so
+    // this is where the console app takes the session over from a LAN client:
+    // an Ollama keep_alive lease on it ends (session_residency.h).
     auto& hub = ::xllama::session_hub();
     if (hub.session && hub.model == model && ::xllama::same_load(hub.params, sp)) {
+        hub.use_locked(::xllama::SessionOwner::Gui);
         m_turn_session = hub.session.get();
         return true;
     }
     m_turn_session = nullptr;
     m_kv_valid = false; // new session object → no reusable KV carries over
     std::string err;
-    ::xllama::Session* s = ::xllama::session_hub().ensure_locked(model, sp, &err);
+    ::xllama::Session* s = hub.ensure_locked(model, sp, &err, ::xllama::SessionOwner::Gui);
     if (!s) {
         if (err_out)
             *err_out = err;

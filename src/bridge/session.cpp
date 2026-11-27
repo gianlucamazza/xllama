@@ -220,11 +220,17 @@ class OrtSession final : public Session {
         if (!gp.reset_kv && gp.expected_kv_epoch != 0 && gp.expected_kv_epoch != kv_epoch()) {
             // The persistent generator is not the one the caller left (see
             // GenerateParams::expected_kv_epoch); the caller retries in full.
+            res.retry_full_prompt = true;
             res.error_msg = "the resident context changed since the last turn";
             log_output("[xllama] session generate: " + res.error_msg + " — continuation refused\n");
             return;
         }
-        const bool reuse = !gp.reset_kv && sampling_matches(gp);
+        const bool reuse = !gp.reset_kv;
+        if (reuse && !sampling_matches(gp)) {
+            res.retry_full_prompt = true;
+            res.error_msg = "the resident generator cannot accept this continuation";
+            return;
+        }
         if (!reuse) {
             reset_chat_state();
             m_chat_params = make_params(gp);
@@ -254,15 +260,16 @@ class OrtSession final : public Session {
 
         // #173: a continuation that cannot fit (KV + delta + >=1 generated token
         // over n_ctx) is predictable from state we already hold — fail before
-        // touching the generator instead of letting the append discover it. The
-        // throw lands in generate()'s catch, which resets the chat state; the
-        // caller sees n_eval == 0 and falls back to a trimmed full prefill.
+        // touching the generator. The caller can refit the full conversation.
         if (reuse) {
             const int kv = static_cast<int>(OgaGenerator_GetSequenceCount(m_chat_gen.get(), 0));
-            if (kv + n_prompt_tok + 1 > m_n_ctx)
-                throw std::runtime_error("context full: kv=" + std::to_string(kv) +
-                                         " + delta=" + std::to_string(n_prompt_tok) +
-                                         " exceeds n_ctx=" + std::to_string(m_n_ctx));
+            if (kv + n_prompt_tok + 1 > m_n_ctx) {
+                res.retry_full_prompt = true;
+                res.error_msg = "context full: kv=" + std::to_string(kv) +
+                                " + delta=" + std::to_string(n_prompt_tok) +
+                                " exceeds n_ctx=" + std::to_string(m_n_ctx);
+                return;
+            }
         }
 
         if (gp.on_status)
@@ -279,6 +286,7 @@ class OrtSession final : public Session {
                    &wd);
         if (wd.stalled()) {
             res.success = false;
+            reset_chat_state();
             res.stalled = true;
             res.error_msg = wd.stall_error();
             log_output(("[xllama] " + res.error_msg + "\n").c_str());
@@ -746,6 +754,7 @@ class LlamaSession final : public Session {
             // turn (kv_epoch). Appending this delta would continue THEIR
             // conversation; refuse before touching anything so the caller's
             // full-prompt retry rebuilds its own context.
+            res.retry_full_prompt = true;
             res.error_msg = "the resident context changed since the last turn";
             log_output("[xllama] session generate: " + res.error_msg + " — continuation refused\n");
             return res;
@@ -976,6 +985,7 @@ class LlamaSession final : public Session {
                 // #173 fail-fast: the caller retries with the trimmed full
                 // prompt. Reached when the cache cannot shift, the bookkeeping
                 // is out of sync, or even a full eviction would not fit.
+                res.retry_full_prompt = true;
                 res.error_msg = "context full: kv=" + std::to_string(kv_len) +
                                 " + delta=" + std::to_string(n_pf) +
                                 " exceeds n_ctx=" + std::to_string(m_n_ctx);
@@ -1016,24 +1026,20 @@ class LlamaSession final : public Session {
         int n_prefilled = 0;
         bool captured_head = false;
 
-        auto fail_prefill = [&]() -> InferenceResult {
-            if (wd.stalled()) {
-                res.stalled = true;
-                res.error_msg = wd.stall_error();
-            } else if (wd.aborted()) {
-                res.error_msg = "aborted during prefill"; // Stop or a gone client (#580)
-            } else {
-                res.error_msg = "prompt decode failed";
-            }
-            log_output("[xllama] session generate: " + res.error_msg + "\n");
-            // The cache now holds a partial batch — nothing about it is
-            // trustworthy, so drop the record AND the cells. Clearing both keeps
-            // a continuation turn (which reads the cache length, not
-            // m_kv_tokens) from decoding on top of half a prefill.
+        auto invalidate_cache = [&] {
+            // llama_memory_clear does not drain queued backend work.
+            llama_synchronize(ctx);
+            m_sampler.reset();
             m_kv_tokens.clear();
             drop_prefix_snapshot();
             llama_memory_clear(mem, true);
             touch_kv();
+        };
+        int prefill_rc = 0;
+        auto prefill_failure = [&]() {
+            fail_prefill(res, prefill_rc, wd);
+            log_output("[xllama] session generate: " + res.error_msg + "\n");
+            invalidate_cache();
             return res;
         };
 
@@ -1045,8 +1051,8 @@ class LlamaSession final : public Session {
                 const bool head = point == capture_points.back();
                 const int n_seg = static_cast<int>(point - at);
                 if (n_seg > 0 && !prefill_chunked(ctx, tokens.data() + at, n_seg, &wd,
-                                                  static_cast<int>(at - kv_keep)))
-                    return fail_prefill();
+                                                  static_cast<int>(at - kv_keep), &prefill_rc))
+                    return prefill_failure();
                 at = point;
                 m_kv_tokens.assign(tokens.begin(),
                                    tokens.begin() + static_cast<std::ptrdiff_t>(at));
@@ -1066,13 +1072,13 @@ class LlamaSession final : public Session {
             }
             const int n_tail = static_cast<int>(prompt_n - at);
             if (!prefill_chunked(ctx, tokens.data() + at, n_tail, &wd,
-                                 static_cast<int>(at - kv_keep)))
-                return fail_prefill();
+                                 static_cast<int>(at - kv_keep), &prefill_rc))
+                return prefill_failure();
         } else if (n_pf > 0) {
             n_prefilled = n_pf;
             wd.enter_prefill(n_pf);
-            if (!prefill_chunked(ctx, pf, n_pf, &wd))
-                return fail_prefill();
+            if (!prefill_chunked(ctx, pf, n_pf, &wd, 0, &prefill_rc))
+                return prefill_failure();
         }
         if (n_prefilled > 0) {
             res.t_p_eval_ms = std::chrono::duration<double, std::milli>(
@@ -1169,38 +1175,21 @@ class LlamaSession final : public Session {
         wd.enter_decode(n_predict_eff);
         const DecodeLoopResult dlr = decode_loop(dlp, res.output_text);
         const int n_generated = dlr.n_generated;
-        const bool stopped_by_seq = dlr.ended_with_stop;
 
         res.t_eval_ms =
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_decode0)
                 .count();
         res.t_first_token_ms =
             dlr.first_token_ms > 0.0 ? res.t_p_eval_ms + dlr.first_token_ms : 0.0;
-        res.n_eval = n_generated;
-        res.ended_with_stop = stopped_by_seq;
-        res.n_drafted = dlr.n_drafted;
-        res.n_spec_accepted = dlr.n_accepted;
-        if (dlr.rewind_failed) {
-            // History and KV are untrustworthy — same class as a decode failure.
-            m_kv_tokens.clear();
-            drop_prefix_snapshot();
-            if (m_ctx)
-                llama_memory_clear(llama_get_memory(m_ctx.get()), /*data=*/true);
-            touch_kv();
-            res.success = false;
-            res.error_msg =
-                "speculative KV rewind unsupported (disable prompt_lookup for this model)";
-            log_output(("[xllama] " + res.error_msg + "\n").c_str());
+        finish_decode(dlr, res, wd);
+        // A cancelled verify batch may have advanced the sampler farther
+        // than the retained prefix. A partial reply can still be displayed.
+        if (!res.success || res.termination == DecodeTermination::Cancelled)
+            invalidate_cache();
+        if (!res.success) {
+            log_output("[xllama] " + res.error_msg + "\n");
             return res;
         }
-        if (wd.stalled()) {
-            res.success = false;
-            res.stalled = true;
-            res.error_msg = wd.stall_error();
-            log_output(("[xllama] " + res.error_msg + "\n").c_str());
-            return res;
-        }
-        res.success = true;
 
         char log_buf[320];
         snprintf(log_buf, sizeof(log_buf),

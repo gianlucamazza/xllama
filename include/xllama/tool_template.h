@@ -40,17 +40,18 @@ struct ToolParseResult {
     std::vector<IncomingCall> calls;
 };
 
-// model_id is the catalogue id or file name of the resident model. It decides
-// the template's `enable_thinking` through model_is_thinking (chat_prompt.h),
-// the same decision plain chat and /v1/models `reasoning` make (#655). Pass
-// the same id to parse_tool_generation so the parser matches the prompt.
-ToolTemplateResult render_tool_prompt(const void* llama_model, const std::string& model_id,
+// enable_thinking is the template's `enable_thinking`: the request's
+// effective reasoning (decide_reasoning in reasoning_control.h, #648), which
+// defaults to model_is_thinking, the decision plain chat renders too (#655).
+// Pass the same value to parse_tool_generation so the parser matches the
+// prompt.
+ToolTemplateResult render_tool_prompt(const void* llama_model, bool enable_thinking,
                                       const std::string& jinja_override,
                                       const std::vector<ChatMessage>& messages,
                                       const std::vector<ToolSpec>& tools, ToolChoice choice,
                                       const std::string& forced_name);
 
-ToolParseResult parse_tool_generation(const void* llama_model, const std::string& model_id,
+ToolParseResult parse_tool_generation(const void* llama_model, bool enable_thinking,
                                       const std::string& jinja_override,
                                       const std::vector<ChatMessage>& messages,
                                       const std::vector<ToolSpec>& tools, ToolChoice choice,
