@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate xllama's native Ollama text routes against a deployed build.
+"""Validate xllama's native Ollama routes and model residency on a deployed build.
 
 Run it from another host on the LAN (validate-api.sh compat does), for example:
 
@@ -13,6 +13,7 @@ docs/api-endpoint.md (Native Ollama generation).
 import argparse
 import importlib.metadata
 import json
+import time
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -92,7 +93,13 @@ def validate_native(base, model, tool_model, ort_model):
     expect_error(base, "/api/chat", {**chat, "model": "xllama-nonexistent-model"}, 404)
     thinking = models[model]["capabilities"]["reasoning"]
     read_json(base, "/api/chat", {**chat, "stream": False, "options": short, "think": thinking})
-    expect_error(base, "/api/chat", {**chat, "think": not thinking}, 400, "think")
+    # #648: think maps onto the reasoning control the model reports.
+    flipped = {**chat, "stream": False, "options": short, "think": not thinking}
+    if models[model]["capabilities"].get("reasoning_control"):
+        read_json(base, "/api/chat", flipped)
+    else:
+        expect_error(base, "/api/chat", flipped, 400, "reasoning")
+    expect_error(base, "/api/chat", {**chat, "think": "max"}, 400, "think")
     if ort_model:
         expect_error(base, "/api/chat", {**chat, "model": ort_model}, 400, "/v1/chat/completions")
     print("Refused fields and think passed")
@@ -142,6 +149,81 @@ def validate_native(base, model, tool_model, ort_model):
     print(f"Ollama tool proposal and replay passed with {tool_model}")
 
 
+def wait_until(base, predicate, seconds=15):
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        try:
+            models = read_json(base, "/api/ps")["models"]
+            assert len(models) <= 1, models
+            if predicate(models):
+                return models
+        except HTTPError as exc:
+            with exc:
+                assert exc.code == 503, exc.code  # a turn holds the session
+        time.sleep(0.2)
+    raise AssertionError("resident state did not converge")
+
+
+def validate_residency(base, model):
+    """keep_alive, /api/ps and options.num_ctx on a session the API loads.
+
+    A reduced context is a new load, so the session is the API's even when the
+    console app had this model resident: only then do leases and unloads apply.
+    """
+    health = read_json(base, "/health")
+    for capability in ("ollama_keep_alive", "chat_context"):
+        assert health["capabilities"][capability] is True, capability
+    catalogue = read_json(base, "/api/tags")["models"]
+    assert any(item["model"] == model for item in catalogue), catalogue
+    chat = {"model": model, "messages": [{"role": "user", "content": "Count to three."}]}
+    for route, body in (("/api/chat", chat), ("/v1/chat/completions", chat)):
+        native = route.startswith("/api/")
+        expect_error(base, route, {**body, "options": {"num_ctx": 31}}, 400, "num_ctx", native)
+        expect_error(base, route, {**body, "options": {"num_ctx": 10 ** 7}}, 400, "num_ctx",
+                     native)
+    expect_error(base, "/api/chat", {**chat, "keep_alive": "tomorrow"}, 400, "keep_alive")
+
+    ctx = 384
+    resident = lambda items, **fields: (len(items) == 1 and items[0]["model"] == model
+                                        and all(items[0].get(k) == v for k, v in fields.items()))
+    # Omitted keep_alive: resident with no expiry (unlike Ollama's five minutes).
+    loaded = read_json(base, "/api/generate", {"model": model, "options": {"num_ctx": ctx}})
+    assert loaded["done_reason"] == "load", loaded
+    items = wait_until(base, lambda i: resident(i, context_length=ctx, owner="api"))
+    assert "expires_at" not in items[0], items
+    # The OpenAI extension reuses the same load, and the reply limit follows it.
+    capped = read_json(base, "/v1/chat/completions", {
+        **chat, "temperature": 0, "max_completion_tokens": 1, "options": {"num_ctx": ctx}})
+    assert capped["choices"][0]["finish_reason"] == "length", capped
+    assert capped["usage"]["completion_tokens"] == 1, capped
+    wait_until(base, lambda i: resident(i, context_length=ctx, owner="api"))
+
+    # A finite lease expires the API's session after the reply, not before.
+    reply = read_json(base, "/api/generate", {
+        "model": model, "prompt": "Say hi.", "stream": False, "keep_alive": "3s",
+        "options": {"num_ctx": ctx, "num_predict": 1, "temperature": 0}})
+    assert reply["done_reason"] == "length" and reply["eval_count"] == 1, reply
+    observed = time.monotonic()
+    wait_until(base, lambda i: resident(i) and "expires_at" in i[0])
+    wait_until(base, lambda i: not i)
+    assert time.monotonic() - observed >= 2.5, "the lease expired early"
+
+    # A request without keep_alive ends a running lease.
+    read_json(base, "/api/chat", {"model": model, "keep_alive": "30s",
+                                  "options": {"num_ctx": ctx}})
+    wait_until(base, lambda i: resident(i, owner="api") and "expires_at" in i[0])
+    read_json(base, "/v1/chat/completions", {**chat, "max_completion_tokens": 4,
+                                             "options": {"num_ctx": ctx}})
+    wait_until(base, lambda i: resident(i) and "expires_at" not in i[0])
+
+    # keep_alive 0 unloads the API's session, idempotently.
+    for _ in range(2):
+        unloaded = read_json(base, "/api/generate", {"model": model, "keep_alive": 0})
+        assert unloaded["done_reason"] == "unload", unloaded
+        wait_until(base, lambda i: not i)
+    print(f"keep_alive, /api/ps and options.num_ctx passed with {model}")
+
+
 def validate_sdks(base, model):
     import ollama
     import openai
@@ -173,6 +255,7 @@ def main():
     args = parser.parse_args()
     base = args.url.rstrip("/")
     validate_native(base, args.model, args.tool_model, args.ort_model)
+    validate_residency(base, args.model)
     if args.sdks:
         validate_sdks(base, args.model)
 

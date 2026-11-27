@@ -50,6 +50,9 @@ std::vector<TextSpan> thinking_spans(std::string_view text);
 // counts when any of its bytes lies in a reasoning block, its tags included.
 class ReasoningTokenCounter {
   public:
+    // |prefill|: reply text the prompt already emitted (ChatFormat::
+    // reasoning_prefill), split with the reply but never counted as a token.
+    explicit ReasoningTokenCounter(std::string_view prefill = {}) : m_text(prefill) {}
     void push(std::string_view piece);
     // |think_blocks|: the reply is split on <think> blocks (a thinking model).
     // |parsed_reasoning|: what a template's parser extracted with its own
@@ -64,10 +67,13 @@ class ReasoningTokenCounter {
 // split_thinking on a stream. push() returns what can be emitted now; a piece
 // that might be the start of a tag is held until the next piece decides it.
 // A reply that starts inside the reasoning without an opener is not detected
-// here (the text was already emitted as content); the catalogue templates do
-// not open the block in the generation prompt, the model writes <think>.
+// here (the text was already emitted as content): a format whose prompt opens
+// the block passes it as |prefill| (ChatFormat::reasoning_prefill).
 class ThinkingStreamSplitter {
   public:
+    explicit ThinkingStreamSplitter(std::string_view prefill = {}) {
+        push(prefill);
+    }
     ThinkingSplit push(std::string_view piece);
     // Flush what was held: a partial tag at the end is ordinary text.
     ThinkingSplit finish();

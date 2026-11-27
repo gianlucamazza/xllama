@@ -64,6 +64,8 @@ add_executable(xllama-tests
     test_api_activity.cpp
     test_api_discovery.cpp
     test_api_ollama.cpp
+    test_reasoning_control.cpp
+    test_session_residency.cpp
     test_llama_patches.cpp
     test_thinking_split.cpp
     test_debug_dashboard.cpp
