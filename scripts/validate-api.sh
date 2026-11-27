@@ -205,6 +205,7 @@ h = json.loads(sys.argv[1])
 assert h["status"] == "ok" and h["service"] == "xllama", h
 assert isinstance(h["version"], str) and h["version"].count(".") == 3, h["version"]
 assert isinstance(h["api"], int) and h["api"] >= 1, h["api"]
+assert h["response_formats"] == ["text"], h.get("response_formats")
 caps = h["capabilities"]
 for key in ("tools", "tools_stream", "embeddings", "images", "pull", "preferences",
             "training_status", "reasoning_content", "reasoning_tokens", "cached_tokens"):
@@ -272,8 +273,10 @@ except Exception:
 
 	# #595: the same request again finds its prompt in the resident KV, so most
 	# of it is reported as cached (a GGUF model; ORT prefills everything).
-	local cached
-	cached=$(curl -sS -m 180 -H 'Content-Type: application/json' -d "$req" \
+	# Explicit text must accept the same prompt as the omitted response_format.
+	local cached text_req
+	text_req=$(python3 -c 'import json,sys; r=json.loads(sys.argv[1]); r["response_format"]={"type":"text"}; print(json.dumps(r))' "$req")
+	cached=$(curl -sS -m 180 -H 'Content-Type: application/json' -d "$text_req" \
 		"${API_URL}/v1/chat/completions" | python3 -c '
 import json, sys
 try:
@@ -294,6 +297,23 @@ print(m[0].get("kind", "") if m else "")
 		echo "  ok: repeated request cached ${BASH_REMATCH[1]} of ${BASH_REMATCH[2]} prompt tokens"
 	else
 		echo "  FAIL: repeated request did not report most of its prompt as cached: '${cached}'"
+		verdict=1
+	fi
+
+	# A structured-output request must fail before a missing model is looked up,
+	# even when the client asked for SSE. The error is one HTTP JSON response.
+	local format_status
+	format_status=$(curl -sS -m 15 -o "${TMPDIR_LOCAL}/format-error.json" -w '%{http_code}' \
+		-H 'Content-Type: application/json' \
+		-d '{"model":"xllama-missing-format-test-model","messages":[{"role":"user","content":"Hi"}],"stream":true,"response_format":{"type":"json_object"}}' \
+		"${API_URL}/v1/chat/completions" || true)
+	if [[ "$format_status" != 400 ]] || ! python3 -c '
+import json, sys
+with open(sys.argv[1]) as src:
+    err = json.load(src)["error"]
+sys.exit(0 if (err.get("code"), err.get("param")) == ("unsupported_response_format", "response_format") else 1)
+' "${TMPDIR_LOCAL}/format-error.json"; then
+		echo "  FAIL: expected HTTP 400 response_format validation error, got ${format_status}"
 		verdict=1
 	fi
 

@@ -626,6 +626,25 @@ curl -sS -o /tmp/xllama-gui-busy.json -w '%{http_code}\n' \
   (PR #161/#164)**: server and UI share the one `session_hub()` Session behind
   the same mutex — two loaded copies can no longer happen.
 
+### Chat response format
+
+When `GET /health` contains `"response_formats":["text"]`, omit
+`response_format` or send `{"type":"text"}` for ordinary chat. All other
+explicit values, including `json_object`, `json_schema`, null and extra
+object members, receive HTTP 400 with `error.code` equal to
+`unsupported_response_format` and `error.param` equal to `response_format`.
+This validation precedes compute admission, model lookup and the SSE response
+head. Tool proposals keep their own grammar and execution boundary.
+Earlier packages omitted the discovery field and could silently ignore an
+explicit format. A client requiring structured output must verify support
+before sending a request.
+
+For a live response-format check, keep the app in the foreground, install
+`openai==3.60.0` in a host Python environment and run
+`python scripts/validate-api-response-format.py http://<console-ip>:11434/v1 lfm25-350m`.
+The SDK checks successful default and explicit-text chat and inspects the HTTP
+400 code and parameter for malformed and unsupported formats with streaming requested.
+
 ## Validation
 
 See `scripts/validate-api.sh` (`spike|discovery|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all`). Run it **from another host on the LAN**,

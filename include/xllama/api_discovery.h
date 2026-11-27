@@ -18,6 +18,9 @@ namespace xllama {
 // a client must branch on (docs/api-endpoint.md, Discovery).
 inline constexpr int kApiContractVersion = 1;
 
+// The only explicit chat response_format supported by both backends.
+inline constexpr char kTextResponseFormat[] = "text";
+
 // Routes and response features this build serves.
 struct ApiCapabilities {
     bool tools = false;             // tool proposals on /v1/chat/completions

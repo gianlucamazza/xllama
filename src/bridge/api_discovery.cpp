@@ -71,6 +71,7 @@ std::string health_json(const std::string& version, const ApiCapabilities& caps,
     for (std::size_t i = 0; i < kApiSamplingFields.size(); ++i)
         out += std::string(i ? "," : "") + quoted(kApiSamplingFields[i].key);
     out += "]";
+    out += ",\"response_formats\":[" + quoted(kTextResponseFormat) + "]";
     if (!llama_cpp.empty()) {
         out += ",\"runtime\":{\"llama_cpp\":" + quoted(llama_cpp) + ",\"patches\":[";
         for (std::size_t i = 0; i < kLlamaPatches.size(); ++i)
