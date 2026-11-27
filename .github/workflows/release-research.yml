@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing research tag to release
+        description: Existing research tag at the selected workflow ref
         required: true
         type: string
 
@@ -18,15 +18,27 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-22.04
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          ref: ${{ inputs.tag || github.ref }}
 
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+
+      - name: Verify release source
+        run: |
+          expected="research-v$(python3 -c 'import tomllib; print(tomllib.load(open("release.toml","rb"))["release"]["version"])')"
+          test "$RELEASE_TAG" = "$expected"
+          tag_commit=$(git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}")
+          event_commit=$(git rev-parse --verify "${GITHUB_SHA}^{commit}")
+          if [[ "$tag_commit" != "$event_commit" || "$tag_commit" != "$(git rev-parse HEAD)" ]]; then
+            echo "::error::Select the release tag as the workflow ref so the tested source matches the attestation."
+            exit 1
+          fi
 
       - name: Validate release metadata and research evidence
         run: |
@@ -38,12 +50,6 @@ jobs:
       - name: Build tagged research bundle
         run: python3 scripts/build-release-bundle.py --ref "$GITHUB_SHA"
 
-      - name: Verify release tag
-        run: |
-          expected="research-v$(python3 -c 'import tomllib; print(tomllib.load(open("release.toml","rb"))["release"]["version"])')"
-          actual="${{ inputs.tag || github.ref_name }}"
-          test "$actual" = "$expected"
-
       - name: Attest release bundle
         uses: actions/attest-build-provenance@v4
         with:
@@ -53,9 +59,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          release_tag="${{ inputs.tag || github.ref_name }}"
-          gh release create "$release_tag" \
+          gh release create "$RELEASE_TAG" \
             --verify-tag \
-            --title "xLlama Research Report $release_tag" \
+            --title "xLlama Research Report $RELEASE_TAG" \
             --notes-file paper/release.md \
             release-bundle/*
