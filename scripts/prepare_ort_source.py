@@ -1,10 +1,10 @@
 """Verify the ORT rebuild source and materialize the reviewed AppContainer patch."""
 
-import os
 from pathlib import Path
 import subprocess
 import sys
-import tempfile
+
+from vendor_source import prepare as prepare_vendor_source
 
 
 # The repository.commit in the Microsoft.ML.OnnxRuntime.DirectML 1.24.4 NuGet manifest.
@@ -14,48 +14,7 @@ PATCH = Path(__file__).resolve().parents[1] / "patches/onnxruntime-extdata-appco
 
 
 def prepare(source, pin, patch):
-    def git(*args, env=None):
-        return subprocess.check_output(["git", *args], cwd=source, env=env)
-
-    if git("rev-parse", "--show-prefix").strip() or git("rev-parse", "HEAD").decode().strip() != pin:
-        raise ValueError(f"ORT rebuild requires a checkout rooted at {source} at {pin}")
-    if git("ls-files", "--others", "--exclude-standard", "-z"):
-        raise ValueError("ORT checkout contains untracked source files; use a clean checkout")
-    # Ignored files (a previous build/, caches) are invisible to the tree
-    # comparison below but can still be compiled in.
-    if git("ls-files", "--others", "--ignored", "--exclude-standard", "-z"):
-        raise ValueError("ORT checkout contains ignored files (old build output?); use a clean checkout")
-    # assume-unchanged (lowercase tag) and skip-worktree (S) entries hide local
-    # edits from `git diff`, so the tree comparison would pass over them.
-    for entry in git("ls-files", "-v", "-z").split(b"\0"):
-        if entry and (entry[:1].islower() or entry[:1] == b"S"):
-            raise ValueError("ORT checkout has assume-unchanged or skip-worktree entries")
-    git("diff", "--cached", "--quiet", "HEAD", "--")
-
-    # Derive the only acceptable result from the pinned tree, independent of
-    # local edits. A reverse check alone accepts unrelated tracked changes.
-    with tempfile.TemporaryDirectory() as directory:
-        env = dict(os.environ, GIT_INDEX_FILE=str(Path(directory) / "index"))
-        git("read-tree", pin, env=env)
-        git("apply", "--cached", str(patch), env=env)
-        patched_tree = git("write-tree", env=env).decode().strip()
-
-    def matches(tree):
-        result = subprocess.run(
-            ["git", "diff", "--quiet", "--no-ext-diff", "--ignore-submodules=none", tree, "--"],
-            cwd=source,
-        )
-        if result.returncode not in (0, 1):
-            result.check_returncode()
-        return result.returncode == 0
-
-    if not matches(patched_tree):
-        if not matches(pin):
-            raise ValueError("ORT source differs from both the pinned tree and the reviewed overlay")
-        git("apply", str(patch))
-        if not matches(patched_tree):
-            raise ValueError("ORT source verification failed after patching")
-    return patched_tree
+    return prepare_vendor_source(source, pin, patch, label="ORT")
 
 
 if __name__ == "__main__":
