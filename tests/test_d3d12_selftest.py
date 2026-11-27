@@ -9,6 +9,7 @@ import io
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 import unittest
@@ -129,6 +130,34 @@ esac
                                     (sub, dict(allow_unavailable=True))]:
                 with self.subTest(typ=typ, args=args), self.assertRaises(ValueError):
                     verify(candidate, **args)
+
+    def test_cli_status_with_rope_and_decode_floor_boundaries(self):
+        rows = receipt("rope")
+        # Every RoPE decode and the unaligned IQ3_XXS case are correctness-only.
+        for row in rows:
+            if row["type"].startswith("rope_") or row["n"] == "3":
+                row["packed_gbs"] = "0"
+        iq3 = next(r for r in rows if r["type"] == "iq3_xxs" and r["n"] == "2048")
+        iq4 = next(r for r in rows if r["type"] == "iq4_xs" and r["n"] == "2048")
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "out.csv"
+            log = Path(temp) / "run.log"
+            log.write_text(ROPE_LOG)
+            for iq3_gbs, iq4_gbs, failure in (("55", "100", ""), ("54.9", "100", "iq3_xxs"),
+                                               ("55", "99.9", "iq4_xs")):
+                iq3["packed_gbs"], iq4["packed_gbs"] = iq3_gbs, iq4_gbs
+                with path.open("w", newline="") as stream:
+                    writer = csv.DictWriter(stream, fieldnames=rows[0].keys())
+                    writer.writeheader()
+                    writer.writerows(rows)
+                result = subprocess.run([sys.executable, SPEC.origin, path, "--require-rope",
+                                         "--run-log", log], text=True, capture_output=True)
+                self.assertEqual(result.returncode, 1 if failure else 0)
+                if failure:
+                    self.assertIn("GATE=FAIL", result.stderr)
+                    self.assertIn(failure, result.stderr)
+                else:
+                    self.assertIn("GATE=PASS", result.stdout)
 
     def test_missing_and_malformed_fields(self):
         rows = receipt("off")
