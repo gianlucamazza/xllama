@@ -10,8 +10,8 @@ landed, **five screenshots** captured (§9), **D1 App vs Game measured**
 (§6 — request Game metadata), and **reduced-SKU console smoke PASS** (§10 —
 CI run `32963270335`, catalogue signature verification + download + GGUF chat +
 `set_api` reject). Current Dev evidence is recorded per release under
-`bench/results/*-series-s-release/`; the newest on `main` is the v1.10.0
-record, [`bench/results/2026-11-27-v1100-series-s-release/`](../bench/results/2026-11-27-v1100-series-s-release/README.md).
+`bench/results/*-series-s-release/`; the newest is the v1.11.0
+record, [`bench/results/2026-11-27-v1110-series-s-release/`](../bench/results/2026-11-27-v1110-series-s-release/README.md).
 The 2026-08-26 capture `bench/results/phase17-console-2026-08-26.csv` (3
 warm-state repetitions) is historical. Methodology and the missing external
 power evidence are documented in `bench/README.md`. The catalogue verifier uses the pinned `release-v1` RSA
