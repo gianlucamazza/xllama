@@ -8,6 +8,7 @@ import csv
 import math
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 
 FIELDS = "type n k ncols rel_err gpu_ms packed_gbs ok d3d12_ran host date error".split()
@@ -55,6 +56,14 @@ def verify(stream, log="", bias=False, rope=False, allow_unavailable=False):
     for row in reader:
         if None in row or any(not (row[k] or "").strip() for k in FIELDS):
             raise ValueError(f"line {reader.line_num}: incomplete or overlong row")
+        if row["host"] != "xbox-series-s":
+            raise ValueError(f"line {reader.line_num}: expected xbox-series-s host")
+        try:
+            timestamp = datetime.strptime(row["date"], "%Y-%m-%dT%H:%M:%SZ")
+        except ValueError as exc:
+            raise ValueError(f"line {reader.line_num}: invalid UTC date") from exc
+        if timestamp.isoformat(timespec="seconds") + "Z" != row["date"]:
+            raise ValueError(f"line {reader.line_num}: noncanonical UTC date")
         typ = row["type"]
         key = (typ, *(int(row[k]) for k in ("n", "k", "ncols")))
         if key not in expected:

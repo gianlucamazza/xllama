@@ -174,6 +174,16 @@ esac
             with self.subTest(key=key), self.assertRaises(ValueError):
                 verify([dict(rows[0], **{key: "0"})] + rows[1:])
 
+    def test_console_host_and_per_row_utc_timestamp(self):
+        rows = receipt("off")
+        rows[-1]["date"] = "2028-02-29T23:59:59Z"
+        self.assertEqual(verify(rows), len(rows))
+        for field, value in (("host", "xbox-series-x"), ("host", "unknown"), ("date", "NaN"),
+                             ("date", "2026-02-29T10:00:00Z"), ("date", "2026-11-27T24:00:00Z"),
+                             ("date", "2026-1-7T01:02:03Z"), ("date", "2026-11-27T01:02:03+00:00")):
+            with self.subTest(field=field, value=value), self.assertRaisesRegex(ValueError, field):
+                verify(rows[:-1] + [dict(rows[-1], **{field: value})])
+
     def test_numeric_floors_and_tolerance(self):
         rows = receipt("off")
         for typ, key, value in (("q4_0", "packed_gbs", "99.99"), ("iq3_xxs", "packed_gbs", "54.99"),
