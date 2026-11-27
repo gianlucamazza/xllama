@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Streamed chat honours `stream_options.include_usage`.** OpenAI SDKs ask for usage this way; xllama always put it on the finish chunk. With `include_usage: true` every chunk carries `"usage": null` and a last chunk with `"choices": []` carries the totals; `false` leaves usage out. Without the option the layout is unchanged. Other `stream_options` keys are ignored; a non-boolean `include_usage`, or `stream_options` without `stream: true`, is HTTP 400 with `error.param` `stream_options`.
+
 ## [1.10.0]
 
 User-facing notes: [docs/releases/v1.10.0.md](docs/releases/v1.10.0.md).

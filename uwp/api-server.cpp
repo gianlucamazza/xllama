@@ -402,11 +402,11 @@ std::optional<StreamUsage> stream_usage(JsonObject const& root, bool stream) {
         return StreamUsage::Legacy;
     if (!stream || value.ValueType() != JsonValueType::Object)
         return std::nullopt;
+    // Other keys (the SDKs' include_obfuscation, future ones) are ignored, as
+    // OpenAI-compatible servers do; only include_usage changes the stream.
     const auto options = value.GetObject();
-    if (options.Size() == 0)
+    if (!options.HasKey(L"include_usage"))
         return StreamUsage::Legacy;
-    if (options.Size() != 1 || !options.HasKey(L"include_usage"))
-        return std::nullopt;
     const auto include = options.GetNamedValue(L"include_usage");
     if (include.ValueType() != JsonValueType::Boolean)
         return std::nullopt;
@@ -1123,8 +1123,8 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
 
     if (!stream_usage(root, stream)) {
         status = "400 Bad Request";
-        return error_json("stream_options requires stream:true and an object supporting only "
-                          "a boolean include_usage",
+        return error_json("stream_options requires stream:true and an object whose "
+                          "include_usage, if present, is a boolean",
                           "invalid_value", "stream_options");
     }
 

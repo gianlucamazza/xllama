@@ -417,12 +417,13 @@ calls the template re-renders differently, or an edited earlier turn.
 text/event-stream` over chunked transfer (no `Content-Length`) and the socket closes at the
 end. Plain chat emits raw token pieces using `GenerateParams::on_token`. The writer
 holds back any suffix that could still complete a stop sequence and drops the match.
-By default xLlama retains the finish chunk with usage. With
+By default xllama keeps the finish chunk with usage. With
 `"stream_options":{"include_usage":true}`, every choice chunk has `"usage":null`
 and a separate final chunk with `"choices":[]` carries the totals before
 `[DONE]`, for plain chat and tool proposals. Explicit `false` omits usage.
 An interrupted stream may end before the totals arrive. A non-null options
-object requires `stream:true`; its only supported key is boolean `include_usage`.
+object requires `stream:true`; `include_usage`, when present, must be a boolean, and
+other keys such as `include_obfuscation` are ignored.
 
 A failure after the head travels as an `{"error":{...}}` event.
 

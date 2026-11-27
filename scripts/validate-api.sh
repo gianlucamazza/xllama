@@ -392,10 +392,11 @@ else:
 	for mode in true false; do
 		validate_tool_stream "{\"stream_options\":{\"include_usage\":${mode}},${req:1}" text "${mode}" || verdict=1
 	done
+	# An SDK option this server does not implement is ignored, not refused.
+	validate_tool_stream "{\"stream_options\":{\"include_usage\":true,\"include_obfuscation\":false},${req:1}" text true || verdict=1
 	local invalid
 	for invalid in '"stream":true,"stream_options":[]' \
 		'"stream":true,"stream_options":{"include_usage":"yes"}' \
-		'"stream":true,"stream_options":{"unknown":true}' \
 		'"stream":false,"stream_options":{"include_usage":true}'; do
 		code=$(post_chat "{${invalid}}" "${TMPDIR_LOCAL}/bad-stream-options.json")
 		if [[ "$code" != 400 ]] || ! python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["error"]["param"] == "stream_options"' "${TMPDIR_LOCAL}/bad-stream-options.json"; then
@@ -1060,6 +1061,13 @@ print("ok")
 		fi
 	done
 
+	# The default layout (usage on the finish chunk) stays covered for tool streams.
+	if validate_tool_stream "{\"stream\":true,${named_request:1}" tool_calls; then
+		echo "  G0 ok: SSE tool proposal keeps usage on the finish chunk by default"
+	else
+		echo "  G0 FAIL: default SSE tool-proposal layout"
+		verdict=1
+	fi
 	if validate_tool_stream "{\"stream\":true,\"stream_options\":{\"include_usage\":true},${named_request:1}" tool_calls true; then
 		echo "  G ok: SSE returned indexed get_weather and tool_calls finish"
 		result_request=$(python3 - "$result_request" "${TMPDIR_LOCAL}/streamed-call.json" <<'PYTOOLRESULT'
