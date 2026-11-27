@@ -180,9 +180,9 @@ the catalogue is what the app can be pointed at, not a claim that it should be. 
 row keeps its measurement so the negative result is not re-derived by the next
 person who wonders.
 
-| Model         | Catalogue      | Quant    | Weights |    Est. peak | Status                                                                                                                      |
-| ------------- | -------------- | -------- | ------: | -----------: | --------------------------------------------------------------------------------------------------------------------------- |
-| LFM2.5-8B-A1B | `lfm25-8b-a1b` | UD-IQ3_S | 3571 MB | **3553 MiB** | **H2 FAIL** (2026-07-30) · 32 experts / 4 active · 14.50 tok/s = the dense 3B at +1437 MiB, and ~4× worse perceived latency |
+| Model         | Catalogue      | Quant    | Weights |    Est. peak | Status                                                                                                                                                        |
+| ------------- | -------------- | -------- | ------: | -----------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| LFM2.5-8B-A1B | `lfm25-8b-a1b` | UD-IQ3_S | 3571 MB | **3553 MiB** | **H2 FAIL** (2026-07-30) · 32 experts / 4 active · 14.50 tok/s = the dense 3B at +1437 MiB, and ~4× worse perceived latency · n_ctx 8192: 3647 MB peak (#649) |
 
 Why it is admissible at all: the console heap ceiling was measured at 4864 MB
 committed (`phase15-ramceil`), and that is what decided IQ3_S over Q2 — a Q2 result
@@ -191,6 +191,12 @@ compiles into the UWP static lib via the `src/models/*.cpp` wildcard. Two risks 
 on record before the run: the ~4.0 GB estimate **breaks the 3.5 GB product gate**
 even though it clears H2's 4 GB one, and the model reasons on every turn without
 saying so in its name, so it is wired as a thinking model.
+
+**Context (2026-11-27, #649).** The entry opens at `n_ctx` 8192. On Series S the peak is 3647 MB
+with a 7809-token prompt (3508 MB at 2048), against the 4864 MB heap ceiling. Only six of the 24
+layers hold KV, at 12 KiB per token, so the window costs about 140 MB. Prefill runs at about
+60 tokens/s. Decode past 2048 tokens is not measured
+([`2026-11-27-lfm25-8b-nctx/`](../bench/results/2026-11-27-lfm25-8b-nctx/)).
 
 In plain chat without tools (2026-11-27 eval,
 [`2026-11-27-lfm25-card-sampling/`](../bench/results/2026-11-27-lfm25-card-sampling/)), it
