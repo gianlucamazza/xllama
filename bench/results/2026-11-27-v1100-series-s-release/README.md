@@ -18,7 +18,7 @@ Times are UTC.
 
 | Gate                           | Command                                                  | Result                                                                                                               | Receipt                                                             |
 | ------------------------------ | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| In-place update                | `deploy.sh <msix>`                                       | PASS: the LocalState listing (top level, 13 model folders, 18 chats, KV snapshots) was identical before and after    | `localstate-before.txt`, `localstate-after.txt`, `restoration.json` |
+| In-place update                | `deploy.sh <msix>`                                       | PASS: the LocalState listing (top level, 13 model folders, 17 chats plus `index.json`, KV snapshots) was identical before and after    | `localstate-before.txt`, `localstate-after.txt`, `restoration.json` |
 | Console suite (10 gates)       | `validate-console.sh all`                                | PASS, 10/10                                                                                                          | `console-gates.json`, `validate-console.log`                        |
 | LAN API suite (12 gates)       | `validate-api.sh all`, `ORT_MODEL=smollm2-360m-cpu-int4` | PASS, 12/12                                                                                                          | `api-gates.json`, `validate-api.log`                                |
 | Client disconnect (#581, #594) | `validate-api.sh disconnect`                             | PASS: a probe was served 9 s after a plain stream's client left and 10 s after a tool-proposal stream's (limit 30 s) | `validate-api-disconnect.log`                                       |
@@ -41,7 +41,7 @@ the receipts.
 ## Restoration
 
 The six chats the gates created were removed afterwards. Their titles are the gates' prompts, such as
-"Review this code." and "What is 2+2? …". That leaves the 18 chats there were before
+"Review this code." and "What is 2+2? …". That leaves the 17 chats (plus `index.json`) there were before
 (`localstate-restored.txt`). The only remaining difference from `localstate-before.txt` is the #170b
 gate's KV snapshot (`ap-170b-switch-*.kv`), which the new run replaced with its own.
 `localstate-end.txt` is the listing before the gate chats were removed.
