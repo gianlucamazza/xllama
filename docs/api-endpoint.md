@@ -181,6 +181,7 @@ failed` line with the cause. `malformed request body` (400) means only that a
 | `POST`    | `/api/chat`              | Native Ollama chat and tool proposals on GGUF models; NDJSON, or JSON with `stream: false` ([Native Ollama](#native-ollama-generation-apichat-apigenerate)).                        |
 | `POST`    | `/api/generate`          | Native Ollama prompt completion through the model's chat template; NDJSON or JSON as `/api/chat`.                                                                                   |
 | `GET`     | `/api/ps`                | Ollama resident-model discovery: zero or one model, its loaded context, who holds it, and the lease expiry ([Model residency](#model-residency-keep_alive-apips)).                  |
+| `GET`     | `/api/catalog`           | The downloadable catalogue: every trusted entry `/api/pull` may fetch, installed or not, with `size_bytes`, `installed` and `pullable` ([Catalogue](#catalogue-apicatalog)).        |
 | `POST`    | `/api/pull`              | Download a trusted chat or embedding model from the built-in model list (Ollama-style NDJSON progress), then load it.                                                               |
 | `POST`    | `/v1/chat/completions`   | OpenAI-compatible chat completion; one JSON body, or **SSE** chunk events when `stream: true`.                                                                                      |
 | `POST`    | `/api/embed`             | Ollama-style embeddings for one string or a batch, catalogue embedding GGUF/llama.cpp only.                                                                                         |
@@ -217,7 +218,8 @@ to branch on (`include/xllama/api_discovery.h`):
     "ollama_chat": true,
     "ollama_keep_alive": true,
     "chat_context": true,
-    "reasoning_control": true
+    "reasoning_control": true,
+    "catalog": true
   },
   "sampling": ["temperature", "top_p", "top_k", "repetition_penalty", "seed"],
   "runtime": {
@@ -247,7 +249,8 @@ llama.cpp); which models they accept is the per-model capability below.
 [Model residency](#model-residency-keep_alive-apips); `chat_context` means a chat
 request may reduce the context with `options.num_ctx`; `reasoning_control` means
 a chat request may switch reasoning where the model allows it
-([Reasoning control](#reasoning-control-reasoning_effort-enable_thinking-think)). `runtime`
+([Reasoning control](#reasoning-control-reasoning_effort-enable_thinking-think)). `catalog` means the build
+serves `GET /api/catalog` ([Catalogue](#catalogue-apicatalog)). `runtime`
 names the llama.cpp commit the build compiles (llama.cpp's own build info; the
 commit only, since its build number counts the submodule history and reads 1 in
 a shallow checkout) and the patches applied to it
@@ -300,6 +303,78 @@ table:
   }
 }
 ```
+
+### Catalogue (`/api/catalog`)
+
+`/v1/models` and `/api/catalog` answer two different questions, and neither
+replaces the other:
+
+- `/v1/models` is **servable**: the models on the console now, any of which a
+  chat request may name. OpenAI clients such as Open WebUI list it, so it never
+  shows a model that is not installed.
+- `/api/catalog` is **downloadable**: every entry of the catalogue bundled in
+  the installed package, the same list `POST /api/pull` downloads from
+  (`LoadModelManifest(&trust, false)`), installed or not. A LocalState catalogue
+  override is not in it. Withdrawn ids (`include/xllama/withdrawn_models.h`) and
+  diffusion assets are left out (`catalog_lists_entry` in
+  `include/xllama/api_discovery.h`).
+
+A client that suggests downloads reads `/api/catalog` instead of keeping its
+own copy of `uwp/models/manifest.json`. On a server whose `/health` has no
+`capabilities.catalog`, the route does not exist (404): the client should show
+no suggestions and say the server is too old for them.
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "lfm25-1.2b-instruct",
+      "display": "LFM2.5 1.2B Instruct (GGUF · GPU · balanced · QAD)",
+      "kind": "gguf",
+      "role": "",
+      "n_ctx": 2048,
+      "size_bytes": 695766084,
+      "installed": false,
+      "pullable": true,
+      "sampling": {
+        "temperature": 0.1,
+        "top_p": 0.9,
+        "top_k": 50,
+        "repetition_penalty": 1.05,
+        "source": {
+          "temperature": "model",
+          "top_p": "default",
+          "top_k": "model",
+          "repetition_penalty": "model"
+        }
+      },
+      "capabilities": { "reasoning": false, "embedding": false }
+    }
+  ]
+}
+```
+
+| Field          | Meaning                                                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`           | Catalogue id: the `model` of `POST /api/pull`, and of chat once installed                                                                        |
+| `display`      | Catalogue display name                                                                                                                           |
+| `kind`         | `gguf` or `ort-genai`                                                                                                                            |
+| `role`         | Catalogue role: `""`, `coding` or `embedding`                                                                                                    |
+| `n_ctx`        | Context a session of this entry opens with (`catalogue_n_ctx`, the rule `/v1/models` uses for a model that is not resident)                      |
+| `size_bytes`   | Sum of the entry's `files[].approx_bytes`: the approximate download, `0` when the catalogue gives no size                                        |
+| `installed`    | `true` when `/v1/models` lists the id                                                                                                            |
+| `pullable`     | `true` when `POST /api/pull` would pass its catalogue checks now: HTTPS source, SHA-256 pins, chat or embedding, Store signature, no override    |
+| `sampling`     | Chat models only (absent for `embedding`): the `/v1/models` `sampling` object, from the bundled entry                                            |
+| `capabilities` | What is known without the file: `reasoning` and `embedding`. `tools` is not here: it reads the GGUF's chat template, so only `/v1/models` has it |
+
+`pullable` comes from the same descriptor and admission `POST /api/pull` builds
+(`api_pull_model_allowed` in `include/xllama/api_pull_policy.h`), so it is
+`false` on a Store build whose catalogue signature does not verify, and on an
+entry a LocalState override shadows. It does not cover a busy pull gate or a
+full volume; those are answered by the pull itself. `installed` and `pullable`
+are independent: an installed entry keeps the `pullable` its catalogue checks
+give.
 
 ### Native Ollama generation (`/api/chat`, `/api/generate`)
 
@@ -926,7 +1001,7 @@ The SDK checks successful default and explicit-text chat and inspects the HTTP
 See `scripts/validate-api.sh` (`spike|discovery|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|compat|all`). Run it **from another host on the LAN**,
 not from a client on the console itself — cross-device inbound needs no loopback exemption,
 but a same-host localhost client would (`CheckNetIsolation`). Spike gate first (`GET /` → 200
-proves the bind survives the Series S firewall/PLM), then chat / prefs / train as needed. `tools` checks the tool-proposal contract:
+proves the bind survives the Series S firewall/PLM), then chat / prefs / train as needed. `discovery` checks the `/health` and `/v1/models` fields and, when `/health` reports `capabilities.catalog`, the `/api/catalog` shape: every entry's fields, `sampling` with a `source` per field on chat entries, and each `installed` id present in `/v1/models`. `tools` checks the tool-proposal contract:
 a named `tool_choice` returns a `get_weather` call with JSON arguments, a `tool`
 result is answered, `tools` + `functions` is `400`, `tool_choice: "none"`
 stays plain chat, and an oversized `tools` array is `400` with the

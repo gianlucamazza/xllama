@@ -975,7 +975,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | Test file                          | Under test                                                                                                                                            |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `test_api_activity.cpp`            | `api_activity.h`                                                                                                                                      |
-| `test_api_discovery.cpp`           | `api_discovery.h` (`/health` and `/v1/models` shapes)                                                                                                 |
+| `test_api_discovery.cpp`           | `api_discovery.h` (`/health`, `/v1/models` and `/api/catalog` shapes)                                                                                 |
 | `cpu_smoke.cpp`                    | `session.h`, `decode_loop.h` (native CPU GGUF numerics; run by `scripts/run-cpu-smoke.py`, not ctest)                                                 |
 | `test_api_ollama.cpp`              | `api_ollama.h` (native Ollama request translation, refusals, `think`, tool replay, `keep_alive`, `num_ctx`, `ollama_chat_model`)                      |
 | `test_reasoning_control.cpp`       | `reasoning_control.h` (#648 policy table, `reasoning_effort` / `enable_thinking` parsing, plain-chat and tool renders of the effective decision)      |

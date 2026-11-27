@@ -257,7 +257,7 @@ Load-bearing headers agents usually touch:
 | `platform.h` / `path_utils.h`        | Threads, logging, LocalState and model path resolution         |
 | `compute_admission.h`                | Process-wide RAII permit for resource-heavy GUI and API jobs   |
 | `api_connection.h`                   | Bounded LAN slots and HTTP 200/503 mapping for a compute admit |
-| `api_discovery.h`                    | `/health` capabilities and `/v1/models` per-model fields       |
+| `api_discovery.h`                    | `/health` capabilities, `/v1/models` and `/api/catalog` fields |
 | `debug_dashboard.h`                  | Optional debug dashboard snapshot (real readings)              |
 | `inference_params.h` / `inference.h` | Params, result, `run_inference`                                |
 | `inference_progress.h`               | Prefill/decode progress logs and stall watchdog                |

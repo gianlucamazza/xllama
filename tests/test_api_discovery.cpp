@@ -29,7 +29,8 @@ TEST_CASE("health_json keeps the original fields first and adds version, api, ca
     CHECK(j["capabilities"]["ollama_keep_alive"] == false);
     CHECK(j["capabilities"]["chat_context"] == false);
     CHECK(j["capabilities"]["reasoning_control"] == false);
-    CHECK(j["capabilities"].size() == 15);
+    CHECK(j["capabilities"]["catalog"] == false);
+    CHECK(j["capabilities"].size() == 16);
     // The accepted sampling fields, from the same table the request is checked against.
     CHECK(j["sampling"] ==
           json::array({"temperature", "top_p", "top_k", "repetition_penalty", "seed"}));
@@ -73,6 +74,69 @@ TEST_CASE("build_api_capabilities follows the compiled backends") {
     CHECK(caps.ollama_chat);
     CHECK(caps.ollama_keep_alive);
 #endif
+    CHECK(caps.catalog);
+}
+
+TEST_CASE("catalog_lists_entry leaves out withdrawn ids and diffusion assets") {
+    CHECK(xllama::catalog_lists_entry("lfm25-350m", "gguf"));
+    CHECK(xllama::catalog_lists_entry("smollm2-360m-cpu-int4", "ort-genai"));
+    CHECK(xllama::catalog_lists_entry("embed-bge-m3", "gguf"));
+    CHECK_FALSE(xllama::catalog_lists_entry("qwen25-coder-3b", "gguf"));
+    CHECK_FALSE(xllama::catalog_lists_entry("sd-turbo", "diffusion"));
+    CHECK_FALSE(xllama::catalog_lists_entry("", "gguf"));
+}
+
+TEST_CASE("catalog_json lists downloadable entries with size, install and pull state") {
+    xllama::CatalogEntryInfo chat;
+    chat.id = "lfm25-1.2b-thinking";
+    chat.display = "LFM2.5 1.2B Thinking";
+    chat.kind = "gguf";
+    chat.n_ctx = 4096;
+    chat.size_bytes = 5000000000ULL; // past 32 bits: a whole number, not a float
+    chat.installed = true;
+    chat.pullable = true;
+    chat.reasoning = true;
+    xllama::SamplingOverrides card;
+    card.temperature = 0.05f;
+    chat.has_sampling = true;
+    chat.sampling = xllama::resolve_sampling(card);
+    xllama::CatalogEntryInfo embed;
+    embed.id = "embed-bge-m3";
+    embed.display = "BGE-M3";
+    embed.kind = "gguf";
+    embed.role = "embedding";
+    embed.n_ctx = 8192;
+    embed.embedding = true;
+    const std::string body = xllama::catalog_json({chat, embed});
+    const json j = json::parse(body);
+    CHECK(j["object"] == "list");
+    REQUIRE(j["data"].size() == 2);
+    const json& a = j["data"][0];
+    CHECK(a["id"] == "lfm25-1.2b-thinking");
+    CHECK(a["display"] == "LFM2.5 1.2B Thinking");
+    CHECK(a["kind"] == "gguf");
+    CHECK(a["role"] == "");
+    CHECK(a["n_ctx"] == 4096);
+    CHECK(body.find("\"size_bytes\":5000000000,") != std::string::npos);
+    CHECK(a["size_bytes"].get<std::uint64_t>() == 5000000000ULL);
+    CHECK(a["installed"] == true);
+    CHECK(a["pullable"] == true);
+    CHECK(a["capabilities"] == json({{"reasoning", true}, {"embedding", false}}));
+    // The same sampling object /v1/models reports, sources included.
+    CHECK(a["sampling"]["temperature"].get<double>() == doctest::Approx(0.05));
+    CHECK(a["sampling"]["source"]["temperature"] == "model");
+    CHECK(a["sampling"]["source"]["top_k"] == "default");
+    // Not an OpenAI model object: a catalogue entry is not a servable model.
+    CHECK_FALSE(a.contains("object"));
+    const json& b = j["data"][1];
+    CHECK(b["role"] == "embedding");
+    CHECK(b["size_bytes"] == 0);
+    CHECK(b["installed"] == false);
+    CHECK(b["pullable"] == false);
+    CHECK_FALSE(b.contains("sampling"));
+    CHECK(b["capabilities"]["embedding"] == true);
+    CHECK(json::parse(xllama::catalog_json({})) ==
+          json({{"object", "list"}, {"data", json::array()}}));
 }
 
 TEST_CASE("models_list_json is an OpenAI list with xllama's per-model fields") {
