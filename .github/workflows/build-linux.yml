@@ -150,6 +150,9 @@ jobs:
       - name: Verify host training model trust policy
         run: python3 -m unittest tests/test_host_model_trust.py tests/test_host_training_env.py
 
+      - name: Verify ORT vendor source preparation
+        run: python3 -m unittest tests/test_prepare_ort_source.py
+
       - name: Verify KV benchmark driver arguments
         run: python3 -m unittest tests/test_bench_kv_driver.py
 
