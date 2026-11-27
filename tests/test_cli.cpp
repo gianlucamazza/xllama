@@ -144,6 +144,9 @@ TEST_CASE("CLI parsing: representability and option-specific domains") {
     }
     CHECK_FALSE(parse_option("--top-p", "-0.1", params));
     CHECK_FALSE(parse_option("--top-p", "1.1", params));
+    CHECK_FALSE(parse_option("--top-p", "1.00000001", params));
+    CHECK_FALSE(parse_option("--temp", "2.00000001", params));
+    CHECK_FALSE(parse_option("--repetition-penalty", "2.00000001", params));
     CHECK_FALSE(parse_option("--dump-logits-stride", "0", params));
     CHECK(parse_option("--dump-logits-stride", "1", params));
     CHECK(parse_option("--threads", "512", params));

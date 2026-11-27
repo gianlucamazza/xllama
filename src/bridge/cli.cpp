@@ -157,8 +157,7 @@ template <class Real = double> static std::optional<double> parse_real(std::stri
 template <class T>
 static bool parse_sampling(const char* key, const char* text, T& out, std::string& error) {
     const ApiSamplingField* field = find_api_sampling_field(key);
-    using Real = std::conditional_t<std::is_floating_point_v<T>, T, double>;
-    const std::optional<double> v = parse_real<Real>(text);
+    const std::optional<double> v = parse_real(text);
     if (!field || !v) {
         error = std::string(key) + " must be a number";
         return false;
@@ -166,7 +165,17 @@ static bool parse_sampling(const char* key, const char* text, T& out, std::strin
     error = validate_api_number(key, *v, field->lo, field->hi, field->whole);
     if (!error.empty())
         return false;
-    out = static_cast<T>(*v);
+    if constexpr (std::is_floating_point_v<T>) {
+        // Check the shared API bounds before rounding to the destination type.
+        const std::optional<double> narrowed = parse_real<T>(text);
+        if (!narrowed) {
+            error = std::string(key) + " is outside the supported precision";
+            return false;
+        }
+        out = static_cast<T>(*narrowed);
+    } else {
+        out = static_cast<T>(*v);
+    }
     return true;
 }
 
