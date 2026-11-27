@@ -1050,6 +1050,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_memory_admission.cpp`        | `memory_admission.h` (host limit, GPU budget, refusal prefix); `Session::estimate_memory` opt-in in `test_session.cpp`                                |
 | `test_model_provision.cpp`         | `model_provision.h`                                                                                                                                   |
 | `test_model_file_plan.cpp`         | `model_file_plan.h`                                                                                                                                   |
+| `test_moe_resident_operator.cpp`   | Resident CPU `MUL_MAT_ID` against scalar dot products for F32, Q4_K and Q6_K with per-token and per-slot activations                                  |
 | `test_moe_streaming.cpp`           | `moe_streaming.h`                                                                                                                                     |
 | `test_model_write.cpp`             | `model_write.h`                                                                                                                                       |
 | `test_path.cpp`                    | `path_utils.h`                                                                                                                                        |
