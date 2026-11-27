@@ -93,8 +93,8 @@ jobs:
       - name: Test ORT profile integrity
         run: python3 -m unittest tests/test_ort_profile.py
 
-      - name: Test D3D12 layer log parser
-        run: python3 -m unittest tests/test_d3d12_layer_log.py
+      - name: Test D3D12 layer log and selftest receipt
+        run: python3 -m unittest tests/test_d3d12_layer_log.py tests/test_d3d12_selftest.py
 
       - name: Smoke test debug tooling (profile analyzer + GPU sampler parser)
         run: |
