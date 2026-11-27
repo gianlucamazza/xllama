@@ -205,7 +205,8 @@ to branch on (`include/xllama/api_discovery.h`):
     "training_status": true,
     "reasoning_content": true,
     "reasoning_tokens": true,
-    "cached_tokens": true
+    "cached_tokens": true,
+    "model_sampling": true
   },
   "sampling": ["temperature", "top_p", "top_k", "repetition_penalty", "seed"],
   "runtime": {
@@ -226,7 +227,9 @@ status mapping changes in a way a client must branch on. `capabilities` lists
 what the installed build serves: the llama.cpp-only package reports
 `images: false`. `sampling` lists the sampling fields a chat request may set
 (`include/xllama/api_sampling.h`, the table the request is validated against),
-so a client sends only those instead of assuming them per version. `runtime`
+so a client sends only those instead of assuming them per version.
+`model_sampling` means each chat model in `/v1/models` reports its `sampling`
+and a field a request omits takes that model's value (below). `runtime`
 names the llama.cpp commit the build compiles (llama.cpp's own build info; the
 commit only, since its build number counts the submodule history and reads 1 in
 a shallow checkout) and the patches applied to it
@@ -245,9 +248,34 @@ and adds non-standard fields that clients may ignore:
 | `role`         | Catalogue role: `""`, `coding` or `embedding`                                                                                                                           |
 | `n_ctx`        | Context the session uses: the resident session's for the active model, else what a session of that entry opens with (`catalogue_n_ctx`: 512 floor, ONNX capped at 8192) |
 | `capabilities` | `tools` (the GGUF chat template renders a tool schema, the same check a tool proposal makes), `reasoning`, `embedding`                                                  |
+| `sampling`     | Chat models only: the `temperature`, `top_p`, `top_k` and `repetition_penalty` a request that sets none of them gets, and a `source` per field (`default` or `model`)   |
 
 `tools` is read from the GGUF header's chat template without loading weights,
 and cached per file, size and write time.
+
+`sampling` comes from one rule (`include/xllama/model_sampling.h`): the global
+defaults, then the model's catalogue values, then the request. A model entry in
+the catalogue may carry recommended values (its `sampling` object); a field it
+leaves out keeps the global default and reports `"source":"default"`. A chat
+request that omits a field gets the model's value, and a field it sets wins for
+that request only. A client should therefore send only the values its user
+chose and leave the rest to the server, rather than keep its own per-model
+table:
+
+```json
+"sampling": {
+  "temperature": 0.8,
+  "top_p": 0.9,
+  "top_k": 40,
+  "repetition_penalty": 1.1,
+  "source": {
+    "temperature": "default",
+    "top_p": "default",
+    "top_k": "default",
+    "repetition_penalty": "default"
+  }
+}
+```
 
 ### Model download (`POST /api/pull`)
 
@@ -303,8 +331,9 @@ naming the field: the token count is a whole number from 1 to the catalogue `n_c
 minus 1, `temperature` is 0–2, `top_p` is 0–1, `top_k` is a whole number ≥ 0 (0
 keeps every token), `repetition_penalty` is 0–2 (1 is no penalty, 0 drops the
 stage), and `seed` is a whole number (a negative seed keeps the default,
-llama.cpp's `-1`). An absent field keeps the default in `include/xllama/sampling.h`;
-on ORT GenAI models the same values go to its search options (`ort_sampling.h`),
+llama.cpp's `-1`). An absent field takes the model's value, the `sampling` that
+`/v1/models` reports ([Discovery](#discovery-health-and-v1models)); the seed's
+default is `include/xllama/sampling.h`. On ORT GenAI models the same values go to its search options (`ort_sampling.h`),
 whose repetition penalty covers the whole sequence rather than llama.cpp's last 64
 tokens. `stream: true` answers with SSE; see the streaming
 paragraph under [Protocol (v1)](#protocol-v1). Most other fields are ignored.
@@ -323,6 +352,11 @@ A non-empty `tools` array, or a legacy `functions` array on its own, is a propos
 `"required"` and a named choice constrain the reply to start with the call (reasoning
 first, for a thinking model): no text can come before it (`patches/0005`, #563). A reply
 that reaches `max_tokens` before the call completes is `finish_reason` `length`.
+Under `"required"` and a named choice the call is always to a tool the request
+offered. Under `"auto"`, an LFM2/LFM2.5 model that calls a tool outside `tools`
+gets that call back as it made it, rather than forced onto a declared tool or
+dropped as text (`patches/0007`, #610): the client decides what to do with an
+unknown name, as it would with any tool error.
 Content may be a string, null, or an array of `{type:"text",text}` parts joined
 with no separator. Anything else, including an image part, is `400`. A `tool`
 message requires `tool_call_id`. The last message must be `user` or `tool`.

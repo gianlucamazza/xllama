@@ -1,0 +1,2397 @@
+{
+ "suite": "v1",
+ "model": "lfm25-8b-a1b",
+ "variant": "base",
+ "base_url": "console",
+ "started": "2026-11-27T12:12:02",
+ "trials": 1,
+ "seed": 0,
+ "summary": {
+  "passed": 63,
+  "total": 64,
+  "by_category": {
+   "irrelevance": "26/26",
+   "multiturn": "15/15",
+   "single": "22/23"
+  },
+  "content_match": "0/0",
+  "abstention": "0/0",
+  "empty_replies": "0/64",
+  "retrieval_recall": "34/34",
+  "asked_after_error": "0/0",
+  "prompt_tokens_cached": "3088/33787",
+  "completion_tokens_reasoning": "7169/8750",
+  "text_instead_of_call": "0/34",
+  "language_match": "22/30",
+  "median_seconds": 16.08,
+  "trials": 1,
+  "pass_rate": 0.984,
+  "pass_rate_ci95": [
+   0.953,
+   1.0
+  ]
+ },
+ "results": [
+  {
+   "id": "single-ls-0",
+   "category": "single",
+   "lang": "it",
+   "expect": [
+    "list_dir"
+   ],
+   "got": "list_dir",
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 17.96,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 518,
+   "cached_tokens": 0,
+   "completion_tokens": 68,
+   "reasoning_tokens": 61,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-ls-1",
+   "category": "single",
+   "lang": "it",
+   "expect": [
+    "list_dir"
+   ],
+   "got": "list_dir",
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 15.02,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 519,
+   "cached_tokens": 0,
+   "completion_tokens": 98,
+   "reasoning_tokens": 91,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-ls-2",
+   "category": "single",
+   "lang": "en",
+   "expect": [
+    "list_dir"
+   ],
+   "got": "list_dir",
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 12.81,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 518,
+   "cached_tokens": 0,
+   "completion_tokens": 67,
+   "reasoning_tokens": 60,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-ls-3",
+   "category": "single",
+   "lang": "en",
+   "expect": [
+    "list_dir"
+   ],
+   "got": "list_dir",
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 12.49,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 514,
+   "cached_tokens": 0,
+   "completion_tokens": 63,
+   "reasoning_tokens": 56,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-ls-4",
+   "category": "single",
+   "lang": "es",
+   "expect": [
+    "list_dir"
+   ],
+   "got": "list_dir",
+   "got_args": {
+    "path": "/tmp/eval-<dir>"
+   },
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 15.21,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 521,
+   "cached_tokens": 0,
+   "completion_tokens": 100,
+   "reasoning_tokens": 77,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-ls-5",
+   "category": "single",
+   "lang": "fr",
+   "expect": [
+    "list_dir"
+   ],
+   "got": "list_dir",
+   "got_args": {
+    "path": "/tmp/eval-<dir>"
+   },
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 15.01,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 523,
+   "cached_tokens": 0,
+   "completion_tokens": 96,
+   "reasoning_tokens": 73,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-ls-6",
+   "category": "single",
+   "lang": "de",
+   "expect": [
+    "list_dir"
+   ],
+   "got": "list_dir",
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 15.22,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 521,
+   "cached_tokens": 0,
+   "completion_tokens": 100,
+   "reasoning_tokens": 93,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-ls-sub",
+   "category": "single",
+   "lang": "it",
+   "expect": [
+    "list_dir"
+   ],
+   "got": "list_dir",
+   "got_args": {
+    "path": "src"
+   },
+   "checks": {
+    "tool": true,
+    "args": true,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 14.56,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 520,
+   "cached_tokens": 0,
+   "completion_tokens": 92,
+   "reasoning_tokens": 81,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-read-0",
+   "category": "single",
+   "lang": "it",
+   "expect": [
+    "read_file"
+   ],
+   "got": "read_file",
+   "got_args": {
+    "path": "notes.txt"
+   },
+   "checks": {
+    "tool": true,
+    "args": true,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 11.64,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 517,
+   "cached_tokens": 0,
+   "completion_tokens": 52,
+   "reasoning_tokens": 40,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-read-1",
+   "category": "single",
+   "lang": "it",
+   "expect": [
+    "read_file"
+   ],
+   "got": "read_file",
+   "got_args": {
+    "path": "README.md"
+   },
+   "checks": {
+    "tool": true,
+    "args": true,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 13.73,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 520,
+   "cached_tokens": 0,
+   "completion_tokens": 80,
+   "reasoning_tokens": 68,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-read-2",
+   "category": "single",
+   "lang": "en",
+   "expect": [
+    "read_file"
+   ],
+   "got": "read_file",
+   "got_args": {
+    "path": "notes.txt"
+   },
+   "checks": {
+    "tool": true,
+    "args": true,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 14.39,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 517,
+   "cached_tokens": 0,
+   "completion_tokens": 92,
+   "reasoning_tokens": 80,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-read-3",
+   "category": "single",
+   "lang": "en",
+   "expect": [
+    "read_file"
+   ],
+   "got": "read_file",
+   "got_args": {
+    "path": "src/app.py"
+   },
+   "checks": {
+    "tool": true,
+    "args": true,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 13.75,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 515,
+   "cached_tokens": 0,
+   "completion_tokens": 81,
+   "reasoning_tokens": 68,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-read-4",
+   "category": "single",
+   "lang": "en",
+   "expect": [
+    "read_file"
+   ],
+   "got": "read_file",
+   "got_args": {
+    "path": "docs/guide.md"
+   },
+   "checks": {
+    "tool": true,
+    "args": true,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 12.94,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 517,
+   "cached_tokens": 0,
+   "completion_tokens": 71,
+   "reasoning_tokens": 57,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-read-5",
+   "category": "single",
+   "lang": "es",
+   "expect": [
+    "read_file"
+   ],
+   "got": "read_file",
+   "got_args": {
+    "path": "notes.txt"
+   },
+   "checks": {
+    "tool": true,
+    "args": true,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 13.83,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 516,
+   "cached_tokens": 0,
+   "completion_tokens": 84,
+   "reasoning_tokens": 72,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-read-6",
+   "category": "single",
+   "lang": "fr",
+   "expect": [
+    "read_file"
+   ],
+   "got": "read_file",
+   "got_args": {
+    "path": "README.md"
+   },
+   "checks": {
+    "tool": true,
+    "args": true,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 15.67,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 517,
+   "cached_tokens": 0,
+   "completion_tokens": 110,
+   "reasoning_tokens": 98,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-read-7",
+   "category": "single",
+   "lang": "de",
+   "expect": [
+    "read_file"
+   ],
+   "got": "read_file",
+   "got_args": {
+    "path": "notes.txt"
+   },
+   "checks": {
+    "tool": true,
+    "args": true,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 13.73,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 516,
+   "cached_tokens": 0,
+   "completion_tokens": 81,
+   "reasoning_tokens": 69,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-read-8",
+   "category": "single",
+   "lang": "it",
+   "expect": [
+    "read_file"
+   ],
+   "got": "read_file",
+   "got_args": {
+    "path": "config.toml"
+   },
+   "checks": {
+    "tool": true,
+    "args": false,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 18.96,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 520,
+   "cached_tokens": 0,
+   "completion_tokens": 155,
+   "reasoning_tokens": 141,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-grep-0",
+   "category": "single",
+   "lang": "it",
+   "expect": [
+    "grep"
+   ],
+   "got": "grep",
+   "got_args": {
+    "pattern": "banana"
+   },
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 17.49,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 520,
+   "cached_tokens": 0,
+   "completion_tokens": 135,
+   "reasoning_tokens": 124,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-grep-1",
+   "category": "single",
+   "lang": "it",
+   "expect": [
+    "grep"
+   ],
+   "got": "grep",
+   "got_args": {
+    "path": ".",
+    "pattern": "deploy"
+   },
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 19.4,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 519,
+   "cached_tokens": 0,
+   "completion_tokens": 161,
+   "reasoning_tokens": 147,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-grep-2",
+   "category": "single",
+   "lang": "en",
+   "expect": [
+    "grep"
+   ],
+   "got": "grep",
+   "got_args": {
+    "pattern": "banana"
+   },
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 21.86,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 516,
+   "cached_tokens": 0,
+   "completion_tokens": 196,
+   "reasoning_tokens": 185,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-grep-3",
+   "category": "single",
+   "lang": "en",
+   "expect": [
+    "grep"
+   ],
+   "got": "grep",
+   "got_args": {
+    "pattern": "deploy"
+   },
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 12.65,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 518,
+   "cached_tokens": 0,
+   "completion_tokens": 66,
+   "reasoning_tokens": 54,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-grep-4",
+   "category": "single",
+   "lang": "es",
+   "expect": [
+    "grep"
+   ],
+   "got": "grep",
+   "got_args": {
+    "path": "/tmp/eval-<dir>",
+    "pattern": "banana"
+   },
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 17.84,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 519,
+   "cached_tokens": 0,
+   "completion_tokens": 139,
+   "reasoning_tokens": 113,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "single-grep-5",
+   "category": "single",
+   "lang": "fr",
+   "expect": [
+    "grep"
+   ],
+   "got": "grep",
+   "got_args": {
+    "pattern": "banana"
+   },
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 16.83,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 519,
+   "cached_tokens": 0,
+   "completion_tokens": 125,
+   "reasoning_tokens": 114,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "irrel-0",
+   "category": "irrelevance",
+   "lang": "it",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "it",
+   "lang_ok": true,
+   "seconds": 16.19,
+   "error": null,
+   "reply": "Ciao! Sto bene, grazie per aver chiesto. Come stai?",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 518,
+   "cached_tokens": 0,
+   "completion_tokens": 115,
+   "reasoning_tokens": 97,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "irrel-1",
+   "category": "irrelevance",
+   "lang": "it",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "it",
+   "lang_ok": true,
+   "seconds": 31.99,
+   "error": null,
+   "reply": "Un file system è un'organizzazione strutturata di dati e dispositivi che consente di memorizzare, recuperare e gestire informazioni in modo logico. Permette l'accesso efficiente ai file tramite nomi, percorsi e metadati, organizzandoli su una gerarchia di directory.",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 523,
+   "cached_tokens": 0,
+   "completion_tokens": 338,
+   "reasoning_tokens": 271,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "irrel-2",
+   "category": "irrelevance",
+   "lang": "it",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "it",
+   "lang_ok": true,
+   "seconds": 46.62,
+   "error": null,
+   "reply": "Per creare un nuovo file con Python utilizzi la funzione `open()` e lo apri in modalità di scrittura (`'w'`). Esempio:\n\n```python\nwith open('nome_file.txt', 'w') as f:\n    f.write('Contenuto da scrivere')\n```\n\n- `'w'` indica che il file sarà creato (se esiste già, verrà sovrascritto).\n- Per aggiunge",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 519,
+   "cached_tokens": 0,
+   "completion_tokens": 546,
+   "reasoning_tokens": 360,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "irrel-3",
+   "category": "irrelevance",
+   "lang": "it",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": false,
+   "seconds": 21.35,
+   "error": null,
+   "reply": "17 ÷ 3 = 5 + 2⁄3, i.e., about **5.666…** (≈ 5.67).",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 520,
+   "cached_tokens": 0,
+   "completion_tokens": 190,
+   "reasoning_tokens": 158,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "irrel-4",
+   "category": "irrelevance",
+   "lang": "it",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "it",
+   "lang_ok": true,
+   "seconds": 29.6,
+   "error": null,
+   "reply": "Le foglie cambiano colore,  \nil vento canta di dorato e di fresco.  \nLa luce si addormenta lentamente,  \ne l’autunno sussurra un po’ di melancolia.",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 522,
+   "cached_tokens": 0,
+   "completion_tokens": 304,
+   "reasoning_tokens": 253,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "irrel-5",
+   "category": "irrelevance",
+   "lang": "en",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": true,
+   "seconds": 14.26,
+   "error": null,
+   "reply": "Hello! I'm doing well, thanks for asking. How can I help you today?",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 517,
+   "cached_tokens": 0,
+   "completion_tokens": 90,
+   "reasoning_tokens": 71,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "irrel-6",
+   "category": "irrelevance",
+   "lang": "en",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": true,
+   "seconds": 22.55,
+   "error": null,
+   "reply": "A directory in an operating system is a virtual container that groups related files or other directories together. It provides a hierarchical structure—often called a file‑system tree—so that each item within the directory can be uniquely identified by its path (a sequence of subdirectory and filena",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 520,
+   "cached_tokens": 0,
+   "completion_tokens": 208,
+   "reasoning_tokens": 103,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "irrel-7",
+   "category": "irrelevance",
+   "lang": "en",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": true,
+   "seconds": 35.77,
+   "error": null,
+   "reply": "To read a file in Python you use the built‑in `open()` function (or its shortcut `with`).  \nA typical example:\n\n```python\n# reading line by line\nwith open('example.txt', 'r') as f:\n    for line in f:\n        print(line)          # or process each line directly\n\n# loading whole file into memory\ndata ",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 520,
+   "cached_tokens": 0,
+   "completion_tokens": 394,
+   "reasoning_tokens": 165,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "irrel-8",
+   "category": "irrelevance",
+   "lang": "en",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": true,
+   "seconds": 16.77,
+   "error": null,
+   "reply": "I'm sorry, but I don't have information about the capital of France.",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 518,
+   "cached_tokens": 0,
+   "completion_tokens": 125,
+   "reasoning_tokens": 108,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "irrel-9",
+   "category": "irrelevance",
+   "lang": "es",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "es",
+   "lang_ok": true,
+   "seconds": 17.88,
+   "error": null,
+   "reply": "¡Hola! Estoy bien, gracias por preguntar. ¿En qué puedo ayudarte hoy?",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 519,
+   "cached_tokens": 0,
+   "completion_tokens": 139,
+   "reasoning_tokens": 117,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "irrel-10",
+   "category": "irrelevance",
+   "lang": "fr",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "fr",
+   "lang_ok": true,
+   "seconds": 16.98,
+   "error": null,
+   "reply": "Bonjour ! Je vais bien, merci d'avoir demandé. Et vous, comment allez‑vous ?",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 518,
+   "cached_tokens": 0,
+   "completion_tokens": 126,
+   "reasoning_tokens": 102,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "irrel-11",
+   "category": "irrelevance",
+   "lang": "de",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "de",
+   "lang_ok": true,
+   "seconds": 19.14,
+   "error": null,
+   "reply": "Hallo! Mir geht es gut, danke, dass du mich angefragt hast. Wie kann ich dir heute helfen?",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 519,
+   "cached_tokens": 0,
+   "completion_tokens": 159,
+   "reasoning_tokens": 134,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "irrel-12",
+   "category": "irrelevance",
+   "lang": "it",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": false,
+   "seconds": 21.56,
+   "error": null,
+   "reply": "Good morning everyone.",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 522,
+   "cached_tokens": 0,
+   "completion_tokens": 190,
+   "reasoning_tokens": 185,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "irrel-13",
+   "category": "irrelevance",
+   "lang": "en",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": true,
+   "seconds": 25.54,
+   "error": null,
+   "reply": "1. **Set clear, achievable goals** – Break your larger task into small, specific steps and write them down so you know exactly what to accomplish next.  \n2. **Eliminate distractions** – Turn off non‑essential notifications, close unrelated tabs or apps, and create a dedicated workspace that signals ",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 518,
+   "cached_tokens": 0,
+   "completion_tokens": 250,
+   "reasoning_tokens": 137,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "short-0",
+   "category": "irrelevance",
+   "lang": "it",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": false,
+   "seconds": 14.47,
+   "error": null,
+   "reply": "Ciao! How can I help you today?",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 513,
+   "cached_tokens": 0,
+   "completion_tokens": 92,
+   "reasoning_tokens": 81,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "short-hist-0",
+   "category": "irrelevance",
+   "lang": "it",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "it",
+   "lang_ok": true,
+   "seconds": 14.44,
+   "error": null,
+   "reply": "Ciao! Come posso aiutarti oggi?",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 535,
+   "cached_tokens": 0,
+   "completion_tokens": 84,
+   "reasoning_tokens": 73,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "short-1",
+   "category": "irrelevance",
+   "lang": "it",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": false,
+   "seconds": 17.52,
+   "error": null,
+   "reply": "Hello! How may I assist you today?",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 512,
+   "cached_tokens": 0,
+   "completion_tokens": 137,
+   "reasoning_tokens": 127,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "short-hist-1",
+   "category": "irrelevance",
+   "lang": "it",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "it",
+   "lang_ok": true,
+   "seconds": 20.22,
+   "error": null,
+   "reply": "Ciao! Come posso aiutarti?",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 534,
+   "cached_tokens": 0,
+   "completion_tokens": 167,
+   "reasoning_tokens": 157,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "short-2",
+   "category": "irrelevance",
+   "lang": "it",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": false,
+   "seconds": 17.54,
+   "error": null,
+   "reply": "You’re very welcome! If there’s anything specific you’d like to know or do, just let me know and I’ll be happy to help.",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 514,
+   "cached_tokens": 0,
+   "completion_tokens": 135,
+   "reasoning_tokens": 104,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "short-hist-2",
+   "category": "irrelevance",
+   "lang": "it",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": false,
+   "seconds": 18.39,
+   "error": null,
+   "reply": "You're welcome! How can I help you today?",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 536,
+   "cached_tokens": 0,
+   "completion_tokens": 138,
+   "reasoning_tokens": 126,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "short-3",
+   "category": "irrelevance",
+   "lang": "en",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": true,
+   "seconds": 11.91,
+   "error": null,
+   "reply": "Hello! How may I assist you today?",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 512,
+   "cached_tokens": 0,
+   "completion_tokens": 57,
+   "reasoning_tokens": 47,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "short-hist-3",
+   "category": "irrelevance",
+   "lang": "en",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": true,
+   "seconds": 10.82,
+   "error": null,
+   "reply": "Hello! How can I assist you today?",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 532,
+   "cached_tokens": 0,
+   "completion_tokens": 33,
+   "reasoning_tokens": 23,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "short-4",
+   "category": "irrelevance",
+   "lang": "en",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": true,
+   "seconds": 14.28,
+   "error": null,
+   "reply": "Thanks for reaching out — happy to help!\n</|message|>",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 513,
+   "cached_tokens": 0,
+   "completion_tokens": 91,
+   "reasoning_tokens": 77,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "short-hist-4",
+   "category": "irrelevance",
+   "lang": "en",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": true,
+   "seconds": 12.07,
+   "error": null,
+   "reply": "You're welcome! How can I assist you today?",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 533,
+   "cached_tokens": 0,
+   "completion_tokens": 51,
+   "reasoning_tokens": 39,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "short-5",
+   "category": "irrelevance",
+   "lang": "it",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": false,
+   "seconds": 17.83,
+   "error": null,
+   "reply": "Buongiorno! How may I help you today?",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 514,
+   "cached_tokens": 0,
+   "completion_tokens": 141,
+   "reasoning_tokens": 129,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "short-hist-5",
+   "category": "irrelevance",
+   "lang": "it",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "it",
+   "lang_ok": true,
+   "seconds": 33.45,
+   "error": null,
+   "reply": "Buongiorno! Come posso aiutarti oggi?",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 536,
+   "cached_tokens": 0,
+   "completion_tokens": 353,
+   "reasoning_tokens": 341,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "multi-chat-ls-it",
+   "category": "multiturn",
+   "lang": "it",
+   "expect": [
+    "list_dir"
+   ],
+   "got": "list_dir",
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 6.15,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 540,
+   "cached_tokens": 528,
+   "completion_tokens": 78,
+   "reasoning_tokens": 71,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "multi-chat-read-it",
+   "category": "multiturn",
+   "lang": "it",
+   "expect": [
+    "read_file"
+   ],
+   "got": "read_file",
+   "got_args": {
+    "path": "notes.txt"
+   },
+   "checks": {
+    "tool": true,
+    "args": true,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 14.25,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 539,
+   "cached_tokens": 0,
+   "completion_tokens": 79,
+   "reasoning_tokens": 67,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "multi-chat-grep-it",
+   "category": "multiturn",
+   "lang": "it",
+   "expect": [
+    "grep"
+   ],
+   "got": "grep",
+   "got_args": {
+    "path": "/tmp/eval-<dir>",
+    "pattern": "banana"
+   },
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 13.29,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 542,
+   "cached_tokens": 512,
+   "completion_tokens": 172,
+   "reasoning_tokens": 146,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "multi-chat-ls-en",
+   "category": "multiturn",
+   "lang": "en",
+   "expect": [
+    "list_dir"
+   ],
+   "got": "list_dir",
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 9.32,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 538,
+   "cached_tokens": 0,
+   "completion_tokens": 6,
+   "reasoning_tokens": 0,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "multi-chat-read-en",
+   "category": "multiturn",
+   "lang": "en",
+   "expect": [
+    "read_file"
+   ],
+   "got": "read_file",
+   "got_args": {
+    "path": "notes.txt"
+   },
+   "checks": {
+    "tool": true,
+    "args": true,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 8.07,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 537,
+   "cached_tokens": 512,
+   "completion_tokens": 99,
+   "reasoning_tokens": 87,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "multi-chat-grep-en",
+   "category": "multiturn",
+   "lang": "en",
+   "expect": [
+    "grep"
+   ],
+   "got": "grep",
+   "got_args": {
+    "pattern": "banana"
+   },
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 5.02,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 536,
+   "cached_tokens": 512,
+   "completion_tokens": 57,
+   "reasoning_tokens": 46,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "multi-chat-irrel-it",
+   "category": "multiturn",
+   "lang": "it",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": false,
+   "seconds": 16.97,
+   "error": null,
+   "reply": "You’re very welcome! How can I assist you further?",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 538,
+   "cached_tokens": 0,
+   "completion_tokens": 118,
+   "reasoning_tokens": 105,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "multi-chat-irrel-en",
+   "category": "multiturn",
+   "lang": "en",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": true,
+   "seconds": 16.08,
+   "error": null,
+   "reply": "You're very welcome! If there's anything else you'd like assistance with—whether it's troubleshooting, coding help, or just curious questions—just let me know. I'm here whenever you need support. Have a great day!",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 536,
+   "cached_tokens": 0,
+   "completion_tokens": 105,
+   "reasoning_tokens": 55,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "multi-tool-ls-it",
+   "category": "multiturn",
+   "lang": "it",
+   "expect": [
+    "list_dir"
+   ],
+   "got": "list_dir",
+   "got_args": {
+    "path": "src"
+   },
+   "checks": {
+    "tool": true,
+    "args": true,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 26.3,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 579,
+   "cached_tokens": 0,
+   "completion_tokens": 240,
+   "reasoning_tokens": 230,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "multi-tool-read-it",
+   "category": "multiturn",
+   "lang": "it",
+   "expect": [
+    "read_file"
+   ],
+   "got": "read_file",
+   "got_args": {
+    "path": "notes.txt"
+   },
+   "checks": {
+    "tool": true,
+    "args": true,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 6.55,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 578,
+   "cached_tokens": 512,
+   "completion_tokens": 67,
+   "reasoning_tokens": 55,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "multi-tool-ls-en",
+   "category": "multiturn",
+   "lang": "en",
+   "expect": [
+    "list_dir"
+   ],
+   "got": "list_dir",
+   "got_args": {
+    "path": "docs"
+   },
+   "checks": {
+    "tool": true,
+    "args": true,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 19.37,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 574,
+   "cached_tokens": 0,
+   "completion_tokens": 141,
+   "reasoning_tokens": 131,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "multi-tool-read-en",
+   "category": "multiturn",
+   "lang": "en",
+   "expect": [
+    "read_file"
+   ],
+   "got": "read_file",
+   "got_args": {
+    "path": "README.md"
+   },
+   "checks": {
+    "tool": true,
+    "args": true,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 5.82,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 572,
+   "cached_tokens": 512,
+   "completion_tokens": 58,
+   "reasoning_tokens": 46,
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "multi-tool-irrel-it",
+   "category": "multiturn",
+   "lang": "it",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "it",
+   "lang_ok": true,
+   "seconds": 25.45,
+   "error": null,
+   "reply": "Prego! Se hai bisogno di altro, chiedi pure. 😊",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 574,
+   "cached_tokens": 0,
+   "completion_tokens": 229,
+   "reasoning_tokens": 212,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "multi-tool-irrel-en",
+   "category": "multiturn",
+   "lang": "en",
+   "expect": [
+    null
+   ],
+   "got": null,
+   "got_args": {},
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": "en",
+   "lang_ok": true,
+   "seconds": 11.4,
+   "error": null,
+   "reply": "You're welcome! Let me know if you need anything else.",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": null,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 571,
+   "cached_tokens": 0,
+   "completion_tokens": 30,
+   "reasoning_tokens": 16,
+   "finish_reason": "stop"
+  },
+  {
+   "id": "multi-invented-ls-it",
+   "category": "multiturn",
+   "lang": "it",
+   "expect": [
+    "list_dir"
+   ],
+   "got": "list_dir",
+   "got_args": {
+    "path": "."
+   },
+   "checks": {
+    "tool": true,
+    "args": null,
+    "content": null,
+    "abstain": null
+   },
+   "text_instead_of_call": false,
+   "reply_lang": null,
+   "lang_ok": null,
+   "seconds": 30.6,
+   "error": null,
+   "reply": "",
+   "offered": [
+    "list_dir",
+    "read_file",
+    "grep",
+    "get_current_time"
+   ],
+   "offered_ok": true,
+   "trial": 0,
+   "asked_after_error": null,
+   "prompt_tokens": 556,
+   "cached_tokens": 0,
+   "completion_tokens": 306,
+   "reasoning_tokens": 295,
+   "finish_reason": "tool_calls"
+  }
+ ]
+}

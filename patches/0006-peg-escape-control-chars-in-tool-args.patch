@@ -1,0 +1,23 @@
+Backport of upstream ggml-org/llama.cpp#31937 (merged 2026-11-10), the
+common/chat-peg-parser.cpp hunk: a pythonic tool call whose string argument
+holds a raw control character (a newline in code='a<LF>b') was turned into
+invalid JSON, so the call failed to parse. normalize_quotes_to_json now
+escapes characters below 0x20 inside quoted strings. LFM2/LFM2.5 tool calls
+go through this path (xllama #610). Drop at the #522 pin bump.
+
+diff --git i/common/chat-peg-parser.cpp w/common/chat-peg-parser.cpp
+--- i/common/chat-peg-parser.cpp
++++ w/common/chat-peg-parser.cpp
+@@ -131,6 +131,12 @@ static std::string normalize_quotes_to_json(const std::string & input) {
+             continue;
+         }
+ 
++        // Models can emit raw control characters inside string literals; escape them to keep the JSON valid.
++        if ((in_single_quoted || in_double_quoted) && static_cast<unsigned char>(c) < 0x20) {
++            result += escape_json_string_inner(std::string(1, c));
++            continue;
++        }
++
+         // Handle quote characters
+         if (c == '"') {
+             if (in_single_quoted) {

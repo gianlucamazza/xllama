@@ -1,0 +1,9 @@
+4776f50f85c71c0b5fdb0541e413e11f14f0fbebeb33d8fb49d2629232259e9b  after-lfm25-1.2b-instruct-eval.json
+55715b4b04650bcab30a6c5f91baf39f9a310ae6c114b3b6b10fa2b5c013d92e  after-lfm25-1.2b-instruct-probes.json
+1f1901ead21666f91f591819febb1a71584cb530e3883a7ea786816e33ea8d28  after-lfm25-8b-a1b-eval.json
+5af3aa3d87f1b3924c8ef373cddb217d3c0b7ebc01630f0ac3f44a04826009cd  after-lfm25-8b-a1b-probes.json
+1a50a7367ff4f15d4426602002d8ed40d2fed3f026c724365e86e8fccdc012ea  before-lfm25-1.2b-instruct-eval.json
+55715b4b04650bcab30a6c5f91baf39f9a310ae6c114b3b6b10fa2b5c013d92e  before-lfm25-1.2b-instruct-probes.json
+f9de4bbf4512e86c04370c605c556d165b2e6ce5ae21b2462a198992ad3acb10  before-lfm25-8b-a1b-eval.json
+4552e92a469ffcf6ffa88be983356680184fdaa156d714b0d560a3acd5ace8ba  before-lfm25-8b-a1b-probes.json
+a5a4c338e9234da72e26035c06f60b56f35ed8e62f5b3954a8073e0349947055  console-log.txt
