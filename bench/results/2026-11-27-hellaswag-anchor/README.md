@@ -45,47 +45,52 @@ checks the scorer itself: the same weights and the same items, scored by
 
 ## Metric
 
-`llama-perplexity` picks the ending with the highest **mean log-probability
-per token** (`perplexity.cpp`, `hellaswag_score`: `ending_logprob /=
-ending_logprob_count`). lm-eval prints two other metrics: `acc` (summed
-log-probability) and `acc_norm` (log-probability per character). The like-for-like
-number for lm-eval is therefore recomputed from its per-sample log-probabilities.
-Each choice's log-probability is divided by its continuation's token count,
-with the model's own tokenizer, then the argmax is taken. The same recomputation
-gives lm-eval's own `acc` exactly (37.25), which checks the pipeline:
+`llama-perplexity` tokenises context plus ending for each of the four choices,
+skips the token prefix all four share, and picks the choice with the highest
+**mean log-probability per token** over the rest (`perplexity.cpp`,
+`hellaswag_score`). lm-eval prints two other metrics: `acc` (summed
+log-probability of the continuation) and `acc_norm` (per character).
 
-```python
-# samples: lm_eval --log_samples output; tok: AutoTokenizer for the same revision
-def n_tokens(ctx, cont):
-    return len(tok(ctx + cont, add_special_tokens=False)["input_ids"]) - \
-           len(tok(ctx, add_special_tokens=False)["input_ids"])
-for r in samples:
-    args = [r["arguments"][f"gen_args_{i}"] for i in range(len(r["arguments"]))]
-    ll = [float(x[0]) for x in r["filtered_resps"]]
-    mean = [l / max(1, n_tokens(a["arg_0"], a["arg_1"])) for l, a in zip(ll, args)]
-    hit += max(range(len(mean)), key=mean.__getitem__) == int(r["target"])
+The like-for-like number for the second implementation is
+[`scripts/hellaswag_token_mean.py`](../../../scripts/hellaswag_token_mean.py). It applies
+`llama-perplexity`'s rule with transformers on the same weights, to the items
+the lm-eval run scored: lm-eval's context and continuations, from
+`--log_samples`. It needs per-token log-probabilities, because in 180 of the
+2000 items the endings share leading tokens. There, dividing each whole
+continuation's log-probability by its token count is not the same rule, and
+the unit test shows that it can flip the choice.
+
+```bash
+lm_eval --model hf --model_args pretrained=<LFM2.5-350M at 9921cd4d>,dtype=float32 \
+  --tasks hellaswag --limit 2000 --device cpu --batch_size 16 --log_samples --output_path out
+scripts/hellaswag_token_mean.py --samples out/<model>/samples_hellaswag_*.jsonl \
+  --model <LFM2.5-350M at 9921cd4d> --threads 8
 ```
 
 ## Results (2000 tasks, accuracy %, ± binomial stderr)
 
-| Arm | Scorer                         | Weights              | Token-mean     | `acc`      | `acc_norm` |
-| --- | ------------------------------ | -------------------- | -------------- | ---------- | ---------- |
-| A   | `llama-perplexity`             | QAD Q4_0 (catalogue) | **41.8 ± 1.1** |            |            |
-| B   | `llama-perplexity`             | BF16 GGUF            | **42.1 ± 1.1** |            |            |
-| C   | lm-eval-harness (transformers) | BF16 safetensors     | **43.3 ± 1.1** | 37.3 ± 1.1 | 44.3 ± 1.1 |
+| Arm | Scorer                                                    | Weights              | Token-mean     | `acc`      | `acc_norm` |
+| --- | --------------------------------------------------------- | -------------------- | -------------- | ---------- | ---------- |
+| A   | `llama-perplexity`                                        | QAD Q4_0 (catalogue) | **41.8 ± 1.1** |            |            |
+| B   | `llama-perplexity`                                        | BF16 GGUF            | **42.1 ± 1.1** |            |            |
+| C   | transformers, `llama-perplexity`'s rule (lm-eval's items) | BF16 safetensors     | **43.2 ± 1.1** | 37.3 ± 1.1 | 44.3 ± 1.1 |
+
+Row C's `acc` and `acc_norm` are lm-eval's own figures for the same run; its
+token-mean is `scripts/hellaswag_token_mean.py` on that run's items.
 
 ## Reading
 
 - **The anchor (B against C).** On the same weights, items and metric, the two
-  implementations differ by 1.15 points. That is 0.74 of their combined
-  stderr (1.56), so `llama-perplexity`'s HellaSwag agrees with an independent
-  scorer within stderr, which is what #608 asked for. The gap that remains is
-  where the two evaluators are known to differ: text preprocessing
-  (lm-eval's `preprocess` of the WikiHow and ActivityNet markup against
-  the klosax text), and whether the context and ending are tokenised together.
+  implementations differ by 1.05 points (42.10 against 43.15). That is 0.67
+  of their combined stderr (1.56), so `llama-perplexity`'s HellaSwag agrees with an independent
+  scorer within stderr, which is what #608 asked for. The gap that remains is in
+  what the two read, not in how they score. lm-eval's `preprocess` of the
+  WikiHow and ActivityNet markup produces slightly different text from the
+  klosax file, and the GGUF and Hugging Face tokenizers need not split it the
+  same way.
 - **Quantization (A against B).** QAD Q4_0 scores 0.3 points below BF16,
   well inside the stderr: the catalogue quant costs nothing measurable here.
-- **Metric choice.** `acc` and `acc_norm` bracket the token-mean (37.3 < 43.3
+- **Metric choice.** `acc` and `acc_norm` bracket the token-mean (37.3 < 43.2
   < 44.3), so a figure from a model card that prints `acc_norm` is a few points
   above what `llama-perplexity` reports for the same model. The standard
   campaign's HellaSwag numbers compare across xllama runs at this pin, as its

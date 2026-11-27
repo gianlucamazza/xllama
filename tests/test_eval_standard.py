@@ -111,6 +111,44 @@ class SpecTests(unittest.TestCase):
             with self.assertRaises(MODULE.EvalError):
                 MODULE.dataset_path(spec, "mmlu", Path(d))
 
+    def test_fetch_keeps_a_pinned_line_prefix(self):
+        # #608: a fixed subset of a published file is its first N lines, and
+        # sha256 pins the prefix, so --fetch must cut before it checks.
+        import hashlib
+        import io
+        import sys
+        from unittest import mock
+
+        datasets_module = sys.modules["eval_datasets"]
+        body = b"".join(b"line %d\n" % i for i in range(10))
+        prefix = b"".join(b"line %d\n" % i for i in range(4))
+
+        def spec_for(lines, sha):
+            return {"datasets": {"hs": {"file": "hs.txt", "url": "https://example.invalid/hs.txt",
+                                        "sha256": sha, "upstream": "x", "upstream_licence": "MIT",
+                                        "lines": lines}}}
+
+        def serve(*_args, **_kwargs):
+            return io.BytesIO(body)
+
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(
+            datasets_module.urllib.request, "urlopen", serve
+        ):
+            spec = spec_for(4, hashlib.sha256(prefix).hexdigest())
+            MODULE.validate_datasets(spec["datasets"])
+            MODULE.fetch(spec, Path(d))
+            self.assertEqual((Path(d) / "hs.txt").read_bytes(), prefix)
+            self.assertEqual(MODULE.dataset_path(spec, "hs", Path(d)), Path(d) / "hs.txt")
+            # Asking for more lines than the file holds is refused, and leaves no file.
+            short = spec_for(20, hashlib.sha256(body).hexdigest())
+            short["datasets"]["hs"]["file"] = "short.txt"
+            with self.assertRaises(MODULE.EvalError):
+                MODULE.fetch(short, Path(d))
+            self.assertFalse((Path(d) / "short.txt").exists())
+        for bad in (0, -1, "12000", 1.5):
+            with self.assertRaises(MODULE.EvalError):
+                MODULE.validate_datasets(spec_for(bad, "0" * 64)["datasets"])
+
     def test_hellaswag_zero_means_every_task(self):
         # Upstream caps --hellaswag-tasks to the value given, so 0 would score nothing.
         with tempfile.TemporaryDirectory() as d:

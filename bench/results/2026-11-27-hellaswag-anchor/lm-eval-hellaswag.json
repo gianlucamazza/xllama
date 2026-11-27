@@ -23,9 +23,12 @@
   "acc_stderr": 1.08,
   "acc_norm": 44.3,
   "acc_norm_stderr": 1.11,
-  "token_mean_recomputed": {
-    "acc": 43.25,
+  "llama_perplexity_rule": {
+    "acc": 43.15,
     "stderr": 1.11,
-    "how": "argmax of loglikelihood / continuation tokens per choice, from --log_samples, tokenised with the same model's tokenizer; the same recomputation reproduces lm-eval's acc (37.25) exactly"
+    "n": 2000,
+    "shared_items": 180,
+    "script": "scripts/hellaswag_token_mean.py",
+    "how": "transformers float32 on the same weights; each choice is context plus continuation as lm-eval scored them, tokenised with BOS; the token prefix all four share is skipped and the mean log-probability of the rest decides, as perplexity.cpp hellaswag_score does. shared_items: items whose endings share leading tokens beyond the context."
   }
 }
