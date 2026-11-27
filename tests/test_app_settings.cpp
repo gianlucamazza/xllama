@@ -47,11 +47,46 @@ TEST_CASE("app settings: a file written by the previous serializer reads back th
     CHECK(s.routing == 2);
     CHECK(s.diffuse_taesd_vae);
     CHECK(s.diffuse_seed == 3000000000u);
-    CHECK(s.temperature == doctest::Approx(0.70f));
-    CHECK(s.top_p == doctest::Approx(0.95f));
-    CHECK(s.top_k == 50);
-    CHECK(s.repetition_penalty == doctest::Approx(1.15f));
+    // Values other than the old writer's defaults were the user's choice.
+    CHECK(*s.sampling.temperature == doctest::Approx(0.70f));
+    CHECK(*s.sampling.top_p == doctest::Approx(0.95f));
+    CHECK(*s.sampling.top_k == 50);
+    CHECK(*s.sampling.repetition_penalty == doctest::Approx(1.15f));
     CHECK(s.n_predict == 1024);
+}
+
+TEST_CASE("app settings: a pre-schema file's default sampling values inherit the model's") {
+    // The old writer saved all four whether the user chose them or not.
+    const auto r = parse_app_settings(R"({"sampling": {"temperature": 0.8, "top_p": 0.9,
+                                          "top_k": 40, "repetition_penalty": 1.1,
+                                          "n_predict": 512}})");
+    CHECK(r.rejected.empty());
+    CHECK(r.settings.sampling.empty());
+    // Mixed: the changed value stays the user's, the untouched ones inherit.
+    const auto mixed = parse_app_settings(R"({"sampling": {"temperature": 0.3, "top_p": 0.9,
+                                              "top_k": 40, "repetition_penalty": 1.1}})");
+    CHECK(*mixed.settings.sampling.temperature == doctest::Approx(0.3f));
+    CHECK_FALSE(mixed.settings.sampling.top_p);
+    CHECK_FALSE(mixed.settings.sampling.top_k);
+    CHECK_FALSE(mixed.settings.sampling.repetition_penalty);
+}
+
+TEST_CASE("app settings: from schema 2 a value equal to the global default is still the user's") {
+    const auto r = parse_app_settings(R"({"schema": 2, "sampling": {"temperature": 0.8}})");
+    REQUIRE(r.settings.sampling.temperature);
+    CHECK(*r.settings.sampling.temperature == doctest::Approx(0.8f));
+    CHECK_FALSE(r.settings.sampling.top_k);
+}
+
+TEST_CASE("app settings: the writer stores only the user's sampling values") {
+    AppSettings s;
+    s.sampling.top_k = 64;
+    const std::string text = format_app_settings(s);
+    CHECK(text.find("\"schema\": 2") != std::string::npos);
+    CHECK(text.find("\"top_k\": 64") != std::string::npos);
+    CHECK(text.find("temperature") == std::string::npos);
+    CHECK(text.find("repetition_penalty") == std::string::npos);
+    CHECK(parse_app_settings(text).settings == s);
 }
 
 TEST_CASE("app settings: round trip keeps every field, floats included") {
@@ -64,10 +99,10 @@ TEST_CASE("app settings: round trip keeps every field, floats included") {
     s.gpu_model = "other-gpu-model";
     s.diffuse_taesd_vae = true;
     s.diffuse_seed = 4294967295u;
-    s.temperature = 0.925f; // the old %.2f writer saved this as 0.93
-    s.top_p = 0.333f;
-    s.top_k = 7;
-    s.repetition_penalty = 1.05f;
+    s.sampling.temperature = 0.925f; // the old %.2f writer saved this as 0.93
+    s.sampling.top_p = 0.333f;
+    s.sampling.top_k = 7;
+    s.sampling.repetition_penalty = 1.05f;
     s.n_predict = 2048;
     const std::string text = format_app_settings(s);
     CHECK(text.back() == '\n');
@@ -113,11 +148,11 @@ TEST_CASE("app settings: a wrong type or out-of-range value rejects only that fi
     CHECK(r.settings.diffuse_seed == d.diffuse_seed);
     CHECK(r.settings.model == d.model);
     CHECK(r.settings.system_prompt == "kept");
-    CHECK(r.settings.temperature == d.temperature);
-    CHECK(r.settings.top_p == doctest::Approx(0.5f));
-    CHECK(r.settings.top_k == d.top_k);
+    CHECK_FALSE(r.settings.sampling.temperature); // rejected: inherits
+    CHECK(*r.settings.sampling.top_p == doctest::Approx(0.5f));
+    CHECK_FALSE(r.settings.sampling.top_k);
     CHECK(r.settings.n_predict == d.n_predict);
-    CHECK(r.settings.repetition_penalty == d.repetition_penalty);
+    CHECK_FALSE(r.settings.sampling.repetition_penalty);
     for (const char* key : {"routing", "kv_reuse", "diffuse_seed", "model", "sampling.temperature",
                             "sampling.top_k", "sampling.n_predict", "sampling.repetition_penalty"})
         CHECK_MESSAGE(rejected(r, key), key);
@@ -144,14 +179,14 @@ TEST_CASE("app settings: unknown keys are ignored at any depth") {
     CHECK(r.error.empty());
     CHECK(r.rejected.empty());
     CHECK(r.settings.routing == 2);
-    CHECK(r.settings.top_k == AppSettings{}.top_k);
+    CHECK_FALSE(r.settings.sampling.top_k);
 }
 
 TEST_CASE("app settings: integral floats and fractional ints") {
     const auto r = parse_app_settings(R"({"routing": 1.0, "sampling": {"temperature": 1,
                                           "top_k": 40.5}})");
     CHECK(r.settings.routing == 1); // a whole number written as 1.0 is accepted
-    CHECK(r.settings.temperature == doctest::Approx(1.0f));
-    CHECK(r.settings.top_k == AppSettings{}.top_k); // 40.5 is not an integer
+    CHECK(*r.settings.sampling.temperature == doctest::Approx(1.0f));
+    CHECK_FALSE(r.settings.sampling.top_k); // 40.5 is not an integer
     CHECK(rejected(r, "sampling.top_k"));
 }

@@ -11,6 +11,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - A catalogue entry may carry a `sampling` object (`temperature`, `top_p`, `top_k`, `repetition_penalty`). The layers apply in one order: global defaults, then the model, then the user, then the request (`include/xllama/model_sampling.h`).
   - A LAN API chat request that omits a field gets the model's value. `/v1/models` reports each chat model's `sampling` with a `source` per field, and `/health` lists the `model_sampling` capability.
   - No entry sets values yet, so replies are unchanged. A model gets values only after a measured console run.
+- **Settings keeps only the sampling values you chose.** settings.json stored all four sampling values whatever the user did, so the app could not tell a chosen value from an untouched default, and a model's own values could never apply.
+  - An unset value follows the model's catalogue values, then the global default, the same order the LAN API uses (`include/xllama/model_sampling.h`). The file records `"schema": 2`.
+  - The Settings dialog shows each value's source (default, model's value, your value) and a **Use the model's sampling values** button. Picking another model updates the values you did not set.
+  - An older settings.json keeps any value you had changed. A value equal to the old default is read as unset, so it follows the model.
 - **LFM2/LFM2.5 tool calls: two upstream parser fixes backported (#610).** `patches/0006` (llama.cpp #31937): a pythonic call with a raw newline or tab inside a string argument no longer fails to parse. `patches/0007` (llama.cpp #32164, adapted): with `tool_choice` `auto`, a call to a tool the request did not declare comes back as that call instead of being forced onto a declared tool or returned as text; `required` and a named choice still only produce calls to offered tools. `/health` `runtime.patches` lists both.
 
 ## [1.10.0]
