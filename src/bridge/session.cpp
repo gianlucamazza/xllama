@@ -520,7 +520,8 @@ llama_context_params make_context_params(int n_ctx, int n_threads, int n_batch, 
 // the real load then reports why.
 std::optional<SessionMemory> estimate_session_memory(const std::string& path,
                                                      const llama_model_params& mparams,
-                                                     const llama_context_params& cparams) {
+                                                     const llama_context_params& cparams,
+                                                     bool weights_resident = false) {
     llama_model_params dry = mparams;
     dry.no_alloc = true;
     dry.load_mode = LLAMA_LOAD_MODE_NONE;
@@ -530,8 +531,7 @@ std::optional<SessionMemory> estimate_session_memory(const std::string& path,
     LlamaContextPtr ctx(llama_init_from_model(model.get(), cparams));
     if (!ctx)
         return std::nullopt;
-    constexpr std::size_t kMb = 1024 * 1024;
-    std::size_t model_b = 0, context_b = 0, compute_b = 0, device_b = 0;
+    SessionMemoryEstimate estimate(weights_resident);
     for (const auto& [buft, mb] : llama_get_memory_breakdown(ctx.get())) {
         const ggml_backend_dev_t dev = ggml_backend_buft_get_device(buft);
         const enum ggml_backend_dev_type type =
@@ -539,22 +539,11 @@ std::optional<SessionMemory> estimate_session_memory(const std::string& path,
         const bool on_device =
             !ggml_backend_buft_is_host(buft) &&
             (type == GGML_BACKEND_DEVICE_TYPE_GPU || type == GGML_BACKEND_DEVICE_TYPE_IGPU);
-        if (on_device)
-            device_b += mb.model + mb.context + mb.compute;
-        // System memory: CPU buffer types, host buffers, and an integrated GPU's
-        // buffers (it uses host memory; D3D12 reports IGPU).
-        if (!on_device || type == GGML_BACKEND_DEVICE_TYPE_IGPU) {
-            model_b += mb.model;
-            context_b += mb.context;
-            compute_b += mb.compute;
-        }
+        // An integrated GPU allocation consumes both the app and device quotas.
+        const bool on_host = !on_device || type == GGML_BACKEND_DEVICE_TYPE_IGPU;
+        estimate.add_buffer(mb.model, mb.context, mb.compute, on_host, on_device);
     }
-    SessionMemory m;
-    m.host_model_mb = model_b / kMb;
-    m.host_context_mb = context_b / kMb;
-    m.host_compute_mb = compute_b / kMb;
-    m.device_mb = device_b / kMb;
-    return m;
+    return estimate.charges();
 }
 
 ::xllama::MemoryVerdict admit_memory(const std::optional<SessionMemory>& need, int n_ctx) {
@@ -646,10 +635,8 @@ class LlamaSession final : public Session {
     // with (an embedding context). The weights are already resident, so only
     // the context and compute parts of the dry run are new.
     ::xllama::MemoryVerdict admit_context(const llama_context_params& cparams) const {
-        std::optional<SessionMemory> need =
-            estimate_session_memory(m_model_path, m_mparams, cparams);
-        if (need)
-            need->host_model_mb = 0;
+        const auto need = estimate_session_memory(m_model_path, m_mparams, cparams,
+                                                  /*weights_resident=*/true);
         return admit_memory(need, static_cast<int>(cparams.n_ctx));
     }
 

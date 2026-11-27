@@ -636,12 +636,14 @@ weights, context (the real per-layer KV and recurrent state, so `n_ctx` and a
 hybrid's layout count) and compute buffers per buffer type. CPU buffer types
 count as host memory. The D3D12 backend reports an integrated GPU (it requires a
 cache-coherent UMA adapter), so its buffers count as host memory too, and also
-against the GPU budget. The sum plus
+against the GPU budget. Byte counts accumulate by category, then round up to
+MiB. An unrepresentable estimate refuses the load. The sum plus
 the working set and `kSessionMemoryMarginMb` must fit `app_memory_limit_mb()`;
 otherwise `Session::create` fails with an `insufficient memory: …` message
 (weights / context / compute / limit) instead of failing inside an allocation.
 The API answers that refusal with `400`. An embedding context, which batches the
-whole input, is admitted again for its own context and compute buffers. Every
+whole input, is admitted again for its own context and compute buffers. Already
+resident weights are present in the measured usage on both UMA budgets. Every
 load logs the estimate beside the `ws after model load / after context` lines,
 which is the console calibration of the margin. Not `common/fit.h`: it drops
 non-host CPU buffers (CPU_REPACK) and swaps the process-wide llama logger.
