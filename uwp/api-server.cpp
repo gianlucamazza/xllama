@@ -310,21 +310,29 @@ std::string ollama_error_json(const std::string& message) {
     return winrt::to_string(root.Stringify());
 }
 
-// CORS preflight: browsers OPTIONS non-simple requests before the real POST.
-enum class StreamRequest { No, Yes, Invalid };
-
-// A body that does not parse stays on the non-streaming path: the handler's own
-// validation answers it. A present `stream` must be a boolean, like /api/pull.
-StreamRequest parse_stream_request(const std::string& body) {
-    JsonObject root{nullptr};
-    if (!JsonObject::TryParse(winrt::to_hstring(body), root) || root == nullptr)
-        return StreamRequest::No;
-    if (!root.HasKey(L"stream"))
-        return StreamRequest::No;
-    const auto value = root.GetNamedValue(L"stream");
-    if (value.ValueType() != JsonValueType::Boolean)
-        return StreamRequest::Invalid;
-    return value.GetBoolean() ? StreamRequest::Yes : StreamRequest::No;
+// Reads `response_format` for the decision in api_policy.h
+// (api_response_format_supported).
+bool accepts_response_format(JsonObject const& root) {
+    using Kind = ::xllama::ApiResponseFormat::Kind;
+    ::xllama::ApiResponseFormat format;
+    if (root.HasKey(L"response_format")) {
+        const auto value = root.GetNamedValue(L"response_format");
+        if (value.ValueType() == JsonValueType::Null) {
+            format.kind = Kind::Null;
+        } else if (value.ValueType() == JsonValueType::Object) {
+            const auto object = value.GetObject();
+            format.kind = Kind::Object;
+            format.members = object.Size();
+            if (object.HasKey(L"type") &&
+                object.GetNamedValue(L"type").ValueType() == JsonValueType::String) {
+                format.type_is_string = true;
+                format.type = winrt::to_string(object.GetNamedString(L"type"));
+            }
+        } else {
+            format.kind = Kind::Other;
+        }
+    }
+    return ::xllama::api_response_format_supported(format);
 }
 
 enum class SseHeadStatus { Written, FailedBeforeBytes, FailedUnknown };
@@ -1074,15 +1082,9 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
 }
 
 // Handles one chat request under session_hub().mtx (already locked by the caller).
-std::string handle_chat_locked(const std::string& body, const char*& status,
+std::string handle_chat_locked(JsonObject const& root, const std::string& body, const char*& status,
                                ::xllama::ApiActivity::Ticket& ticket, StreamSocket const& socket,
                                bool stream) {
-    JsonObject root{nullptr};
-    if (!JsonObject::TryParse(winrt::to_hstring(body), root) || root == nullptr) {
-        status = "400 Bad Request";
-        return error_json("invalid JSON body");
-    }
-
     // A tool proposal is parsed here and executed by the client. This process
     // does not run tools. Plain chat (no schema, empty tools, tool_choice none)
     // stays on ChatFormat below.
@@ -2230,14 +2232,23 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
         }
 
         if (req.method == "POST" && req.path == "/v1/chat/completions") {
-            // Cheap validation before the session lock: a non-boolean `stream`
-            // is a client error, not a reason to queue behind inference.
-            const StreamRequest stream_request = parse_stream_request(req.body);
-            if (stream_request == StreamRequest::Invalid) {
+            JsonObject root{nullptr};
+            if (!JsonObject::TryParse(winrt::to_hstring(req.body), root) || root == nullptr) {
+                write_response(socket, "400 Bad Request", error_json("invalid JSON body"));
+                return;
+            }
+            if (root.HasKey(L"stream") &&
+                root.GetNamedValue(L"stream").ValueType() != JsonValueType::Boolean) {
                 write_response(socket, "400 Bad Request", error_json("'stream' must be boolean"));
                 return;
             }
-            const bool stream = stream_request == StreamRequest::Yes;
+            if (!accepts_response_format(root)) {
+                write_response(socket, "400 Bad Request",
+                               error_json("response_format must be an object with only type 'text'",
+                                          "unsupported_response_format", "response_format"));
+                return;
+            }
+            const bool stream = root.GetNamedBoolean(L"stream", false);
             auto compute_permit = acquire_compute_job_or_busy();
             if (!compute_permit) {
                 activity().busy();
@@ -2272,7 +2283,7 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             const char* status = "200 OK";
             std::string json;
             try {
-                json = handle_chat_locked(req.body, status, ticket, socket, stream);
+                json = handle_chat_locked(root, req.body, status, ticket, socket, stream);
             } catch (...) {
                 const ::xllama::ApiFailureReply failure =
                     reply_for_current_exception("chat", "malformed request body", "internal error");
