@@ -1,0 +1,7 @@
+  + dependency: Microsoft.VCLibs.x64.14.00.appx
+Deploying xllama_1.10.0.2000_x64.msix to <user> at console ...
+Response: {"Reason" : "Deploy request accepted and being processed"}
+Upload complete. Monitor installation at: https://console:11443/#apps
+Polling installation status ...
+  [1] code=0 reason='Success' success=true
+Installation succeeded.

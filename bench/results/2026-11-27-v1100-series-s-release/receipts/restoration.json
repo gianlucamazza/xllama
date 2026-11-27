@@ -1,0 +1,4 @@
+{
+  "localstate_at_update": "PASS: localstate-before.txt == localstate-after.txt (top level, 13 model folders, 17 chats plus index.json, kv)",
+  "after_tests": "the six chats the gates created were removed (17 chats plus index.json, as before; localstate-restored.txt). The only remaining difference from localstate-before.txt is the #170b gate's KV snapshot, replaced by the new run's (ap-170b-switch-*.kv)."
+}
