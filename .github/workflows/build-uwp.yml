@@ -14,13 +14,11 @@ on:
         type: boolean
         default: false
 
-# Feature branches build once via pull_request (not also via push); superseded
-# runs on the same branch cancel — UWP builds are ~13 min, so this saves the most.
-# A push to main never cancels: every main commit's unified MSIX is attested
-# (attest-unified), and a cancelled run would leave a package without one.
+# Superseded runs for the same PR cancel. Pushes and manual runs use distinct
+# groups so that a pending main run can still build and attest its MSIX.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -121,5 +119,5 @@ jobs:
           fi
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: 'unified/**/*.msix'
-          create-storage-record: 'false'
+          subject-path: "unified/**/*.msix"
+          create-storage-record: "false"
