@@ -22,7 +22,8 @@ TEST_CASE("health_json keeps the original fields first and adds version, api, ca
     CHECK(j["capabilities"]["reasoning_content"] == false);
     CHECK(j["capabilities"]["reasoning_tokens"] == false);
     CHECK(j["capabilities"]["cached_tokens"] == false);
-    CHECK(j["capabilities"].size() == 10);
+    CHECK(j["capabilities"]["model_sampling"] == false);
+    CHECK(j["capabilities"].size() == 11);
     // The accepted sampling fields, from the same table the request is checked against.
     CHECK(j["sampling"] ==
           json::array({"temperature", "top_p", "top_k", "repetition_penalty", "seed"}));
@@ -58,6 +59,7 @@ TEST_CASE("build_api_capabilities follows the compiled backends") {
     CHECK(caps.reasoning_content);
     CHECK(caps.reasoning_tokens);
     CHECK(caps.cached_tokens);
+    CHECK(caps.model_sampling);
 }
 
 TEST_CASE("models_list_json is an OpenAI list with xllama's per-model fields") {
@@ -68,6 +70,11 @@ TEST_CASE("models_list_json is an OpenAI list with xllama's per-model fields") {
     chat.n_ctx = 4096;
     chat.active = true;
     chat.tools = true;
+    xllama::SamplingOverrides card;
+    card.temperature = 0.1f;
+    card.top_k = 50;
+    chat.has_sampling = true;
+    chat.sampling = xllama::resolve_sampling(card);
     xllama::ModelInfo raw;
     raw.id = "C:\\models\\x.gguf"; // a model.txt path outside the catalogue
     const json j = json::parse(xllama::models_list_json({chat, raw}, 1700000000));
@@ -85,10 +92,23 @@ TEST_CASE("models_list_json is an OpenAI list with xllama's per-model fields") {
     CHECK(a["n_ctx"] == 4096);
     CHECK(a["capabilities"]["tools"] == true);
     CHECK(a["capabilities"]["reasoning"] == false);
+    // The values a request that sets none of them gets, written as short decimals.
+    const json& s = a["sampling"];
+    CHECK(a.dump().find("\"temperature\":0.1,") != std::string::npos);
+    CHECK(s["temperature"].get<double>() == doctest::Approx(0.1));
+    CHECK(s["top_p"].get<double>() == doctest::Approx(xllama::sampling_defaults::kTopP));
+    CHECK(s["top_k"] == 50);
+    CHECK(s["repetition_penalty"].get<double>() ==
+          doctest::Approx(xllama::sampling_defaults::kRepetitionPenalty));
+    CHECK(s["source"] == json({{"temperature", "model"},
+                               {"top_p", "default"},
+                               {"top_k", "model"},
+                               {"repetition_penalty", "default"}}));
     const json& b = j["data"][1];
     CHECK(b["id"] == "C:\\models\\x.gguf");
     CHECK_FALSE(b.contains("active"));
     CHECK_FALSE(b.contains("display"));
     CHECK_FALSE(b.contains("n_ctx"));
+    CHECK_FALSE(b.contains("sampling"));
     CHECK(b["capabilities"]["tools"] == false);
 }
