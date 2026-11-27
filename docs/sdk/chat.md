@@ -36,6 +36,8 @@ struct ChatFormat {
     std::string gen_suffix;
     std::string bos;
     bool strip_thinking_content = false;
+    bool reasoning_opened = false; // the prefill opens <think> (Qwen3.5, MiniCPM5 on)
+    std::string_view reasoning_prefill() const;
 
     std::string render_prompt(const std::string& system,
                               const std::vector<ChatTurn>& history,
@@ -45,8 +47,15 @@ struct ChatFormat {
     std::string postprocess_output(std::string text) const;
 };
 
-ChatFormat chat_format_for(const std::string& model_id);
+ChatFormat chat_format_for(const std::string& model_id, bool thinking);
+ChatFormat chat_format_for(const std::string& model_id); // thinking = model_is_thinking
 ```
+
+`thinking` selects the template's thinking or no-think path where it has both
+(Qwen3 / Qwen3.5, MiniCPM5, SmolLM3). Take it from `decide_reasoning`
+(`xllama/reasoning_control.h`), which honours a request's switch only where
+`model_supports_reasoning_control` is true and otherwise keeps
+`model_is_thinking`.
 
 Dedicated-turn formats (ChatML, Llama-3, Phi-3, Gemma 4, Granite) emit a
 system turn even when `system` is empty. Granite 4.x IBM jinja inserts a
@@ -58,6 +67,7 @@ the LAN API always pass `kDefaultSystemPrompt` (or the coding default).
 ```cpp
 bool model_is_qwen(const std::string& model_id);
 bool model_is_qwen3(const std::string& model_id);
+bool model_is_qwen35(const std::string& model_id);
 bool model_is_gemma(const std::string& model_id);
 bool model_is_llama(const std::string& model_id);
 bool model_is_phi(const std::string& model_id);
