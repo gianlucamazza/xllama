@@ -25,6 +25,14 @@ release (hash must match `SHA256SUMS`).
 - **Local:** `./scripts/vendor-ort-extdata-patch.ps1 -Build` (VS2022 + Python +
   CMake; ORT tag `v<version>` from `uwp/packages.config`).
 
+The rebuild verifies both fresh and reused checkouts against the source commit
+from the [official NuGet manifest](https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime.directml/1.24.4/microsoft.ml.onnxruntime.directml.nuspec).
+It applies the canonical Git patch and prints the verified base commit and
+patched tree ID. Preserve both with rebuild logs. A checkout with unrelated
+source changes or an older locally transformed patch must be replaced with a
+clean checkout before rebuilding. Keep the existing DLL and digest until the
+candidate passes Windows packaging and console external-data acceptance.
+
 ## Install over NuGet (local or CI)
 
 ```powershell
