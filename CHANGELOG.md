@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **LFM2.5 1.2B Instruct and 8B-A1B use their model cards' sampling values.** The 1.2B gets temperature 0.1, top_k 50 and repetition penalty 1.05; the 8B gets 0.2, 80 and 1.05. They come from Liquid AI's cards and apply wherever the user or the request does not set a value. A paired eval on Series S found no regression and no measured gain against the global defaults (`bench/results/2026-11-27-lfm25-card-sampling/`). On the console, the Temperature these two models start from changes from 0.8 to the card's value unless the user had set one.
 - **A model's sampling defaults live in the catalogue.** Sampling defaults were global, the same for every model, so a client that wanted a model card's values had to keep its own table, and the console app and each client disagreed.
   - A catalogue entry may carry a `sampling` object (`temperature`, `top_p`, `top_k`, `repetition_penalty`). The layers apply in one order: global defaults, then the model, then the user, then the request (`include/xllama/model_sampling.h`).
   - A LAN API chat request that omits a field gets the model's value. `/v1/models` reports each chat model's `sampling` with a `source` per field, and `/health` lists the `model_sampling` capability.
