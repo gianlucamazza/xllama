@@ -984,6 +984,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_main.cpp`                    | doctest entry point; stall watchdog off unless `XLLAMA_INFER_STALL_TIMEOUT_S` is exported                                                             |
 | `test_cli.cpp`                     | `cli.h`                                                                                                                                               |
 | `test_decode_loop.cpp`             | `decode_loop.h` via `run_inference` (opt-in model)                                                                                                    |
+| `test_decode_faults.cpp`           | GGUF decode outcomes, speculative KV alignment, and model-backed Session recovery under injected backend faults                                       |
 | `test_inference_progress.cpp`      | `inference_progress.h` cadence, stall policy, watchdog                                                                                                |
 | `test_local_knob.cpp`              | `local_knob.h` LocalState file read/write, CRLF/trim normalisation, strict integer knobs                                                              |
 | `test_device_train.cpp`            | `device_train.h`                                                                                                                                      |

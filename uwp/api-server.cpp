@@ -1209,7 +1209,7 @@ std::string write_tool_proposal(::xllama::GenerateParams& gp, const ::xllama::To
         status = "200 OK";
         return {};
     }
-    const bool hit_cap = generated.n_eval >= gp.n_predict;
+    const bool hit_cap = generated.hit_token_limit(gp.n_predict);
     const ::xllama::ToolParseResult parsed = ::xllama::parse_tool_generation(
         session->resident_llama_model(), thinking, "", messages, request.tools, request.choice,
         request.forced_name, generated.output_text, hit_cap);
@@ -1676,7 +1676,7 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
             // Generation can end on EOG or the token cap while a stop prefix is
             // still held; it never completed a stop, so it is ordinary text.
             send(stop_filter.finish(), /*finishing=*/true);
-            const bool streamed_cap = r.n_eval >= gp.n_predict;
+            const bool streamed_cap = r.hit_token_limit(gp.n_predict);
             sse->finish(streamed_cap ? L"length" : L"stop", r,
                         reasoning_tokens.count(fmt.strip_thinking_content));
             status = "200 OK";
@@ -1707,10 +1707,7 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
     if (!reply.reasoning.empty())
         message.Insert(native ? L"thinking" : L"reasoning_content",
                        JsonValue::CreateStringValue(winrt::to_hstring(reply.reasoning)));
-    // "length" only when we actually hit the token cap; a model that ends on its
-    // EOS token before the cap stops naturally, which ended_with_stop (a textual
-    // stop-sequence match) does not capture — deduce it from the token count.
-    const bool hit_cap = r.n_eval >= gp.n_predict;
+    const bool hit_cap = r.hit_token_limit(gp.n_predict);
     return chat_reply_json(response, model, message, hit_cap ? L"length" : L"stop", r,
                            reasoning_tokens.count(fmt.strip_thinking_content), status);
 }

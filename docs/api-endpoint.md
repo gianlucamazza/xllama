@@ -691,7 +691,7 @@ An interrupted stream may end before the totals arrive. A non-null options
 object requires `stream:true`; `include_usage`, when present, must be a boolean, and
 other keys such as `include_obfuscation` are ignored. The option is checked before compute admission, so a malformed one is a 400 even while another job holds the console.
 
-A failure after the head travels as an `{"error":{...}}` event.
+A GGUF decode failure returns HTTP 500 for a non-streamed chat or generation. After the OpenAI streaming head, a failure travels as an `{"error":{...}}` event. Earlier token deltas can already be visible. The server skips the finish choice and usage summary and ends the stream with `[DONE]` if the socket is writable. Native Ollama chat and generate use an `{"error":"..."}` body for HTTP errors. A native stream ends with that NDJSON error line and omits the successful `done:true` object.
 
 A stream that has written nothing for 5 s (`kSseKeepaliveInterval`), as during a
 long prefill, gets an SSE comment line, `: keepalive` (#581). Clients skip
