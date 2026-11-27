@@ -47,11 +47,12 @@ bool ollama_model_id(std::string_view id);
 // /v1/chat/completions.
 bool ollama_chat_model(std::string_view id, bool gguf, bool embedding);
 
-// `think` is accepted when absent, null, or equal to the model's own behaviour
-// (model_is_thinking in chat_prompt.h). A value that would change it is
-// refused with this message until the override exists.
-inline constexpr const char* kOllamaThinkUnsupported =
-    "think override is not supported for this model yet";
+// `think` is a boolean or "low" / "medium" / "high"; anything else is 400
+// with this message. A boolean becomes chat_template_kwargs.enable_thinking
+// and a level becomes reasoning_effort in the canonical body, so the chat
+// handler applies the one reasoning decision (reasoning_control.h, #648).
+inline constexpr const char* kOllamaThinkInvalid =
+    "think must be a boolean or \"low\", \"medium\" or \"high\"";
 
 // keep_alive is a number of seconds or a Go-style duration string ("5m",
 // "1h30m", "750ms", "-1s"); anything else is 400. Any negative value becomes

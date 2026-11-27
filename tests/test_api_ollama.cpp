@@ -3,6 +3,7 @@
 
 #include "xllama/api_ollama.h"
 #include "xllama/chat_prompt.h"
+#include "xllama/reasoning_control.h"
 #include "xllama/tool_request.h"
 
 #include <doctest/doctest.h>
@@ -133,22 +134,40 @@ TEST_CASE("Ollama: requests xllama cannot honour are refused before admission") 
               .empty());
 }
 
-TEST_CASE("Ollama: think may restate the model's behaviour, not change it") {
-    // lfm25-350m does not reason; lfm25-1.2b-thinking does (chat_prompt.h).
-    REQUIRE_FALSE(model_is_thinking("lfm25-350m"));
-    REQUIRE(model_is_thinking("lfm25-1.2b-thinking"));
+TEST_CASE("Ollama: think maps onto the shared reasoning decision (#648)") {
     const auto think = [](const char* model, const char* value) {
         return parse_ollama_request(std::string(R"({"model":")") + model +
                                         R"(","prompt":"x","think":)" + value + "}",
-                                    OllamaRoute::Generate)
-            .error;
+                                    OllamaRoute::Generate);
     };
-    CHECK(think("lfm25-350m", "null").empty());
-    CHECK(think("lfm25-350m", "false").empty());
-    CHECK(think("lfm25-1.2b-thinking", "true").empty());
-    CHECK(think("lfm25-350m", "true") == kOllamaThinkUnsupported);
-    CHECK(think("lfm25-1.2b-thinking", "false") == kOllamaThinkUnsupported);
-    CHECK(think("lfm25-1.2b-thinking", R"("high")") == kOllamaThinkUnsupported);
+    const auto decision = [](const OllamaRequest& request, const char* model) {
+        REQUIRE_MESSAGE(request.error.empty(), request.error);
+        return decide_reasoning(model, read_reasoning_fields(request.body));
+    };
+    // A boolean is chat_template_kwargs.enable_thinking, a level is reasoning_effort.
+    const OllamaRequest off = think("qwen3-4b", "false");
+    CHECK(json::parse(off.body)["chat_template_kwargs"] == json{{"enable_thinking", false}});
+    const OllamaRequest high = think("qwen3-4b", R"("high")");
+    CHECK(json::parse(high.body)["reasoning_effort"] == "high");
+    CHECK_FALSE(json::parse(think("qwen3-4b", "null").body).contains("chat_template_kwargs"));
+
+    // qwen3-4b can switch both ways; lfm25-1.2b-thinking cannot stop reasoning
+    // and lfm25-350m cannot start. Restating what a model does is accepted.
+    CHECK_FALSE(decision(off, "qwen3-4b").thinking);
+    CHECK(decision(think("qwen3-4b", "true"), "qwen3-4b").thinking);
+    CHECK(decision(high, "qwen3-4b").thinking);
+    CHECK(decision(think("lfm25-350m", "false"), "lfm25-350m").error.empty());
+    CHECK(decision(think("lfm25-1.2b-thinking", "true"), "lfm25-1.2b-thinking").thinking);
+    const ReasoningDecision stop =
+        decision(think("lfm25-1.2b-thinking", "false"), "lfm25-1.2b-thinking");
+    CHECK(std::string(stop.code) == kReasoningUnsupportedCode);
+    CHECK(decision(think("lfm25-350m", R"("low")"), "lfm25-350m").error.find("does not reason") !=
+          std::string::npos);
+
+    for (const char* bad : {R"("none")", R"("max")", "1", "[]"}) {
+        CAPTURE(bad);
+        CHECK(think("qwen3-4b", bad).error == kOllamaThinkInvalid);
+    }
 }
 
 TEST_CASE("Ollama: same-name tool results bind in call order") {

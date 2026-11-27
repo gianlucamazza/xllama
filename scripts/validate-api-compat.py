@@ -93,7 +93,13 @@ def validate_native(base, model, tool_model, ort_model):
     expect_error(base, "/api/chat", {**chat, "model": "xllama-nonexistent-model"}, 404)
     thinking = models[model]["capabilities"]["reasoning"]
     read_json(base, "/api/chat", {**chat, "stream": False, "options": short, "think": thinking})
-    expect_error(base, "/api/chat", {**chat, "think": not thinking}, 400, "think")
+    # #648: think maps onto the reasoning control the model reports.
+    flipped = {**chat, "stream": False, "options": short, "think": not thinking}
+    if models[model]["capabilities"].get("reasoning_control"):
+        read_json(base, "/api/chat", flipped)
+    else:
+        expect_error(base, "/api/chat", flipped, 400, "reasoning")
+    expect_error(base, "/api/chat", {**chat, "think": "max"}, 400, "think")
     if ort_model:
         expect_error(base, "/api/chat", {**chat, "model": ort_model}, 400, "/v1/chat/completions")
     print("Refused fields and think passed")

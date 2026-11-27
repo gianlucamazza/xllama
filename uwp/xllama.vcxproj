@@ -382,6 +382,7 @@
     <ClCompile Include="..\src\bridge\memory_admission.cpp" />
     <ClCompile Include="..\src\bridge\api_discovery.cpp" />
     <ClCompile Include="..\src\bridge\api_ollama.cpp" />
+    <ClCompile Include="..\src\bridge\reasoning_control.cpp" />
     <ClCompile Include="..\src\bridge\thinking_split.cpp" />
     <ClCompile Include="..\src\bridge\tool_budget.cpp" />
     <ClCompile Include="..\src\bridge\moe_streaming.cpp" />

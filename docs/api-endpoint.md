@@ -216,7 +216,8 @@ to branch on (`include/xllama/api_discovery.h`):
     "model_sampling": true,
     "ollama_chat": true,
     "ollama_keep_alive": true,
-    "chat_context": true
+    "chat_context": true,
+    "reasoning_control": true
   },
   "sampling": ["temperature", "top_p", "top_k", "repetition_penalty", "seed"],
   "runtime": {
@@ -244,7 +245,9 @@ means the build serves `/api/chat` and `/api/generate` (a build with
 llama.cpp); which models they accept is the per-model capability below.
 `ollama_keep_alive` means native `keep_alive` and `GET /api/ps` follow
 [Model residency](#model-residency-keep_alive-apips); `chat_context` means a chat
-request may reduce the context with `options.num_ctx`. `runtime`
+request may reduce the context with `options.num_ctx`; `reasoning_control` means
+a chat request may switch reasoning where the model allows it
+([Reasoning control](#reasoning-control-reasoning_effort-enable_thinking-think)). `runtime`
 names the llama.cpp commit the build compiles (llama.cpp's own build info; the
 commit only, since its build number counts the submodule history and reads 1 in
 a shallow checkout) and the patches applied to it
@@ -262,14 +265,17 @@ and adds non-standard fields that clients may ignore:
 | `kind`         | `gguf`, `ort-genai` or `diffusion`                                                                                                                                      |
 | `role`         | Catalogue role: `""`, `coding` or `embedding`                                                                                                                           |
 | `n_ctx`        | Context the session uses: the resident session's for the active model, else what a session of that entry opens with (`catalogue_n_ctx`: 512 floor, ONNX capped at 8192) |
-| `capabilities` | `tools` (the GGUF chat template renders a tool schema, the same check a tool proposal makes), `reasoning`, `embedding`, `ollama_chat` (see below)                       |
+| `capabilities` | `tools` (the GGUF chat template renders a tool schema, the same check a tool proposal makes), `reasoning`, `reasoning_control`, `embedding`, `ollama_chat` (see below)  |
 | `sampling`     | Chat models only: the `temperature`, `top_p`, `top_k` and `repetition_penalty` a request that sets none of them gets, and a `source` per field (`default` or `model`)   |
 
 `tools` is read from the GGUF header's chat template without loading weights,
 and cached per file, size and write time. `ollama_chat` is what the native
 routes accept: a GGUF text model, not an embedding model, whose id is a plain
 catalogue-style name (`ollama_chat_model`, `include/xllama/api_ollama.h`). ONNX
-models report `false` and stay on `/v1/chat/completions`.
+models report `false` and stay on `/v1/chat/completions`. `reasoning` is whether
+the model reasons when a request does not say (`model_is_thinking`,
+`include/xllama/chat_prompt.h`); `reasoning_control` is whether a request may
+change that ([Reasoning control](#reasoning-control-reasoning_effort-enable_thinking-think)).
 
 `sampling` comes from one rule (`include/xllama/model_sampling.h`): the global
 defaults, then the model's catalogue values, then the request. A model entry in
@@ -335,10 +341,12 @@ same ones; only the reply is written as native Ollama objects.
 - Reasoning follows the model as on the OpenAI path: a thinking model's
   reasoning is `message.thinking` (`thinking` on `/api/generate`), and
   `content` never carries the tags.
-- `think` is accepted when absent, `null`, or equal to what the model does
-  (`capabilities.reasoning`, `model_is_thinking`). A value that would turn
-  reasoning on or off, or a level string, is 400
-  `think override is not supported for this model yet`.
+- `think` is `true`, `false`, or a level (`"low"`, `"medium"`, `"high"`, which
+  mean `true`): a boolean is read as `chat_template_kwargs.enable_thinking` and
+  a level as `reasoning_effort`, so the same
+  [Reasoning control](#reasoning-control-reasoning_effort-enable_thinking-think)
+  rules and errors apply. Anything else is 400
+  `think must be a boolean or "low", "medium" or "high"`.
 - An empty `messages` (or none) on `/api/chat`, or an empty or missing
   `prompt` on `/api/generate`, loads the model and answers one JSON object
   with `done_reason: "load"`.
@@ -359,6 +367,42 @@ curl -s http://<console-ip>:11434/api/generate \
   -H 'Content-Type: application/json' \
   -d '{"model":"lfm25-350m","prompt":"Say hi","stream":false,"options":{"num_predict":32}}'
 ```
+
+### Reasoning control (`reasoning_effort`, `enable_thinking`, `think`)
+
+A chat request may turn reasoning off or on for that request only (#648), when
+`/health` lists `reasoning_control`:
+
+- `reasoning_effort` (OpenAI): `"none"` turns it off; `"low"`, `"medium"` and
+  `"high"` turn it on. The level is not modelled: a model that reasons does so
+  as its template does, whatever level is sent. Any other value (including
+  `"minimal"`) or type is 400 `invalid_value`, `param: "reasoning_effort"`.
+- `chat_template_kwargs.enable_thinking` (llama-server and vLLM spelling): a
+  boolean. `chat_template_kwargs` must be an object whose only key is
+  `enable_thinking`; another key is 400 rather than a template variable xllama
+  would drop.
+- Ollama `think` on `/api/chat` and `/api/generate` maps onto these (above).
+
+`null` or an absent field leaves the model's own behaviour
+(`capabilities.reasoning`). Both OpenAI fields at once must agree, or the
+request is 400 `reasoning_effort and chat_template_kwargs.enable_thinking disagree`.
+
+Which models honour a switch is `capabilities.reasoning_control` in
+`/v1/models`, from one decision (`decide_reasoning`,
+`include/xllama/reasoning_control.h`); a client reads it rather than keeping a
+list. A value that restates what the model does is always accepted. A value that
+changes it on a model with `reasoning_control: false` is 400 with
+`code: "reasoning_control_unsupported"` and `param` naming the field: a model
+that always reasons (its template has no off switch) cannot be turned off, and
+a model without a thinking path cannot be turned on. All of this is checked
+before compute admission.
+
+The effective value is what both paths render: plain chat takes the
+template's no-think prefill (off) or its thinking path (on, where a template
+that opens `<think>` in the prompt is split as such), and a tool proposal
+passes it as the template's `enable_thinking`. With reasoning on, the reply
+carries it as `reasoning_content` (`thinking` on the native routes) and counts
+it in `reasoning_tokens`, as for a model that reasons by default.
 
 ### Model residency (`keep_alive`, `/api/ps`)
 
@@ -512,12 +556,14 @@ offered. Under `"auto"`, an LFM2/LFM2.5 model that calls a tool outside `tools`
 gets that call back as it made it, rather than forced onto a declared tool or
 dropped as text (`patches/0007`, #610): the client decides what to do with an
 unknown name, as it would with any tool error.
-Whether the model reasons follows the model, as on plain chat (#655): the
-template's `enable_thinking` is `model_is_thinking(model)` (`chat_prompt.h`), the
-same decision as the plain-chat no-think prefill and `capabilities.reasoning` in
-`/v1/models`. A Qwen3, MiniCPM5 or SmolLM3 model that reports `reasoning: false`
-gets its template's empty think block and answers or calls directly; a thinking
-model still reasons first. A template without a thinking switch is unaffected.
+Whether the model reasons is decided as on plain chat (#655, #648): the
+template's `enable_thinking` is the request's effective reasoning
+(`decide_reasoning`, `reasoning_control.h`), which is `model_is_thinking(model)`
+(`chat_prompt.h`, `capabilities.reasoning` in `/v1/models`) unless the request
+switches it ([Reasoning control](#reasoning-control-reasoning_effort-enable_thinking-think)).
+A Qwen3, MiniCPM5 or SmolLM3 model with reasoning off gets its template's empty
+think block and answers or calls directly; a thinking model still reasons first.
+A template without a thinking switch is unaffected.
 Content may be a string, null, or an array of `{type:"text",text}` parts joined
 with no separator. Anything else, including an image part, is `400`. A
 `developer` message is a system message, as on plain chat. A `tool`
