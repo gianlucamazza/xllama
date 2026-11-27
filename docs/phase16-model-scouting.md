@@ -160,7 +160,7 @@ Invocations, in order:
 ./scripts/quantize.sh in.gguf out.gguf Q4_K_M                                 # T2
 ./scripts/validate-logit-parity.sh                                            # T2, ORT/DML only
 ./scripts/provision-models.sh <name>                                          # T3
-./scripts/bench-xbox-ort.sh <name> --runs 4 --n-predict 96 \
+./scripts/bench-xbox-ort.sh <name> --hardware xbox-series-s --runs 4 --n-predict 96 \
     --out bench/results/phase16-<ws>.csv                                      # T3 (+ --gpu-sample for DML)
 ./scripts/eval-xbox-models.sh --models a,b --out bench/results/phase16-h9.jsonl  # T4
 python3 scripts/check-coherence.py && ./scripts/validate-console.sh all       # T5
@@ -246,9 +246,9 @@ needs a decision-log entry.
 - **Measure:** (a) arch delta —
   `git -C llama.cpp log --oneline b10094..<new> -- src/models/ src/llama-arch.cpp`
   plus the `LLM_ARCH_NAMES` diff; (b) `scripts/apply-llama-patches.sh` applies
-  clean; (c) `scripts/check-uwp-sources.sh`; (d) a **manual diff of the
-  `ggml/src` source list** against `uwp/ggml-uwp.vcxproj` (not covered by CI —
-  see R2); (e) an A/B of `lfm25-350m` Q4_K_M at t6 into
+  clean; (c) `scripts/check-uwp-sources.sh` verifies the ggml, llama and chat
+  inventories; (d) review any new backend directories and the chat link closure
+  against the candidate pin; (e) an A/B of `lfm25-350m` Q4_K_M at t6 into
   `bench/results/phase16-pin-before.csv` / `phase16-pin-after.csv`.
 - **PASS:** the needed arch is present, the patch applies (or rebases in ≤20
   lines), 10/10 console gates, and prefill/decode stay within ±3% of

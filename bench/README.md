@@ -37,6 +37,13 @@ Never combine the best prefill, decode, or RAM values from different CSV rows.
 Add a row to `benchmark-summary.json` when a newly measured configuration should
 appear in the consolidated comparison.
 
+When a PR changes the decode loop, prefill or a sampler chain
+(`src/bridge/decode_loop*.h`, `src/bridge/inference.cpp`,
+`src/bridge/session.cpp`, `src/bridge/sampler_chain.h`,
+`src/bridge/ort_sampling.h`), re-measure the headline models on the release
+package before that release ships, and record the run under `bench/results/`.
+A host run or an earlier package's numbers do not cover the change.
+
 The CSV validator rejects duplicate headers, short or long rows, non-finite
 metrics (including NaN and infinity), negative metrics, and invalid integer
 settings. Historical schemas, single-field comment lines and empty optional cells
