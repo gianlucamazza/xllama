@@ -689,7 +689,7 @@ and a separate final chunk with `"choices":[]` carries the totals before
 `[DONE]`, for plain chat and tool proposals. Explicit `false` omits usage.
 An interrupted stream may end before the totals arrive. A non-null options
 object requires `stream:true`; `include_usage`, when present, must be a boolean, and
-other keys such as `include_obfuscation` are ignored.
+other keys such as `include_obfuscation` are ignored. The option is checked before compute admission, so a malformed one is a 400 even while another job holds the console.
 
 A failure after the head travels as an `{"error":{...}}` event.
 

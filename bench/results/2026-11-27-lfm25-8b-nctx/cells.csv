@@ -1,0 +1,4 @@
+cell,model,n_ctx,target_tokens,load_status,prompt_status,prompt_tokens,first_content_ms,done_ms,max_private_ws_mb,detail
+lfm25-8b-a1b-2048-1800,lfm25-8b-a1b,2048,1800,200,400,,,,3508,stream: ValueError: HTTP 400; prompt too long: the final user message needs 1856 tokens plus 8 for the reply; but n_ctx is 2048
+lfm25-8b-a1b-4096-3800,lfm25-8b-a1b,4096,3800,200,200,3840,,61313.861,3593,stream: ValueError: no content delta before [DONE]
+lfm25-8b-a1b-8192-7800,lfm25-8b-a1b,8192,7800,200,200,7809,,131188.707,3647,stream: ValueError: no content delta before [DONE]
