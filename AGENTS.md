@@ -226,7 +226,7 @@ hand-edit that file or `docs/benchmarks-charts.html`.
 include/xllama/     WinRT-free headers. One concern per header.
   diffusion/        CLIP tokenizer, Euler scheduler, PNG writer (host-testable)
 src/bridge/         Shared .cpp for Linux and UWP (inference, session, training, probes)
-src/main.cpp        Linux CLI (getopt_long)
+src/main.cpp        Linux CLI entry point (argument parsing in src/bridge/cli.cpp)
 uwp/                C++/WinRT app, LAN API, headless flags, AppxManifest, vcxproj
   models/manifest.json   Catalogue data
   packages.config        NuGet pins
