@@ -177,6 +177,9 @@ jobs:
       - name: Build
         run: cmake --build build/linux-test -j$(nproc)
 
+      - name: Hybrid GGUF snapshot memory and recovery
+        run: python3 scripts/test-kv-restore-memory.py --build-dir build/linux-test
+
       # check-coherence.py runs before the build so docs-only PRs fail fast, and
       # correctly *warns* when xllama-cli is missing. That meant train-job JSON
       # validation never ran on CI (#222). Keep the early SSOT audit; gate jobs

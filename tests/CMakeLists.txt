@@ -105,6 +105,10 @@ foreach(symbol llama_decode llama_sampler_sample llama_vocab_is_eog llama_token_
 endforeach()
 add_test(NAME test-decode-faults COMMAND test-decode-faults)
 
+# Isolate payload lifetime accounting from the main runner. The CI fixture is a tiny hybrid GGUF.
+add_executable(test-state-restore-memory test_state_restore_memory.cpp)
+target_link_libraries(test-state-restore-memory PRIVATE xllama)
+
 # Keep replacement operator new/delete for allocation-failure tests out of the shared test runner.
 add_executable(test-admission-allocation test_admission_allocation.cpp)
 target_compile_features(test-admission-allocation PRIVATE cxx_std_17)
