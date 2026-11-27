@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <limits>
 #include <optional>
+#include <type_traits>
 
 namespace xllama {
 namespace {
@@ -54,6 +55,17 @@ class Reader {
             out = static_cast<Int>(*n);
         else
             reject(key);
+    }
+
+    template <typename T> void maybe(const char* key, std::optional<T>& out, T lo, T hi) {
+        T value{};
+        const std::size_t before = rejected_.size();
+        if constexpr (std::is_integral_v<T>)
+            integer(key, value, lo, hi);
+        else
+            real(key, value, lo, hi);
+        if (find(key) && rejected_.size() == before)
+            out = value;
     }
 
     void real(const char* key, float& out, float lo, float hi) {
@@ -122,9 +134,7 @@ bool AppSettings::operator==(const AppSettings& o) const {
     return system_prompt == o.system_prompt && model == o.model && kv_reuse == o.kv_reuse &&
            debug_dashboard == o.debug_dashboard && routing == o.routing &&
            gpu_model == o.gpu_model && diffuse_taesd_vae == o.diffuse_taesd_vae &&
-           diffuse_seed == o.diffuse_seed && temperature == o.temperature && top_p == o.top_p &&
-           top_k == o.top_k && repetition_penalty == o.repetition_penalty &&
-           n_predict == o.n_predict;
+           diffuse_seed == o.diffuse_seed && sampling == o.sampling && n_predict == o.n_predict;
 }
 
 AppSettingsLoad parse_app_settings(std::string_view text) {
@@ -148,12 +158,27 @@ AppSettingsLoad parse_app_settings(std::string_view text) {
     top.integer("diffuse_seed", s.diffuse_seed, 0, std::numeric_limits<std::uint32_t>::max());
     if (const json* sampling = top.object("sampling")) {
         Reader r(*sampling, "sampling.", out.rejected);
-        r.real("temperature", s.temperature, lim::kTemperatureMin, lim::kTemperatureMax);
-        r.real("top_p", s.top_p, lim::kTopPMin, lim::kTopPMax);
-        r.integer("top_k", s.top_k, lim::kTopKMin, lim::kTopKMax);
-        r.real("repetition_penalty", s.repetition_penalty, lim::kRepetitionPenaltyMin,
-               lim::kRepetitionPenaltyMax);
+        SamplingOverrides& u = s.sampling;
+        r.maybe("temperature", u.temperature, lim::kTemperatureMin, lim::kTemperatureMax);
+        r.maybe("top_p", u.top_p, lim::kTopPMin, lim::kTopPMax);
+        r.maybe("top_k", u.top_k, lim::kTopKMin, lim::kTopKMax);
+        r.maybe("repetition_penalty", u.repetition_penalty, lim::kRepetitionPenaltyMin,
+                lim::kRepetitionPenaltyMax);
         r.integer("n_predict", s.n_predict, lim::kNPredictMin, lim::kNPredictMax);
+    }
+    // Before schema 2 the writer saved every sampling value, chosen or not. A
+    // value equal to that writer's default was not a choice: it inherits.
+    const auto schema = root.find("schema");
+    if (schema == root.end() || !schema->is_number() || schema->get<double>() < 2) {
+        SamplingOverrides& u = s.sampling;
+        if (u.temperature == sampling_defaults::kTemperature)
+            u.temperature.reset();
+        if (u.top_p == sampling_defaults::kTopP)
+            u.top_p.reset();
+        if (u.top_k == sampling_defaults::kTopK)
+            u.top_k.reset();
+        if (u.repetition_penalty == sampling_defaults::kRepetitionPenalty)
+            u.repetition_penalty.reset();
     }
     // An empty gpu_model would select no GPU asset at all; the previous reader
     // also ignored it.
@@ -164,6 +189,7 @@ AppSettingsLoad parse_app_settings(std::string_view text) {
 
 std::string format_app_settings(const AppSettings& s) {
     nlohmann::ordered_json root;
+    root["schema"] = kAppSettingsSchema;
     root["system_prompt"] = s.system_prompt;
     root["model"] = s.model;
     root["kv_reuse"] = s.kv_reuse;
@@ -173,10 +199,15 @@ std::string format_app_settings(const AppSettings& s) {
     root["diffuse_taesd_vae"] = s.diffuse_taesd_vae;
     root["diffuse_seed"] = s.diffuse_seed;
     nlohmann::ordered_json sampling;
-    sampling["temperature"] = shortest(s.temperature);
-    sampling["top_p"] = shortest(s.top_p);
-    sampling["top_k"] = s.top_k;
-    sampling["repetition_penalty"] = shortest(s.repetition_penalty);
+    // Only the user's own values: an unset one inherits the model's.
+    if (s.sampling.temperature)
+        sampling["temperature"] = shortest(*s.sampling.temperature);
+    if (s.sampling.top_p)
+        sampling["top_p"] = shortest(*s.sampling.top_p);
+    if (s.sampling.top_k)
+        sampling["top_k"] = *s.sampling.top_k;
+    if (s.sampling.repetition_penalty)
+        sampling["repetition_penalty"] = shortest(*s.sampling.repetition_penalty);
     sampling["n_predict"] = s.n_predict;
     root["sampling"] = std::move(sampling);
     return root.dump(2) + "\n";

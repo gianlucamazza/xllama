@@ -13,6 +13,7 @@
     #include "xllama/manifest_merge.h"
     #include "xllama/model_file_plan.h"
     #include "xllama/model_provision.h"
+    #include "xllama/model_sampling.h"
     #include "xllama/path_utils.h"
     #include "xllama/prefix_snapshot.h"
     #include "xllama/session_spec.h"
@@ -799,6 +800,21 @@ std::vector<ManifestEntry> parse_manifest(winrt::hstring const& text) {
         e.role = obj.GetNamedString(L"role", L"");
         // 0 / absent → CPU; the operator knob still overrides (D3).
         e.gpu_layers = static_cast<int>(obj.GetNamedNumber(L"gpu_layers", 0));
+        // An invalid sampling object refuses the entry: a model default the
+        // API would reject is no default (parse_sampling_overrides).
+        if (obj.HasKey(L"sampling")) {
+            std::string error;
+            const auto sampling = ::xllama::parse_sampling_overrides(
+                ::xllama::wstring_to_utf8(std::wstring(obj.GetNamedValue(L"sampling").Stringify())),
+                &error);
+            if (!sampling) {
+                log_output(
+                    ("[catalogue] skip " + ::xllama::wstring_to_utf8(e.name) + ": " + error + "\n")
+                        .c_str());
+                continue;
+            }
+            e.sampling = *sampling;
+        }
         if (obj.HasKey(L"files")) {
             for (auto const& f : obj.GetNamedArray(L"files")) {
                 auto fo = f.GetObject();

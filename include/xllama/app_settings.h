@@ -12,10 +12,16 @@
 // two decimals. Here every field is validated on its own: a missing, mistyped
 // or out-of-range value takes that field's default, unknown keys are ignored
 // at any depth, and malformed JSON yields the defaults plus an error to log.
+//
+// Sampling holds only the values the user chose: an unset field inherits the
+// model's value, then the global default (model_sampling.h, the "user" layer).
+// Files before schema 2 wrote all four values whether chosen or not; a value
+// equal to the old global default reads back unset, so it inherits.
 #pragma once
 
 #include "xllama/chat_prompt.h" // kDefaultSystemPrompt
-#include "xllama/sampling.h"    // sampling_defaults
+#include "xllama/model_sampling.h"
+#include "xllama/sampling.h" // sampling_defaults
 
 #include <cstdint>
 #include <string>
@@ -44,6 +50,8 @@ inline constexpr int kRoutingMax = 2; // RoutingMode::Auto
 inline constexpr int kDefaultNPredict = 512;
 inline constexpr const char kDefaultGpuModel[] = "smollm2-360m-dml-fp16-v2";
 inline constexpr const char kSettingsFileName[] = "settings.json";
+// Written as "schema"; 2 = sampling holds only the user's own values.
+inline constexpr int kAppSettingsSchema = 2;
 
 struct AppSettings {
     std::string system_prompt = kDefaultSystemPrompt;
@@ -54,10 +62,7 @@ struct AppSettings {
     std::string gpu_model = kDefaultGpuModel;
     bool diffuse_taesd_vae = false;
     std::uint32_t diffuse_seed = 0; // 0 = choose a random seed per image
-    float temperature = sampling_defaults::kTemperature;
-    float top_p = sampling_defaults::kTopP;
-    int top_k = sampling_defaults::kTopK;
-    float repetition_penalty = sampling_defaults::kRepetitionPenalty;
+    SamplingOverrides sampling;     // the user's own values; unset = the model's
     int n_predict = kDefaultNPredict;
 
     bool operator==(const AppSettings& o) const;
