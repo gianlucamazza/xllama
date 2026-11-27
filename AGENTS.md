@@ -143,7 +143,8 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
   tests/test_dependency_monitoring.py tests/test_host_training_env.py \
   tests/test_d3d12_layer_log.py tests/test_ort_profile.py \
   tests/test_bench_kv_driver.py tests/test_eval_standard.py tests/test_hellaswag_token_mean.py \
-  tests/test_eval_standard_generative.py tests/test_benchmark_summary_standard.py
+  tests/test_eval_standard_generative.py tests/test_benchmark_summary_standard.py \
+  tests/test_apply_llama_patches.py
 ```
 
 The numerical comparator tests need numpy (and `pyyaml` for gguf-py in `test_make_moe_fixture.py`), which CI installs for them:
