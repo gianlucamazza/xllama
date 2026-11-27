@@ -18,7 +18,7 @@ Technical notes and design decisions for xllama.
 5. **English only** for docs, code comments, and commit messages (project
    convention).
 
-The active consolidation program is [Engineering excellence execution — 2026-11-07](audit/excellence/execution-2026-11-07.md). Its dated discovery receipt does not replace the owners below.
+The active consolidation program is [Engineering excellence execution — 2026-11-07](audit/excellence/execution-2026-11-07.md). Its dated discovery receipt does not replace the owners below. The [November standards review](audit/excellence/standards-2026-11-27/README.md) applies [proposed ADR 0011](adr/0011-standard-first-and-upstream-first.md) to the v1.10 release.
 
 ## Documentation ownership
 
