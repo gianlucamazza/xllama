@@ -102,6 +102,20 @@ owns measured budgets and API restrictions.
 3. Separate model load, tokenization, prefill, decode, sampling and stream delivery. Use the layer sidecar for dispatches and `measure-api-ttfb.py` for first visible content over LAN. Treat an uninstrumented interval as unknown. Perform wall-time trials with diagnostic knobs off and a paired on/off calibration for each timing capture.
 4. For a representative matmul shape, compute expected operations (two per multiply-add) and declared bytes of weights, activations and output. Use their ratio in FLOP/byte with sustained bandwidth and arithmetic throughput measured on the same path. At one column, weights amortize over one token; extra prefill columns can increase reuse. Absolute DRAM traffic, cache hits, utilization, clock rate and energy require corresponding counters. Use model-level throughput/latency and a CPU or paired knob control to test any roofline hypothesis.
 
+A November 27 host replay of the [six historical C4 cells](evidence/2026-11-16-c4-performance/README.md) reproduced every archived per-gate median, 95% bootstrap interval and verdict from the checked-in A/B rows and ledgers. All three LFM cells failed and all three Coder cells passed, with 20 pairs per cell. To repeat, use each `id` and its ordered `gates` in [the frozen manifest](evidence/2026-11-16-c4-performance/manifest.json).
+
+```sh
+# Example failing cell. Exit 1 is the recorded performance verdict.
+python3 scripts/paired-bench-summary.py \
+  bench/results/2026-11-16-c4-paired/cells/lfm25-1.2b-instruct/long-1k \
+  --gates prefill,decode,ttft,peak
+# Default-profile integrity of the previously measured v1.11.0 Series S package.
+python3 scripts/verify-d3d12-selftest.py \
+  bench/results/2026-11-27-v1110-series-s-release/receipts/d3d12-selftest-ee6a718-off.csv
+```
+
+The latter replay verified 24 distinct GPU selftests. Both checks reuse historical console records. Fresh runs still require the matching package and device.
+
 ### GPU opportunities and decisions
 
 | Candidate                                                                               | Implemented baseline / cost to isolate                                                                                                                                                                             | Decision and acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                               |
