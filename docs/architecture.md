@@ -42,6 +42,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `api_failure.h`                    | HTTP status for an exception that escapes a LAN API route: 400 only for a Json accessor failure, 503 out of memory, else 500 (#591)                                                                   |
 | `debug_dashboard.h`                | Optional debug dashboard snapshot: compose real hub / LAN / inference readings; missing sources stay `unavailable`                                                                                    |
 | `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125)                                                                                                                          |
+| `model_sampling.h`                 | Per-model sampling (catalogue `sampling`) and the layer order: global < model < user < request                                                                                                        |
 | `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON                                                                                                                                        |
 | `device_train.h`                   | Lane B engine API: `run_device_train_job`, progress callbacks, filters                                                                                                                                |
 | `personalize.h`                    | Phase 11 helpers: last-block filter, job builder, sample count, manifest JSON                                                                                                                         |
@@ -366,6 +367,24 @@ the ORT params stayed hand-duplicated across `run_inference_ort` and
 `OrtSession::make_params` and drifted on that guard until #141 gave them a shared
 builder too. Now neither backend's two surfaces (CLI/bench vs GUI/API) can diverge
 by construction.
+
+**Which values** that config holds has one home too, `model_sampling.h`
+(`resolve_sampling`). The layers apply in one order on every surface:
+
+```
+global (sampling.h)  <  model (catalogue "sampling")  <  user (Settings)  <  request (LAN API)
+```
+
+A model's recommended values (its card or its publisher's generation config)
+sit in its catalogue entry as an optional `"sampling"` object with any of
+`temperature`, `top_p`, `top_k` and `repetition_penalty`. llama.cpp does not
+read sampling defaults from a GGUF, so the catalogue, which already pins every
+file, is where they live; a client does not keep its own copy. Each value must
+lie in the range a request may give (`kApiSamplingFields`), or the entry is
+refused. The seed is never a model default. A layer that leaves a field unset
+inherits it from the layer below, and the request layer
+(`apply_api_sampling`) applies last. Values go into an entry only after the
+ladder below: a measured run on the console, not a card alone.
 
 The **prefill and generation loops** followed the same route, later and for the
 same reason (`src/bridge/decode_loop.h`: `prefill_chunked`,
@@ -964,6 +983,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_prompt_budget.cpp`           | `prompt_budget.h`                                                                                                                                     |
 | `test_ramceil.cpp`                 | `ramceil.h`                                                                                                                                           |
 | `test_routing_policy.cpp`          | `routing_policy.h`                                                                                                                                    |
+| `test_model_sampling.cpp`          | `model_sampling.h` (layer order, catalogue `sampling` parse, bundled manifest)                                                                        |
 | `test_sampling.cpp`                | `sampling.h` (CLI/Session parity opt-in)                                                                                                              |
 | `test_session.cpp`                 | `session.h`, `session_hub.h`                                                                                                                          |
 | `test_session_spec.cpp`            | `session_spec.h`, hub reuse rule                                                                                                                      |
@@ -1064,6 +1084,7 @@ non-empty line of the first user message (truncated at 60 chars). IDs use
 | `n_predict`   | `int`         | `0`           | `0` → keep Settings value; applied on model select                          |
 | `role`        | `wstring`     | `""`          | `""` (chat) or `"coding"` (4096 ctx, coding system prompt)                  |
 | `gpu_layers`  | `int`         | `0`           | GGUF layers on the d3d12 backend by default (0 = CPU)                       |
+| `sampling`    | object        | `{}`          | Per-model sampling defaults (see below); an invalid one refuses the entry   |
 
 `IsModelProvisioned(name, expected_files)` runs in dual mode: **expected-aware**
 requires the manifest's `files[].filename` to be present (case-insensitive),

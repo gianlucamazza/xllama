@@ -1,0 +1,78 @@
+Backport of upstream ggml-org/llama.cpp#32164 (merged 2026-11-14), adapted:
+the LFM2 tool-call grammar admits calls to tools that were not declared,
+listed last so a declared tool still wins when both parse. Before, a model
+that called an undeclared tool was forced onto a declared one or failed to
+parse (upstream reports tau3 telecom pass^1 0.746 -> 0.877 on the 24B).
+Adaptation for xllama: undeclared calls are allowed only in auto mode.
+REQUIRED, and xllama's named tool_choice that maps to it with the named
+schema alone, keeps a grammar of declared names only, so a required or
+named request still returns a call to a tool it offered (OpenAI semantics,
+docs/api-endpoint.md). Upstream enables it for every choice. The
+python_style_tool_calls hunk is re-applied by hand: the pin names its rules
+"tool-" + name, upstream "tool-" + index. Drop at the #522 pin bump, after
+checking upstream's REQUIRED behaviour (xllama #610).
+
+diff --git a/common/chat-peg-parser.cpp b/common/chat-peg-parser.cpp
+--- a/common/chat-peg-parser.cpp
++++ b/common/chat-peg-parser.cpp
+@@ -559,7 +559,8 @@ common_peg_parser common_chat_peg_builder::python_or_json_value() {
+ common_peg_parser common_chat_peg_builder::python_style_tool_calls(
+     const ordered_json & tools,
+     bool                 parallel_tool_calls,
+-    bool                 allow_json_literals) {
++    bool                 allow_json_literals,
++    bool                 allow_undeclared) {
+     if (!tools.is_array() || tools.empty()) {
+         return eps();
+     }
+@@ -616,6 +617,18 @@ common_peg_parser common_chat_peg_builder::python_style_tool_calls(
+         tool_choices |= rule("tool-" + name, tool_parser);
+     }
+ 
++    // last, so declared tools win when parsing
++    if (allow_undeclared) {
++        auto ident = rule("tool-undeclared-ident", chars("[a-zA-Z_]", 1, 1) + chars("[a-zA-Z0-9_.]", 0, -1));
++        auto value = tool_arg_value(allow_json_literals ? python_or_json_value() : python_value());
++        auto arg   = tool_arg(tool_arg_open(tool_arg_name(ident) + literal("=")) + value + tool_arg_close(eps()));
++        auto args  = optional(arg + zero_or_more("," + space() + arg));
++
++        tool_choices |= rule("tool-undeclared", tool(tool_open(tool_name(ident) + literal("(")) +
++            space() + tool_args(args) + space() + tool_close(literal(")"))
++        ));
++    }
++
+     if (parallel_tool_calls) {
+         return "[" + space() + tool_choices + zero_or_more("," + space() + tool_choices) + space() + "]";
+     }
+diff --git a/common/chat-peg-parser.h b/common/chat-peg-parser.h
+--- a/common/chat-peg-parser.h
++++ b/common/chat-peg-parser.h
+@@ -149,9 +149,11 @@ class common_chat_peg_builder : public common_peg_parser_builder {
+ 
+     // Helper for Python-style function call format: name(arg1="value1", arg2=123)
+     // Used by LFM2 and similar templates
++    // allow_undeclared: also accept calls to names not in tools (any identifier, any arguments)
+     common_peg_parser python_style_tool_calls(const common_json & tools,
+                                               bool                           parallel_tool_calls,
+-                                              bool                           allow_json_literals);
++                                              bool                           allow_json_literals,
++                                              bool                           allow_undeclared = false);
+ 
+   private:
+     // Python values plus JSON true/false/null.
+diff --git a/common/parsers/lfm2.cpp b/common/parsers/lfm2.cpp
+--- a/common/parsers/lfm2.cpp
++++ b/common/parsers/lfm2.cpp
+@@ -83,7 +83,11 @@ common_chat_params common_chat_params_init_lfm2(const common_chat_template &
+         auto tool_calls = p.rule("tool-calls",
+             p.trigger_rule("tool-call",
+                 p.literal(TOOL_CALL_START) +
+-                p.python_style_tool_calls(inputs.tools, inputs.parallel_tool_calls, /* allow_json_literals = */ true) +
++                // xllama: undeclared calls only in auto mode. REQUIRED (and xllama's
++                // named choice, which maps to it with one schema) must call a tool
++                // that was offered, so its strict grammar admits declared names only.
++                p.python_style_tool_calls(inputs.tools, inputs.parallel_tool_calls, /* allow_json_literals = */ true,
++                                          /* allow_undeclared = */ inputs.tool_choice != COMMON_CHAT_TOOL_CHOICE_REQUIRED) +
+                 p.literal(TOOL_CALL_END)
+             )
+         );
