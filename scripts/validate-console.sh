@@ -32,6 +32,13 @@
 # restart the app, poll LocalState\autopilot-done.txt, fetch xllama.log, and
 # grep the log for the verdict. Exit 0 = PASS, non-zero = FAIL. The autopilot
 # ends every script with a `quit` action so the app exits itself.
+#
+# The console is left as found (#645). Gates seed settings.json and their
+# set_model / set_sampling / set_* ops persist test values, so before the first
+# gate the script saves the user's settings.json (or notes there was none) and
+# the EXIT handler puts it back after a verified stop, on success, failure and
+# interrupt alike. When the app was running before the first gate, the handler
+# relaunches it, so the LAN API comes back. `cleanup` does neither.
 
 set -euo pipefail
 
@@ -118,6 +125,11 @@ fi
 TMPDIR_LOCAL=$(mktemp -d)
 VAE_CACHE="" # set by validate_taesd; read by the common EXIT handler
 VAE_RESTORE_PENDING=0
+# set by backup_user_settings before the first gate; read by restore_user_settings
+SETTINGS_BACKUP="${TMPDIR_LOCAL}/settings.user.json"
+SETTINGS_USER_ABSENT=0
+SETTINGS_RESTORE_PENDING=0
+APP_WAS_RUNNING=0 # recorded before the first gate; console_exit relaunches when 1
 TAESD_SAMPLER_PID="" # background PrivateWorkingSet sampler; killed on every exit
 # shellcheck source=scripts/console-run-log.sh
 source "${SCRIPT_DIR}/console-run-log.sh"
@@ -127,7 +139,7 @@ source "${SCRIPT_DIR}/wdp-file-upload.sh"
 source "${SCRIPT_DIR}/console-temp-chats.sh"
 
 console_exit() {
-	local rc="$1" preserve=0 vae_failed=0
+	local rc="$1" preserve=0 vae_failed=0 settings_failed=0
 	trap - EXIT
 	if [[ -n "${TAESD_SAMPLER_PID:-}" ]]; then
 		kill "$TAESD_SAMPLER_PID" 2>/dev/null || true
@@ -137,6 +149,14 @@ console_exit() {
 	if ! cleanup_temp_chats; then
 		rc=1
 		preserve=1
+	fi
+	if ((${SETTINGS_RESTORE_PENDING:-0})); then
+		echo "  restoring the user's settings.json ..." >&2
+		restore_user_settings || {
+			rc=1
+			preserve=1
+			settings_failed=1
+		}
 	fi
 	if ((VAE_RESTORE_PENDING)); then
 		echo "  restoring full VAE decoder ..." >&2
@@ -153,7 +173,23 @@ console_exit() {
 		if ((vae_failed)); then
 			echo "  VAE restore still pending; recover with ./scripts/provision-models.sh sd-turbo-fp16 or re-upload ${VAE_CACHE}/full_vae.onnx" >&2
 		fi
-	else
+		if ((settings_failed)); then
+			if ((SETTINGS_USER_ABSENT)); then
+				echo "  settings.json restore still pending; the user had none: delete LocalState\\settings.json" >&2
+			else
+				echo "  settings.json restore still pending; re-upload ${SETTINGS_BACKUP} as LocalState\\settings.json" >&2
+			fi
+		fi
+	fi
+	# Leave the app as found: relaunch it when it was running before the first
+	# gate. Drop any autopilot.flag first, so a gate interrupted between the flag
+	# upload and its launch is not replayed by this one.
+	if ((${APP_WAS_RUNNING:-0})); then
+		echo "  relaunching xllama (it was running before the gates) ..." >&2
+		delete_file "autopilot.flag"
+		start_app
+	fi
+	if ((!preserve)); then
 		release_original_recovery_dir
 		rm -rf "$TMPDIR_LOCAL"
 	fi
@@ -233,6 +269,92 @@ file_absent() {
 	code=$(curl "${CURL_AUTH[@]}" -o /dev/null -w "%{http_code}" \
 		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState&filename=${remote_name}" 2>/dev/null || echo "000")
 	[[ "$code" == "404" ]]
+}
+
+# --- console state the run must leave as found (#645) -----------------------
+
+# app_running — 0 when the installed package has a live process, 1 when it has
+# none, 2 when the process list could not be read.
+app_running() {
+	curl "${CURL_AUTH[@]}" "${BASE_URL}/api/resourcemanager/processes" 2>/dev/null |
+		PFN="$PFN" python3 -c '
+import json, os, sys
+try:
+    procs = json.load(sys.stdin).get("Processes", [])
+except Exception:
+    sys.exit(2)
+pfn = os.environ["PFN"]
+sys.exit(0 if any(p.get("PackageFullName") == pfn for p in procs) else 1)
+'
+}
+
+# record_app_state — run once before the first gate. An unreadable process list
+# is reported and counts as "not running": relaunching an app the user had
+# closed would be the worse surprise.
+record_app_state() {
+	local rc=0
+	app_running || rc=$?
+	case "$rc" in
+	0) APP_WAS_RUNNING=1 ;;
+	1) APP_WAS_RUNNING=0 ;;
+	*)
+		APP_WAS_RUNNING=0
+		echo "  WARN: could not read the process list; xllama will not be relaunched" >&2
+		;;
+	esac
+}
+
+# backup_user_settings — keep the user's settings.json (or the fact that there
+# was none) before any gate seeds its own. Stops the app first so the copy is
+# the state on disk, not one a live app is about to rewrite. Fails closed:
+# without a usable copy no gate may overwrite the file.
+backup_user_settings() {
+	stop_app || return 1
+	: >"$SETTINGS_BACKUP"
+	if file_absent "settings.json"; then
+		SETTINGS_USER_ABSENT=1
+	else
+		SETTINGS_USER_ABSENT=0
+		fetch_file "settings.json" "$SETTINGS_BACKUP"
+		# fetch_file ignores HTTP errors, so a portal error body would land here.
+		# The app always writes at least one of these keys.
+		if ! python3 - "$SETTINGS_BACKUP" <<'PY'; then
+import json, sys
+try:
+    s = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(1)
+keys = ("schema", "sampling", "model", "system_prompt", "routing")
+sys.exit(0 if isinstance(s, dict) and any(k in s for k in keys) else 1)
+PY
+			echo "  FAIL: could not back up settings.json; no gate runs" >&2
+			return 1
+		fi
+	fi
+	SETTINGS_RESTORE_PENDING=1
+}
+
+# restore_user_settings — put back what backup_user_settings saw. Restores only
+# after a verified stop (a live app can rewrite settings.json) and stays pending
+# on any failure, so console_exit retries and keeps the copy.
+restore_user_settings() {
+	((SETTINGS_RESTORE_PENDING)) || return 0
+	if ! stop_app; then
+		echo "  WARN: stop_app failed; settings.json not restored" >&2
+		return 1
+	fi
+	if ((SETTINGS_USER_ABSENT)); then
+		delete_file "settings.json"
+		if ! file_absent "settings.json"; then
+			echo "  WARN: the gate's settings.json is still on the console" >&2
+			return 1
+		fi
+	elif ! upload_file "$SETTINGS_BACKUP" "" "settings.json"; then
+		echo "  WARN: settings.json not restored; the user's copy is ${SETTINGS_BACKUP}" >&2
+		return 1
+	fi
+	SETTINGS_RESTORE_PENDING=0
+	echo "  restored the user's settings.json" >&2
 }
 
 # --- failure screenshots ---------------------------------------------------
@@ -1662,6 +1784,14 @@ usage() {
 }
 
 CMD="${1:-}"
+# Before any gate touches the console (#645). The app state is read before
+# backup_user_settings stops the app. cleanup and usage touch neither.
+case "$CMD" in
+routing | settings | gguf | longchat | kvsnap | coderpaste | thinkcut | thinkdone | genroom | taesd | store | all)
+	record_app_state
+	backup_user_settings || exit 1
+	;;
+esac
 case "$CMD" in
 cleanup) cleanup_temp_chats ;;
 routing) run_gate routing validate_routing ;;
