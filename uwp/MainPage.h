@@ -162,6 +162,9 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     // Apply catalogue knobs for the selected model (n_predict default, …).
     // Call when the user or autopilot changes m_model_filename.
     void ApplyCatalogueModelKnobs(const std::wstring& model);
+    // The sampling a turn on |model| uses: global < the model's catalogue
+    // values < the user's (m_sampling).
+    ::xllama::ResolvedSampling ModelSampling(const std::wstring& model) const;
     // Must be called from background thread; builds/rebuilds m_session if needed.
     bool EnsureSession(const std::string& model, std::string* err_out = nullptr);
 
@@ -283,13 +286,10 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     // Autoscroll state: true while the user has not scrolled up during streaming
     bool m_at_bottom{true};
 
-    // Sampling parameters (persisted in settings.json, exposed in Settings dialog).
-    // Seeded from the single source in sampling.h (#125) so the GUI defaults
-    // cannot drift from the CLI/API defaults.
-    float m_temperature{::xllama::sampling_defaults::kTemperature};
-    float m_top_p{::xllama::sampling_defaults::kTopP};
-    int m_top_k{::xllama::sampling_defaults::kTopK};
-    float m_repetition_penalty{::xllama::sampling_defaults::kRepetitionPenalty};
+    // The sampling values the user chose (settings.json, Settings dialog). An
+    // unset one takes the model's catalogue value, then the global default:
+    // ModelSampling() resolves them the way the LAN API does (model_sampling.h).
+    ::xllama::SamplingOverrides m_sampling;
     int m_n_predict{::xllama::kDefaultNPredict};
 
     // Optional debug dashboard (Settings + LocalState\debug-dashboard.flag).

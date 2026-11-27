@@ -139,6 +139,15 @@ chat`. On a coding session that ceiling is 4096 tokens, roughly 13 KB of dense
   cooperative abort between epochs. Details:
   [training-architecture.md §11](./training-architecture.md).
 - **Sampling** — Temperature, Top-p, Top-k, Repetition penalty, Max new tokens.
+  Each of the first four shows the value a reply uses and where it comes from:
+  _default_, _model's value_ (the selected model's catalogue entry), or _your
+  value_ once you move the slider. Only your values are saved. A value you did
+  not set follows the model, so picking another model in the same dialog
+  updates it. **Use the model's sampling values** clears your values. The LAN
+  API applies the same values to a request that does not set them
+  ([api-endpoint.md](./api-endpoint.md#discovery-health-and-v1models)).
+  Settings saved before 1.11 keep a value you had changed; a value still at the
+  old default now follows the model.
 - **KV-cache reuse** (default on) — reuses the conversation's KV cache across
   turns (large turn-2 prefill win on CPU paths; measured figures in
   [benchmarks.md](./benchmarks.md)). Leave it on unless debugging.
