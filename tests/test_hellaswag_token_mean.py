@@ -55,7 +55,7 @@ class SamplesTest(unittest.TestCase):
                              for i in range(4)}, "target": 2}
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "samples.jsonl"
-            path.write_text(json.dumps(row) + "\n")
+            path.write_text(json.dumps(row) + "\n", encoding="utf-8")
             [(doc_id, context, texts, gold)] = list(MODULE.items(path))
         self.assertEqual(context, "Ctx: a man")
         self.assertEqual(texts[3], "Ctx: a man ending 3.")
@@ -66,12 +66,29 @@ class SamplesTest(unittest.TestCase):
         text = "Ctx: a man\n2\nends a.\nends b.\nends c.\nends d.\n" * 2
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "tasks.txt"
-            path.write_text(text)
+            path.write_text(text, encoding="utf-8")
             rows = list(MODULE.klosax_items(path))
         self.assertEqual(len(rows), 2)
         doc_id, context, texts, gold = rows[1]
         self.assertEqual((doc_id, context, gold), (1, "Ctx: a man", 2))
         self.assertEqual(texts[0], "Ctx: a man ends a.")
+
+    def test_klosax_items_refuse_a_partial_record(self) -> None:
+        task = "Ctx\n0\na\nb\nc\nd\n"
+        with tempfile.TemporaryDirectory() as d:
+            for name, text in (("partial", task + "Ctx\n1\na\nb\nc\n"), ("empty", "")):
+                path = Path(d) / f"{name}.txt"
+                path.write_text(text, encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    list(MODULE.klosax_items(path))
+            # A whole record is accepted with or without the final newline, and
+            # non-ASCII text arrives intact.
+            for text in (task.replace("Ctx", "Café"), task.replace("Ctx", "Café")[:-1]):
+                path = Path(d) / "whole.txt"
+                path.write_text(text, encoding="utf-8")
+                [(_, context, texts, _)] = list(MODULE.klosax_items(path))
+                self.assertEqual(context, "Café")
+                self.assertEqual(texts[3], "Café d")
 
     def test_binomial(self) -> None:
         acc, stderr = MODULE.binomial(50, 101)

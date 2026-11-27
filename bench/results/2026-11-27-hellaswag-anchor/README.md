@@ -7,18 +7,22 @@ anchors. H9 stays the only promotion gate.
 
 `llama.cpp/tools/perplexity/README.md` at pin `d81235049` publishes no
 HellaSwag figure, and there is no llama.cpp reference for the catalogue GGUFs.
-The first campaign could only be checked for internal consistency. This run
-checks the scorer itself. It compares `llama-perplexity` with an independent
-implementation of the same rule on the same weights, item by item, first on
-identical text, then on lm-evaluation-harness's text.
+The first campaign could only be checked for internal consistency. #608 names
+the alternative for that case: a cross-check against lm-evaluation-harness on
+the same items. This is that cross-check, not a published reference figure.
+It compares `llama-perplexity` with an independent implementation of the same
+rule on the same weights, item by item. The comparison runs first on identical
+text, then on lm-evaluation-harness's text.
 
 ## Result
 
 On identical inputs, `llama-perplexity` and the independent implementation
-pick the same ending on 1995 of 2000 items (42.10 % against 42.25 %, McNemar
-p = 0.37). The 0.9–1.05 points by which lm-eval's prompts score higher come
-from the text, not from the scorer. The catalogue QAD Q4_0 quant scores like
-its BF16 weights.
+reach the same outcome, right or wrong, on 1995 of 2000 items: 42.10 % against
+42.25 %, a 0.15 ± 0.11-point difference, McNemar p = 0.37. With the same
+implementation, lm-eval's prompts score 0.90 points higher than llama.cpp's
+text (p = 0.039). That accounts for most of the 1.05 points that separate
+`llama-perplexity` on its text from lm-eval's prompts. The catalogue QAD Q4_0
+quant scores like its BF16 weights.
 
 ## Setup
 
@@ -90,17 +94,20 @@ arm right, the other wrong). The paired stderr of the difference is
 
 ## Reading
 
-- **The anchor (B against D).** Same text, same rule, same weights, two
-  implementations. They agree on 1995 of 2000 items, and the 0.15-point
-  difference is not significant. That is the external reference #608 asked
-  for: `llama-perplexity`'s HellaSwag score is the score an independent
-  implementation of its rule gives.
+- **The cross-check (B against D).** Same text, same rule, same weights, two
+  implementations. They reach the same outcome on 1995 of 2000 items. The
+  0.15 ± 0.11-point difference is not significant. That does not show it is
+  zero, but it bounds it well inside the 1.1-point stderr of either score.
+  `llama-perplexity`'s HellaSwag score is reproduced by an independent
+  implementation of its rule. This is the cross-check #608 names when no
+  published figure exists, not such a figure.
 - **The text (D against C).** Same implementation, same rule. lm-eval's
   prompts score 0.9 points higher than llama.cpp's klosax text, a small but
   significant difference over 68 items. The two texts differ visibly, for
   example "a roof. he" in the klosax file against "a roof. He" after lm-eval's
-  `preprocess`. This measurement shows that the text accounts for the
-  difference. It does not say which edit does.
+  `preprocess`. The text accounts for 0.90 of the 1.05 points between B and
+  C. The implementation difference measured above accounts for the 0.15
+  left. Which edit to the text matters is not measured.
 - **Quantization (A against B).** QAD Q4_0 against BF16: −0.30 points over 168
   discordant items, p = 0.70. The catalogue quant costs nothing measurable
   here.

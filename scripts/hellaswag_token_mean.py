@@ -61,7 +61,7 @@ def binomial(hits: int, n: int) -> tuple[float, float | None]:
 def items(samples: Path):
     """(doc_id, context, texts, gold) per sample: texts are the context plus
     each continuation, as lm-eval scored them."""
-    for line in samples.read_text().splitlines():
+    for line in samples.read_text(encoding="utf-8").splitlines():
         r = json.loads(line)
         args = [r["arguments"][f"gen_args_{i}"] for i in range(len(r["arguments"]))]
         yield (int(r["doc_id"]), args[0]["arg_0"], [a["arg_0"] + a["arg_1"] for a in args],
@@ -70,8 +70,14 @@ def items(samples: Path):
 
 def klosax_items(path: Path):
     """The same tuples from llama-perplexity's HellaSwag layout: six lines per
-    task (context, gold index, four endings); doc_id is the task's position."""
-    lines = path.read_text().split("\n")
+    task (context, gold index, four endings); doc_id is the task's position.
+    A file that is not whole six-line records is refused, not truncated."""
+    text = path.read_text(encoding="utf-8")
+    if text.endswith("\n"):
+        text = text[:-1]
+    lines = text.split("\n")
+    if not text or len(lines) % 6:
+        raise ValueError(f"{path}: {len(lines)} lines, not whole six-line HellaSwag tasks")
     for i in range(len(lines) // 6):
         context, gold, endings = lines[6 * i], int(lines[6 * i + 1]), lines[6 * i + 2 : 6 * i + 6]
         yield i, context, [context + " " + e for e in endings], gold
@@ -87,7 +93,7 @@ def main() -> int:
     ap.add_argument("--per-item", type=Path, help="write {doc_id, correct} per item, for a paired test")
     a = ap.parse_args()
     src = a.samples or a.klosax
-    if not src.is_file() or not src.read_text().strip():
+    if not src.is_file() or not src.read_text(encoding="utf-8").strip():
         ap.error(f"{src}: no tasks")
     tasks = items(a.samples) if a.samples else klosax_items(a.klosax)
 
