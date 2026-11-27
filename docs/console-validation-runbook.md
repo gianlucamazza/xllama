@@ -374,6 +374,17 @@ done
 Closed 2026-09-30: `phi4-mini` PASS (#268); MiniCPM5-1B (#267) and
 Gemma-3-1B (#269) rejected — measured.
 
+## SSD MoE CPU acceptance on Series S (#481)
+
+Use this checklist once [#479](https://github.com/gianlucamazza/xllama/issues/479) is accepted and the native loader, worker and checkpoint parity gates in [#480](https://github.com/gianlucamazza/xllama/issues/480) pass for the model under test. The developer-only activation and receipts must come from the candidate PR. Until they exist, record the upstream console gate as `NOT_RUN`.
+
+1. Obtain exclusive, authorized Device Portal access within the operator's usage budget. Load credentials as described in Prerequisites and keep them out of receipts. Record source commit, submodule pin, build run, MSIX SHA-256, package version and existing installation identity. Install the identified package in place, preserve LocalState, verify the installed package full name and set `XLLAMA_EXPECTED_PFN`.
+2. Record Series S device and OS evidence, foreground state, App/Game designation and app-reported quota. Bind the checkpoint digest and length to the file handle used by the reader. Record prompt and template identity, context, CPU kernel, workers, cache and staging budgets. Capture the admission breakdown and reserve against the reported quota.
+3. Confirm that ordinary startup leaves streaming disabled. Use the candidate's documented activation for each declared CPU profile. Keep run-scoped logs, model termination, trace completeness and logical reader counters for every attempt. Leave persistent one-shot claims intact. If a claim prevents a required trial, mark that trial `BLOCKED`.
+4. Exercise normal completion, explicit stop during outstanding I/O and the candidate's controlled read-error case. On each exit verify terminal I/O completion, worker drain, lease release and handle closure before SessionHub releases compute and the writer may reacquire ownership. Check that refusal or failure never loads the whole checkpoint as a fallback. Preserve failed attempts and any incomplete traces.
+
+Record an independent CPU verdict for the exact package in [#481](https://github.com/gianlucamazza/xllama/issues/481). The historical fork packages in [#487](https://github.com/gianlucamazza/xllama/pull/487) and [#488](https://github.com/gianlucamazza/xllama/pull/488) have their own evidence. In the 8B runs the model reached EOS while the records retained `stop_reason: error` and `trace_status: partial`. GPU qualification remains a separate gate.
+
 ## Quant ripin regression (same catalogue id)
 
 Changing the GGUF behind an existing id (for example the LFM2.5 QAD Q4_0 ripin,

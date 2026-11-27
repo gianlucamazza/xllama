@@ -46,6 +46,7 @@ add_executable(xllama-tests
     test_model_provision.cpp
     test_model_file_plan.cpp
     test_moe_streaming.cpp
+    test_moe_expert_cache.cpp
     test_model_write.cpp
     test_logit_parity.cpp
     test_tensor_capture.cpp
@@ -96,4 +97,5 @@ add_test(NAME xllama-tests COMMAND xllama-tests)
 add_executable(test-admission-allocation test_admission_allocation.cpp)
 target_compile_features(test-admission-allocation PRIVATE cxx_std_17)
 target_include_directories(test-admission-allocation PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test-admission-allocation PRIVATE ggml-base)
 add_test(NAME test-admission-allocation COMMAND test-admission-allocation)
