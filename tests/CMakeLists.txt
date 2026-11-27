@@ -97,3 +97,7 @@ add_executable(test-admission-allocation test_admission_allocation.cpp)
 target_compile_features(test-admission-allocation PRIVATE cxx_std_17)
 target_include_directories(test-admission-allocation PRIVATE ${PROJECT_SOURCE_DIR}/include)
 add_test(NAME test-admission-allocation COMMAND test-admission-allocation)
+
+# Invoked by run-cpu-smoke.py with a verified model and an independent oracle.
+add_executable(xllama-cpu-smoke cpu_smoke.cpp)
+target_link_libraries(xllama-cpu-smoke PRIVATE xllama)
