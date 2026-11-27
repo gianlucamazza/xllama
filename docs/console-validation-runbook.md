@@ -200,12 +200,13 @@ n_ctx` — rather than the answer's length, which keeps the verdict independent
   5), matched by package family from the installed PFN (or
   `XLLAMA_PACKAGE_FAMILY`); it is not a peak;
 - **API** — separate LAN gate (`scripts/validate-api.sh`):
-  `spike|discovery|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all` (chat, context budget,
+  `spike|discovery|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|compat|all` (chat, context budget,
   client-side tool proposals per [ADR 0004](adr/0004-tool-proposals.md),
   embeddings, pull, #118 preference/training-status probes). `admission` waits
   for the first SSE data chunk of a long streamed reply, then requires 503 on
-  a concurrent chat. Not wired into `validate-console.sh all` today — run it
-  from another host on the LAN.
+  a concurrent chat. `disconnect` measures cancellation of a closed stream and
+  `compat` checks the native Ollama routes; `all` runs neither. Not wired into
+  `validate-console.sh all` today — run it from another host on the LAN.
 
 ### The console is left as found
 
@@ -271,7 +272,8 @@ Run an individual gate while debugging:
 ./scripts/validate-console.sh thinkdone
 ./scripts/validate-console.sh genroom
 ./scripts/validate-console.sh taesd
-./scripts/validate-api.sh all          # spike + chat + stream + admission + embed + budget + tools + framing + prefs + train + pull
+./scripts/validate-api.sh all          # spike + discovery + chat + stream + admission + embed + budget + tools + framing + prefs + train + pull
+./scripts/validate-api.sh disconnect   # closed stream releases the session (not in all)
 ./scripts/validate-api.sh compat       # native Ollama routes, num_ctx, keep_alive (not in all)
 ./scripts/validate-console-training.sh rate   # preference UI path
 ./scripts/validate-console-training.sh rate-stale   # negative control (F04)
@@ -372,7 +374,7 @@ source ~/.config/xllama/xbox-env
 ./scripts/provision-models.sh <candidate> <peer>
 export XLLAMA_EXPECTED_PFN="$(./scripts/deploy.sh pfn)"
 for m in <candidate> <peer>; do
-  ./scripts/bench-xbox-ort.sh "$m" --runs 4 --out bench/results/<date>-catalogue-gates.csv
+  ./scripts/bench-xbox-ort.sh "$m" --hardware xbox-series-s --runs 4 --out bench/results/<date>-catalogue-gates.csv
 done
 # H9 goes through the LAN API: bench mode never binds the port.
 ./scripts/validate-api.sh spike
@@ -443,6 +445,18 @@ A hardware-sensitive change is complete only when the relevant automated gate
 passes on the target console and the package version, raw evidence and outcome
 are recorded. Do not revive closed historical experiments unless new evidence
 changes a documented constraint.
+
+For a release package, also record:
+
+- The D3D12 backend selftest, with the receipt kept outside the default path:
+  `./scripts/bench-d3d12-selftest.sh --out <release record>/receipts/d3d12-selftest.csv`.
+  The driver replays the receipt through `scripts/verify-d3d12-selftest.py`,
+  which requires every case of the default profile exactly once (#673); replay
+  a stored receipt with `python3 scripts/verify-d3d12-selftest.py RECEIPT.csv`.
+  Profiles and options:
+  [gguf-gpu-decode.md](gguf-gpu-decode.md#d2--implementation-decided-against-the-pinned-llamacpp).
+- The package's build provenance: `gh attestation verify` on the exact MSIX, as
+  in [install-release.md](install-release.md#4-verify-sha-256).
 
 ## Recorded 2026-09-28 validation
 

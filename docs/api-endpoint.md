@@ -33,8 +33,24 @@ the ONNX case carries `tools_unsupported_for_model` and parameter `model`;
 a tool-transcript overflow carries `context_length_exceeded`, with the
 parameter present only when the server can attribute the overflow.
 
+v1.11.0.0 keeps contract `api` 1 and adds routes and checks a client can
+branch on through `/health`:
+
+| Change in v1.11.0.0                                                 | `/health` signal                         |
+| ------------------------------------------------------------------- | ---------------------------------------- |
+| Native Ollama `/api/chat`, `/api/generate` and `/api/ps`            | `ollama_chat`, `ollama_keep_alive`       |
+| `GET /api/catalog` lists the downloadable catalogue                 | `catalog`                                |
+| `response_format` other than text is HTTP 400                       | `"response_formats":["text"]`            |
+| `stream_options.include_usage` is honoured                          | none; earlier packages ignored the field |
+| Per-request reasoning and `options.num_ctx`                         | `reasoning_control`, `chat_context`      |
+| An OpenAI stream that fails ends with an error event, then `[DONE]` | none                                     |
+
+A failed native Ollama stream ends with an error line and no `done:true`
+(`chat_terminal_frames`, `include/xllama/sse.h`, #677, #678).
+
 [v1.7.0.0 API contract](https://github.com/gianlucamazza/xllama/blob/v1.7.0.0/docs/api-endpoint.md) ·
-[v1.8.0 release notes](releases/v1.8.0.md)
+[v1.8.0 release notes](releases/v1.8.0.md) ·
+[v1.11.0 release notes](releases/v1.11.0.md)
 
 ## Enabling and controlling it
 
@@ -201,7 +217,7 @@ to branch on (`include/xllama/api_discovery.h`):
 {
   "status": "ok",
   "service": "xllama",
-  "version": "1.8.1.1805",
+  "version": "1.11.0.2203",
   "api": 1,
   "capabilities": {
     "tools": true,
@@ -222,13 +238,16 @@ to branch on (`include/xllama/api_discovery.h`):
     "catalog": true
   },
   "sampling": ["temperature", "top_p", "top_k", "repetition_penalty", "seed"],
+  "response_formats": ["text"],
   "runtime": {
     "llama_cpp": "d812350",
     "patches": [
       "0001-uwp-appcontainer-guards",
       "0003-kv-cache-k-shift-unallocated-input",
       "0004-recurrent-state-fill-zero",
-      "0005-required-tool-call-no-content-prefix"
+      "0005-required-tool-call-no-content-prefix",
+      "0006-peg-escape-control-chars-in-tool-args",
+      "0007-lfm2-undeclared-tool-calls-in-auto"
     ]
   }
 }
@@ -602,7 +621,20 @@ llama.cpp's `-1`). An absent field takes the model's value, the `sampling` that
 default is `include/xllama/sampling.h`. On ORT GenAI models the same values go to its search options (`ort_sampling.h`),
 whose repetition penalty covers the whole sequence rather than llama.cpp's last 64
 tokens. `stream: true` answers with SSE; see the streaming
-paragraph under [Protocol (v1)](#protocol-v1). Most other fields are ignored.
+paragraph under [Protocol (v1)](#protocol-v1).
+
+Besides `messages`, the token limits and the sampling numbers above, the server
+validates these fields before compute admission, and a bad value is `400`:
+`stream` (a boolean), `response_format` ([Chat response format](#chat-response-format)),
+`stream_options` (only with `stream: true`; `include_usage` a boolean),
+`reasoning_effort` and `chat_template_kwargs`
+([Reasoning control](#reasoning-control-reasoning_effort-enable_thinking-think)),
+`options.num_ctx` ([Reduced context](#reduced-context-optionsnum_ctx)), and
+`tools`, `functions` and `tool_choice` (below). The native Ollama routes refuse
+any field or option they cannot apply
+([Native Ollama](#native-ollama-generation-apichat-apigenerate)). Other unknown
+fields on `/v1/chat/completions`, such as `n`, `logprobs` and the penalty
+fields, are ignored ([#665](https://github.com/gianlucamazza/xllama/issues/665)).
 
 Plain chat (no tool schema, `tools: []`, or `tool_choice` `"none"`) keeps
 `ChatFormat::render_prompt` (`include/xllama/chat_prompt.h`). Roles are system,
@@ -833,6 +865,26 @@ Measured for plain chat on
 Series S (2026-10-16, `lfm25-1.2b-instruct`, 52-token reply): first byte at 11 ms against
 1.90 s for the same completion without `stream`, both 1.90 s in total.
 
+### Chat response format
+
+When `GET /health` contains `"response_formats":["text"]`, omit
+`response_format`, send `null` (OpenAI's "not given") or send `{"type":"text"}`
+for ordinary chat. All other values, including `json_object`, `json_schema`
+and extra object members, receive HTTP 400 with `error.code` equal to
+`unsupported_response_format` and `error.param` equal to `response_format`.
+This validation precedes compute admission, model lookup and the SSE response
+head, as does the check that the body is JSON (`invalid JSON body`).
+The decision is `api_response_format_supported` in `include/xllama/api_policy.h`. Tool proposals keep their own grammar and execution boundary.
+Earlier packages omitted the discovery field and could silently ignore an
+explicit format. A client requiring structured output must verify support
+before sending a request.
+
+For a live response-format check, keep the app in the foreground, install
+`openai==3.60.0` in a host Python environment and run
+`python scripts/validate-api-response-format.py http://<console-ip>:11434/v1 lfm25-350m`.
+The SDK checks successful default and explicit-text chat and inspects the HTTP
+400 code and parameter for malformed and unsupported formats with streaming requested.
+
 ### Embeddings (`/api/embed`, `/api/embeddings`, `/v1/embeddings`)
 
 Embedding requests use the same resident `Session` and single-slot mutex as chat. Inputs in
@@ -991,29 +1043,9 @@ curl -sS -o /tmp/xllama-gui-busy.json -w '%{http_code}\n' \
   (PR #161/#164)**: server and UI share the one `session_hub()` Session behind
   the same mutex — two loaded copies can no longer happen.
 
-### Chat response format
-
-When `GET /health` contains `"response_formats":["text"]`, omit
-`response_format`, send `null` (OpenAI's "not given") or send `{"type":"text"}`
-for ordinary chat. All other values, including `json_object`, `json_schema`
-and extra object members, receive HTTP 400 with `error.code` equal to
-`unsupported_response_format` and `error.param` equal to `response_format`.
-This validation precedes compute admission, model lookup and the SSE response
-head, as does the check that the body is JSON (`invalid JSON body`).
-The decision is `api_response_format_supported` in `include/xllama/api_policy.h`. Tool proposals keep their own grammar and execution boundary.
-Earlier packages omitted the discovery field and could silently ignore an
-explicit format. A client requiring structured output must verify support
-before sending a request.
-
-For a live response-format check, keep the app in the foreground, install
-`openai==3.60.0` in a host Python environment and run
-`python scripts/validate-api-response-format.py http://<console-ip>:11434/v1 lfm25-350m`.
-The SDK checks successful default and explicit-text chat and inspects the HTTP
-400 code and parameter for malformed and unsupported formats with streaming requested.
-
 ## Validation
 
-See `scripts/validate-api.sh` (`spike|discovery|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|compat|all`). Run it **from another host on the LAN**,
+See `scripts/validate-api.sh` (`spike|discovery|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|compat|all`; `all` runs every mode except `disconnect` and `compat`). Run it **from another host on the LAN**,
 not from a client on the console itself — cross-device inbound needs no loopback exemption,
 but a same-host localhost client would (`CheckNetIsolation`). Spike gate first (`GET /` → 200
 proves the bind survives the Series S firewall/PLM), then chat / prefs / train as needed. `discovery` checks the `/health` and `/v1/models` fields and, when `/health` reports `capabilities.catalog`, the `/api/catalog` shape: every entry's fields, `sampling` with a `source` per field on chat entries, and each `installed` id present in `/v1/models`. `tools` checks the tool-proposal contract:

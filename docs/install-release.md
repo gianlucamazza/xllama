@@ -86,8 +86,8 @@ sha256sum -c SHA256SUMS
 
 On macOS use `shasum -a 256 -c SHA256SUMS`.
 
-For builds produced after the unified-package attestation workflow is enabled,
-also verify the downloaded MSIX with a GitHub CLI that supports
+From v1.11.0.0 on (the attestation workflow landed in
+[#637](https://github.com/gianlucamazza/xllama/pull/637)), also verify the downloaded MSIX with a GitHub CLI that supports
 `gh attestation verify`. Read the full `source_sha` from the **package-bound
 console receipt** for that release and select its exact MSIX. The app tag
 can point to a later commit that adds the receipts.
