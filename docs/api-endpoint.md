@@ -127,6 +127,8 @@ python3 -m venv "$sdk_env"
 "$sdk_env/bin/python" tests/sdk_chat_journey.py
 ```
 
+The offline test is not in the CI unittest list: it needs the pinned SDK, which CI does not install.
+
 The offline test uses synthetic HTTP/SSE frames to exercise SDK serialization, tool-call validation, tool-result IDs, streaming and typed HTTP errors. For a live run, keep the console in the foreground on a trusted LAN, choose an installed tool-capable GGUF and use the expected package revision from the MSIX validation receipt:
 
 ```bash
@@ -134,7 +136,7 @@ The offline test uses synthetic HTTP/SSE frames to exercise SDK serialization, t
   --origin "http://${XBOX_IP}:11434" --model lfm25-350m --package 1.10.0.2000
 ```
 
-The probe discovers models, requests one harmless named function, validates its arguments, supplies a fixed result and consumes a streamed answer. It closes another stream early and requires a subsequent chat within 30 seconds. Keep its JSON result alongside the package SHA-256, device/OS, model hash, UTC timestamp and gate logs. It measures client-visible recovery; the interruption gate in `scripts/validate-api.sh disconnect` separately exercises cancellation during prefill. A failed probe exits nonzero. Save the stage/error with the same inputs.
+The probe discovers models, requests one harmless named function, validates its arguments, supplies a fixed result and consumes a streamed answer. It closes another stream after its first chunk, which is usually still during prefill, and requires a subsequent chat within 30 seconds. Keep its JSON result alongside the package SHA-256, device/OS, model hash, UTC timestamp and gate logs. It measures client-visible recovery; the interruption gate in `scripts/validate-api.sh disconnect` separately exercises cancellation during prefill. A failed probe exits nonzero. Save the stage/error with the same inputs.
 
 For a separate Open WebUI qualification, pin the image tag and record its digest (for example [v0.13.5](https://github.com/open-webui/open-webui/releases/tag/v0.13.5) as a candidate). Follow the connection steps above. In a new chat select the discovered GGUF, ask for a long count, observe incremental text, press **Stop**, then send a short prompt and record whether it completes. With Native function calling enabled, attach only a reviewed local `get_weather(city)` fixture returning `18 C, light rain`. Ask for the weather in Paris and inspect the proposed name, arguments and displayed follow-up. Record the version/digest, connection mode, enabled tools, model, package, device, observed outcomes and redacted transcript. Mark absent or unobservable steps explicitly. SDK fixture results do not qualify Open WebUI or console execution.
 

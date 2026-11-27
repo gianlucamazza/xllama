@@ -81,7 +81,7 @@ def check_journey(client, model):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--origin", required=True, help="Console origin, e.g. http://192.168.1.2:11434")
+    parser.add_argument("--origin", required=True, help="Console origin, e.g. http://<console-ip>:11434")
     parser.add_argument("--model", required=True, help="Installed GGUF with named tool support")
     parser.add_argument("--package", required=True, help="Expected /health package version")
     args = parser.parse_args()
@@ -94,7 +94,7 @@ def main():
         response.raise_for_status()
         health = response.json()
         if (health.get("service") != "xllama" or health.get("version") != args.package
-                or health.get("api") != 1 or health.get("capabilities", {}).get("tools") is not True):
+                or not isinstance(health.get("api"), int) or health["api"] < 1 or health.get("capabilities", {}).get("tools") is not True):
             raise ValueError("health did not identify the expected package and tool-capable API")
         with openai.OpenAI(api_key="unused-local", base_url=args.origin.rstrip("/") + "/v1",
                            http_client=http, max_retries=0, timeout=120) as client:
