@@ -103,7 +103,7 @@ Host-only regression tests (no console or credentials):
 
 ```bash
 python3 -m unittest tests/test_console_run_log.py tests/test_console_temp_chats.py \
-  tests/test_console_taesd_result.py
+  tests/test_console_settings_restore.py tests/test_console_taesd_result.py
 ```
 
 ## Official automated suite
@@ -123,7 +123,8 @@ hardware gates pass:
   baseline is seeded with the opposite of each target, so an op that silently
   does nothing fails rather than inheriting a value that already matched (needs
   `smollm2-360m-cpu-int4` in LocalState; `set_taesd` / `set_system_prompt` need
-  an app build >= 1.4.0.632, the rest >= 1.4.0.606);
+  an app build >= 1.4.0.632, the rest >= 1.4.0.606). Its test values do not
+  outlive the run: see [The console is left as found](#the-console-is-left-as-found);
 - **GGUF chat** — the default LFM model loads through llama.cpp and generates,
   **and the conversation is read back from `chats/index.json` with a non-empty
   title**. That second half was added after the gate passed for months over a
@@ -205,6 +206,21 @@ n_ctx` — rather than the answer's length, which keeps the verdict independent
   for the first SSE data chunk of a long streamed reply, then requires 503 on
   a concurrent chat. Not wired into `validate-console.sh all` today — run it
   from another host on the LAN.
+
+### The console is left as found
+
+The gates seed `settings.json` (`routing`, `settings`) and their `set_model`,
+`set_sampling` and other `set_*` autopilot ops save test values, and every
+gate ends with `quit`. So for any gate or `all`, `validate-console.sh` first
+records whether xllama is running, then stops it and saves the user's
+`settings.json`, or notes that there was none. On exit (pass, fail or
+interrupt) it stops the app and puts that file back, or deletes the gates'
+copy, then relaunches the app if it was running before, so a LAN API client
+gets the server back. Gates inside `all` still see each other's settings, as
+before; only the end state changes. A backup it cannot read stops the run
+before any gate. A restore that fails fails the run and keeps the copy in the
+retained recovery directory and says how to put it back. `cleanup` does
+not touch settings and does not relaunch.
 
 ### When a gate fails, look at the screen
 
