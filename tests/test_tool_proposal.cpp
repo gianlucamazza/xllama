@@ -8,6 +8,7 @@
 #include "llama.h"
 
 #include "xllama/api_policy.h"
+#include "xllama/chat_prompt.h"
 #include "xllama/prompt_budget.h"
 #include "xllama/routing_policy.h"
 #include "xllama/session.h"
@@ -493,14 +494,14 @@ TEST_CASE("GGUF jinja template renders a tool name and parses a call") {
     xllama::ChatMessage user = message(xllama::ChatRole::User, "ping please");
     const std::vector<xllama::ToolSpec> tools{ping_tool()};
     const xllama::ToolTemplateResult rendered = xllama::render_tool_prompt(
-        nullptr, kToolTemplate, {user}, tools, xllama::ToolChoice::Auto, "");
+        nullptr, "", kToolTemplate, {user}, tools, xllama::ToolChoice::Auto, "");
     REQUIRE_MESSAGE(rendered.ok, rendered.error);
     CHECK(rendered.prompt.find("ping") != std::string::npos);
 
     const std::string output =
         "<tool_call>\n{\"name\": \"ping\", \"arguments\": {\"text\": \"pong\"}}\n</tool_call>";
     const xllama::ToolParseResult parsed = xllama::parse_tool_generation(
-        nullptr, kToolTemplate, {user}, tools, xllama::ToolChoice::Auto, "", output, false);
+        nullptr, "", kToolTemplate, {user}, tools, xllama::ToolChoice::Auto, "", output, false);
     REQUIRE_FALSE(parsed.parser_threw);
     REQUIRE(parsed.calls.size() == 1);
     CHECK(parsed.calls[0].name == "ping");
@@ -524,21 +525,21 @@ TEST_CASE("LFM2.5 tool calls need their special-token markers in the decoded tex
     xllama::ChatMessage user = message(xllama::ChatRole::User, "ping please");
     const std::vector<xllama::ToolSpec> tools{ping_tool()};
     const xllama::ToolTemplateResult rendered =
-        xllama::render_tool_prompt(nullptr, jinja, {user}, tools, xllama::ToolChoice::Auto, "");
+        xllama::render_tool_prompt(nullptr, "", jinja, {user}, tools, xllama::ToolChoice::Auto, "");
     REQUIRE_MESSAGE(rendered.ok, rendered.error);
     const auto& kept = rendered.preserved_tokens;
     CHECK(std::find(kept.begin(), kept.end(), "<|tool_call_start|>") != kept.end());
     CHECK(std::find(kept.begin(), kept.end(), "<|tool_call_end|>") != kept.end());
 
     const xllama::ToolParseResult marked = xllama::parse_tool_generation(
-        nullptr, jinja, {user}, tools, xllama::ToolChoice::Auto, "",
+        nullptr, "", jinja, {user}, tools, xllama::ToolChoice::Auto, "",
         "<|tool_call_start|>[ping(text=\"pong\")]<|tool_call_end|>", false);
     REQUIRE(marked.calls.size() == 1);
     CHECK(marked.calls[0].name == "ping");
 
     const xllama::ToolParseResult stripped =
-        xllama::parse_tool_generation(nullptr, jinja, {user}, tools, xllama::ToolChoice::Auto, "",
-                                      "[ping(text=\"pong\")]", false);
+        xllama::parse_tool_generation(nullptr, "", jinja, {user}, tools, xllama::ToolChoice::Auto,
+                                      "", "[ping(text=\"pong\")]", false);
     CHECK(stripped.calls.empty());
 }
 
@@ -575,13 +576,13 @@ TEST_CASE("a template that ignores tools is refused instead of answering without
     const std::vector<xllama::ToolSpec> tools{ping_tool()};
     // The user names the tool: a mention in the transcript is not the schema.
     const xllama::ToolTemplateResult refused = xllama::render_tool_prompt(
-        nullptr, kPhi4Template, {message(xllama::ChatRole::User, "call ping please")}, tools,
+        nullptr, "", kPhi4Template, {message(xllama::ChatRole::User, "call ping please")}, tools,
         xllama::ToolChoice::Auto, "");
     CHECK_FALSE(refused.ok);
     CHECK(refused.error == "model chat template does not render tools");
 
     const xllama::ToolTemplateResult rendered = xllama::render_tool_prompt(
-        nullptr, kToolTemplate, {message(xllama::ChatRole::User, "call ping please")}, tools,
+        nullptr, "", kToolTemplate, {message(xllama::ChatRole::User, "call ping please")}, tools,
         xllama::ToolChoice::Auto, "");
     CHECK_MESSAGE(rendered.ok, rendered.error);
 }
@@ -609,19 +610,19 @@ TEST_CASE("replaying a tool call is not mistaken for a template that ignores too
 
     SUBCASE("the tool message's name is not printed") {
         const xllama::ToolTemplateResult rendered = xllama::render_tool_prompt(
-            nullptr, kToolTemplate, replay, tools, xllama::ToolChoice::Auto, "");
+            nullptr, "", kToolTemplate, replay, tools, xllama::ToolChoice::Auto, "");
         REQUIRE_MESSAGE(rendered.ok, rendered.error);
         CHECK(rendered.prompt.find("pong-result") != std::string::npos);
     }
     SUBCASE("the template does not print the assistant's calls") {
         const xllama::ToolTemplateResult rendered = xllama::render_tool_prompt(
-            nullptr, kNoCallsTemplate, replay, tools, xllama::ToolChoice::Auto, "");
+            nullptr, "", kNoCallsTemplate, replay, tools, xllama::ToolChoice::Auto, "");
         REQUIRE_MESSAGE(rendered.ok, rendered.error);
         CHECK(rendered.prompt.find("pong-result") != std::string::npos);
     }
     SUBCASE("a template that ignores tools is still refused") {
         const xllama::ToolTemplateResult refused = xllama::render_tool_prompt(
-            nullptr, kPhi4Template, replay, tools, xllama::ToolChoice::Auto, "");
+            nullptr, "", kPhi4Template, replay, tools, xllama::ToolChoice::Auto, "");
         CHECK_FALSE(refused.ok);
     }
 }
@@ -631,7 +632,68 @@ std::string read_template(const char* name) {
     std::ifstream file(std::string(LLAMA_TEMPLATES_DIR) + "/" + name);
     return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 }
+
+bool ends_with(const std::string& text, const std::string& suffix) {
+    return text.size() >= suffix.size() &&
+           text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
 } // namespace
+
+// #655: a tool proposal rendered every template with enable_thinking=true, so
+// qwen3-4b (reasoning:false in /v1/models, no-think prefill in plain chat)
+// reasoned through max_tokens on every tool turn. The model id now decides it,
+// through the same model_is_thinking plain chat uses.
+TEST_CASE("a tool proposal's thinking follows the model, as plain chat does (#655)") {
+    const std::vector<xllama::ChatMessage> msgs{message(xllama::ChatRole::User, "ping please")};
+    const std::vector<xllama::ToolSpec> tools{ping_tool()};
+    const std::string no_think = "<think>\n\n</think>\n\n";
+    const auto render = [&](const std::string& jinja, const std::string& model_id) {
+        const xllama::ToolTemplateResult r = xllama::render_tool_prompt(
+            nullptr, model_id, jinja, msgs, tools, xllama::ToolChoice::Auto, "");
+        REQUIRE_MESSAGE(r.ok, r.error);
+        return r.prompt;
+    };
+
+    SUBCASE("Qwen3: a no-think id gets the empty think block plain chat prefills") {
+        const std::string jinja = read_template("Qwen-Qwen3-0.6B.jinja");
+        REQUIRE_FALSE(jinja.empty());
+        const std::string plain = render(jinja, "qwen3-4b");
+        CHECK(ends_with(plain, "<|im_start|>assistant\n" + no_think));
+        CHECK(ends_with(plain, xllama::chat_format_for("qwen3-4b").gen_suffix));
+        const std::string thinking = render(jinja, "qwen3-4b-thinking");
+        CHECK_FALSE(ends_with(thinking, no_think));
+        CHECK(thinking.find("</think>") == std::string::npos);
+
+        // The parser is built from the same decision: a plain answer is content.
+        const xllama::ToolParseResult parsed = xllama::parse_tool_generation(
+            nullptr, "qwen3-4b", jinja, msgs, tools, xllama::ToolChoice::Auto, "", "pong", false);
+        CHECK_FALSE(parsed.parser_threw);
+        CHECK(parsed.content == "pong");
+        CHECK(parsed.reasoning.empty());
+    }
+    SUBCASE("Qwen3.5: the same, where the thinking side opens <think>") {
+        const std::string jinja = read_template("Qwen3.5-4B.jinja");
+        REQUIRE_FALSE(jinja.empty());
+        CHECK(ends_with(render(jinja, "qwen35-0.8b"), no_think));
+        CHECK_FALSE(ends_with(render(jinja, "qwen35-0.8b-thinking"), no_think));
+    }
+    SUBCASE("MiniCPM5 gets the prefill plain chat gives it") {
+        const std::string jinja = read_template("openbmb-MiniCPM5-1B.jinja");
+        REQUIRE_FALSE(jinja.empty());
+        CHECK(ends_with(render(jinja, "minicpm5-1b-Q4_K_M.gguf"), no_think));
+        CHECK_FALSE(ends_with(render(jinja, "minicpm5-1b-thinking"), no_think));
+    }
+    SUBCASE("a thinking model keeps reasoning, and a template without a switch is unaffected") {
+        const std::string a1b = read_template("LFM2.5-8B-A1B.jinja");
+        REQUIRE_FALSE(a1b.empty());
+        CHECK(xllama::model_is_thinking("lfm25-8b-a1b"));
+        CHECK_FALSE(ends_with(render(a1b, "lfm25-8b-a1b"), no_think));
+
+        const std::string lfm = read_template("LFM2.5-Instruct.jinja");
+        REQUIRE_FALSE(lfm.empty());
+        CHECK(render(lfm, "lfm25-350m") == render(lfm, "lfm25-1.2b-thinking"));
+    }
+}
 
 TEST_CASE("Qwen3.5 and Llama-3.2 templates count overflowing tools as param tools") {
     // These templates raise on an empty message list. The tool-token delta must
@@ -641,13 +703,13 @@ TEST_CASE("Qwen3.5 and Llama-3.2 templates count overflowing tools as param tool
         const std::string jinja = read_template(name);
         REQUIRE_FALSE(jinja.empty());
         const xllama::ToolTemplateResult empty_msgs = xllama::render_tool_prompt(
-            nullptr, jinja, {}, synthetic_tools(1), xllama::ToolChoice::Auto, "");
+            nullptr, "", jinja, {}, synthetic_tools(1), xllama::ToolChoice::Auto, "");
         CHECK_FALSE(empty_msgs.ok);
 
         const auto render = [&](const std::vector<xllama::ChatMessage>& msgs,
                                 const std::vector<xllama::ToolSpec>& tools) {
-            return xllama::render_tool_prompt(nullptr, jinja, msgs, tools, xllama::ToolChoice::Auto,
-                                              "");
+            return xllama::render_tool_prompt(nullptr, "", jinja, msgs, tools,
+                                              xllama::ToolChoice::Auto, "");
         };
         const std::vector<xllama::ToolSpec> tools = synthetic_tools(39);
         const std::vector<xllama::ChatMessage> messages{message(xllama::ChatRole::User, "hi")};
@@ -672,7 +734,7 @@ TEST_CASE("Qwen3.5 and Llama-3.2 templates count overflowing tools as param tool
         CHECK(err.message.find("more tool definitions than fit") != std::string::npos);
         CHECK(err.message.find("built-in tools") != std::string::npos);
 
-        const auto named = xllama::render_tool_prompt(nullptr, jinja, messages, tools,
+        const auto named = xllama::render_tool_prompt(nullptr, "", jinja, messages, tools,
                                                       xllama::ToolChoice::Named, "synth_0");
         REQUIRE(named.ok);
         REQUIRE(named.prompt_without_tools.has_value());
@@ -691,7 +753,7 @@ TEST_CASE("the template's grammar travels with the prompt: lazy for auto, full w
     const std::vector<xllama::ToolSpec> tools{ping_tool()};
 
     const xllama::ToolTemplateResult automatic =
-        xllama::render_tool_prompt(nullptr, jinja, msgs, tools, xllama::ToolChoice::Auto, "");
+        xllama::render_tool_prompt(nullptr, "", jinja, msgs, tools, xllama::ToolChoice::Auto, "");
     REQUIRE_MESSAGE(automatic.ok, automatic.error);
     CHECK_FALSE(automatic.grammar.empty());
     CHECK(automatic.grammar.lazy);
@@ -699,8 +761,8 @@ TEST_CASE("the template's grammar travels with the prompt: lazy for auto, full w
     CHECK(std::find(patterns.begin(), patterns.end(), "<\\|tool_call_start\\|>") != patterns.end());
     CHECK(automatic.grammar.gbnf.find("ping") != std::string::npos);
 
-    const xllama::ToolTemplateResult forced =
-        xllama::render_tool_prompt(nullptr, jinja, msgs, tools, xllama::ToolChoice::Named, "ping");
+    const xllama::ToolTemplateResult forced = xllama::render_tool_prompt(
+        nullptr, "", jinja, msgs, tools, xllama::ToolChoice::Named, "ping");
     REQUIRE_MESSAGE(forced.ok, forced.error);
     CHECK_FALSE(forced.grammar.empty());
     CHECK_FALSE(forced.grammar.lazy);
@@ -726,7 +788,7 @@ TEST_CASE("a grammar-constrained tool call stops at its end marker (opt-in: XLLA
     const void* model = session->resident_llama_model();
     for (const xllama::ToolChoice choice : {xllama::ToolChoice::Auto, xllama::ToolChoice::Named}) {
         const xllama::ToolTemplateResult rendered =
-            xllama::render_tool_prompt(model, "", msgs, tools, choice, "ping");
+            xllama::render_tool_prompt(model, model_env, "", msgs, tools, choice, "ping");
         REQUIRE_MESSAGE(rendered.ok, rendered.error);
         xllama::GenerateParams gp;
         gp.prompt = rendered.prompt;
@@ -739,7 +801,7 @@ TEST_CASE("a grammar-constrained tool call stops at its end marker (opt-in: XLLA
         REQUIRE_MESSAGE(r.success, r.error_msg);
         MESSAGE("output: " << r.output_text);
         const xllama::ToolParseResult parsed = xllama::parse_tool_generation(
-            model, "", msgs, tools, choice, "ping", r.output_text, false);
+            model, model_env, "", msgs, tools, choice, "ping", r.output_text, false);
         CHECK_FALSE(parsed.parser_threw);
         REQUIRE(parsed.calls.size() == 1);
         CHECK(parsed.calls[0].name == "ping");
@@ -781,7 +843,7 @@ TEST_CASE("a required or named tool choice admits no text before the call (opt-i
     const std::vector<xllama::ToolSpec> tools{ping_tool()};
     for (const auto choice : {xllama::ToolChoice::Required, xllama::ToolChoice::Named}) {
         const auto rendered =
-            xllama::render_tool_prompt(nullptr, jinja, msgs, tools, choice, "ping");
+            xllama::render_tool_prompt(nullptr, "", jinja, msgs, tools, choice, "ping");
         REQUIRE_MESSAGE(rendered.ok, rendered.error);
         REQUIRE_FALSE(rendered.grammar.lazy);
         REQUIRE(rendered.preserved_tokens.size() >= 1);
@@ -849,7 +911,7 @@ TEST_CASE("tool_choice required or named returns a call, not text first (opt-in:
     for (const auto& msgs : transcripts) {
         for (const auto choice : {xllama::ToolChoice::Required, xllama::ToolChoice::Named}) {
             const auto rendered =
-                xllama::render_tool_prompt(model, "", msgs, tools, choice, "list_dir");
+                xllama::render_tool_prompt(model, model_env, "", msgs, tools, choice, "list_dir");
             REQUIRE_MESSAGE(rendered.ok, rendered.error);
             for (uint32_t seed = 1; seed <= 4; ++seed) {
                 xllama::GenerateParams gp;
@@ -863,8 +925,8 @@ TEST_CASE("tool_choice required or named returns a call, not text first (opt-in:
                 const auto r = session->generate(gp);
                 REQUIRE_MESSAGE(r.success, r.error_msg);
                 const bool cap = r.n_eval >= gp.n_predict;
-                const auto parsed = xllama::parse_tool_generation(model, "", msgs, tools, choice,
-                                                                  "list_dir", r.output_text, cap);
+                const auto parsed = xllama::parse_tool_generation(
+                    model, model_env, "", msgs, tools, choice, "list_dir", r.output_text, cap);
                 ++runs;
                 if (!parsed.calls.empty())
                     ++calls;
@@ -911,7 +973,7 @@ TEST_CASE("LFM2.5: a raw control character in a string argument still parses (00
     const std::vector<xllama::ChatMessage> msgs{message(xllama::ChatRole::User, "ping please")};
     const std::vector<xllama::ToolSpec> tools{ping_tool()};
     const xllama::ToolParseResult parsed = xllama::parse_tool_generation(
-        nullptr, jinja, msgs, tools, xllama::ToolChoice::Auto, "",
+        nullptr, "", jinja, msgs, tools, xllama::ToolChoice::Auto, "",
         "<|tool_call_start|>[ping(text='a\nb')]<|tool_call_end|>", false);
     REQUIRE(parsed.calls.size() == 1);
     CHECK(parsed.calls[0].name == "ping");
@@ -927,11 +989,11 @@ TEST_CASE("LFM2.5: an undeclared tool call is a call in auto mode, never under r
 
     // auto: surfaced as the call the model made, not forced onto `ping`.
     const xllama::ToolParseResult automatic = xllama::parse_tool_generation(
-        nullptr, jinja, msgs, tools, xllama::ToolChoice::Auto, "", undeclared, false);
+        nullptr, "", jinja, msgs, tools, xllama::ToolChoice::Auto, "", undeclared, false);
     REQUIRE(automatic.calls.size() == 1);
     CHECK(automatic.calls[0].name == "reseat_sim_card");
     const xllama::ToolTemplateResult auto_prompt =
-        xllama::render_tool_prompt(nullptr, jinja, msgs, tools, xllama::ToolChoice::Auto, "");
+        xllama::render_tool_prompt(nullptr, "", jinja, msgs, tools, xllama::ToolChoice::Auto, "");
     REQUIRE_MESSAGE(auto_prompt.ok, auto_prompt.error);
     CHECK(auto_prompt.grammar.gbnf.find("tool-undeclared") != std::string::npos);
 
@@ -940,7 +1002,7 @@ TEST_CASE("LFM2.5: an undeclared tool call is a call in auto mode, never under r
     for (const xllama::ToolChoice choice :
          {xllama::ToolChoice::Required, xllama::ToolChoice::Named}) {
         const xllama::ToolTemplateResult strict =
-            xllama::render_tool_prompt(nullptr, jinja, msgs, tools, choice, "ping");
+            xllama::render_tool_prompt(nullptr, "", jinja, msgs, tools, choice, "ping");
         REQUIRE_MESSAGE(strict.ok, strict.error);
         CHECK_FALSE(strict.grammar.lazy);
         CHECK(strict.grammar.gbnf.find("tool-undeclared") == std::string::npos);

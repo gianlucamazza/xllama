@@ -960,7 +960,7 @@ std::string write_tool_proposal(::xllama::GenerateParams& gp, const ::xllama::To
     }
     const bool hit_cap = generated.n_eval >= gp.n_predict;
     const ::xllama::ToolParseResult parsed = ::xllama::parse_tool_generation(
-        session->resident_llama_model(), "", messages, request.tools, request.choice,
+        session->resident_llama_model(), model, "", messages, request.tools, request.choice,
         request.forced_name, generated.output_text, hit_cap);
     const auto parsed_at = Clock::now();
     const auto elapsed_us = [](Clock::time_point begin, Clock::time_point end) {
@@ -1055,7 +1055,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
             request.messages, request.tools, policy_n_ctx, gp.n_predict,
             [&](const std::vector<::xllama::ChatMessage>& messages,
                 const std::vector<::xllama::ToolSpec>& tools) {
-                return ::xllama::render_tool_prompt(llama_model, "", messages, tools,
+                return ::xllama::render_tool_prompt(llama_model, model, "", messages, tools,
                                                     request.choice, request.forced_name);
             },
             [session](const std::string& text) { return session->count_tokens(text); });
