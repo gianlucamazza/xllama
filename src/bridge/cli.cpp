@@ -2,14 +2,22 @@
 // SPDX-License-Identifier: MIT
 
 #include "xllama/cli.h"
+#include "xllama/api_policy.h"   // validate_api_number
+#include "xllama/api_sampling.h" // find_api_sampling_field
+#include "xllama/local_knob.h"   // parse_knob_i64
 #include "xllama/session_spec.h" // kGgufNThreadsMax
 
 #include <charconv>
+#include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <getopt.h>
 #include <iostream>
 #include <limits>
+#include <optional>
+#include <string>
 #include <string_view>
+#include <type_traits>
 
 namespace xllama {
 
@@ -114,24 +122,51 @@ static void print_usage(const char* prog) {
     print_help(prog);
 }
 
-// Parse into the destination type before applying the option's range. from_chars
-// is locale-independent; requiring the end pointer rejects partial conversions.
-template <class T>
-static bool parse_number(std::string_view text, T& out, T lo = std::numeric_limits<T>::lowest(),
-                         T hi = std::numeric_limits<T>::max()) {
-    // from_chars excludes the leading plus sign accepted by the original CLI.
+// Whole numbers: the same reader as the LocalState knobs (local_knob.h),
+// base 10 with an optional sign, nothing after the digits; then the option's
+// range.
+template <class Int>
+static bool parse_whole(const char* text, Int& out, long long lo, long long hi) {
+    const std::optional<long long> v = parse_knob_i64(text);
+    if (!v || *v < lo || *v > hi)
+        return false;
+    out = static_cast<Int>(*v);
+    return true;
+}
+
+// A finite decimal, the whole text, independent of the locale, parsed in the
+// destination's type so a value it cannot hold (1e100 or 1e-100 for a float)
+// is refused rather than rounded to infinity or zero.
+template <class Real = double> static std::optional<double> parse_real(std::string_view text) {
     if (!text.empty() && text.front() == '+') {
         text.remove_prefix(1);
         if (!text.empty() && text.front() == '-')
-            return false;
+            return std::nullopt; // "+-2"
     }
-    T value{};
+    Real v = 0;
     const char* end = text.data() + text.size();
-    const auto parsed = std::from_chars(text.data(), end, value);
-    // Positive membership in finite bounds excludes both NaN and infinities.
-    if (parsed.ec != std::errc{} || parsed.ptr != end || !(value >= lo && value <= hi))
+    const auto parsed = std::from_chars(text.data(), end, v);
+    if (text.empty() || parsed.ec != std::errc{} || parsed.ptr != end || !std::isfinite(v))
+        return std::nullopt;
+    return static_cast<double>(v);
+}
+
+// A sampling option takes the bounds a LAN API request has (api_sampling.h),
+// so the CLI, the API and the catalogue refuse the same values. |error| gets
+// the table's message, e.g. "temperature must be between 0 and 2".
+template <class T>
+static bool parse_sampling(const char* key, const char* text, T& out, std::string& error) {
+    const ApiSamplingField* field = find_api_sampling_field(key);
+    using Real = std::conditional_t<std::is_floating_point_v<T>, T, double>;
+    const std::optional<double> v = parse_real<Real>(text);
+    if (!field || !v) {
+        error = std::string(key) + " must be a number";
         return false;
-    out = value;
+    }
+    error = validate_api_number(key, *v, field->lo, field->hi, field->whole);
+    if (!error.empty())
+        return false;
+    out = static_cast<T>(*v);
     return true;
 }
 
@@ -197,6 +232,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         if (opt == -1)
             break;
         bool valid = true;
+        std::string sampling_error; // the API table's message for a sampling option
         switch (opt) {
         case 'm':
             out.model_path = optarg;
@@ -206,23 +242,22 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             out.embed_inputs.push_back(optarg); // Collect for --embed mode
             break;
         case 'n':
-            valid = parse_number(optarg, out.n_predict, 0);
+            valid = parse_whole(optarg, out.n_predict, 0, std::numeric_limits<int>::max());
             break;
         case 'c':
-            valid = parse_number(optarg, out.n_ctx, 0);
+            valid = parse_whole(optarg, out.n_ctx, 0, std::numeric_limits<int>::max());
             break;
         case 't':
-            valid = parse_number(optarg, out.n_threads, 0, kGgufNThreadsMax);
+            valid = parse_whole(optarg, out.n_threads, 0, kGgufNThreadsMax);
             break;
         case 1:
-            valid = parse_number(optarg, out.temperature);
+            valid = parse_sampling("temperature", optarg, out.temperature, sampling_error);
             break;
         case 2: {
             // Signed 32-bit seeds retain their prior bit pattern (-1 is random).
             // The unsigned spelling can address every GGUF seed directly.
             int64_t seed{};
-            valid = parse_number<int64_t>(optarg, seed, std::numeric_limits<int32_t>::min(),
-                                          std::numeric_limits<uint32_t>::max());
+            valid = parse_sampling("seed", optarg, seed, sampling_error);
             if (valid)
                 out.seed = static_cast<uint32_t>(seed);
             break;
@@ -231,10 +266,10 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             out.chat_template = true;
             break;
         case 4:
-            valid = parse_number(optarg, out.n_batch, 0);
+            valid = parse_whole(optarg, out.n_batch, 0, std::numeric_limits<int>::max());
             break;
         case 5:
-            valid = parse_number(optarg, out.n_ubatch, 0);
+            valid = parse_whole(optarg, out.n_ubatch, 0, std::numeric_limits<int>::max());
             break;
         case 6:
             out.run_membw = true;
@@ -260,16 +295,20 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             out.lora_path = optarg;
             break;
         case 13:
-            valid = parse_number(optarg, out.lora_scale);
+            if (const std::optional<double> v = parse_real<float>(optarg))
+                out.lora_scale = static_cast<float>(*v);
+            else
+                valid = false;
             break;
         case 14:
-            valid = parse_number(optarg, out.top_p, 0.0f, 1.0f);
+            valid = parse_sampling("top_p", optarg, out.top_p, sampling_error);
             break;
         case 15:
-            valid = parse_number(optarg, out.top_k);
+            valid = parse_sampling("top_k", optarg, out.top_k, sampling_error);
             break;
         case 16:
-            valid = parse_number(optarg, out.repetition_penalty);
+            valid = parse_sampling("repetition_penalty", optarg, out.repetition_penalty,
+                                   sampling_error);
             break;
         case 17:
             out.system_prompt = optarg;
@@ -296,7 +335,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             out.run_embed = true;
             break;
         case 25:
-            valid = parse_number(optarg, out.embed_dimensions, 0);
+            valid = parse_whole(optarg, out.embed_dimensions, 0, std::numeric_limits<int>::max());
             break;
         case 26:
             out.run_gpustep = true;
@@ -305,16 +344,17 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             out.gpustep_verdict_csv = optarg;
             break;
         case 28:
-            valid = parse_number(optarg, out.n_gpu_layers, 0);
+            valid = parse_whole(optarg, out.n_gpu_layers, 0, std::numeric_limits<int>::max());
             break;
         case 29:
-            valid = parse_number(optarg, out.decode_log_every_n, 0);
+            valid = parse_whole(optarg, out.decode_log_every_n, 0, std::numeric_limits<int>::max());
             break;
         case 30:
-            valid = parse_number(optarg, out.decode_log_every_ms, 0);
+            valid =
+                parse_whole(optarg, out.decode_log_every_ms, 0, std::numeric_limits<int>::max());
             break;
         case 31:
-            valid = parse_number(optarg, out.stall_timeout_s, 0);
+            valid = parse_whole(optarg, out.stall_timeout_s, 0, std::numeric_limits<int>::max());
             break;
         case 32:
             out.tensor_capture_dir = optarg;
@@ -323,7 +363,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             out.tensor_capture_spec = optarg;
             break;
         case 34:
-            valid = parse_number(optarg, out.dump_logits_stride, 1);
+            valid = parse_whole(optarg, out.dump_logits_stride, 1, std::numeric_limits<int>::max());
             break;
         case 'h':
             print_help(argv[0]);
@@ -333,11 +373,13 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             return false;
         }
         if (!valid) {
-            if (long_index >= 0)
-                std::cerr << "Invalid numeric value for --" << long_opts[long_index].name;
-            else
-                std::cerr << "Invalid numeric value for -" << static_cast<char>(opt);
-            std::cerr << ": '" << optarg << "'\n";
+            const std::string flag = long_index >= 0
+                                         ? std::string("--") + long_opts[long_index].name
+                                         : std::string("-") + static_cast<char>(opt);
+            std::cerr << "Invalid " << flag << " '" << optarg << "'";
+            if (!sampling_error.empty())
+                std::cerr << ": " << sampling_error;
+            std::cerr << "\n";
             return false;
         }
     }

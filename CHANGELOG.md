@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **`xllama-cli` refuses malformed numbers.** `atoi`/`atof` turned `64typo` into 64 and `abc` into 0, so a typo ran with a value nobody chose. Numeric options now need the whole text to parse, and a bad one exits before dispatch, naming the option. The sampling options take the LAN API's bounds (`--temp` 0–2, `--top-p` 0–1, `--top-k` ≥ 0, `--repetition-penalty` 0–2): `--temp -1` and `--top-k -1` are refused; use `--temp 0` for greedy and `--top-k 0` for no cutoff. The `--seed` help now says `-1` is random, as it always was.
+
 - **A model's sampling defaults live in the catalogue.** Sampling defaults were global, the same for every model, so a client that wanted a model card's values had to keep its own table, and the console app and each client disagreed.
   - A catalogue entry may carry a `sampling` object (`temperature`, `top_p`, `top_k`, `repetition_penalty`). The layers apply in one order: global defaults, then the model, then the user, then the request (`include/xllama/model_sampling.h`).
   - A LAN API chat request that omits a field gets the model's value. `/v1/models` reports each chat model's `sampling` with a `source` per field, and `/health` lists the `model_sampling` capability.

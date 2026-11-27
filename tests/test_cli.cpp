@@ -6,6 +6,7 @@
 #include "xllama/cli.h"
 #include <iostream>
 #include <sstream>
+#include <utility>
 
 TEST_CASE("CLI parsing: minimal args") {
     const char* argv[] = {"xllama-cli", "-m", "model.gguf", "-p", "hello"};
@@ -151,6 +152,23 @@ TEST_CASE("CLI parsing: representability and option-specific domains") {
     CHECK_FALSE(parse_option("--seed", "4294967296", params));
 }
 
+TEST_CASE("CLI parsing: sampling options take the LAN API bounds") {
+    // One table (api_sampling.h) for the CLI, a request and the catalogue.
+    xllama::InferenceParams params;
+    for (const auto& [option, value] :
+         {std::pair{"--temp", "-1"}, std::pair{"--temp", "2.5"}, std::pair{"--top-k", "-1"},
+          std::pair{"--top-k", "1.5"}, std::pair{"--repetition-penalty", "5"}}) {
+        CAPTURE(option);
+        CAPTURE(value);
+        std::ostringstream diagnostic;
+        auto* previous = std::cerr.rdbuf(diagnostic.rdbuf());
+        CHECK_FALSE(parse_option(option, value, params));
+        std::cerr.rdbuf(previous);
+        // The message is the API's, e.g. "temperature must be between 0 and 2".
+        CHECK(diagnostic.str().find("must be") != std::string::npos);
+    }
+}
+
 TEST_CASE("CLI parsing: sampling semantics and endpoint values survive strict conversion") {
     xllama::InferenceParams params;
     CHECK(parse_option("--seed", "-1", params));
@@ -163,16 +181,16 @@ TEST_CASE("CLI parsing: sampling semantics and endpoint values survive strict co
     CHECK(params.seed == 0);
     CHECK(parse_option("--lora-scale", "-1.5", params));
     CHECK(params.lora_scale == -1.5f);
-    CHECK(parse_option("--temp", "+2.5e0", params));
-    CHECK(params.temperature == 2.5f);
-    CHECK(parse_option("--temp", "-1", params));
+    CHECK(parse_option("--temp", "+1.5e0", params));
+    CHECK(params.temperature == 1.5f);
+    CHECK(parse_option("--temp", "0", params)); // argmax, as on the API
     CHECK(params.sampling().is_greedy());
     CHECK(parse_option("--top-p", "0", params));
     CHECK(params.top_p == 0);
     CHECK(parse_option("--top-p", "1", params));
     CHECK(params.top_p == 1);
-    CHECK(parse_option("--top-k", "-1", params));
-    CHECK(params.top_k == -1);
+    CHECK(parse_option("--top-k", "0", params)); // 0 keeps every token
+    CHECK(params.top_k == 0);
     CHECK(parse_option("--repetition-penalty", "0", params));
     CHECK(params.repetition_penalty == 0);
     CHECK(parse_option("-n", "+2147483647", params));
