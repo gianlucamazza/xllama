@@ -157,7 +157,7 @@ jobs:
         run: python3 -m unittest tests/test_bench_kv_driver.py
 
       - name: Verify Python dependency monitoring coverage
-        run: python3 -m unittest tests/test_dependency_monitoring.py
+        run: python3 -m unittest tests/test_dependency_monitoring.py tests/test_apply_llama_patches.py
 
       - name: Verify code/project/doc coherence (SSOT audit)
         run: python3 scripts/check-coherence.py
