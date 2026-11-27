@@ -11,11 +11,13 @@
 
 namespace xllama {
 
-inline constexpr std::array<const char*, 4> kLlamaPatches = {{
+inline constexpr std::array<const char*, 6> kLlamaPatches = {{
     "0001-uwp-appcontainer-guards",
     "0003-kv-cache-k-shift-unallocated-input",
     "0004-recurrent-state-fill-zero",
     "0005-required-tool-call-no-content-prefix",
+    "0006-peg-escape-control-chars-in-tool-args",
+    "0007-lfm2-undeclared-tool-calls-in-auto",
 }};
 
 } // namespace xllama

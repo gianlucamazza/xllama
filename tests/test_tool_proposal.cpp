@@ -903,3 +903,47 @@ TEST_CASE("a thinking model's reasoning is returned beside the content, not drop
         xllama::assemble_choice("<think>x</think>y", "", {}, false);
     CHECK(other.reasoning.empty());
 }
+
+// xllama #610: two upstream LFM2 parser fixes the pin predates (patches/0006, 0007).
+TEST_CASE("LFM2.5: a raw control character in a string argument still parses (0006)") {
+    const std::string jinja = read_template("LFM2.5-Instruct.jinja");
+    REQUIRE_FALSE(jinja.empty());
+    const std::vector<xllama::ChatMessage> msgs{message(xllama::ChatRole::User, "ping please")};
+    const std::vector<xllama::ToolSpec> tools{ping_tool()};
+    const xllama::ToolParseResult parsed = xllama::parse_tool_generation(
+        nullptr, jinja, msgs, tools, xllama::ToolChoice::Auto, "",
+        "<|tool_call_start|>[ping(text='a\nb')]<|tool_call_end|>", false);
+    REQUIRE(parsed.calls.size() == 1);
+    CHECK(parsed.calls[0].name == "ping");
+    CHECK(parsed.calls[0].arguments.find("a\\nb") != std::string::npos); // valid JSON escape
+}
+
+TEST_CASE("LFM2.5: an undeclared tool call is a call in auto mode, never under required (0007)") {
+    const std::string jinja = read_template("LFM2.5-Instruct.jinja");
+    REQUIRE_FALSE(jinja.empty());
+    const std::vector<xllama::ChatMessage> msgs{message(xllama::ChatRole::User, "reseat the sim")};
+    const std::vector<xllama::ToolSpec> tools{ping_tool()};
+    const std::string undeclared = "<|tool_call_start|>[reseat_sim_card()]<|tool_call_end|>";
+
+    // auto: surfaced as the call the model made, not forced onto `ping`.
+    const xllama::ToolParseResult automatic = xllama::parse_tool_generation(
+        nullptr, jinja, msgs, tools, xllama::ToolChoice::Auto, "", undeclared, false);
+    REQUIRE(automatic.calls.size() == 1);
+    CHECK(automatic.calls[0].name == "reseat_sim_card");
+    const xllama::ToolTemplateResult auto_prompt =
+        xllama::render_tool_prompt(nullptr, jinja, msgs, tools, xllama::ToolChoice::Auto, "");
+    REQUIRE_MESSAGE(auto_prompt.ok, auto_prompt.error);
+    CHECK(auto_prompt.grammar.gbnf.find("tool-undeclared") != std::string::npos);
+
+    // required and named: the strict grammar admits declared tools only, so a
+    // request that must call a tool it offered still gets one of them.
+    for (const xllama::ToolChoice choice :
+         {xllama::ToolChoice::Required, xllama::ToolChoice::Named}) {
+        const xllama::ToolTemplateResult strict =
+            xllama::render_tool_prompt(nullptr, jinja, msgs, tools, choice, "ping");
+        REQUIRE_MESSAGE(strict.ok, strict.error);
+        CHECK_FALSE(strict.grammar.lazy);
+        CHECK(strict.grammar.gbnf.find("tool-undeclared") == std::string::npos);
+        CHECK(strict.grammar.gbnf.find("ping") != std::string::npos);
+    }
+}

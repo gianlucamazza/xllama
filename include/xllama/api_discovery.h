@@ -8,6 +8,8 @@
 // values from the package identity and the catalogue.
 #pragma once
 
+#include "xllama/model_sampling.h"
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -30,6 +32,7 @@ struct ApiCapabilities {
     bool reasoning_content = false; // message.reasoning_content on chat replies
     bool reasoning_tokens = false;  // usage.completion_tokens_details.reasoning_tokens
     bool cached_tokens = false;     // usage.prompt_tokens_details.cached_tokens
+    bool model_sampling = false;    // /v1/models "sampling"; omitted fields take it
 };
 
 // The capabilities of the compiled build: GGUF paths need XLLAMA_USE_LLAMA,
@@ -61,10 +64,16 @@ struct ModelInfo {
     bool tools = false;  // its chat template renders a tool schema
     bool reasoning = false;
     bool embedding = false;
+    // The sampling a request that sets none of the fields gets, and where each
+    // value came from (model_sampling.h). Written for chat models only.
+    bool has_sampling = false;
+    ResolvedSampling sampling;
 };
 
 // OpenAI {"object":"list","data":[…]}: id/object/created/owned_by first,
-// then xllama's non-standard fields (clients ignore unknown keys).
+// then xllama's non-standard fields (clients ignore unknown keys). A chat
+// model's "sampling" is {"temperature":…,"top_p":…,"top_k":…,
+// "repetition_penalty":…,"source":{<field>:"default"|"model"}}.
 std::string models_list_json(const std::vector<ModelInfo>& models, std::int64_t created);
 
 } // namespace xllama
