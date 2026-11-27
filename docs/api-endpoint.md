@@ -475,6 +475,14 @@ calls the template re-renders differently, or an edited earlier turn.
 text/event-stream` over chunked transfer (no `Content-Length`) and the socket closes at the
 end. Plain chat emits raw token pieces using `GenerateParams::on_token`. The writer
 holds back any suffix that could still complete a stop sequence and drops the match.
+By default xllama keeps the finish chunk with usage. With
+`"stream_options":{"include_usage":true}`, every choice chunk has `"usage":null`
+and a separate final chunk with `"choices":[]` carries the totals before
+`[DONE]`, for plain chat and tool proposals. Explicit `false` omits usage.
+An interrupted stream may end before the totals arrive. A non-null options
+object requires `stream:true`; `include_usage`, when present, must be a boolean, and
+other keys such as `include_obfuscation` are ignored.
+
 A failure after the head travels as an `{"error":{...}}` event.
 
 A stream that has written nothing for 5 s (`kSseKeepaliveInterval`), as during a
@@ -509,7 +517,7 @@ A tool proposal with `stream: true` opens the stream once the request checks
 pass, before generation. The SSE head and the assistant role go out first, and
 the keepalive above covers the prefill (#594). It then buffers generation,
 applies the GGUF template parser, and sends a delta with the assembled content
-and any indexed `delta.tool_calls[]`, the finish chunk with usage, and
+and any indexed `delta.tool_calls[]`, the finish chunk, usage according to the selected stream options, and
 `data: [DONE]`. The same raw-text fallback as the JSON path applies when parsing
 fails or a tool call is cut off. Request errors are found before the head and
 keep the normal HTTP JSON error response:
@@ -683,6 +691,26 @@ curl -sS -o /tmp/xllama-gui-busy.json -w '%{http_code}\n' \
 - ~~Memory note: the server's `Session` is independent of the UI's…~~ **Done
   (PR #161/#164)**: server and UI share the one `session_hub()` Session behind
   the same mutex — two loaded copies can no longer happen.
+
+### Chat response format
+
+When `GET /health` contains `"response_formats":["text"]`, omit
+`response_format`, send `null` (OpenAI's "not given") or send `{"type":"text"}`
+for ordinary chat. All other values, including `json_object`, `json_schema`
+and extra object members, receive HTTP 400 with `error.code` equal to
+`unsupported_response_format` and `error.param` equal to `response_format`.
+This validation precedes compute admission, model lookup and the SSE response
+head, as does the check that the body is JSON (`invalid JSON body`).
+The decision is `api_response_format_supported` in `include/xllama/api_policy.h`. Tool proposals keep their own grammar and execution boundary.
+Earlier packages omitted the discovery field and could silently ignore an
+explicit format. A client requiring structured output must verify support
+before sending a request.
+
+For a live response-format check, keep the app in the foreground, install
+`openai==3.60.0` in a host Python environment and run
+`python scripts/validate-api-response-format.py http://<console-ip>:11434/v1 lfm25-350m`.
+The SDK checks successful default and explicit-text chat and inspects the HTTP
+400 code and parameter for malformed and unsupported formats with streaming requested.
 
 ## Validation
 
