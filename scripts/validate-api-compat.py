@@ -31,6 +31,25 @@ def read_json(base, route, body=None):
         return json.load(reply)
 
 
+# A client that closes a stream frees the session only once the server notices
+# the closed socket; validate-api.sh disconnect bounds that at 30 s.
+RELEASE_LIMIT_S = 30
+
+
+def read_json_after_release(base, route, body, limit=RELEASE_LIMIT_S):
+    """read_json, retrying while the server still reports the closed stream busy."""
+    deadline = time.monotonic() + limit
+    while True:
+        try:
+            return read_json(base, route, body)
+        except HTTPError as exc:
+            with exc:
+                error = json.load(exc).get("error")
+            if exc.code != 503 or error != "busy" or time.monotonic() >= deadline:
+                raise
+            time.sleep(0.5)
+
+
 def expect_error(base, route, body, status, text="", native=True):
     try:
         read_json(base, route, body)
@@ -117,7 +136,9 @@ def validate_native(base, model, tool_model, ort_model):
     with call(base, "/api/chat", long_chat) as reply:
         assert json.loads(reply.readline())["done"] is False
         expect_error(base, "/api/chat", {**chat, "options": short}, 503, "busy")
-    read_json(base, "/api/chat", {**chat, "options": short, "stream": False})
+    # Closing the stream above ends the job; the next request is served once
+    # the server has seen the socket close, not necessarily at once.
+    read_json_after_release(base, "/api/chat", {**chat, "options": short, "stream": False})
     print(f"Ollama load and busy passed with {model}")
 
     assert models[tool_model]["capabilities"]["tools"] is True, tool_model
