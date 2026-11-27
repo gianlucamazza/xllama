@@ -339,10 +339,18 @@ tokens. `stream: true` answers with SSE; see the streaming
 paragraph under [Protocol (v1)](#protocol-v1). Most other fields are ignored.
 
 Plain chat (no tool schema, `tools: []`, or `tool_choice` `"none"`) keeps
-`ChatFormat::render_prompt` (`include/xllama/chat_prompt.h`). Roles are system, user,
-and assistant, content is a string, and the transcript must end on a user turn, else
-`400`. `chat_format_for(model)` selects the template and its stops. Client `stop`
-values are added to those. When no system message is sent, a default one is injected.
+`ChatFormat::render_prompt` (`include/xllama/chat_prompt.h`). Roles are system,
+developer, user, and assistant; `developer` (OpenAI's newer name for the system
+role) is read as a system message, and several system or developer messages join
+with a newline in order. Content is a string, null, or an array of
+`{type:"text",text}` parts joined with no separator; any other part, an image
+included, is `400` `unsupported message content`. Every message needs a string
+`role`; `tool` and unknown roles are skipped, since plain chat has no turn for
+them. The transcript must end on a user turn, else `400`. The parser is
+`parse_plain_chat` (`include/xllama/tool_request.h`), with the same role and
+content rules as a tool proposal. `chat_format_for(model)` selects the template
+and its stops. Client `stop` values are added to those. When no system message
+is sent, a default one is injected.
 
 A non-empty `tools` array, or a legacy `functions` array on its own, is a proposal.
 `functions` is translated into `tools`. Sending both is `400`
@@ -364,7 +372,8 @@ same decision as the plain-chat no-think prefill and `capabilities.reasoning` in
 gets its template's empty think block and answers or calls directly; a thinking
 model still reasons first. A template without a thinking switch is unaffected.
 Content may be a string, null, or an array of `{type:"text",text}` parts joined
-with no separator. Anything else, including an image part, is `400`. A `tool`
+with no separator. Anything else, including an image part, is `400`. A
+`developer` message is a system message, as on plain chat. A `tool`
 message requires `tool_call_id`. The last message must be `user` or `tool`.
 
 xllama does not execute the tool, a shell, the filesystem, or the network. The
