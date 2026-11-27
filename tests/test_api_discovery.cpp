@@ -24,7 +24,9 @@ TEST_CASE("health_json keeps the original fields first and adds version, api, ca
     CHECK(j["capabilities"]["cached_tokens"] == false);
     CHECK(j["capabilities"]["model_sampling"] == false);
     CHECK(j["capabilities"]["ollama_chat"] == false);
-    CHECK(j["capabilities"].size() == 12);
+    CHECK(j["capabilities"]["ollama_keep_alive"] == false);
+    CHECK(j["capabilities"]["chat_context"] == false);
+    CHECK(j["capabilities"].size() == 14);
     // The accepted sampling fields, from the same table the request is checked against.
     CHECK(j["sampling"] ==
           json::array({"temperature", "top_p", "top_k", "repetition_penalty", "seed"}));
@@ -62,8 +64,10 @@ TEST_CASE("build_api_capabilities follows the compiled backends") {
     CHECK(caps.reasoning_tokens);
     CHECK(caps.cached_tokens);
     CHECK(caps.model_sampling);
+    CHECK(caps.chat_context);
 #ifdef XLLAMA_USE_LLAMA
     CHECK(caps.ollama_chat);
+    CHECK(caps.ollama_keep_alive);
 #endif
 }
 

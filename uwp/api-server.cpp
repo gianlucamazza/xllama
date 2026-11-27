@@ -45,6 +45,7 @@
     #include "xllama/routing_policy.h"
     #include "xllama/session.h"
     #include "xllama/session_hub.h"
+    #include "xllama/session_residency.h"
     #include "xllama/sse.h"
     #include "xllama/stop_sequence_filter.h"
     #include "xllama/thinking_split.h"
@@ -71,6 +72,7 @@
     #include <string>
     #include <string_view>
     #include <unordered_map>
+    #include <utility>
     #include <vector>
 
 namespace xllama::api {
@@ -347,11 +349,16 @@ bool accepts_response_format(JsonObject const& root) {
 enum class ChatWire { OpenAI, OllamaChat, OllamaGenerate };
 using ChatClock = std::chrono::steady_clock;
 
-// Per-request reply state the native wire reports: its timings.
+// Per-request reply state: the native wire's timings, and what the request's
+// keep_alive does to the session once the reply is written.
 struct ChatResponse {
     ChatWire wire = ChatWire::OpenAI;
     ChatClock::time_point started = ChatClock::now();
     double load_ms = 0; // the model load this request paid, if any
+    // Set once the request holds the session (keep_alive_action); applied by
+    // KeepAliveAtEnd under the same permit and hub lock.
+    std::optional<::xllama::KeepAliveAction> keep_alive;
+    std::chrono::milliseconds lease{0};
 };
 
 bool native_wire(const ChatResponse& response) {
@@ -481,6 +488,115 @@ JsonObject ollama_chat_json(const ChatResponse& response, const std::string& mod
 const wchar_t* ollama_done_reason(std::wstring_view reason) {
     return reason == L"length" ? L"length" : L"stop";
 }
+
+// ---------------------------------------------------------------------------
+// Ollama keep_alive. What a lease may do is decided in session_residency.h
+// (the console app's session never expires); this is only its timer. The
+// lease itself lives in hub.residency under hub.mtx; the timer carries a
+// snapshot (generation, id) that a reload, a newer lease, a cancel or a GUI
+// turn makes stale. Lock order: compute permit -> hub mutex -> timer mutex.
+// ---------------------------------------------------------------------------
+using winrt::Windows::System::Threading::ThreadPoolTimer;
+std::mutex g_lease_timer_mtx;
+ThreadPoolTimer g_lease_timer{nullptr}; // guarded by g_lease_timer_mtx
+constexpr std::chrono::milliseconds kLeaseRetry{250};
+
+ThreadPoolTimer make_lease_timer(std::chrono::milliseconds delay, uint64_t generation, uint64_t id);
+
+// A lease's timer fired. It takes compute admission and the hub like any other
+// job, so it never releases a session a turn is using; while either is busy
+// it only re-arms itself.
+void expire_lease(ThreadPoolTimer const& timer, uint64_t generation, uint64_t id) {
+    auto permit = ::xllama::try_acquire_compute_job();
+    auto hub_lock = permit ? acquire_hub_or_busy() : std::unique_lock<std::mutex>{};
+    std::lock_guard<std::mutex> timer_lock(g_lease_timer_mtx);
+    if (timer != g_lease_timer)
+        return; // a newer lease or a cancel replaced this timer
+    if (!hub_lock.owns_lock()) {
+        g_lease_timer = make_lease_timer(kLeaseRetry, generation, id);
+        return;
+    }
+    auto& hub = ::xllama::session_hub();
+    const ::xllama::SessionResidency& lease = hub.residency;
+    if (lease.deadline && lease.may_expire() && lease.id == id && hub.generation == generation) {
+        if (!lease.expired(generation, id, ChatClock::now())) {
+            g_lease_timer = make_lease_timer(kLeaseRetry, generation, id); // fired early
+            return;
+        }
+        ::xllama::log_output("[xllama] api: keep_alive expired, releasing " + hub.model + "\n");
+        hub.reset_locked();
+    }
+    g_lease_timer = nullptr;
+}
+
+ThreadPoolTimer make_lease_timer(std::chrono::milliseconds delay, uint64_t generation,
+                                 uint64_t id) {
+    return ThreadPoolTimer::CreateTimer(
+        [generation, id](ThreadPoolTimer const& timer) {
+            try {
+                expire_lease(timer, generation, id);
+            } catch (...) {
+                ::xllama::log_output("[xllama] api: keep_alive timer failed\n");
+            }
+        },
+        std::chrono::duration_cast<winrt::Windows::Foundation::TimeSpan>(delay));
+}
+
+// Under the compute permit and hub.mtx.
+void cancel_lease_timer_locked() {
+    ThreadPoolTimer timer{nullptr};
+    {
+        std::lock_guard<std::mutex> lock(g_lease_timer_mtx);
+        timer = std::exchange(g_lease_timer, nullptr);
+    }
+    if (timer)
+        timer.Cancel();
+}
+
+// Under the compute permit and hub.mtx: what a request's keep_alive does to the
+// session it used, once its reply is written.
+void apply_keep_alive_locked(::xllama::KeepAliveAction action, std::chrono::milliseconds lease) {
+    using Action = ::xllama::KeepAliveAction;
+    auto& hub = ::xllama::session_hub();
+    cancel_lease_timer_locked();
+    switch (action) {
+    case Action::Unload:
+        if (hub.residency.owner != ::xllama::SessionOwner::Gui)
+            hub.reset_locked();
+        return;
+    case Action::Arm:
+        if (hub.residency.arm(lease, hub.generation, ChatClock::now())) {
+            std::lock_guard<std::mutex> lock(g_lease_timer_mtx);
+            g_lease_timer = make_lease_timer(lease, hub.generation, hub.residency.id);
+        }
+        return;
+    case Action::Keep:
+        hub.residency.cancel();
+        return;
+    case Action::Refuse:
+        return;
+    }
+}
+
+// Applies the request's keep_alive when the reply ends, a client disconnect or
+// a throw included. Declared after the hub lock, so it runs before the lock
+// and the compute permit are released.
+struct KeepAliveAtEnd {
+    const ChatResponse& response;
+    ~KeepAliveAtEnd() {
+        if (!response.keep_alive)
+            return;
+        try {
+            apply_keep_alive_locked(*response.keep_alive, response.lease);
+        } catch (...) {
+            ::xllama::session_hub().residency.cancel();
+            ::xllama::log_output("[xllama] api: keep_alive could not be applied\n");
+        }
+    }
+};
+
+// The console app holds the session: a client may not unload it.
+constexpr const char* kSessionInUseByConsole = "model is in use by the console app";
 
 enum class StreamUsage { Legacy, Omit, Separate };
 
@@ -957,8 +1073,9 @@ void append_client_stops(JsonObject const& root, std::vector<std::string>& stops
 // The reply's token count. max_tokens is deprecated in favour of
 // max_completion_tokens; accept both. Validated against the catalogue context
 // before any model load (F01): a negative, fractional, or context-sized value
-// is the client's error. Absent = 512. A native Ollama request carried it as
-// options.num_predict (api_ollama.h), and its errors name that field.
+// is the client's error. Absent = default_max_tokens (512, less on a reduced
+// context). A native Ollama request carried it as options.num_predict
+// (api_ollama.h), and its errors name that field.
 ::xllama::ApiTokenLimit read_max_tokens(JsonObject const& root, int n_ctx, bool native = false) {
     for (const char* key : {"max_completion_tokens", "max_tokens"}) {
         const winrt::hstring name = winrt::to_hstring(key);
@@ -967,8 +1084,49 @@ void append_client_stops(JsonObject const& root, std::vector<std::string>& stops
                                                  root.GetNamedNumber(name), n_ctx);
     }
     ::xllama::ApiTokenLimit out;
-    out.value = 512;
+    out.value = ::xllama::default_max_tokens(n_ctx);
     return out;
+}
+
+// options.num_ctx: a native Ollama option, and an xllama extension on
+// /v1/chat/completions and the embedding routes. Absent leaves |value| empty.
+// It may only reduce |configured|, the catalogue context
+// (validate_context_override); other option keys are not read here.
+std::string read_context_override(JsonObject const& root, int configured,
+                                  std::optional<int>& value) {
+    value.reset();
+    if (!root.HasKey(L"options") ||
+        root.GetNamedValue(L"options").ValueType() == JsonValueType::Null)
+        return {};
+    if (root.GetNamedValue(L"options").ValueType() != JsonValueType::Object)
+        return "options must be an object";
+    const JsonObject options = root.GetNamedObject(L"options");
+    if (!options.HasKey(L"num_ctx") ||
+        options.GetNamedValue(L"num_ctx").ValueType() == JsonValueType::Null)
+        return {};
+    if (options.GetNamedValue(L"num_ctx").ValueType() != JsonValueType::Number)
+        return "options.num_ctx must be an integer";
+    const double n_ctx = options.GetNamedNumber(L"num_ctx");
+    std::string error = ::xllama::validate_context_override(n_ctx, configured);
+    if (error.empty())
+        value = static_cast<int>(n_ctx);
+    return error;
+}
+
+// The chat request's model id, as handle_chat_locked resolves it.
+std::string request_model(JsonObject const& root) {
+    std::string model = winrt::to_string(root.GetNamedString(L"model", L""));
+    return model.empty() ? ::xllama::read_local_text("model.txt") : model;
+}
+
+// Before compute admission: a context the model's catalogue entry cannot take
+// is the client's error, not a reason to wait behind inference.
+std::string check_context_override(JsonObject const& root) {
+    std::optional<int> unused;
+    const std::string model = request_model(root);
+    const int configured =
+        model.empty() ? ::xllama::kDefaultNCtx : ::xllama::CatalogueSessionParams(model).n_ctx;
+    return read_context_override(root, configured, unused);
 }
 
 // The request's numbers, for the WinRT-free sampling table (api_sampling.h).
@@ -1266,9 +1424,7 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
     const bool proposal = request.disposition == ::xllama::ApiToolDisposition::Proposal ||
                           request.disposition == ::xllama::ApiToolDisposition::Legacy;
 
-    std::string model = winrt::to_string(root.GetNamedString(L"model", L""));
-    if (model.empty())
-        model = ::xllama::read_local_text("model.txt"); // field-test fallback
+    const std::string model = request_model(root); // model.txt: field-test fallback
     if (model.empty()) {
         status = "400 Bad Request";
         return error_json("missing 'model' (and no LocalState\\model.txt fallback)");
@@ -1279,8 +1435,27 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
         return error_json(model_not_found(model));
     }
 
+    // An empty native request with keep_alive 0 unloads the model if the API
+    // holds it; the console app's session stays (session_residency.h).
+    auto& hub = ::xllama::session_hub();
+    if (native && native->action == ::xllama::OllamaAction::Unload) {
+        if (hub.session && hub.model == model) {
+            if (::xllama::keep_alive_action(hub.residency.owner, native->keep_alive) ==
+                ::xllama::KeepAliveAction::Refuse) {
+                status = "409 Conflict";
+                return error_json(kSessionInUseByConsole);
+            }
+            cancel_lease_timer_locked();
+            hub.reset_locked();
+        }
+        status = "200 OK";
+        return winrt::to_string(
+            ollama_chat_json(response, model, JsonObject{}, L"unload").Stringify());
+    }
+
     // Roles and content parts follow the tool parser's rules (tool_request.h).
-    // A native load (no messages, no prompt) only loads the model.
+    // A native load (no messages, no prompt) only loads the model; an unload
+    // returned above.
     const bool load_only = native && native->action == ::xllama::OllamaAction::Load;
     std::string system, final_user;
     std::vector<::xllama::ChatTurn> history;
@@ -1326,7 +1501,17 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
         // is validated against it here, before any load (F01). A GGUF session may
         // open smaller (capped at its trained context, #570), so fit_prompt and the
         // reply limit are checked again below against the loaded context.
-        const ::xllama::SessionParams sp = ::xllama::CatalogueSessionParams(model);
+        ::xllama::SessionParams sp = ::xllama::CatalogueSessionParams(model);
+        // options.num_ctx (checked before admission too) reduces the load. A
+        // different n_ctx is a different load: same_load reloads the model.
+        std::optional<int> context;
+        if (const std::string error = read_context_override(root, sp.n_ctx, context);
+            !error.empty()) {
+            status = "400 Bad Request";
+            return error_json(error, "invalid_value", "options.num_ctx");
+        }
+        if (context)
+            sp.n_ctx = *context;
         policy_n_ctx = sp.n_ctx;
         const ::xllama::ApiTokenLimit limit =
             read_max_tokens(root, policy_n_ctx, native != nullptr);
@@ -1356,10 +1541,9 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
                               "' is not served by /api/chat or /api/generate; use "
                               "/v1/chat/completions for ONNX models");
         }
-        auto& hub = ::xllama::session_hub();
         const auto before_load = ChatClock::now();
         const uint64_t loaded_generation = hub.generation;
-        session = hub.ensure_locked(model, sp, &err);
+        session = hub.ensure_locked(model, sp, &err, ::xllama::SessionOwner::Api);
         if (!session) {
             status =
                 ::xllama::is_memory_refusal(err) ? "400 Bad Request" : "500 Internal Server Error";
@@ -1368,6 +1552,17 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
         if (hub.generation != loaded_generation)
             response.load_ms =
                 std::chrono::duration<double, std::milli>(ChatClock::now() - before_load).count();
+        // The request holds the session now, so its keep_alive is decided
+        // against who owns it; an OpenAI request has none (no expiry).
+        const auto action = ::xllama::keep_alive_action(hub.residency.owner,
+                                                        native ? native->keep_alive : std::nullopt);
+        if (action == ::xllama::KeepAliveAction::Refuse) {
+            status = "409 Conflict";
+            return error_json(kSessionInUseByConsole);
+        }
+        response.keep_alive = action;
+        if (native && native->keep_alive)
+            response.lease = *native->keep_alive;
         if (load_only) {
             status = "200 OK";
             return winrt::to_string(
@@ -1667,6 +1862,41 @@ std::string models_json() {
     return ::xllama::models_list_json(models, static_cast<std::int64_t>(time(nullptr)));
 }
 
+// Ollama GET /api/ps under hub.mtx: zero or one resident model, its loaded
+// context, who holds it ("console" or "api", session_residency.h) and, while an
+// Ollama keep_alive lease runs, when it expires. A model the console app holds
+// has no expiry.
+std::string ps_json_locked() {
+    auto& hub = ::xllama::session_hub();
+    JsonArray models;
+    if (hub.session) {
+        JsonObject resident;
+        const auto name = JsonValue::CreateStringValue(winrt::to_hstring(hub.model));
+        resident.Insert(L"name", name);
+        resident.Insert(L"model", name);
+        const int loaded = hub.session->context_length();
+        resident.Insert(L"context_length",
+                        JsonValue::CreateNumberValue(loaded > 0 ? loaded : hub.params.n_ctx));
+        resident.Insert(
+            L"owner",
+            JsonValue::CreateStringValue(
+                hub.residency.owner == ::xllama::SessionOwner::Api ? L"api" : L"console"));
+        if (hub.residency.deadline) {
+            using WallClock = std::chrono::system_clock;
+            const auto remaining =
+                std::max(ChatClock::duration::zero(), *hub.residency.deadline - ChatClock::now());
+            const auto expiry =
+                WallClock::now() + std::chrono::duration_cast<WallClock::duration>(remaining);
+            resident.Insert(L"expires_at", JsonValue::CreateStringValue(
+                                               utc_timestamp(WallClock::to_time_t(expiry))));
+        }
+        models.Append(resident);
+    }
+    JsonObject root;
+    root.Insert(L"models", models);
+    return winrt::to_string(root.Stringify());
+}
+
 // Ollama GET /api/tags — {"models":[{name,model}]} for Ollama-probing clients.
 std::string tags_json() {
     JsonArray models;
@@ -1785,27 +2015,16 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
     ::xllama::Session* session = nullptr;
     std::string err;
     ::xllama::SessionParams sp = ::xllama::CatalogueSessionParams(model); // ADR 0007
-    if (root.HasKey(L"options") &&
-        root.GetNamedValue(L"options").ValueType() != JsonValueType::Object) {
+    std::optional<int> context;
+    if (const std::string error = read_context_override(root, policy.n_ctx, context);
+        !error.empty()) {
         status = "400 Bad Request";
-        return embedding_error_json(api, "options must be an object");
+        return embedding_error_json(api, error);
     }
-    if (root.HasKey(L"options")) {
-        const JsonObject options = root.GetNamedObject(L"options");
-        if (options.HasKey(L"num_ctx")) {
-            const double raw = options.GetNamedNumber(L"num_ctx");
-            if (raw < 32 || raw > policy.n_ctx || raw != static_cast<int>(raw)) {
-                status = "400 Bad Request";
-                return embedding_error_json(
-                    api, "options.num_ctx must be an integer from 32 to the configured "
-                         "model context limit (" +
-                             std::to_string(policy.n_ctx) + ")");
-            }
-            sp.n_ctx = static_cast<int>(raw);
-        }
-    }
+    if (context)
+        sp.n_ctx = *context;
     // A different num_ctx is a different load: ensure_locked reloads it.
-    session = ::xllama::session_hub().ensure_locked(model, sp, &err);
+    session = ::xllama::session_hub().ensure_locked(model, sp, &err, ::xllama::SessionOwner::Api);
     if (!session) {
         // A model or num_ctx that does not fit is the request's choice.
         status = ::xllama::is_memory_refusal(err) ? "400 Bad Request" : "500 Internal Server Error";
@@ -2314,7 +2533,8 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
             server_active = g_status.state == ServerState::Running && generation == g_generation;
         }
         if (server_active)
-            loaded = hub.ensure_locked(model_name, params, &load_error);
+            loaded =
+                hub.ensure_locked(model_name, params, &load_error, ::xllama::SessionOwner::Api);
         else
             load_error = "server stopped before model load";
     }
@@ -2424,6 +2644,20 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             return;
         }
 
+        // Reads the hub only: busy while a turn holds it, as Ollama clients
+        // poll this between requests.
+        if (req.method == "GET" && req.path == "/api/ps") {
+            std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
+            if (!lk.owns_lock()) {
+                write_response(socket, ::xllama::kApiBusyStatus, ollama_error_json("busy"));
+                return;
+            }
+            const std::string json = ps_json_locked();
+            lk.unlock();
+            write_response(socket, "200 OK", json);
+            return;
+        }
+
         if (req.method == "POST" && req.path == "/api/pull") {
             handle_pull(socket, req.body, generation);
             return;
@@ -2468,6 +2702,12 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                                           "unsupported_response_format", "response_format"));
                 return;
             }
+            if (const std::string error = check_context_override(root); !error.empty()) {
+                write_response(socket, "400 Bad Request",
+                               native ? ollama_error_json(error)
+                                      : error_json(error, "invalid_value", "options.num_ctx"));
+                return;
+            }
             const bool stream = native ? native->stream : root.GetNamedBoolean(L"stream", false);
             // Like response_format: a malformed option is the client's error
             // (400), not a reason to wait behind inference or report busy.
@@ -2510,6 +2750,7 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             // wrong-typed fields; guarantee the client always gets a response
             // rather than a silently dropped socket.
             auto ticket = activity().begin(native_generate ? "generate" : "chat");
+            const KeepAliveAtEnd keep_alive{response}; // runs before lk and the permit go
             const char* status = "200 OK";
             std::string json;
             try {
@@ -2708,7 +2949,8 @@ void stop_server_locked(bool write_log) {
     }
     // Deliberately NOT resetting the hub here: the Session is process-shared
     // now, and the GUI may be the one using the resident model. A model loaded
-    // solely via the API simply stays resident; the GUI swaps it on next use.
+    // solely via the API stays resident, and a keep_alive lease on it still
+    // runs; the GUI takes it over or swaps it on next use.
     if (write_log)
         ::xllama::log_output("[xllama] api: stopped\n");
 }

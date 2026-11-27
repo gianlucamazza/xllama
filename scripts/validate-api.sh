@@ -49,7 +49,9 @@
 #   compat native Ollama /api/chat and /api/generate (validate-api-compat.py):
 #          NDJSON and JSON framing, refused options and fields, think,
 #          load-only requests, a tool proposal and its replay, and busy while a
-#          native stream holds the permit. MODEL is a GGUF chat model and
+#          native stream holds the permit, options.num_ctx on both protocols,
+#          and the keep_alive lease, expiry and unload of a model the API
+#          loads (/api/ps). MODEL is a GGUF chat model and
 #          TOOLS_MODEL (default MODEL) a tool-capable GGUF; ORT_MODEL, when
 #          set, must be refused by the native routes. API_COMPAT_SDKS=1 also
 #          runs the installed `openai` and `ollama` Python packages. Not part

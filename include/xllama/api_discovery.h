@@ -34,6 +34,8 @@ struct ApiCapabilities {
     bool cached_tokens = false;     // usage.prompt_tokens_details.cached_tokens
     bool model_sampling = false;    // /v1/models "sampling"; omitted fields take it
     bool ollama_chat = false;       // native /api/chat and /api/generate (api_ollama.h)
+    bool ollama_keep_alive = false; // keep_alive preload, lease and unload; GET /api/ps
+    bool chat_context = false;      // options.num_ctx on chat requests (reduction only)
 };
 
 // The capabilities of the compiled build: GGUF paths need XLLAMA_USE_LLAMA,

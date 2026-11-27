@@ -180,6 +180,7 @@ failed` line with the cause. `malformed request body` (400) means only that a
 | `GET`     | `/api/tags`              | Ollama model discovery — same list, Ollama shape.                                                                                                                                   |
 | `POST`    | `/api/chat`              | Native Ollama chat and tool proposals on GGUF models; NDJSON, or JSON with `stream: false` ([Native Ollama](#native-ollama-generation-apichat-apigenerate)).                        |
 | `POST`    | `/api/generate`          | Native Ollama prompt completion through the model's chat template; NDJSON or JSON as `/api/chat`.                                                                                   |
+| `GET`     | `/api/ps`                | Ollama resident-model discovery: zero or one model, its loaded context, who holds it, and the lease expiry ([Model residency](#model-residency-keep_alive-apips)).                  |
 | `POST`    | `/api/pull`              | Download a trusted chat or embedding model from the built-in model list (Ollama-style NDJSON progress), then load it.                                                               |
 | `POST`    | `/v1/chat/completions`   | OpenAI-compatible chat completion; one JSON body, or **SSE** chunk events when `stream: true`.                                                                                      |
 | `POST`    | `/api/embed`             | Ollama-style embeddings for one string or a batch, catalogue embedding GGUF/llama.cpp only.                                                                                         |
@@ -213,7 +214,9 @@ to branch on (`include/xllama/api_discovery.h`):
     "reasoning_tokens": true,
     "cached_tokens": true,
     "model_sampling": true,
-    "ollama_chat": true
+    "ollama_chat": true,
+    "ollama_keep_alive": true,
+    "chat_context": true
   },
   "sampling": ["temperature", "top_p", "top_k", "repetition_penalty", "seed"],
   "runtime": {
@@ -238,7 +241,10 @@ so a client sends only those instead of assuming them per version.
 `model_sampling` means each chat model in `/v1/models` reports its `sampling`
 and a field a request omits takes that model's value (below). `ollama_chat`
 means the build serves `/api/chat` and `/api/generate` (a build with
-llama.cpp); which models they accept is the per-model capability below. `runtime`
+llama.cpp); which models they accept is the per-model capability below.
+`ollama_keep_alive` means native `keep_alive` and `GET /api/ps` follow
+[Model residency](#model-residency-keep_alive-apips); `chat_context` means a chat
+request may reduce the context with `options.num_ctx`. `runtime`
 names the llama.cpp commit the build compiles (llama.cpp's own build info; the
 commit only, since its build number counts the submodule history and reads 1 in
 a shallow checkout) and the patches applied to it
@@ -307,9 +313,10 @@ same ones; only the reply is written as native Ollama objects.
 - `/api/generate` takes `prompt` and an optional `system`, rendered as one
   user turn through the model's chat template (there is no raw mode).
 - `options` accepts `temperature`, `top_p`, `top_k`, `repeat_penalty` (or
-  `repetition_penalty`), `seed`, `stop` and `num_predict`, with the ranges of
-  the OpenAI fields above. `num_predict` is the reply limit; `-1` (Ollama's
-  "no limit") keeps xllama's bounded default of 512. Any other option is 400
+  `repetition_penalty`), `seed`, `stop`, `num_predict` and `num_ctx`, with the
+  ranges of the OpenAI fields above. `num_predict` is the reply limit; `-1`
+  (Ollama's "no limit") keeps xllama's bounded default. `num_ctx` follows
+  [Reduced context](#reduced-context-optionsnum_ctx). Any other option is 400
   `unsupported options.<name>`, never silently ignored.
 - `stream` defaults to `true`: `Content-Type: application/x-ndjson` over
   chunked transfer, one object per text piece
@@ -353,8 +360,69 @@ curl -s http://<console-ip>:11434/api/generate \
   -d '{"model":"lfm25-350m","prompt":"Say hi","stream":false,"options":{"num_predict":32}}'
 ```
 
-`keep_alive` is ignored here: the resident model stays loaded as on every
-other route.
+### Model residency (`keep_alive`, `/api/ps`)
+
+The console app wins. `SessionHub` records who loaded or last used the
+resident session, the console app (GUI) or the LAN API, and the decision of what
+a `keep_alive` may do is `keep_alive_action` in
+`include/xllama/session_residency.h`:
+
+| `keep_alive` on `/api/chat` or `/api/generate` | Session loaded by the API, unused by the GUI since | Session the GUI loaded or used                     |
+| ---------------------------------------------- | -------------------------------------------------- | -------------------------------------------------- |
+| omitted or `null`                              | stays resident, no expiry                          | stays resident, no expiry                          |
+| negative                                       | stays resident, no expiry                          | stays resident, no expiry                          |
+| positive (`30`, `"5m"`, `"1h30m"`, `"750ms"`)  | released that long after the reply ends            | stays resident, no expiry                          |
+| `0`                                            | released when the reply ends                       | 409 `model is in use by the console app`, no reply |
+
+- **No expiry by default.** Ollama unloads an idle model after five minutes
+  when a request omits `keep_alive`; xllama does not. The model stays until a
+  request, the GUI or a `keep_alive` replaces or releases it, as on every other
+  route. Every request without `keep_alive` (OpenAI chat included) ends any
+  lease on the session it used.
+- **A GUI turn takes the session over.** A GUI turn or preload that uses the
+  resident model cancels its lease and makes the session the console app's;
+  from then on no client `keep_alive` expires or unloads it. A GUI model
+  selection releases the resident session as before and loads the GUI's model
+  as the console app's. A lease that falls due while a request, a GUI turn or
+  another job holds the console waits for it and is re-checked first.
+- An empty request (`messages: []` or no `prompt`) loads the model and returns
+  `done_reason: "load"`, with the lease its `keep_alive` asks for. The same
+  empty request with `keep_alive: 0` unloads it (`done_reason: "unload"`,
+  idempotent when the model is not resident), or answers 409 when the console
+  app holds it. A generation with `keep_alive: 0` on the console app's session
+  is refused with 409 before it generates.
+- `keep_alive` is seconds as a number or a Go duration string; anything else is
+  400 before admission.
+- `GET /api/ps` lists the resident model: `name`, `model`, `context_length`
+  (the loaded context), `owner` (`console` or `api`, an xllama field) and, only
+  while a lease runs, `expires_at`. It is `{"models":[]}` with nothing resident
+  and 503 `busy` while a turn holds the session.
+- A lease is in memory: stopping the LAN API leaves it running, and restarting
+  the app drops it.
+
+### Reduced context (`options.num_ctx`)
+
+A chat request may load the model with a smaller context: `options.num_ctx` on
+`/api/chat` and `/api/generate`, and the same object as an xllama extension on
+`/v1/chat/completions` (other `options` keys are ignored there). It is a whole
+number from 32 to the model's catalogue context (`catalogue_n_ctx`, the
+`n_ctx` `/v1/models` reports while the model is not resident), checked before
+compute admission (`validate_context_override`, `include/xllama/api_policy.h`).
+It only reduces: there is no larger context than the catalogue's.
+
+- **A different `n_ctx` reloads the model.** It is a different load
+  (`same_load`, ADR 0007), so the hub releases the resident session and loads
+  again. Two clients, or a client and the GUI, that alternate contexts reload
+  each other on every request; the GUI's next turn loads its catalogue context
+  again. Omitting `num_ctx` asks for the catalogue context.
+- `/v1/models` `n_ctx` for the active model, and `/api/ps` `context_length`,
+  report the loaded context, which can be the reduced one. The upper bound is
+  the catalogue's, not that value; a request above it is 400 naming the limit.
+- The reply limit is checked against the loaded context. Without one, a
+  request gets 512 tokens, or half the context when it is 1024 or less
+  (`default_max_tokens`). A context can be valid yet too small for the
+  template, the prompt and the reply reserve: that request is 400
+  `prompt too long`, as on any context.
 
 ### Model download (`POST /api/pull`)
 
@@ -402,7 +470,7 @@ loaded one (first request on a new model pays the load, and the GUI's KV-reuse
 state is invalidated — see Model above).
 
 Request body (subset): `model`, `messages[]`, optional `max_completion_tokens` /
-`max_tokens` (default 512; the former wins — `max_tokens` is the deprecated OpenAI
+`max_tokens` (default 512, less on a [reduced context](#reduced-context-optionsnum_ctx); the former wins — `max_tokens` is the deprecated OpenAI
 alias), the sampling fields `temperature`, `top_p`, `top_k`, `repetition_penalty`
 (or llama.cpp's spelling `repeat_penalty`, not both) and `seed`, and `stop` (string
 or array). Numbers are checked before the model loads, and a bad one is `400`
@@ -761,7 +829,8 @@ exception: while the session **pre-load** is active (right after a model becomes
 Ready), API compute admission waits — bounded, ≤15 s, only while
 `hub.preloading` is set — instead of bouncing the client's very first request.
 Stopping the endpoint closes the listener only; the Session is hub-owned and is
-NOT released (the chat UI may be using it).
+NOT released (the chat UI may be using it). A `keep_alive` lease on an
+API-loaded session still runs ([Model residency](#model-residency-keep_alive-apips)).
 
 From a LAN host (console address is `XBOX_IP` / `API_PORT`, never hardcoded):
 
@@ -822,8 +891,11 @@ result, including usage, finish reason and `[DONE]`.
 `ORT_MODEL` to an ONNX id to also check its `400`.
 `compat` runs `scripts/validate-api-compat.py` against the native Ollama routes:
 NDJSON and JSON framing, the final counts, refused options and fields, `think`,
-load-only requests, busy while a native stream holds the permit, and a tool
-proposal whose result is replayed without `tools`. `MODEL` must be a GGUF chat
+load-only requests, busy while a native stream holds the permit, a tool
+proposal whose result is replayed without `tools`, a reduced `options.num_ctx`
+on both protocols, and the `keep_alive` lease, expiry and unload of an
+API-loaded model through `/api/ps`. Run it with the console app idle on another
+model, or the residency checks see the GUI's session. `MODEL` must be a GGUF chat
 model, `TOOLS_MODEL` a tool-capable GGUF, and `ORT_MODEL`, when set, an ONNX id
 the native routes must refuse. `API_COMPAT_SDKS=1` also drives the installed
 `openai` and `ollama` Python packages and prints their versions; record them

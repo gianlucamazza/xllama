@@ -58,6 +58,48 @@ TEST_CASE("Ollama: an empty request loads the model and answers with JSON") {
     }
 }
 
+TEST_CASE("Ollama: keep_alive takes seconds or a duration, and 0 on an empty request unloads") {
+    using namespace std::chrono_literals;
+    const auto keep = [](const char* value) {
+        return parse_ollama_request(std::string(R"({"model":"chat","prompt":"x","keep_alive":)") +
+                                        value + "}",
+                                    OllamaRoute::Generate);
+    };
+    CHECK_FALSE(parse_ollama_request(R"({"model":"chat","prompt":"x"})", OllamaRoute::Generate)
+                    .keep_alive.has_value()); // omitted: no expiry
+    CHECK_FALSE(keep("null").keep_alive.has_value());
+    CHECK(*keep("30").keep_alive == 30000ms);
+    CHECK(*keep("0.75").keep_alive == 750ms);
+    CHECK(*keep(R"("5m")").keep_alive == 300000ms);
+    CHECK(*keep(R"("1m30.5s")").keep_alive == 90500ms);
+    CHECK(*keep(R"("750ms")").keep_alive == 750ms);
+    CHECK(*keep(R"("0")").keep_alive == 0ms);
+    CHECK(*keep("-1").keep_alive == -1ms);
+    CHECK(*keep(R"("-5m")").keep_alive == -1ms);
+    for (const char* bad : {R"("tomorrow")", R"("5")", R"("")", R"("1e9h")", "true", "[]"}) {
+        CAPTURE(bad);
+        CHECK(keep(bad).error.find("keep_alive") == 0);
+    }
+    // A generation with keep_alive 0 still generates; only an empty one unloads.
+    CHECK(keep("0").action == OllamaAction::Generate);
+    const auto unload =
+        parse_ollama_request(R"({"model":"chat","messages":[],"keep_alive":0})", OllamaRoute::Chat);
+    REQUIRE(unload.error.empty());
+    CHECK(unload.action == OllamaAction::Unload);
+    CHECK_FALSE(unload.stream);
+    CHECK(parse_ollama_request(R"({"model":"chat","keep_alive":-1})", OllamaRoute::Chat).action ==
+          OllamaAction::Load);
+}
+
+TEST_CASE("Ollama: options.num_ctx passes through for the handler's catalogue check") {
+    const auto request = parse_ollama_request(
+        R"({"model":"chat","prompt":"x","options":{"num_ctx":256}})", OllamaRoute::Generate);
+    REQUIRE_MESSAGE(request.error.empty(), request.error);
+    CHECK(json::parse(request.body)["options"]["num_ctx"] == 256);
+    CHECK(parse_ollama_request(R"({"model":"chat","options":{"num_ctx":"big"}})", OllamaRoute::Chat)
+              .error == "options.num_ctx must be an integer");
+}
+
 TEST_CASE("Ollama: requests xllama cannot honour are refused before admission") {
     const auto error = [](const char* body, OllamaRoute route = OllamaRoute::Chat) {
         return parse_ollama_request(body, route).error;
