@@ -77,6 +77,48 @@ TEST_CASE("sse: an event inside a chunk reads back byte for byte") {
     CHECK(payload == "data: " + json + "\n\n");
 }
 
+TEST_CASE("sse: failure after a delta sends only error, DONE and the final HTTP chunk") {
+    const std::string delta =
+        R"({"choices":[{"delta":{"content":"partial"},"finish_reason":null}]})";
+    const std::string error = "generation failed: \"backend\"\r\nrc=-3";
+    std::string wire = chunk_frame(sse_event(delta)) +
+                       xllama::chat_terminal_frames(xllama::ChatWire::OpenAI, &error);
+    const std::string expected_error =
+        R"({"error":{"message":"generation failed: \"backend\"\r\nrc=-3","type":"xllama_error"}})";
+    for (const std::string& expected :
+         {sse_event(delta), sse_event(expected_error), sse_done(), std::string{}}) {
+        std::string payload;
+        size_t consumed = 0;
+        REQUIRE(read_chunk(wire, payload, consumed));
+        CHECK(payload == expected);
+        wire.erase(0, consumed);
+    }
+    CHECK(wire.empty());
+    CHECK(xllama::chat_terminal_frames(xllama::ChatWire::OpenAI) ==
+          chunk_frame(sse_done()) + chunk_final());
+}
+
+TEST_CASE("Ollama chat and generate end a failed NDJSON reply with one error line") {
+    const std::string error = "generation failed: \"backend\"\r\nrc=-3";
+    for (const auto wire : {xllama::ChatWire::OllamaChat, xllama::ChatWire::OllamaGenerate}) {
+        const std::string delta =
+            wire == xllama::ChatWire::OllamaChat
+                ? R"({"message":{"role":"assistant","content":"partial"},"done":false})"
+                : R"({"response":"partial","done":false})";
+        std::string bytes = chunk_frame(delta + "\n") + xllama::chat_terminal_frames(wire, &error);
+        const std::string error_line = R"({"error":"generation failed: \"backend\"\r\nrc=-3"})";
+        for (const auto& expected : {delta + "\n", error_line + "\n", std::string{}}) {
+            std::string payload;
+            size_t consumed = 0;
+            REQUIRE(read_chunk(bytes, payload, consumed));
+            CHECK(payload == expected);
+            bytes.erase(0, consumed);
+        }
+        CHECK(bytes.empty());
+        CHECK(xllama::chat_terminal_frames(wire) == chunk_final());
+    }
+}
+
 TEST_CASE("sse: UTF-8 steps keep code points whole") {
     // ASCII and complete multibyte sequences are taken as they are.
     CHECK(sse_utf8_step("", false).take == 0);

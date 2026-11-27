@@ -156,7 +156,7 @@ sessions, changes on every KV change that is not a continuation, and stays the
 same across successful continuations. A caller that shares the session (the GUI
 next to the LAN API) records it after its turn and passes it as
 `expected_kv_epoch` on the next continuation: on a mismatch `generate` returns
-`success=false, n_eval=0` before touching the KV, and the caller retries with
+`success=false, retry_full_prompt=true` before touching the KV, and the caller retries with
 the full prompt. A full prompt that cannot fit `n_ctx` is refused before the
 KV is rewound, so it never costs the resident conversation.
 
@@ -177,8 +177,9 @@ cache supports it: the oldest tokens after `n_keep` are evicted and the rest is
 RoPE-shifted down. Eviction ends right after a complete `turn_close` (the
 format's turn terminator), so it drops whole turns and never half a message or
 a template marker. Without a boundary that frees enough room, or with an empty
-`turn_close`, the continuation fails with `n_eval == 0` (#173) and the caller
-retries with the full prompt, where `fit_prompt` drops whole turns. On hybrid
+`turn_close`, the session sets `retry_full_prompt` (#173). The caller can then
+refit the complete conversation if the request is still live. Zero decoded
+tokens alone do not authorize retry after a backend error. On hybrid
 caches the recurrent state keeps what it absorbed from evicted tokens
 (llama.cpp's approximation); a recall probe on LFM2.5, Granite-4.0-H-Tiny and
 Qwen2.5-Coder-3B did not recall a fact from an evicted turn.

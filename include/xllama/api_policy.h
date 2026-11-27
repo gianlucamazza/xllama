@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <string>
@@ -149,6 +150,24 @@ inline std::string validate_api_number(const char* key, double v, double lo, dou
         return name + " must be between " + text(lo) + " and " + text(hi);
     }
     return std::string();
+}
+
+// The smallest context a request may load (options.num_ctx, chat and
+// embeddings alike).
+inline constexpr int kMinContextOverride = 32;
+
+// options.num_ctx only reduces a load: a whole number from 32 to the
+// catalogue context |configured| (catalogue_n_ctx), which it never raises.
+// A different value is a different load (same_load), so the hub reloads.
+inline std::string validate_context_override(double value, int configured) {
+    return validate_api_number("options.num_ctx", value, kMinContextOverride, configured, true);
+}
+
+// The reply limit of a request that sets none: 512, or half the context when
+// a reduced context is 1024 or less, so the reply reserve (prompt_budget.h)
+// still leaves the prompt room.
+inline int default_max_tokens(int n_ctx) {
+    return n_ctx > 1024 ? 512 : std::max(1, n_ctx / 2);
 }
 
 } // namespace xllama

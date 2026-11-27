@@ -143,7 +143,7 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
   tests/test_dependency_monitoring.py tests/test_host_training_env.py \
   tests/test_prepare_ort_source.py \
   tests/test_prepare_genai_source.py \
-  tests/test_d3d12_layer_log.py tests/test_ort_profile.py \
+  tests/test_d3d12_layer_log.py tests/test_d3d12_selftest.py tests/test_ort_profile.py \
   tests/test_bench_kv_driver.py tests/test_eval_standard.py tests/test_hellaswag_token_mean.py \
   tests/test_eval_standard_generative.py tests/test_benchmark_summary_standard.py \
   tests/test_apply_llama_patches.py
@@ -182,7 +182,7 @@ source ~/.config/xllama/xbox-env
 ./scripts/validate-console.sh <gate|all>
 # modes: serve|rate|serve-stale|rate-stale|lora-rt|device-train|all
 ./scripts/validate-console-training.sh <mode>
-./scripts/validate-api.sh <spike|discovery|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|all>
+./scripts/validate-api.sh <spike|discovery|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|compat|all>
 ```
 
 ## Code style
@@ -257,7 +257,7 @@ Load-bearing headers agents usually touch:
 | `platform.h` / `path_utils.h`        | Threads, logging, LocalState and model path resolution         |
 | `compute_admission.h`                | Process-wide RAII permit for resource-heavy GUI and API jobs   |
 | `api_connection.h`                   | Bounded LAN slots and HTTP 200/503 mapping for a compute admit |
-| `api_discovery.h`                    | `/health` capabilities and `/v1/models` per-model fields       |
+| `api_discovery.h`                    | `/health` capabilities, `/v1/models` and `/api/catalog` fields |
 | `debug_dashboard.h`                  | Optional debug dashboard snapshot (real readings)              |
 | `inference_params.h` / `inference.h` | Params, result, `run_inference`                                |
 | `inference_progress.h`               | Prefill/decode progress logs and stall watchdog                |

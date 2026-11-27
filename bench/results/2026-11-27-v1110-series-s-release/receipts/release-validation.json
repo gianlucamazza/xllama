@@ -1,0 +1,14 @@
+{
+  "source_sha": "ee6a718d151465e357dc6f3e2b5091bb2a35416e",
+  "package_version": "1.11.0.2203",
+  "msix_sha256": "ed6ac5a66a0d5925c7b6103dc27b73a9f320715b5eb2237c12464f12be2f5651",
+  "device": "Xbox Series S",
+  "date": "2026-11-27",
+  "console_gates": "PASS 10/10",
+  "lan_api_gates": "PASS 14/14 (validate-api.sh all, 12 gates, plus disconnect with its plain and tool-proposal rounds, plus compat with the #683 script)",
+  "selftests": "PASS: d3d12 selftest 24/24 under the complete-receipt gate (#673), knobs absent",
+  "features": "PASS: reasoning control (qwen3-4b none/high, lfm25-8b-a1b none -> 400, Ollama think false), #655 qwen3-4b tool proposal without reasoning, /api/catalog, lfm2-2.6b pull and replayed tool turn (#664)",
+  "restoration": "PASS (LocalState unchanged by the update; settings.json restored and gate chats removed by validate-console.sh, #654)",
+  "pending_manual": "GUI half of the Ollama residency runbook (needs the pad)",
+  "overall": "RELEASE_READY"
+}

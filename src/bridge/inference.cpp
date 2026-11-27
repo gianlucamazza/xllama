@@ -513,7 +513,7 @@ bool tensor_capture_eval(ggml_tensor* t, bool ask, void* user_data) {
 // a single llama_decode performs internally: consecutive n_ubatch slices from
 // position 0 of sequence 0, with an output only for the final prompt token.
 bool prefill_capture_ubatches(llama_context* ctx, const llama_token* tokens, int n_tokens,
-                              TensorCaptureWriter& writer, InferenceWatchdog* wd) {
+                              TensorCaptureWriter& writer, InferenceWatchdog* wd, int& decode_rc) {
     const int n_ubatch = std::max(1, static_cast<int>(llama_n_ubatch(ctx)));
     llama_batch batch = llama_batch_init(n_ubatch, 0, 1);
     bool ok = true;
@@ -532,7 +532,8 @@ bool prefill_capture_ubatches(llama_context* ctx, const llama_token* tokens, int
             batch.logits[i] = (off + i == n_tokens - 1) ? 1 : 0;
         }
         writer.begin_eval();
-        ok = llama_decode(ctx, batch) == 0;
+        decode_rc = llama_decode(ctx, batch);
+        ok = decode_rc == 0;
         if (ok && wd)
             wd->note_prefill_chunk(off + chunk);
     }
@@ -544,7 +545,7 @@ bool prefill_capture_ubatches(llama_context* ctx, const llama_token* tokens, int
 // ubatch split as a capture run, with an output requested at every kept
 // position. Each kept row is appended to `out` straight after its ubatch.
 bool prefill_dump_positions(llama_context* ctx, const llama_token* tokens, int n_tokens, int stride,
-                            LogitPositionsWriter& out, InferenceWatchdog* wd) {
+                            LogitPositionsWriter& out, InferenceWatchdog* wd, int& decode_rc) {
     const int n_ubatch = std::max(1, static_cast<int>(llama_n_ubatch(ctx)));
     llama_batch batch = llama_batch_init(n_ubatch, 0, 1);
     bool ok = true;
@@ -562,7 +563,8 @@ bool prefill_dump_positions(llama_context* ctx, const llama_token* tokens, int n
             batch.seq_id[i][0] = 0;
             batch.logits[i] = logit_dump_keeps(off + i, n_tokens, stride) ? 1 : 0;
         }
-        ok = llama_decode(ctx, batch) == 0;
+        decode_rc = llama_decode(ctx, batch);
+        ok = decode_rc == 0;
         for (int i = 0; ok && i < chunk; ++i)
             if (batch.logits[i])
                 ok = out.append(off + i, llama_get_logits_ith(ctx, i));
@@ -793,15 +795,17 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     }
     wd.enter_prefill(n_prompt_tokens);
     capture.active = static_cast<bool>(capture.writer);
+    int prefill_rc = 0;
     bool prefill_ok = false;
     if (capture.writer)
         prefill_ok = prefill_capture_ubatches(ctx.get(), tokens.data(), n_prompt_tokens,
-                                              *capture.writer, &wd);
+                                              *capture.writer, &wd, prefill_rc);
     else if (positions)
         prefill_ok = prefill_dump_positions(ctx.get(), tokens.data(), n_prompt_tokens,
-                                            params.dump_logits_stride, *positions, &wd);
+                                            params.dump_logits_stride, *positions, &wd, prefill_rc);
     else
-        prefill_ok = prefill_chunked(ctx.get(), tokens.data(), n_prompt_tokens, &wd);
+        prefill_ok =
+            prefill_chunked(ctx.get(), tokens.data(), n_prompt_tokens, &wd, 0, &prefill_rc);
     capture.active = false;
     if (positions) {
         const bool written =
@@ -829,12 +833,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         }
     }
     if (!prefill_ok) {
-        if (wd.stalled()) {
-            res.stalled = true;
-            res.error_msg = wd.stall_error();
-        } else {
-            res.error_msg = "prompt decode failed";
-        }
+        fail_prefill(res, prefill_rc, wd);
         log_output(("[xllama] " + res.error_msg + "\n").c_str());
         return res;
     }
@@ -913,11 +912,6 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         if (!d3d12_phase.layer.empty())
             log_output(format_d3d12_layer_profile("decode", d3d12_phase.layer));
     }
-    const int n_generated = dlr.n_generated;
-    res.ended_with_stop = dlr.ended_with_stop;
-    res.n_drafted = dlr.n_drafted;
-    res.n_spec_accepted = dlr.n_accepted;
-
     if (params.echo_stdout)
         std::fputc('\n', stdout);
 
@@ -933,23 +927,12 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     res.t_first_token_ms = dlr.first_token_ms > 0.0 ? prompt_ms + dlr.first_token_ms : 0.0;
     res.n_p_eval = static_cast<int32_t>(tokens.size());
     res.n_prompt = res.n_p_eval;
-    res.n_eval = n_generated;
     res.peak_ws_mb = peak_working_set_mb();
-    if (dlr.rewind_failed) {
-        res.success = false;
-        res.error_msg =
-            "speculative KV rewind unsupported (disable --prompt-lookup for this model)";
-        log_output(("[xllama] " + res.error_msg + "\n").c_str());
+    finish_decode(dlr, res, wd);
+    if (!res.success) {
+        log_output("[xllama] " + res.error_msg + "\n");
         return res;
     }
-    if (wd.stalled()) {
-        res.success = false;
-        res.stalled = true;
-        res.error_msg = wd.stall_error();
-        log_output(("[xllama] " + res.error_msg + "\n").c_str());
-        return res;
-    }
-    res.success = true;
 
     char log_buf[320];
     snprintf(log_buf, sizeof(log_buf),
