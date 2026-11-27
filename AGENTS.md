@@ -114,12 +114,16 @@ One doctest case (wildcard, from the build directory's test binary):
 ./build/linux-test/tests/xllama-tests --test-case='*prompt_budget*'
 ```
 
-ASan:
+ASan and UBSan instrument the Linux bridge, CLI, tests, llama-common, llama and ggml CPU code. The sanitizer workflow runs on relevant pull requests, pushes to main and manual dispatch. Reproduce the combined gate with the Linux toolchain and the numerical smoke's Python dependencies:
 
 ```bash
-cmake --preset linux-asan
-cmake --build build/linux-asan -j"$(nproc)"
-ctest --test-dir build/linux-asan --output-on-failure
+cmake --preset linux-asan -DXLLAMA_ENABLE_UBSAN=ON -DCMAKE_CXX_FLAGS_DEBUG=-g1 -DCMAKE_C_FLAGS_DEBUG=-g1
+cmake --build build/linux-asan --parallel 2 --target xllama-cli
+cmake --build build/linux-asan/tests --parallel 2
+python3 scripts/check-sanitizer-build.py build/linux-asan
+export ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
+python3 scripts/run-cpu-smoke.py --build-dir build/linux-asan --model build/cpu-smoke/model.gguf
+XLLAMA_TEST_DECODE_FAULT_MODEL="$PWD/build/cpu-smoke/model.gguf" ctest --test-dir build/linux-asan --output-on-failure
 ```
 
 Python checks that CI runs outside ctest:

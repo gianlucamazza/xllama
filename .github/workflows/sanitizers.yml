@@ -1,0 +1,77 @@
+name: Linux sanitizers
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: &inputs
+      - '.github/workflows/sanitizers.yml'
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - 'cmake/**'
+      - 'include/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'scripts/*cpu-smoke*.py'
+      - 'scripts/check-sanitizer-build.py'
+      - 'scripts/apply-llama-patches.sh'
+      - 'diffusion/golden_vectors.json'
+      - 'diffusion/clip_tokenizer/**'
+      - 'uwp/models/manifest.json'
+      - 'patches/**'
+      - 'llama.cpp'
+      - '.gitmodules'
+  push:
+    branches: [main]
+    paths: *inputs
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sanitizers-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sanitizers:
+    name: CPU ASan + UBSan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libcurl4-openssl-dev
+          python -m pip install 'numpy==2.3.5' 'pyyaml==6.0.2'
+
+      - name: Configure patched CPU build
+        run: |
+          bash scripts/apply-llama-patches.sh
+          cmake --preset linux-asan -DXLLAMA_ENABLE_UBSAN=ON \
+            -DCMAKE_CXX_FLAGS_DEBUG=-g1 -DCMAKE_C_FLAGS_DEBUG=-g1
+
+      - name: Build instrumented host executables
+        run: |
+          cmake --build build/linux-asan --parallel 2 --target xllama-cli
+          cmake --build build/linux-asan/tests --parallel 2
+
+      - name: Audit compile and link commands
+        run: python3 scripts/check-sanitizer-build.py build/linux-asan
+
+      - name: Run deterministic CPU numerical smoke
+        run: python3 scripts/run-cpu-smoke.py --build-dir build/linux-asan --model build/cpu-smoke/model.gguf
+
+      - name: Run regression suite
+        env:
+          XLLAMA_TEST_DECODE_FAULT_MODEL: ${{ github.workspace }}/build/cpu-smoke/model.gguf
+        run: ctest --test-dir build/linux-asan --output-on-failure
