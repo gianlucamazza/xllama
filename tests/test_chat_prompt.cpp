@@ -270,6 +270,31 @@ TEST_CASE("minicpm5 needs both renderer halves, and nothing else gets them") {
     CHECK(model_is_minicpm5("/models/MiniCPM5-1B/MiniCPM5-1B-Q4_K_M.gguf"));
 }
 
+TEST_CASE("model_is_thinking is the one reasoning decision plain chat applies (#655)") {
+    // The tool path sets the template's enable_thinking from model_is_thinking,
+    // and /v1/models reports it as capabilities.reasoning. Plain chat must agree:
+    // a no-think prefill exactly when the family has one and the model does not
+    // think, and think stripping exactly when it does.
+    for (const char* id : {"qwen3-4b", "Qwen3-4B-Q4_K_M.gguf", "qwen35-0.8b", "qwen3-1.7b",
+                           "minicpm5-1b-Q4_K_M.gguf"}) {
+        CAPTURE(id);
+        CHECK_FALSE(model_is_thinking(id));
+        const ChatFormat f = chat_format_for(id);
+        CHECK(f.gen_suffix == "<think>\n\n</think>\n\n");
+        CHECK_FALSE(f.strip_thinking_content);
+    }
+    for (const char* id : {"qwen3-4b-thinking", "Qwen3-4B-Thinking-2507-Q4_K_M.gguf",
+                           "minicpm5-1b-thinking", "lfm25-1.2b-thinking", "lfm25-8b-a1b"}) {
+        CAPTURE(id);
+        CHECK(model_is_thinking(id));
+        const ChatFormat f = chat_format_for(id);
+        CHECK(f.gen_suffix.empty());
+        CHECK(f.strip_thinking_content);
+    }
+    // MiniCPM5 keeps its template BOS whichever way it reasons.
+    CHECK(chat_format_for("minicpm5-1b-thinking").bos == "<s>");
+}
+
 TEST_CASE("chat format stop sequences") {
     CHECK(chat_format_for("smollm2-360m-cpu-int4").stop_sequences ==
           std::vector<std::string>{"<|im_end|>"});

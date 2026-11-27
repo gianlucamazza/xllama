@@ -357,6 +357,12 @@ offered. Under `"auto"`, an LFM2/LFM2.5 model that calls a tool outside `tools`
 gets that call back as it made it, rather than forced onto a declared tool or
 dropped as text (`patches/0007`, #610): the client decides what to do with an
 unknown name, as it would with any tool error.
+Whether the model reasons follows the model, as on plain chat (#655): the
+template's `enable_thinking` is `model_is_thinking(model)` (`chat_prompt.h`), the
+same decision as the plain-chat no-think prefill and `capabilities.reasoning` in
+`/v1/models`. A Qwen3, MiniCPM5 or SmolLM3 model that reports `reasoning: false`
+gets its template's empty think block and answers or calls directly; a thinking
+model still reasons first. A template without a thinking switch is unaffected.
 Content may be a string, null, or an array of `{type:"text",text}` parts joined
 with no separator. Anything else, including an image part, is `400`. A `tool`
 message requires `tool_call_id`. The last message must be `user` or `tool`.
@@ -481,7 +487,7 @@ and a separate final chunk with `"choices":[]` carries the totals before
 `[DONE]`, for plain chat and tool proposals. Explicit `false` omits usage.
 An interrupted stream may end before the totals arrive. A non-null options
 object requires `stream:true`; `include_usage`, when present, must be a boolean, and
-other keys such as `include_obfuscation` are ignored.
+other keys such as `include_obfuscation` are ignored. The option is checked before compute admission, so a malformed one is a 400 even while another job holds the console.
 
 A failure after the head travels as an `{"error":{...}}` event.
 

@@ -266,10 +266,14 @@ ChatFormat chat_format_for(const std::string& model_id) {
         f.system_sep = "";
         f.system_style = SystemStyle::DedicatedTurn;
         f.stop_sequences = {"<|im_end|>"};
-        f.gen_suffix = model_is_minicpm5(model_id) ? empty_think_block() + "\n\n"
-                                                   : qwen_no_think_gen_suffix(model_id);
+        // model_is_thinking is the reasoning decision the tool path also uses
+        // (#655): a thinking model never gets a no-think prefill.
+        const bool thinking = model_is_thinking(model_id);
+        f.gen_suffix = model_is_minicpm5(model_id) && !thinking
+                           ? empty_think_block() + "\n\n"
+                           : qwen_no_think_gen_suffix(model_id);
         f.bos = model_is_minicpm5(model_id) ? "<s>" : "";
-        f.strip_thinking_content = model_is_thinking(model_id);
+        f.strip_thinking_content = thinking;
     }
     return f;
 }
