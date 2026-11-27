@@ -6,11 +6,13 @@
 #include "xllama/moe_streaming.h"
 
 #include <atomic>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <memory>
 #include <stdexcept>
+#include <thread>
 #include <utility>
 
 namespace xllama {
@@ -36,9 +38,14 @@ struct MoeCacheCounters {
     uint64_t logical_read_bytes = 0, evictions = 0;
 };
 
-// One coordinator serializes acquire, lease moves/releases and cache destruction.
-// Consumers may read leased bytes across a worker barrier if the coordinator
-// holds the lease through the last read. The reader itself must outlive the cache.
+// Threading contract: single coordinator thread. Pin and owner counts are plain
+// integers, not atomics, so construction, acquire(), every Lease release (reset(),
+// destructor, move-assignment over a held lease) and cache destruction must run on
+// the thread that constructed the cache. Debug builds assert this; release builds
+// do not check it. Workers may only call Lease::data()/size() on leases the
+// coordinator holds, across a barrier that ends before the coordinator releases them.
+// Native integration (#480) must keep acquisition and release on its coordinator.
+// The reader itself must outlive the cache.
 // Keep the memory reservation until the cache AND its last lease have been destroyed.
 class MoeExpertCache {
     struct Tensor {
@@ -55,7 +62,17 @@ class MoeExpertCache {
         std::unique_ptr<Slot[]> slots;
         std::unique_ptr<unsigned char[]> arena;
         size_t stride = 0, owners = 1; // cache plus every live lease
+#ifndef NDEBUG
+        std::thread::id coordinator = std::this_thread::get_id();
+#endif
+        void assert_coordinator() const noexcept {
+#ifndef NDEBUG
+            assert(coordinator == std::this_thread::get_id() &&
+                   "MoeExpertCache: pins and owners are coordinator-thread only");
+#endif
+        }
         void release() noexcept {
+            assert_coordinator();
             if (--owners == 0)
                 delete this;
         }
@@ -89,6 +106,7 @@ class MoeExpertCache {
         }
         void reset() noexcept {
             if (storage_) {
+                storage_->assert_coordinator();
                 --storage_->slots[index_].pins;
                 std::exchange(storage_, nullptr)->release();
             }
@@ -97,6 +115,7 @@ class MoeExpertCache {
       private:
         friend class MoeExpertCache;
         Lease(Storage* storage, size_t index) noexcept : storage_(storage), index_(index) {
+            storage_->assert_coordinator();
             ++storage_->owners;
             ++storage_->slots[index_].pins;
         }
@@ -153,6 +172,7 @@ class MoeExpertCache {
     }
 
     Lease acquire(size_t tensor_id, uint64_t expert_id, const std::atomic_bool* stop = nullptr) {
+        storage_->assert_coordinator();
         if (reading_)
             throw std::logic_error("reentrant expert cache acquisition");
         if (tensor_id >= tensor_count_)

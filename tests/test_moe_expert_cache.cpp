@@ -11,6 +11,7 @@
 #include <optional>
 #include <stdexcept>
 #include <system_error>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -123,6 +124,33 @@ TEST_CASE("moe_expert_cache: held bytes outlive the cache owner") {
     }
     check_payload(*held, r, 96, 32);
     held.reset();
+}
+
+TEST_CASE("moe_expert_cache: workers read coordinator-held leases across a barrier") {
+    // Single-coordinator contract: acquire and release stay on this thread; workers
+    // only read. Debug builds assert the coordinator thread on every pin/owner change.
+    Reader r;
+    auto c = cache_for(r, 2);
+    auto a = c.acquire(0, 1);
+    auto b = c.acquire(0, 2);
+    std::vector<int> ok(2, 0);
+    std::vector<std::thread> workers;
+    const Lease* leases[] = {&a, &b};
+    for (size_t w = 0; w < 2; ++w)
+        workers.emplace_back([&, w] {
+            const Lease& l = *leases[w];
+            const uint64_t offset = (w + 1) * slice_bytes;
+            bool same = l.size() == slice_bytes && l.data() != nullptr;
+            for (size_t i = 0; same && i < slice_bytes; ++i)
+                same = l.data()[i] == r.value(offset + i);
+            ok[w] = same ? 1 : 0;
+        });
+    for (auto& t : workers)
+        t.join();
+    CHECK(ok == std::vector<int>{1, 1});
+    a.reset();
+    b.reset();
+    CHECK(c.acquire(0, 3).size() == slice_bytes);
 }
 
 TEST_CASE("moe_expert_cache: partial, invalid and failed reads cannot publish a hit") {
