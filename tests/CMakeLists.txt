@@ -97,3 +97,8 @@ add_executable(test-admission-allocation test_admission_allocation.cpp)
 target_compile_features(test-admission-allocation PRIVATE cxx_std_17)
 target_include_directories(test-admission-allocation PRIVATE ${PROJECT_SOURCE_DIR}/include)
 add_test(NAME test-admission-allocation COMMAND test-admission-allocation)
+
+# Exercise the same usage requirements as an application linking the static core.
+add_executable(test-sdk-consumer test_sdk_consumer.cpp)
+target_link_libraries(test-sdk-consumer PRIVATE xllama)
+add_test(NAME test-sdk-consumer COMMAND test-sdk-consumer)

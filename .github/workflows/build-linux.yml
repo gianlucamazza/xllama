@@ -168,6 +168,13 @@ jobs:
       - name: Apply llama.cpp patches
         run: bash scripts/apply-llama-patches.sh
 
+      - name: Configure with the minimum supported CMake
+        run: |
+          python3 -m pip install --target "$RUNNER_TEMP/cmake-min" 'cmake==3.22.0'
+          minimum="$RUNNER_TEMP/cmake-min/cmake/data/bin/cmake"
+          "$minimum" --list-presets=all
+          "$minimum" --preset linux-debug -B "$RUNNER_TEMP/build-min"
+
       - name: Configure (with tests)
         run: cmake --preset linux-test
 

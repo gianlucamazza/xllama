@@ -122,11 +122,7 @@ endif()
 
 target_compile_features(xllama PUBLIC cxx_std_17)
 
-target_include_directories(xllama PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/common
-)
+target_include_directories(xllama PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # The d3d12 ggml backend implements ggml-backend-impl.h, which ggml keeps internal.
 if(WIN32)
     target_include_directories(xllama PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/ggml/src)
@@ -139,7 +135,7 @@ target_include_directories(xllama PRIVATE
 # llama-common renders and parses GGUF chat templates for client-side tool
 # proposals. The HTTP server stays off: this is not llama.cpp/tools/server.
 # llama-common is listed first so its references to libllama resolve.
-target_link_libraries(xllama PUBLIC llama-common llama)
+target_link_libraries(xllama PRIVATE llama-common PUBLIC llama)
 
 target_compile_definitions(xllama PUBLIC
     XLLAMA_LINUX=1
