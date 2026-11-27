@@ -2,7 +2,7 @@
 
 **Status:** Proposed; planning only. No runtime integration or console acceptance is delivered by this document.
 
-**Plan of record:** sequencing, gates and acceptance for this work are milestone **M2** of the [evidence-gated MoE engineering program](2026-11-24-moe-engineering-program.md) (#532). This document keeps the proposed PR boundaries; where the two disagree, the program wins.
+**Historical proposal (2026-11-16).** This document preserves the original proposed PR boundaries. The [MoE engineering program](2026-11-24-moe-engineering-program.md) owns sequencing, gates and acceptance for M2.
 
 **Goal:** Bring the existing demand-loaded expert implementation into xLlama through independently reviewable contributions, beginning with the CPU foundation.
 
