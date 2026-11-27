@@ -5,7 +5,8 @@
 // translation into the OpenAI chat body the LAN handler already serves. The
 // request is checked and normalized here, before compute admission, so the
 // GGUF template, budget, sampling and stops stay on one path for both
-// protocols. uwp/api-server.cpp keeps the NDJSON framing.
+// protocols. The NDJSON line and terminal framing live in xllama/sse.h
+// (ChatWire, chat_terminal_frames), shared with the OpenAI SSE wire.
 #pragma once
 
 #include <chrono>
