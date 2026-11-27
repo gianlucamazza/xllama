@@ -16,9 +16,11 @@ on:
 
 # Feature branches build once via pull_request (not also via push); superseded
 # runs on the same branch cancel — UWP builds are ~13 min, so this saves the most.
+# A push to main never cancels: every main commit's unified MSIX is attested
+# (attest-unified), and a cancelled run would leave a package without one.
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
 
 jobs:
   build:

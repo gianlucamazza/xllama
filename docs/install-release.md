@@ -102,7 +102,9 @@ Set `msix` to the local package path and `source_sha` to that full commit
 before running the command. This verifies the build identity and package
 digest. A missing attestation leaves build provenance unverified. Existing
 releases retain their checksums and hardware receipts. The attestation only
-covers the unified MSIX.
+covers the unified MSIX, and only the exact bytes that main run uploaded: a
+package rebuilt or re-signed elsewhere does not verify. Runs on main are never
+cancelled by a later push, so every main commit's package gets one.
 
 ### 5. Install via Device Portal
 
