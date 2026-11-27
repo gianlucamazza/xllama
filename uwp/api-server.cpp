@@ -313,11 +313,7 @@ std::string pull_event_json(const std::string& status, uint64_t completed = 0, u
     return winrt::to_string(root.Stringify());
 }
 
-std::string ollama_error_json(const std::string& message) {
-    JsonObject root;
-    root.Insert(L"error", JsonValue::CreateStringValue(winrt::to_hstring(message)));
-    return winrt::to_string(root.Stringify());
-}
+using ::xllama::ollama_error_json;
 
 // Reads `response_format` for the decision in api_policy.h
 // (api_response_format_supported).
@@ -347,7 +343,7 @@ bool accepts_response_format(JsonObject const& root) {
 // The wire a chat reply is written in: OpenAI chat.completion(.chunk) over SSE,
 // or native Ollama /api/chat and /api/generate objects over NDJSON. The request
 // itself is the same canonical chat body for all three (api_ollama.h).
-enum class ChatWire { OpenAI, OllamaChat, OllamaGenerate };
+using ::xllama::ChatWire;
 using ChatClock = std::chrono::steady_clock;
 
 // Per-request reply state: the native wire's timings, and what the request's
@@ -716,18 +712,7 @@ class ChatStream {
         if (m_finished)
             return;
         try {
-            if (native_wire(m_response)) {
-                send(ollama_error_json(message));
-                end();
-                return;
-            }
-            JsonObject error;
-            error.Insert(L"message", JsonValue::CreateStringValue(winrt::to_hstring(message)));
-            error.Insert(L"type", JsonValue::CreateStringValue(L"xllama_error"));
-            JsonObject out;
-            out.Insert(L"error", error);
-            send(winrt::to_string(out.Stringify()));
-            end();
+            end(&message);
         } catch (...) {
             stop();
         }
@@ -865,7 +850,7 @@ class ChatStream {
             native_wire(m_response) ? payload + "\n" : ::xllama::sse_event(payload)));
     }
 
-    void end() {
+    void end(const std::string* error = nullptr) {
         if (m_finished)
             return;
         stop_keepalive(); // nothing may follow the final chunk
@@ -874,11 +859,8 @@ class ChatStream {
             return;
         m_finished = true;
         try {
-            // NDJSON has no [DONE]: the `done: true` object was the last line.
-            const std::string done = native_wire(m_response)
-                                         ? std::string()
-                                         : ::xllama::chunk_frame(::xllama::sse_done());
-            m_writer.WriteString(winrt::to_hstring(done + ::xllama::chunk_final()));
+            m_writer.WriteString(
+                winrt::to_hstring(::xllama::chat_terminal_frames(m_response.wire, error)));
             m_writer.StoreAsync().get();
             m_writer.FlushAsync().get();
             m_writer.DetachStream();
