@@ -19,6 +19,8 @@ a gamepad UI and an opt-in LAN integration surface. The
 
 1. **Engineering consolidation.** Finish the reproducibility, runtime and
    client validation work in [#395](https://github.com/gianlucamazza/xllama/issues/395).
+   The [v1.11.0 milestone](https://github.com/gianlucamazza/xllama/milestone/8)
+   tracks the next release backlog.
    Check the exact distributed MSIX provenance under
    [#635](https://github.com/gianlucamazza/xllama/issues/635) and record
    versioned LAN SDK and Open WebUI runs under
@@ -42,7 +44,9 @@ a gamepad UI and an opt-in LAN integration surface. The
 4. **Vendor lifecycle.** Follow
    [#85](https://github.com/gianlucamazza/xllama/issues/85) and the
    [vendor lifecycle plan](docs/vendor-lifecycle-plan.md) for the patched
-   runtime rebuild, package qualification, and retirement gates. Keep
+   runtime rebuild, package qualification, and retirement gates. Track upstream
+   source availability and verified mirrors in
+   [#646](https://github.com/gianlucamazza/xllama/issues/646). Keep
    [DirectML routing](docs/uwp-constraints.md#5-directml-works-on-gpu-headless-but-loses-to-cpu-on-small-models)
    policy changes tied to the measured workload and the product decision.
    Widening the on-device training filter also remains blocked on runtime
