@@ -644,6 +644,21 @@ with no separator. Anything else, including an image part, is `400`. A
 `developer` message is a system message, as on plain chat. A `tool`
 message requires `tool_call_id`. The last message must be `user` or `tool`.
 
+A replayed transcript renders each assistant `tool_calls` entry before its `tool`
+result. Some LFM2/LFM2.5 templates print only an assistant message's `content`
+(llama.cpp's `LFM2.5-Instruct.jinja` and `LFM2-8B-A1B.jinja`, the `lfm2-2.6b`
+GGUF), so for an LFM template whose source never names `tool_calls` xllama appends
+the calls to that content in the model's own syntax (#664,
+`src/bridge/tool_template.cpp`): `<|tool_call_start|>[name(arg=value, ...)]<|tool_call_end|>`.
+A string value is single-quoted with `\\`, `\'`, `\n` and `\r` escaped, booleans
+and null are `True`, `False` and `None`, and numbers, objects and arrays are JSON,
+as the LFM2.5 GGUF templates that do render calls write them; the LFM2 parser
+reads that text back to the same name and arguments. On these templates a call
+whose `arguments` is not a JSON object is `400`
+`tool call arguments must be a JSON object for this model`. Content that already
+holds `<|tool_call_start|>` is left as sent. A template that renders `tool_calls`
+itself (the `lfm25-*` GGUFs, Qwen, Llama) is unchanged.
+
 xllama does not execute the tool, a shell, the filesystem, or the network. The
 client does. One request is one generation, constrained by the template's grammar
 (ADR 0005), with no hidden retry. The prompt and the parse go through the resident GGUF Jinja template
