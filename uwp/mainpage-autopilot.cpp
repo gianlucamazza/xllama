@@ -335,14 +335,15 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             });
         } else if (a.op == "set_sampling") {
             ApDispatchSync([this, &a]() {
+                // The user's layer, as the Settings dialog sets it.
                 if (a.temperature >= 0)
-                    m_temperature = (float)a.temperature;
+                    m_sampling.temperature = (float)a.temperature;
                 if (a.top_p >= 0)
-                    m_top_p = (float)a.top_p;
+                    m_sampling.top_p = (float)a.top_p;
                 if (a.top_k >= 0)
-                    m_top_k = a.top_k;
+                    m_sampling.top_k = a.top_k;
                 if (a.repetition_penalty >= 0)
-                    m_repetition_penalty = (float)a.repetition_penalty;
+                    m_sampling.repetition_penalty = (float)a.repetition_penalty;
                 if (a.n_predict >= 0)
                     m_n_predict = a.n_predict;
                 SaveSettings();

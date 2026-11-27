@@ -29,6 +29,11 @@ void MainPageController::ApplyCatalogueModelKnobs(const std::wstring& model) {
                              ::xllama::settings_limits::kNPredictMax);
 }
 
+::xllama::ResolvedSampling MainPageController::ModelSampling(const std::wstring& model) const {
+    const auto* e = ::xllama::FindManifestEntry(CachedManifest(), model);
+    return ::xllama::resolve_sampling(e ? e->sampling : ::xllama::SamplingOverrides{}, m_sampling);
+}
+
 // ---------------------------------------------------------------------------
 // Settings and autopilot select through the same resident/provisioning policy.
 bool MainPageController::SelectModel(const std::wstring& name) {
