@@ -1,9 +1,6 @@
 # Optimizing Quantized LLM Inference on Xbox RDNA 2 GPUs: Kernel Design, CPU/GPU Trade-offs and Reproducible Measurements
 
-Working draft, 2026-11-09. **Not publication-ready.** The
-[baseline](gpu-acceleration-baseline.md) binds the audited source and distinguishes
-current implementation, historical observations and unmeasured hypotheses.
-No new console performance measurements are presented here.
+Engineering checkpoint for [#694](https://github.com/gianlucamazza/xllama/issues/694), 2026-11-27 UTC. The discovery source was `62a577e00859ec381463707f3baf1430edda5ddc`, llama.cpp `d81235049384534c167caea52b85a694f6103d14`. The audited shipping Series S package was 1.11.0.2203 at `ee6a718`. These are distinct builds. The [hardware baseline](gpu-acceleration-baseline.md) and [release receipt](../../bench/results/2026-11-27-v1110-series-s-release/README.md) identify the environment of each observation. Fresh measurements below ran on Linux x64.
 
 ## Research question
 
@@ -16,7 +13,7 @@ insufficient to answer this question.
 
 xLlama combines llama.cpp CPU execution with an xLlama-owned ggml D3D12 backend
 for selected quantized weight operations, and a separate ORT GenAI/DirectML path
-for compatible ONNX assets. The custom path retains CPU attention, KV, norms,
+for compatible ONNX assets. By default the custom path retains CPU attention, KV, norms,
 RoPE and sampling. Its GPU weight kernels and q8 activation arithmetic are
 specified in [the backend design](../gguf-gpu-decode.md); the
 [model matrix](../model-matrix.md) identifies current shipping eligibility.
@@ -31,11 +28,7 @@ Prior matched Series S gates established scoped model defaults. They do not
 measure the exact audited main under a fresh campaign and do not establish
 Series X behavior.
 
-The latest C4 prefill attempt stopped on its original-kernel Coder control's
-numerical failure. Raw dumps remain accessible in the dated execution ledger.
-LFM control/experimental logits passed, but this cannot override a failed Coder
-cell. The Coder C4 arm and paired performance trials were not executed. A C4
-regression, benefit or cause cannot be concluded from these observations.
+The early Coder-3B reference failed its original control. That preserved failure and the subsequent ADR 0010 CPU-spread qualification have separate declarations. After qualification the project completed 20 matched pairs per model/prompt cell. Host replay reproduced the confidence intervals and all six frozen decisions: three passes for Coder-3B and three failures for LFM2.5-1.2B. The four-column branch closed without promotion. The current default GPU route retains the single-column kernel. [Campaign, manifests and raw links](evidence/2026-11-16-c4-performance/README.md).
 
 ## Reproducible method
 
@@ -53,50 +46,46 @@ timestamps only when valid; ORT provider trace durations are host event
 intervals. Fused node names cannot prove internal layer placement. Every figure
 must resolve to immutable raw inputs and an executable aggregation command.
 
-## Instrumentation checkpoint — 2026-11-10
+## Critical path and optimization decisions
 
-Control probes and opt-in prefill tensor capture are integrated through #428.
-Phase counters through #430 distinguish CPU q8 quantization, command recording,
-execute-through-fence and valid GPU timestamp time; missing timestamps remain
-unavailable. Wall minus GPU time is not CPU compute. Client-side API timing
-through #431 distinguishes response-header, first body byte and first content
-boundaries from internal benchmark TTFT.
+| Phase / workload                    | Observed constraint and evidence                                                                                                                                                                                                                                                                                                                 | Action and acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Open model → allocate → tokenize    | The legacy GGUF `load_ms` at this pin extends to the first synchronized evaluation. Long inputs can charge seconds of prefill to the apparent load. Linux can defer mapped page faults. Context allocation and tokenization need separate clocks or an ETW/PIX trace for finer attribution.                                                      | [#708](https://github.com/gianlucamazza/xllama/pull/708) times the model-open call on CLI and headless bench. Record cold process, storage-cache state, model SHA and end-to-end first output. Never back-calculate physical bytes from open time.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Prefill, dense quantized GPU        | Q4_0 four-column dispatches slowed down on LFM while Q4_K and Q6_K dispatches improved. A tiled kernel's arithmetic intensity or isolated throughput alone cannot choose deployment.                                                                                                                                                             | Keep the per-model paired gates. Examine subgroup width, coalescing, tiling and specialization on the specific failing weight type. Apply the admitted kernel/PSO only after capability, logit, resource and complete end-to-end gates. [Dispatch evidence](evidence/2026-11-16-d3d12-dispatch-timing/README.md).                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Decode, D3D12 submission boundaries | One Series S 350M trace attributed 35.087 ms GPU work and 55.518 ms of submission-to-fence remainder across 1,504 timed dispatches. This is evidence of synchronization/runtime cost in that run. Dispatch profiling itself reduced decode throughput on the measured models.                                                                    | Use uninstrumented arms for the verdict. Compare recording, allocator/list reuse, descriptor binding, barriers, copies, GPU-resident intermediates and wait counts before adding fusion. Scope shared-device lifetimes to [#714](https://github.com/gianlucamazza/xllama/issues/714). [Layer capture](evidence/2026-11-18-d3d12-layer/README.md) and [overhead calibration](evidence/2026-11-18-d3d12-layer-overhead/README.md).                                                                                                                                                                                                                                                                                           |
+| Quantized GEMV and traffic          | For one 256-weight Q4_K block in a single-column matvec, 512 multiply/add FLOPs and 144 packed weight bytes give an optimistic weight-only intensity of 3.56 FLOP/byte. The archived Series S streaming read probe measured 119.07 GB/s. Using that rate gives an illustrative ceiling of about 423 GFLOP/s under the same bandwidth assumption. | Refit with sustained bandwidth for the actual kernel, layout, cache reuse, activation/output traffic and GPU cycles. The probe and calculation cannot classify end-to-end decode as bandwidth-bound. [Probe row](../../bench/results/phase15-gpubw.csv) and [GGML block definition at pin](https://github.com/ggml-org/llama.cpp/blob/d81235049384534c167caea52b85a694f6103d14/ggml/src/ggml-common.h).                                                                                                                                                                                                                                                                                                                    |
+| KV, resident/offloaded memory       | The three recorded Series S GPU arms increased process peak by 42, 50 and 122 MiB. The resident 8B UD-IQ3_S row ran; Q4_K_M was refused. The 8B long-context sweep admitted 7,809 prompt tokens at 3,647 MiB peak private working set and recorded no first content before completion. These are capacity and prefill constraints.               | Reconcile distinct process and GPU accounting, concurrent admission and safe context replacement. [#711](https://github.com/gianlucamazza/xllama/pull/711) rechecks default-KV demand after a Q8 allocation fails. [#717](https://github.com/gianlucamazza/xllama/pull/717) releases the full state scratch before reading an optional hybrid checkpoint. Exercise cancellation, model swap, pressure and retry on each device. Quantized KV also needs model-dependent quality and performance checks. [Memory calibration](evidence/2026-11-18-d3d12-layer-overhead/README.md), [8B resident](../../bench/results/2026-11-16-moe-8b/README.md), [context sweep](../../bench/results/2026-11-27-lfm25-8b-nctx/README.md). |
+| SSD experts, 24B fork               | The A2/B512 recording has 112,176 ordered requests per arm. B512 served 39,330 hits. Replay of the synchronous Reader interval attributes 82–88% of the two recorded phase walls to the Reader. Logical reads, Reader elapsed time, cache residency and physical device traffic measure different things.                                        | Prefer bounded exact caching and measured locality. Compare cold/warm I/O at fixed admission caps before adding prefetch or overlap. Collect physical bytes only with a validated device counter. #479 → #480 → #481; CPU and GPU parity are independent. Credit vetax-by for the fork. [24B evidence](evidence/2026-11-16-moe-24b-console/README.md), [phase replay #710](https://github.com/gianlucamazza/xllama/pull/710).                                                                                                                                                                                                                                                                                              |
+| Sampling, streaming and model reuse | Host instrumentation found repeated copies of the accepted history on the opt-in prompt-lookup path. The UI/API can reuse a session or refuse concurrent work; reasoning-only responses can finish before the first visible content event.                                                                                                       | [#712](https://github.com/gianlucamazza/xllama/pull/712) reduces counted C++ allocations with matched output. Hold incoming rate constant for admission tests and retain refusals in the denominator. Time first body byte, first semantic content and completion independently. Report request tails with counts in [#715](https://github.com/gianlucamazza/xllama/pull/715).                                                                                                                                                                                                                                                                                                                                             |
 
-These tools do not complete #420 or #421: fresh console control reproduction,
-causal diagnosis, temporal operator/layer attribution, overhead calibration and
-CSV/sidecar integration remain pending. Tensor capture does not measure
-operator execution time. C4 (#313/#414) remains stopped at control parity;
-routing qualification (#422) still depends on correctness and matched evidence.
+Windows reference traces should record CPU samples, actual EP assignments, command-list submissions, timestamp frequency and validity, queue waits, copy sizes and OS I/O where permitted. ETW or PIX availability is a property of the target installation; record which events were captured. A missing utilization, energy or physical-byte counter stays unavailable. The existing [hardware matrix](gpu-acceleration-baseline.md), [technology assessment](../phase15-re-opt.md) and [benchmark protocol](../../bench/README.md) own the device/API, pin and metric contracts. Fork candidates are tracked in [#589](https://github.com/gianlucamazza/xllama/issues/589) and [#590](https://github.com/gianlucamazza/xllama/issues/590).
 
-The paragraph above is the 2026-11-10 checkpoint. Later evidence covers two
-of its open items: per-layer lines in
-[2026-11-18-d3d12-layer](evidence/2026-11-18-d3d12-layer/README.md), and the
-shared timing opt-in plus a CPU/GPU working-set pair in
-[2026-11-18-d3d12-layer-overhead](evidence/2026-11-18-d3d12-layer-overhead/README.md).
-The CSV sidecar for those lines is #493. This draft still does not restate
-the figures. Console control reproduction and the shader diagnosis stay
-outside that capture.
+## Linux measurement of the GGUF load boundary
 
-## Hypotheses and required experiments
+The experiment used the normal Release `xllama-cli`, the catalogue LFM2.5-350M QAD Q4_0, 2,048 context, greedy sampling and a 64-token cap. The base was `62a577e`; the candidate was the load-timing change [#708](https://github.com/gianlucamazza/xllama/pull/708) with matching include files, compiler flags and linked libraries. The measured `src/bridge/inference.cpp` is blob `61468c714474b545ca60fbecf37c477b237b760c` in both the local candidate and the published PR. Builds used GCC 14.2.0, CMake 4.4.5, `-O3 -DNDEBUG`, portable AVX2/FMA/F16C, the six patched pin overlays, and CPU-only GGML. The host was a shared AMD EPYC 9V74 VM pinned to logical CPUs 0–3. The catalogue SHA, binary hashes, prompt file/argument hashes, affinity, kernel, UTC clock and all attempts are in the [raw journal](../../bench/results/2026-11-27-host-load-timing/runs.jsonl).
 
-| Hypothesis                                        | Required evidence                                                    | Current disposition                                   |
-| ------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------- |
-| Multi-column packed weight reuse improves prefill | Control parity, C4 parity/resource/H9 then frozen matched experiment | Stopped at control failure                            |
-| Submission overhead limits further decode gains   | Current per-phase submission/quantization/wait/GPU attribution       | Tools integrated in #430; fresh console trace pending |
-| Larger quantized models benefit more from offload | Matched model/context matrix within memory constraints               | No universal crossover established                    |
-| Static routing can improve user latency           | First/multi-turn, cold/warm and KV-aware matched measurements        | Existing scoped rules; general router unqualified     |
-| Series X supports the same inference envelope     | Independent exact-package device receipt and execution               | No inference measurements in this execution           |
+The following are medians of three paired four-thread runs per arm (AB, BA, AB). Each run started a fresh process after a file-cache-warming pass. The `standard-512` chat measurements below use the [complete repeated cell](../../bench/results/2026-11-27-host-load-timing/retry-standard.jsonl). One initial base warmup ended on signal 9 after entering prefill. The watchdog did not fire; the cause was unavailable. Both runs and their outcomes are retained. The measured load reduction denotes a corrected clock boundary. A new process and a truly disk-cold machine are different experimental conditions.
 
-## Limitations and publication gate
+| Input, prompt/output tokens      | Load column, base → candidate (ms) | Candidate prefill (ms) | Candidate decode (tok/s) | Candidate process peak (MiB) |
+| -------------------------------- | ---------------------------------: | ---------------------: | -----------------------: | ---------------------------: |
+| Short raw, 19 / 64               |                          207 → 177 |                     50 |                   142.47 |                          414 |
+| Standard chat template, 277 / 64 |                          782 → 174 |                    610 |                   109.14 |                          434 |
+| Long raw, 958 / 0                |                        2,186 → 196 |                  1,969 |              unavailable |                          450 |
 
-This audit cannot isolate the first divergent tensor without new captures.
-Host regression tests do not validate HLSL execution, device removal behavior,
-Xbox memory pressure, power, thermals or Series X compatibility. Model-dependent
-host tests and optional Python dependencies must retain explicit skip status.
-The existing H9 screen is a regression screen, not broad output-quality proof.
+Median process launch to first output piece was 237.4 ms on the short candidate and 787.3 ms on the repeated standard candidate. All four-thread paired arms produced matching stdout hashes within each cell. The long raw prompt sampled EOG immediately. Its CLI terminator was the only stdout byte; first output piece and inter-token latency are unavailable. Each of the other cells also has one independently labelled candidate run with the existing progress clock enabled per completed decode step. At 1 ms source resolution, 63 consecutive gaps gave P50/P95/P99 of 7/8/10.52 ms (short) and 8/9/11.14 ms (repeated standard), using linear interpolation. This diagnostic includes per-step logging; client token delivery and uninstrumented distribution tails require their own probes. A single two-thread standard-chat observation produced a different transcript. Keep this exploratory configuration outside the four-thread comparison and require a calibrated logit check before calling it equivalent. Frequency, thermal state, external energy and physical I/O were unavailable. No threshold or routing decision is derived from these host timings.
 
-Publication requires a closed control RCA, sufficient matched console evidence,
-complete provenance, reproducible figures, supported conclusions and peer
-review. Until then, keep this draft out of accepted claims, Zenodo updates and
-release performance announcements. Preserve rejected kernels and null results
-as part of the research record.
+To reproduce, create two checkouts with this repo's patched llama.cpp pin, build `xllama-cli` with `cmake --preset linux-release` and `cmake --build build/linux-release --target xllama-cli --parallel`, one at `62a577e` and one at the source of #708. Supply the catalogue file to the receipt runner (Python 3.11+, Linux). Retain the JSONL even if a child exits unsuccessfully. Use an available equivalent CPU affinity and record the difference.
+
+```sh
+taskset -c 0-3 python3 bench/results/2026-11-27-host-load-timing/capture.py \
+  --base /path/to/base/xllama-cli --candidate /path/to/candidate/xllama-cli \
+  --model /path/to/LFM2.5-350M-QAD-Q4_0.gguf --out runs.jsonl
+# Repeat a complete cell, preserving the original journal in a separate file.
+# Append --prompt-name standard-512 and use --out retry-standard.jsonl.
+```
+
+## Qualification and remaining work
+
+The original Coder numerical control is still reproducibly outside its historical threshold. Apply ADR 0010's separately declared reference spread and per-position criteria for eligible configurations. [#701](https://github.com/gianlucamazza/xllama/pull/701) checks the exact byte count before applying those gates. CPU native smoke also checks a fixed independent golden (five full logit rows and three session turns). Existing H9, perplexity, logit divergence, acceptance and task-level quality serve different purposes; declare the applicable comparison before an approximate optimization. For regression detection use the preregistered [paired protocol](../../bench/README.md) and its [integrity checks](https://github.com/gianlucamazza/xllama/pull/707). Calibrate new margins with identical-control A/A runs under real deployment noise.
+
+The [seven-phase roadmap](../../ROADMAP.md#hardware-aware-performance-engineering) and [tracking issue](https://github.com/gianlucamazza/xllama/issues/694) own candidate PRs, independent reviews and the remaining Windows/console qualification. Package-specific profiling, matched Series X, physical power and integrated streamed MoE parity remain open. A fresh board-level comparison requires separate Series S and X receipts, each bound to the package, model and operating mode. The [distributed research issue](https://github.com/gianlucamazza/xllama/issues/687) tracks aggregate throughput, model capacity and latency as separate outcomes.
