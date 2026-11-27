@@ -403,7 +403,25 @@ python3 scripts/paired-bench-summary.py bench/results/<campaign>/<cell> --gates 
 
 The summary gives each gate's median paired ratio (or memory delta) with a
 paired percentile bootstrap 95 % interval and the preregistered margins of
-#313; a gate whose interval crosses its margin is inconclusive.
+#313. A gate whose interval crosses its margin is inconclusive. For a verdict,
+the ledger must identify all 20 complete pairs in alternating order, with
+exactly 20 measured CSV rows per arm, the campaign model, hardware tag and
+fixed run settings. Each ratio requires a positive observation in both arms.
+The peak-memory delta also requires two positive readings because the probe
+returns zero when the operating system cannot read the working set.
+Select the gates for each cell from the
+[frozen manifest](../docs/research/evidence/2026-11-16-c4-performance/manifest.json).
+The CI test replays all six cells against the recorded intervals and verdicts.
+
+```bash
+python3 -m unittest tests.test_paired_bench_summary.PairedSummaryTests.test_published_pairs_reproduce_the_six_frozen_verdicts
+```
+
+Use the separate model, prompt and configuration cells when assessing a change.
+For example, the captured C4 experiment passed all three Coder-3B cells and
+failed all three LFM2.5-1.2B cells. Replaying the CSVs checks the analysis.
+The [campaign report](../docs/research/evidence/2026-11-16-c4-performance/README.md)
+records the original console, package, verification and measurement limits.
 
 A knob that `bench-xbox-ort.sh` owns (`--flash-attn`, `--ubatch`, `--kv-q8`)
 goes to one arm with `--b-arg` (or `--a-arg`), repeated once per word, instead

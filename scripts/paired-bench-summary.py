@@ -14,8 +14,8 @@
 #                                   [--json-out PATH]
 # --report is for an estimate with no preregistered margin (#582): the same
 # medians and intervals, no verdict, exit 0 on valid input.
-# Profiles require 20 complete alternating pairs of one preregistered model and
-# host tag. bias-add-control also requires identical measured prefill and decode
+# A verdict requires 20 complete alternating pairs of one preregistered model
+# and configuration. bias-add-control also requires identical measured prefill and decode
 # submission counts in both arms of every pair. rope (A = bias ADD on, B = bias
 # ADD and ROPE on) shares the bias ADD gates and models, and requires B to
 # submit fewer decode and no more prefill batches than A in every pair, so a
@@ -71,7 +71,7 @@ BIAS_ADD_CONTROL_GATES = {
     for name, (column, kind, _, _) in BIAS_ADD_GATES.items()
     if name != "peak"
 }
-BIAS_ADD_PAIRS = 20
+VERDICT_PAIRS = 20
 PHASE_SUBMISSIONS = re.compile(
     r"(?m)^\[xllama\] d3d12-phase phase=(prefill|decode) calls=\d+ submissions=(\d+)\b"
 )
@@ -81,6 +81,7 @@ BIAS_ADD_MODELS = {
     "qwen25-coder-3b": "Q4_K_M",
 }
 BIAS_ADD_CONTROL_MODELS = {"lfm25-1.2b-instruct": "Q4_0"}
+C4_MODELS = {"lfm25-1.2b-instruct": "Q4_0", "qwen25-coder-3b": "Q4_K_M"}
 # profile: (gates, models, submission check). The check compares the measured
 # phase counters of the two arms of a pair: "equal" or "fewer" (B < A in decode,
 # B <= A in prefill); None reads no log.
@@ -89,13 +90,15 @@ PROFILES = {
     "bias-add-control": (BIAS_ADD_CONTROL_GATES, BIAS_ADD_CONTROL_MODELS, "equal"),
     "rope": (BIAS_ADD_GATES, BIAS_ADD_MODELS, "fewer"),
 }
-BIAS_ADD_ROW_FIELDS = {
+VERDICT_ROW_FIELDS = {
     "backend": "d3d12",
     "n_ctx": "2048",
     "n_gen_tok": "128",
     "run_index": "2",
-    "host": "xbox-series-s-declared-u512-g99-noeog-greedy",
+    "max_length": "0",
 }
+BIAS_ADD_HOST = "xbox-series-s-declared-u512-g99-noeog-greedy"
+C4_HOST = "xbox-series-s-declared-t6-g99-noeog"
 
 
 class Invalid(ValueError):
@@ -106,29 +109,50 @@ def load_rows(path: Path):
     if not path.is_file():
         raise Invalid(f"missing {path}")
     with path.open(newline="") as fh:
-        return list(csv.DictReader(fh))
+        reader = csv.DictReader(fh, strict=True)
+        fields = reader.fieldnames or []
+        if len(fields) != len(set(fields)):
+            raise Invalid(f"duplicate fields in {path.name}")
+        rows = list(reader)
+        if any(None in row or None in row.values() for row in rows):
+            raise Invalid(f"wrong field count in {path.name}")
+        return rows
 
 
 def ok_pairs(cell: Path, expected_count=None):
     ledger = cell / "ledger.jsonl"
     if not ledger.is_file():
         raise Invalid(f"missing {ledger}")
+    expected = []
+    if expected_count is not None:
+        for pair in range(1, expected_count + 1):
+            order = "AB" if pair % 2 else "BA"
+            expected.extend((pair, order, arm, "ok") for arm in order)
     status = {}
     entries = []
     for line in ledger.read_text().splitlines():
         if line.strip():
             e = json.loads(line)
+            pair, arm = e["pair"], e["arm"]
+            if type(pair) is not int or pair < 1 or arm not in ("A", "B"):
+                raise Invalid("invalid pair number or arm in ledger")
+            if e.get("order") != ("AB" if pair % 2 else "BA"):
+                raise Invalid(f"unexpected order of pair {pair}")
+            if arm in status.get(pair, {}):
+                raise Invalid(f"duplicate completed arm in pair {pair}")
             if e["status"] == "retry":
+                if expected_count is not None and (len(entries) >= len(expected)
+                        or expected[len(entries)][:3] != (pair, e["order"], arm)):
+                    raise Invalid(f"retry outside the pending campaign arm: pair {pair}, arm {arm}")
                 continue
-            status.setdefault(e["pair"], {})[e["arm"]] = e["status"]
-            entries.append((e["pair"], e.get("order"), e["arm"], e["status"]))
-    if expected_count is not None:
-        expected = []
-        for pair in range(1, expected_count + 1):
-            order = "AB" if pair % 2 else "BA"
-            expected.extend((pair, order, arm, "ok") for arm in order)
-        if entries != expected:
-            raise Invalid(f"expected {expected_count} complete alternating AB/BA pairs")
+            if e["status"] not in ("ok", "failed"):
+                raise Invalid(f"unknown status in pair {pair}")
+            if e["status"] == "ok" and "detail" in e and e["detail"] != f"row {pair}":
+                raise Invalid(f"wrong CSV row for pair {pair} arm {arm}")
+            status.setdefault(pair, {})[arm] = e["status"]
+            entries.append((pair, e["order"], arm, e["status"]))
+    if expected_count is not None and entries != expected:
+        raise Invalid(f"expected {expected_count} complete alternating AB/BA pairs")
     return sorted(p for p, arms in status.items() if arms.get("A") == "ok" and arms.get("B") == "ok")
 
 
@@ -148,14 +172,21 @@ def submissions_agree(check, a, b):
     raise Invalid(f"unknown submission check {check!r}")
 
 
-def validate_profile_rows(rows, models):
+def validate_cell_rows(rows, models, host):
     model = rows[0].get("model")
-    if model not in models:
-        raise Invalid(f"model {model!r} does not match the profile")
     prompt_length = rows[0].get("n_prompt_tok")
-    if not prompt_length or not re.fullmatch(r"[0-9]+", prompt_length) or int(prompt_length) <= 0:
+    if not model or not re.fullmatch(r"[1-9][0-9]*", prompt_length or ""):
         raise Invalid("missing or invalid prompt length")
-    fields = dict(BIAS_ADD_ROW_FIELDS, model=model, quant=models[model], n_prompt_tok=prompt_length)
+    fields = {"model": model, "n_prompt_tok": prompt_length}
+    if models is not None:
+        if model not in models:
+            raise Invalid(f"model {model!r} does not match the campaign")
+        # #313 specifies t6. The other profiles fix the host tag and hold
+        # n_threads constant across both arms.
+        threads = "6" if host == C4_HOST else rows[0].get("n_threads")
+        if not re.fullmatch(r"[1-9][0-9]*", threads or ""):
+            raise Invalid("missing or invalid thread count")
+        fields.update(VERDICT_ROW_FIELDS, quant=models[model], host=host, n_threads=threads)
     for row in rows:
         for field, expected in fields.items():
             if row.get(field) != expected:
@@ -167,11 +198,18 @@ def pair_values(a, b, column, kind):
     for ra, rb in zip(a, b):
         try:
             va, vb = float(ra[column]), float(rb[column])
-        except (KeyError, ValueError):
+        except (KeyError, TypeError, ValueError):
             raise Invalid(f"column {column} missing or not a number") from None
-        if not (math.isfinite(va) and math.isfinite(vb)) or (kind == "ratio" and va <= 0):
-            raise Invalid(f"column {column} has a non-positive or non-finite value")
-        out.append(vb / va if kind == "ratio" else vb - va)
+        if not (math.isfinite(va) and math.isfinite(vb)) or min(va, vb) < 0:
+            raise Invalid(f"column {column} has a negative or non-finite value")
+        # The working-set probe returns zero when the OS cannot supply a
+        # reading. A negative delta is meaningful only with two measured peaks.
+        if min(va, vb) == 0:
+            raise Invalid(f"column {column} has a missing or zero measurement")
+        value = vb / va if kind == "ratio" else vb - va
+        if not math.isfinite(value):
+            raise Invalid(f"non-finite comparison for {column}")
+        out.append(value)
     return np.array(out, dtype=np.float64)
 
 
@@ -210,17 +248,15 @@ def main() -> int:
         if not gates or any(g not in specs for g in gates):
             raise Invalid(f"gates must be among {sorted(GATES)}")
         a, b = load_rows(args.cell / "A.csv"), load_rows(args.cell / "B.csv")
-        pairs = ok_pairs(args.cell, BIAS_ADD_PAIRS if args.profile else None)
-        if args.profile and (len(a) != BIAS_ADD_PAIRS or len(b) != BIAS_ADD_PAIRS):
-            raise Invalid(f"expected {BIAS_ADD_PAIRS} measured rows per arm")
-        if not pairs or len(a) < len(pairs) or len(b) < len(pairs):
-            raise Invalid("no complete pair, or fewer rows than complete pairs")
+        expected_count = None if args.report is not None else VERDICT_PAIRS
+        pairs = ok_pairs(args.cell, expected_count)
+        if expected_count is not None and (len(a) != expected_count or len(b) != expected_count):
+            raise Invalid(f"expected {expected_count} measured rows per arm")
+        if not pairs or pairs[-1] > min(len(a), len(b)):
+            raise Invalid("no complete pair, or ledger references a missing row")
         a, b = [a[p - 1] for p in pairs], [b[p - 1] for p in pairs]
-        if args.profile:
-            validate_profile_rows(a + b, profile_models)
-        for ra, rb in zip(a, b):
-            if ra.get("model") != rb.get("model") or ra.get("n_prompt_tok") != rb.get("n_prompt_tok"):
-                raise Invalid("a pair mixes models or prompt lengths")
+        models = C4_MODELS if args.gates is not None else profile_models
+        validate_cell_rows(a + b, models, C4_HOST if args.gates is not None else BIAS_ADD_HOST)
         values = {g: pair_values(a, b, specs[g][0], specs[g][1]) for g in gates}
         mismatched_pairs = []
         if check:
@@ -229,7 +265,7 @@ def main() -> int:
                           for arm in "AB"]
                 if not submissions_agree(check, *counts):
                     mismatched_pairs.append(pair)
-    except (Invalid, OSError, KeyError, TypeError, json.JSONDecodeError) as e:
+    except (Invalid, OSError, KeyError, TypeError, csv.Error, json.JSONDecodeError) as e:
         print(f"❌ invalid input: {e}")
         return 2
 
