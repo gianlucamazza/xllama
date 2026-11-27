@@ -887,6 +887,13 @@ class LlamaSession final : public Session {
             } else {
                 m_kv_tokens.resize(kv_keep);
             }
+            // Whatever the planner chose, only kv_keep tokens of the old
+            // sequence stay. A checkpoint past them describes a sequence that
+            // is no longer resident: after a successful hybrid rewind (inside
+            // the recurrent snapshot window) it would otherwise survive and,
+            // once the next capture moves m_prefix_tokens to the new sequence,
+            // pass as a prefix of it.
+            retain_checkpoints_upto(kv_keep);
         }
 
         // #173: the KV length is exact and free to read (seq_pos_max is -1 on
@@ -1355,6 +1362,18 @@ class LlamaSession final : public Session {
         m_checkpoints.clear();
     }
 
+    // Keeps the checkpoints of at most |n| tokens, and m_prefix_tokens to
+    // those n, so it stays a prefix of m_kv_tokens.
+    void retain_checkpoints_upto(size_t n) {
+        m_checkpoints.erase(std::remove_if(m_checkpoints.begin(), m_checkpoints.end(),
+                                           [n](const PrefixCheckpoint& k) { return k.n > n; }),
+                            m_checkpoints.end());
+        if (m_checkpoints.empty())
+            m_prefix_tokens.clear();
+        else if (m_prefix_tokens.size() > n)
+            m_prefix_tokens.resize(n);
+    }
+
     // Token ids of a template fragment (special tokens parsed, no BOS), as they
     // appear inside a rendered prompt.
     std::vector<llama_token> tokenize_special(const std::string& text) const {
@@ -1445,9 +1464,7 @@ class LlamaSession final : public Session {
         } catch (const std::exception&) {
             return false;
         }
-        const size_t n = c.n;
-        m_checkpoints.resize(index + 1);
-        m_prefix_tokens.resize(n);
+        retain_checkpoints_upto(c.n);
         return true;
     }
 
