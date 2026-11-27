@@ -64,6 +64,13 @@ class CpuSmokeTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "reset_ids"):
             self.check()
 
+    def test_reset_rewinds_to_bos(self):
+        # A reset that re-evaluates the whole prompt (BOS included) means the
+        # rewind dropped the resident BOS.
+        self.actual["turns"][2]["n_p_eval"] = 3
+        with self.assertRaisesRegex(ValueError, "reset turn"):
+            self.check()
+
     def test_corrupt_cached_fixture(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "model.gguf"

@@ -676,15 +676,13 @@ hold the decode trajectory fixed; their host tag echoes `-greedy`.
 
 ### Mandatory Linux CPU numerical smoke
 
-The required Linux job builds and loads a first-party synthetic one-layer Llama GGUF with 32-wide F32 weights and a 19-token vocabulary. The fixture writer uses NumPy 2.3.5, PCG64 seed 431 and the GGUF writer from the checked-out llama.cpp pin. Its embedded SHA-256 applies to both newly generated and cached bytes. It needs no model download. Run the same gate after building the test preset:
+The required Linux job generates a first-party synthetic one-layer Llama GGUF at test time with `scripts/cpu-smoke-fixture.py`, which owns the seed, the shape and the expected SHA-256, and uses the GGUF writer of the checked-out llama.cpp pin. It needs no model download and nothing is cached. Run the same gate after building the test preset:
 
 ```bash
 python3 scripts/run-cpu-smoke.py --build-dir build/linux-test --model build/cpu-smoke/model.gguf
 ```
 
-The test uses one CPU thread, zero offloaded layers, context 128, batch and microbatch 32, default F16 KV, and greedy decoding. It tokenizes `abcd` including BOS, captures the final prefill row and records the next four full vocabulary rows through the shared decode loop on the same resident context. Each row must have its expected KV position, finite logits, the same argmax, maximum absolute error at most 0.006 and normalized squared error at most 1e-5. These ceilings allow a few half-precision rounding units at the scale of the fixture's order-one logits for the F16 KV and attention intermediates (relative precision about 0.001). The absolute bound limits isolated errors and the normalized bound limits distributed errors. A second pass through the public Session API checks first-turn text and counts, a two-token continuation, and a full-prompt reset whose greedy answer differs from the continuation.
-
-`scripts/reference-cpu-smoke.py MODEL.gguf` independently recomputes each causal prefix in float64 from its stored weights (RMSNorm, RoPE, attention, SwiGLU and output projection). Its output is the reviewed, digest-pinned `tests/golden/cpu-smoke.json`. The reference was generated with NumPy 2.3.5 and llama.cpp GGUF reader at `d81235049384534c167caea52b85a694f6103d14`; CI always compares against the committed rows. Changes to reference rows, tokens or tolerances require review. This covers the Linux dense CPU path. GPU qualification uses ADR 0010, streaming MoE uses its own parity gate, and console performance requires device receipts.
+`tests/cpu_smoke.cpp` runs prefill and four incremental decode rows through the shared decode loop on one resident context, then three turns through the public Session API (first turn, continuation, full-prompt reset). `scripts/run-cpu-smoke.py` compares every row with the reviewed float64 reference `tests/golden/cpu-smoke.json` (produced by `scripts/reference-cpu-smoke.py`), using the tolerances and counts defined in that script. Changes to reference rows, tokens or tolerances require review. This covers the Linux dense CPU path: GPU qualification uses ADR 0010, streaming MoE its own parity gate, and console performance device receipts.
 
 ### Intermediate tensor capture (#420)
 
@@ -946,6 +944,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `test_api_activity.cpp`            | `api_activity.h`                                                                                                                                      |
 | `test_api_discovery.cpp`           | `api_discovery.h` (`/health` and `/v1/models` shapes)                                                                                                 |
+| `cpu_smoke.cpp`                    | `session.h`, `decode_loop.h` (native CPU GGUF numerics; run by `scripts/run-cpu-smoke.py`, not ctest)                                                 |
 | `test_thinking_split.cpp`          | `thinking_split.h` (batch and stream reasoning split, spans, reasoning token count, `split_output`)                                                   |
 | `test_compute_admission.cpp`       | `compute_admission.h`                                                                                                                                 |
 | `test_api_connection.cpp`          | `api_connection.h` — overlapping compute requests are 200+503; connection-gate bound                                                                  |

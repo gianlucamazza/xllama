@@ -196,12 +196,6 @@ jobs:
       - name: Run unit tests
         run: ctest --test-dir build/linux-test --output-on-failure
 
-      - name: Cache deterministic native CPU fixture
-        uses: actions/cache@v5
-        with:
-          path: build/cpu-smoke/model.gguf
-          key: cpu-smoke-${{ hashFiles('scripts/cpu-smoke-fixture.py') }}
-
       - name: Native CPU GGUF numerical smoke
         run: python3 scripts/run-cpu-smoke.py --build-dir build/linux-test --model build/cpu-smoke/model.gguf
 

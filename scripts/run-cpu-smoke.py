@@ -43,8 +43,9 @@ def judge(actual, golden):
         expected = "".join(chr(ord("a") + i - 3) for i in golden[key])
         if turn["text"] != expected or turn["n_prompt"] != prompt_count:
             raise ValueError(f"{key}: expected {expected!r} for {prompt_count} tokens, got {turn}")
-    if actual["turns"][0]["n_p_eval"] != 5 or actual["turns"][1]["n_p_eval"] != 2:
-        raise ValueError("incorrect prefill count on first or continuation turn")
+    # The reset keeps the BOS resident, so it re-evaluates 2 of its 3 prompt tokens.
+    if [turn["n_p_eval"] for turn in actual["turns"]] != [5, 2, 2]:
+        raise ValueError("incorrect prefill count on the first, continuation or reset turn")
 
 
 def main():
