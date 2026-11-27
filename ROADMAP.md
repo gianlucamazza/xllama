@@ -2,11 +2,11 @@
 
 ## Current product state
 
-The current Developer Mode release is **1.10.0.0**. Its package uses the
+The current Developer Mode release is **1.11.0.0**. Its package uses the
 `GianlucaMazza.xllama` identity. It supports Xbox Series S and Series X.
 The project measures on Series S, with independent Series X results scoped
 in the [positioning guide](docs/positioning.md#series-x).
-See the [release notes](docs/releases/v1.10.0.md),
+See the [release notes](docs/releases/v1.11.0.md),
 [installation guide](docs/install-release.md), and [changelog](CHANGELOG.md)
 for released and unreleased changes.
 
