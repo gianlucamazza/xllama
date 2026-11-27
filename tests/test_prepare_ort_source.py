@@ -54,6 +54,26 @@ class OrtRebuildTests(unittest.TestCase):
             self.prepare()
         self.assertEqual(self.file.read_text(), "before\n")
 
+    def test_refuse_hidden_edits_and_ignored_output(self):
+        self.prepare()
+        for flag in ("--assume-unchanged", "--skip-worktree"):
+            self.git("update-index", flag, "unrelated")
+            (self.source / "unrelated").write_text("hidden\n")
+            with self.assertRaisesRegex(ValueError, "assume-unchanged or skip-worktree"):
+                self.prepare()
+            self.git("update-index", flag.replace("--", "--no-"), "unrelated")
+            self.git("restore", "--", "unrelated")
+        (self.source / ".gitignore").write_text("build/\n")
+        self.git("add", ".gitignore")
+        self.git("-c", "user.name=fixture", "-c", "user.email=fixture@example.org",
+                 "commit", "-qm", "ignore build")
+        self.pin = self.git("rev-parse", "HEAD").decode().strip()
+        self.git("restore", "--", "model")
+        (self.source / "build").mkdir()
+        (self.source / "build" / "stale.obj").write_text("old\n")
+        with self.assertRaisesRegex(ValueError, "ignored files"):
+            self.prepare()
+
     def test_nuget_pin_matches_reviewed_overlay(self):
         packages = ET.parse(ROOT / "uwp/packages.config")
         package = packages.find(".//package[@id='Microsoft.ML.OnnxRuntime.DirectML']")

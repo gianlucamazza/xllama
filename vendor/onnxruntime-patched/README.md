@@ -30,7 +30,18 @@ from the [official NuGet manifest](https://api.nuget.org/v3-flatcontainer/micros
 It applies the canonical Git patch and prints the verified base commit and
 patched tree ID. Preserve both with rebuild logs. A checkout with unrelated
 source changes or an older locally transformed patch must be replaced with a
-clean checkout before rebuilding. Keep the existing DLL and digest until the
+clean checkout before rebuilding. Ignored files (a previous `build/`) and
+`assume-unchanged` or `skip-worktree` entries are refused too, because the tree
+comparison cannot see them; the script removes its own `build/` first.
+
+**Upstream source unavailable (2026-11-27).** `github.com/microsoft/onnxruntime`
+has returned 404 since about 2026-11-17, with no notice from Microsoft, so the
+clone step fails and neither rebuild lane can run. The shipped DLL and
+`SHA256SUMS` are unaffected, and so is the NuGet package
+(`repository commit="2d924974ef147392ced8409d36bd6d2e7fcc8a74"` in its nuspec,
+checked on that date). Because the verification binds the checkout to that
+commit and the reviewed tree, a rebuild from any other copy of the source is
+acceptable only when it passes `prepare_ort_source.py` unchanged. Keep the existing DLL and digest until the
 candidate passes Windows packaging and console external-data acceptance.
 
 ## Install over NuGet (local or CI)

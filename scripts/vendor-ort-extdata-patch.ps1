@@ -84,6 +84,10 @@ $Submodules = @(git -C $CloneDir submodule status --recursive)
 if ($LASTEXITCODE -ne 0 -or ($Submodules -match '^[+U-]')) {
     throw "ORT submodules must be initialized at their recorded commits."
 }
+# A reused checkout keeps the previous build/ (ignored by Git), which the
+# verification refuses: start every build from source only.
+$OldBuild = Join-Path $CloneDir "build"
+if (Test-Path $OldBuild) { Remove-Item -Recurse -Force $OldBuild }
 python (Join-Path $PSScriptRoot "prepare_ort_source.py") $CloneDir $OrtVersion
 if ($LASTEXITCODE -ne 0) { throw "ORT source verification failed; see output above." }
 

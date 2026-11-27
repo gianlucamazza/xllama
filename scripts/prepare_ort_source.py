@@ -21,6 +21,15 @@ def prepare(source, pin, patch):
         raise ValueError(f"ORT rebuild requires a checkout rooted at {source} at {pin}")
     if git("ls-files", "--others", "--exclude-standard", "-z"):
         raise ValueError("ORT checkout contains untracked source files; use a clean checkout")
+    # Ignored files (a previous build/, caches) are invisible to the tree
+    # comparison below but can still be compiled in.
+    if git("ls-files", "--others", "--ignored", "--exclude-standard", "-z"):
+        raise ValueError("ORT checkout contains ignored files (old build output?); use a clean checkout")
+    # assume-unchanged (lowercase tag) and skip-worktree (S) entries hide local
+    # edits from `git diff`, so the tree comparison would pass over them.
+    for entry in git("ls-files", "-v", "-z").split(b"\0"):
+        if entry and (entry[:1].islower() or entry[:1] == b"S"):
+            raise ValueError("ORT checkout has assume-unchanged or skip-worktree entries")
     git("diff", "--cached", "--quiet", "HEAD", "--")
 
     # Derive the only acceptable result from the pinned tree, independent of
