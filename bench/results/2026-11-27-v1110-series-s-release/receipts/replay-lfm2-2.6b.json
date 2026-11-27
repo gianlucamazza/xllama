@@ -1,0 +1,6 @@
+{
+ "status": 200,
+ "finish": "stop",
+ "content": "The weather in Rome is sunny with a temperature of 21 degrees Celsius.",
+ "tool_calls": null
+}
