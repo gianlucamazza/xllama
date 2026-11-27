@@ -12,6 +12,7 @@
     #include <vector>
 
     #include "xllama/catalog_trust.h"
+    #include "xllama/model_sampling.h"
     #include "xllama/model_write.h"
     #include "xllama/session.h"
 
@@ -100,6 +101,9 @@ struct ManifestEntry {
     // for models whose D2-r2 gate passed at this entry's n_ctx; the operator
     // knob gguf_gpu_layers.txt overrides it (resolve_gguf_gpu_layers, D3).
     int gpu_layers = 0;
+    // Optional per-model sampling defaults, the "model" layer of
+    // resolve_sampling (xllama/model_sampling.h). Empty = the global defaults.
+    ::xllama::SamplingOverrides sampling;
 };
 
 // Load the model catalogue: InstalledPath\models\manifest.json (bundled) is
