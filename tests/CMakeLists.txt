@@ -53,6 +53,7 @@ add_executable(xllama-tests
     test_device_train.cpp
     test_json_utils.cpp
     test_app_settings.cpp
+    test_model_sampling.cpp
     test_preference_capture.cpp
     test_prefix_snapshot.cpp
     test_context_shift.cpp
@@ -86,6 +87,7 @@ target_compile_definitions(xllama-tests PRIVATE
     CLIP_TOKENIZER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../diffusion/clip_tokenizer"
     PARITY_GOLDEN_BIN="${CMAKE_CURRENT_SOURCE_DIR}/golden/logits-smol-short.bin"
     LLAMA_TEMPLATES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../llama.cpp/models/templates"
-    LLAMA_PATCHES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../patches")
+    LLAMA_PATCHES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../patches"
+    MANIFEST_JSON_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../uwp/models/manifest.json")
 
 add_test(NAME xllama-tests COMMAND xllama-tests)
