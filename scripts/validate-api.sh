@@ -415,6 +415,23 @@ else:
 		echo "  ${check}"
 		verdict=1
 	fi
+	# Exercise each explicit usage mode through the same wire verifier as tool proposals.
+	local mode
+	for mode in true false; do
+		validate_tool_stream "{\"stream_options\":{\"include_usage\":${mode}},${req:1}" text "${mode}" || verdict=1
+	done
+	# An SDK option this server does not implement is ignored, not refused.
+	validate_tool_stream "{\"stream_options\":{\"include_usage\":true,\"include_obfuscation\":false},${req:1}" text true || verdict=1
+	local invalid
+	for invalid in '"stream":true,"stream_options":[]' \
+		'"stream":true,"stream_options":{"include_usage":"yes"}' \
+		'"stream":false,"stream_options":{"include_usage":true}'; do
+		code=$(post_chat "{${invalid}}" "${TMPDIR_LOCAL}/bad-stream-options.json")
+		if [[ "$code" != 400 ]] || ! python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["error"]["param"] == "stream_options"' "${TMPDIR_LOCAL}/bad-stream-options.json"; then
+			echo "  FAIL: invalid stream options accepted or misclassified: ${invalid} (HTTP ${code})"
+			verdict=1
+		fi
+	done
 	[[ $verdict -eq 0 ]] && echo "stream: PASS" || echo "stream: FAIL"
 	return $verdict
 }
@@ -425,8 +442,14 @@ else:
 # |long_req|, then a short request must get the session within |limit| s.
 disconnect_round() {
 	local label="$1" long_req="$2" probe_req="$3" limit="$4" code start elapsed
-	printf '%s' "$long_req" | curl -sS -N -m 3 -o /dev/null -H 'Content-Type: application/json' \
-		--data-binary @- "${API_URL}/v1/chat/completions" 2>/dev/null || true
+	local partial="${TMPDIR_LOCAL}/disconnect.sse" curl_status=0
+	printf '%s' "$long_req" | curl -sS -N -m 3 -o "$partial" -H 'Content-Type: application/json' \
+		--data-binary @- "${API_URL}/v1/chat/completions" 2>/dev/null || curl_status=$?
+	if [[ "$curl_status" != 28 ]] || ! grep -q '^data: ' "$partial" ||
+		grep -qE '^data: \[DONE\]|"usage":[[:space:]]*\{' "$partial"; then
+		echo "  FAIL: ${label} did not stop after the stream opened and before completion (curl ${curl_status})"
+		return 1
+	fi
 	start=$(date +%s)
 	while :; do
 		code=$(curl -sS -m 120 -o /dev/null -w "%{http_code}" -H 'Content-Type: application/json' \
@@ -456,6 +479,7 @@ filler = ("Entry %s: the harbour master logged tide tables, cargo manifests and 
           "maintenance schedule for pier seven. ")
 text = "".join(filler % i for i in range(70))
 body = {"model": sys.argv[1], "stream": True, "max_tokens": 16,
+        "stream_options": {"include_usage": True},
         "messages": [{"role": "user", "content": uuid.uuid4().hex + " " + text +
                       "Summarise the log."}]}
 if sys.argv[2] == "tool":
@@ -851,7 +875,7 @@ validate_tool_stream() {
 		echo "  FAIL: expected SSE, got ${response}"
 		return 1
 	fi
-	python3 - "${TMPDIR_LOCAL}/tool-stream.sse" "$expected" "${TMPDIR_LOCAL}/streamed-call.json" <<'PYTOOLSTREAM'
+	python3 - "${TMPDIR_LOCAL}/tool-stream.sse" "$expected" "${TMPDIR_LOCAL}/streamed-call.json" "${3:-legacy}" <<'PYTOOLSTREAM'
 import json
 import os
 import sys
@@ -870,6 +894,18 @@ for event in events[:-2]:
 assert len(chunks) >= 3, chunks
 assert all(c["object"] == "chat.completion.chunk" for c in chunks), chunks
 assert len({c["id"] for c in chunks}) == 1, chunks
+mode = sys.argv[4]
+if mode == "true":
+    summary = chunks.pop()
+    assert summary["choices"] == [], summary
+    usage = summary["usage"]
+    assert all(c["usage"] is None for c in chunks), chunks
+elif mode == "false":
+    assert all("usage" not in c for c in chunks), chunks
+    usage = None
+else:
+    usage = chunks[-1]["usage"]
+assert all(len(c["choices"]) == 1 for c in chunks), chunks
 choices = [c["choices"][0] for c in chunks]
 assert all(c["index"] == 0 for c in choices), choices
 assert choices[0]["delta"]["role"] == "assistant", choices[0]
@@ -877,8 +913,9 @@ assert all(c["finish_reason"] is None for c in choices[:-1]), choices
 assert choices[-1]["delta"] == {}, choices[-1]
 deltas = [c["delta"] for c in choices]
 reasoning = "".join(delta.get("reasoning_content") or "" for delta in deltas)
-problem = usage_problem(chunks[-1].get("usage"), reasoning)
-assert not problem, problem
+if mode != "false":
+    problem = usage_problem(usage, reasoning)
+    assert not problem, problem
 calls = [call for delta in deltas for call in delta.get("tool_calls", [])]
 if sys.argv[2] == "tool_calls":
     assert choices[-1]["finish_reason"] == "tool_calls", choices[-1]
@@ -1059,7 +1096,14 @@ print("ok")
 		fi
 	done
 
+	# The default layout (usage on the finish chunk) stays covered for tool streams.
 	if validate_tool_stream "{\"stream\":true,${named_request:1}" tool_calls; then
+		echo "  G0 ok: SSE tool proposal keeps usage on the finish chunk by default"
+	else
+		echo "  G0 FAIL: default SSE tool-proposal layout"
+		verdict=1
+	fi
+	if validate_tool_stream "{\"stream\":true,\"stream_options\":{\"include_usage\":true},${named_request:1}" tool_calls true; then
 		echo "  G ok: SSE returned indexed get_weather and tool_calls finish"
 		result_request=$(python3 - "$result_request" "${TMPDIR_LOCAL}/streamed-call.json" <<'PYTOOLRESULT'
 import json
