@@ -41,6 +41,12 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `compute_admission.h`              | Process-wide RAII lease for resource-heavy jobs across UI and LAN API; acquire before `session_hub().mtx` (proposed ADR 0008)                                                                         |
 | `api_connection.h`                 | Bounded LAN in-flight slots and the HTTP 200/503 mapping for a compute admit (proposed ADR 0008)                                                                                                      |
 | `api_failure.h`                    | HTTP status for an exception that escapes a LAN API route: 400 only for a Json accessor failure, 503 out of memory, else 500 (#591)                                                                   |
+| `api_activity.h`                   | `ApiActivity` — live LAN API traffic view for the console UI: in-flight request and busy rejections, one mutex                                                                                        |
+| `api_discovery.h`                  | `/health` capabilities, `response_formats` and `runtime`; `/v1/models` per-model fields; `/api/catalog` entries (`catalog_lists_entry`)                                                               |
+| `api_ollama.h`                     | Native Ollama `/api/chat` and `/api/generate`: checks and translates the body into the OpenAI chat request before compute admission; `ollama_chat_model`                                              |
+| `api_sampling.h`                   | `kApiSamplingFields` — the sampling fields a chat request may set: validation, copy into the params, and the `/health` `sampling` list (#609)                                                         |
+| `sse.h`                            | SSE and chunked framing for streamed chat; `ChatWire` and `chat_terminal_frames` (one terminal write: error, `[DONE]` on OpenAI, final chunk); keepalive comments                                     |
+| `llama_patches.h`                  | `kLlamaPatches` — the llama.cpp patches every build applies; `/health` `runtime.patches` reports them                                                                                                 |
 | `debug_dashboard.h`                | Optional debug dashboard snapshot: compose real hub / LAN / inference readings; missing sources stay `unavailable`                                                                                    |
 | `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125)                                                                                                                          |
 | `model_sampling.h`                 | Per-model sampling (catalogue `sampling`) and the layer order: global < model < user < request                                                                                                        |
@@ -49,9 +55,16 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `personalize.h`                    | Phase 11 helpers: last-block filter, job builder, sample count, manifest JSON                                                                                                                         |
 | `preference_capture.h`             | Preference JSONL format + append (Like/Dislike/Correct + API)                                                                                                                                         |
 | `chat_prompt.h`                    | `ChatFormat`, `chat_format_for`, `apply_stop_sequences`                                                                                                                                               |
+| `reasoning_control.h`              | `decide_reasoning` — per-request reasoning (`reasoning_effort`, `enable_thinking`, Ollama `think`) against what the template allows (#648)                                                            |
+| `thinking_split.h`                 | `split_thinking` and `ThinkingStreamSplitter` — `<think>` reasoning vs content, batch and streamed                                                                                                    |
+| `stop_sequence_filter.h`           | Withholds a partial stop sequence from a streamed reply; stream-side counterpart of `apply_stop_sequences`                                                                                            |
+| `tool_request.h`                   | `parse_plain_chat` and the tool-transcript parser: roles (`developer` as system), text-part content, legacy `functions`                                                                               |
+| `tool_transcript.h`                | OpenAI tool-proposal transcript types, WinRT- and llama-free                                                                                                                                          |
+| `tool_template.h`                  | Renders and parses a tool-proposal turn through the GGUF chat template; the only file that includes llama.cpp `common/chat.h`                                                                         |
 | `routing_policy.h`                 | `decide_routing`, `gpu_ready_for_routing`, `kv_reuse_supported_for_model`, prompt budget                                                                                                              |
 | `embedding.h`                      | Embedding params/results, pooling-aware trim, normalization and float32 base64                                                                                                                        |
 | `api_pull_policy.h`                | Trusted catalogue pull admission and API-only pull gate                                                                                                                                               |
+| `withdrawn_models.h`               | Catalogue ids that must not be downloadable; the manifest loader and `api_pull_model_allowed` drop them                                                                                               |
 | `model_write.h`                    | Shared atomic RAII writer permit; guarded marker publication and stale-base cleanup                                                                                                                   |
 | `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                                                                                                                                                |
 | `model_file_plan.h`                | Per-file catalogue pin check; `files[].role`; `weight_pins_verified`; `gpu_tree_ready_for_routing`                                                                                                    |
@@ -64,9 +77,14 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `inference_progress.h`             | Prefill-done + decode-progress logs and the stall watchdog (`XLLAMA_INFER_STALL_TIMEOUT_S`, default 180 s)                                                                                            |
 | `http_framing.h`                   | `parse_http_head` — exact LAN API request framing and deadlines (ADR 0006)                                                                                                                            |
 | `prompt_budget.h`                  | `fit_prompt` for plain chat, `fit_tool_transcript` for a tool proposal — both exact, both on the resident tokenizer                                                                                   |
+| `context_shift.h`                  | #169 context-shift admission predicate (`llama_memory_can_shift` plus the SWA guard)                                                                                                                  |
+| `memory_admission.h`               | Pre-load GGUF memory admission: weights, KV and compute buffers from llama.cpp's dry run against the app limit and GPU budget                                                                         |
 | `tool_budget.h`                    | Tool-proposal overflow 400 with the baseline and tool token contribution, plus a field when one component exceeds the budget                                                                          |
 | `autopilot.h`                      | `AutopilotAction`, `validate_autopilot_script` — console gate contract (WinRT-free)                                                                                                                   |
 | `json_utils.h`                     | `json_escape`, `json_read_string` with `\uXXXX` decode (surrogate pairs) — canonical JSON helpers                                                                                                     |
+| `local_knob.h`                     | LocalState knob, input and job-status files: read, write, strict integer parse                                                                                                                        |
+| `app_settings.h`                   | settings.json model: parse, format, and the ranges the Settings dialog uses                                                                                                                           |
+| `benchmark_identity.h`             | `declared_benchmark_host` — an operator hardware declaration becomes a `-declared` label, never detection                                                                                             |
 | `cancel_policy.h`                  | `CancelTarget` + `cancel_target()` — which running job a cancel request targets                                                                                                                       |
 | `stability_attribution.h`          | Image-dialog §IV.a credit: `kStabilityAttribution`, `show_stability_attribution` (licence, else `sd-turbo` id family)                                                                                 |
 | `kv_store.h`                       | `KvStore` — on-disk KV snapshot pool (3 files / 192 MB, LRU, fingerprinted)                                                                                                                           |
@@ -81,11 +99,12 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `gpugemv.h`                        | Phase 15 H6.1–H6.3: Q4_K GEMV density probe, naive/wave32/rows/dot4 kernels (#228)                                                                                                                    |
 | `gpustep.h`                        | GGUF GPU decode probe D1: model shapes, cost model, D1 gates and ladder ([gguf-gpu-decode.md](gguf-gpu-decode.md))                                                                                    |
 | `ggml_d3d12.h`                     | ggml backend `d3d12`: registration, `supports_op` rules, q8 activations, kernel emulation, selftest, opt-in dispatch/layer timing ([gguf-gpu-decode.md](gguf-gpu-decode.md))                          |
+| `d3d12_quant_cache.h`              | Identity-keyed cache of CPU-quantized activations shared by matmuls in one d3d12 graph submission                                                                                                     |
 | `cli.h`                            | `parse_cli_args` — Linux command-line parsing                                                                                                                                                         |
 | `platform.h`                       | `log_output`, `detect_threads(_llama)`, `peak_working_set_mb`, `gpu_mem_info`                                                                                                                         |
 | `path_utils.h`                     | `resolve_model_path`, `first_gguf_in_dir`, `model_uses_llama_backend`                                                                                                                                 |
 | `utf8_utils.h`                     | `utf8_to_wstring`, `wstring_to_utf8` (Windows/UWP)                                                                                                                                                    |
-| `api_policy.h`                     | `classify_api_tools` — a tool proposal is text in the response; the process does not execute tools                                                                                                    |
+| `api_policy.h`                     | `classify_api_tools` — a tool proposal is text in the response; the process does not execute tools. Also `response_format` support, numeric and token-limit checks, and `options.num_ctx` bounds      |
 | `capture_probe.h`                  | GraphicsCapture availability probe (metadata only; never starts a capture)                                                                                                                            |
 | `catalog_trust.h`                  | Catalogue signature types used by the UWP downloader                                                                                                                                                  |
 | `ort_raii.h`                       | RAII `unique_ptr` for `Oga*` types (ORT GenAI C API, UWP path)                                                                                                                                        |
@@ -95,6 +114,8 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `diffusion/euler_scheduler.h`      | Euler scheduler (header-only, golden-vector unit-tested)                                                                                                                                              |
 | `diffusion/lcm_scheduler.h`        | Opt-in LCM scheduler (header-only; unused until `diffuse-lcm.txt` = 1)                                                                                                                                |
 | `diffusion/clip_tokenizer.h`       | CLIP BPE tokenizer for diffusion                                                                                                                                                                      |
+| `diffusion/request.h`              | Image request contract (steps, seed) shared by the dialog, the LAN API, autopilot and the pipeline                                                                                                    |
+| `diffusion/residency.h`            | Whether SD-Turbo can run next to the resident chat model (#548)                                                                                                                                       |
 
 Bridge sources of note under `src/bridge/`: `session.cpp`, `inference.cpp`,
 `training.cpp`, `device_train.cpp`, `personalize.cpp`, `preference_capture.cpp`,
@@ -832,14 +853,21 @@ the request waits briefly instead (`acquire_hub_or_busy`, ≤15 s). Stopping
 the endpoint does not free the Session (it is hub-owned).
 Preferences and training status are file I/O only (no inference lock).
 
-Chat runs on the hub-owned Session; embeddings, Ollama-compatible pull,
-preferences, training status and images complete the surface. A request with
+Chat runs on the hub-owned Session, over OpenAI `/v1/chat/completions` and
+native Ollama `/api/chat` and `/api/generate` (`api_ollama.h` translates the
+native body into the same chat request, so template, budget, sampling and stops
+stay one path). `/api/ps` reports the resident model and an Ollama
+`keep_alive` acts only on a model the API loaded (`session_residency.h`; the
+console app keeps its model). `/api/catalog` lists the downloadable catalogue;
+embeddings, Ollama-compatible pull, preferences, training status and images
+complete the surface. A request with
 a tool schema is a client-side proposal: the GGUF template renders it and the
 response may carry `tool_calls`. The process does not run the tool
 ([ADR 0004](adr/0004-tool-proposals.md)). The route list and the contract
 live in [api-endpoint.md](api-endpoint.md) (the owner of LAN routes);
 validation is `scripts/validate-api.sh
-spike|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all`. Capability
+spike|discovery|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|compat|all`
+(`all` skips `disconnect` and `compat`). Capability
 `privateNetworkClientServer` covers LAN inbound; no public inbound.
 
 ## Build variants and versioning
@@ -978,6 +1006,8 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_api_activity.cpp`            | `api_activity.h`                                                                                                                                      |
 | `test_api_discovery.cpp`           | `api_discovery.h` (`/health`, `/v1/models` and `/api/catalog` shapes)                                                                                 |
 | `cpu_smoke.cpp`                    | `session.h`, `decode_loop.h` (native CPU GGUF numerics; run by `scripts/run-cpu-smoke.py`, not ctest)                                                 |
+| `test_api_sampling.cpp`            | `api_sampling.h` (field ranges, `repeat_penalty` spelling, model values, negative seed)                                                               |
+| `test_llama_patches.cpp`           | `llama_patches.h` (the list equals `patches/0*.patch`, in order)                                                                                      |
 | `test_api_ollama.cpp`              | `api_ollama.h` (native Ollama request translation, refusals, `think`, tool replay, `keep_alive`, `num_ctx`, `ollama_chat_model`)                      |
 | `test_reasoning_control.cpp`       | `reasoning_control.h` (#648 policy table, `reasoning_effort` / `enable_thinking` parsing, plain-chat and tool renders of the effective decision)      |
 | `test_session_residency.cpp`       | `session_residency.h`, `session_hub.h` residency (who owns the session, `keep_alive_action`, stale leases)                                            |
@@ -1035,6 +1065,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_routing_policy.cpp`          | `routing_policy.h`                                                                                                                                    |
 | `test_model_sampling.cpp`          | `model_sampling.h` (layer order, catalogue `sampling` parse, bundled manifest)                                                                        |
 | `test_sampling.cpp`                | `sampling.h` (CLI/Session parity opt-in)                                                                                                              |
+| `test_sdk_consumer.cpp`            | Linux CMake consumer compile, link and upstream header visibility                                                                                     |
 | `test_session.cpp`                 | `session.h`, `session_hub.h`                                                                                                                          |
 | `test_session_spec.cpp`            | `session_spec.h`, hub reuse rule                                                                                                                      |
 | `test_speculative.cpp`             | `speculative.h`                                                                                                                                       |

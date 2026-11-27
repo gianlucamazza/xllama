@@ -36,8 +36,9 @@ exercised without a game runtime. It is not the product thesis.
 - Dual-backend inference: `*.gguf` through llama.cpp; everything else through
   ONNX Runtime GenAI + DirectML. One resident session
   (`SessionHub` — never 2× model in RAM).
-- Opt-in OpenAI-compatible **LAN endpoint** — the current integration probe
-  for a PC or tool on the same network. Default OFF. Developer Mode / LAN research
+- Opt-in OpenAI-compatible and native Ollama **LAN endpoint** (`/api/chat`,
+  `/api/generate`, `/api/ps`, `/api/catalog`, per-request reasoning control)
+  — the current integration probe for a PC or tool on the same network. Default OFF. Developer Mode / LAN research
   only. Not a public inbound service.
 - Headless benches (tok/s, memory, disk, GPU probes).
 - SD-Turbo diffusion on the console. Experimental training lanes: on-device

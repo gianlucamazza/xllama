@@ -45,3 +45,9 @@ Each patch is a plain `git diff`. A backport that no longer applies is usually
 already upstream: check, then delete it. If `0001` no longer applies, redo the three guards
 by hand (they are one-liners plus a small `#if` block — see the patch body) and
 regenerate with `git -C llama.cpp diff > patches/0001-uwp-appcontainer-guards.patch`.
+
+Run `scripts/check-uwp-sources.sh` on the patched candidate before building both
+UWP variants. It compares the llama, ggml/CPU and chat source directories with
+the two MSBuild projects, including wildcard matches. Review new backend
+directories and changes to the chat link closure separately. The upstream common
+sources omitted from UWP are listed in `scripts/check-uwp-sources.py`.

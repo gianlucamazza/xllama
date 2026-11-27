@@ -31,8 +31,10 @@ Public types live in `include/xllama/`. Implementations live in `src/bridge/`.
 That is the inference session (`Session` / `SessionHub`), parameter and result
 types, routing and prompt-budget helpers, sampling defaults, chat-prompt
 formatting, embedding helpers, KV snapshot helpers, HTTP framing and SSE
-helpers used by the LAN protocol, tool-proposal classification (the process
-does not execute tools), diffusion CLIP / Euler / PNG helpers, and
+helpers used by the LAN protocol, native Ollama request translation
+(`api_ollama.h`), model residency (`session_residency.h`), per-request
+reasoning control (`reasoning_control.h`), tool-proposal classification (the
+process does not execute tools), diffusion CLIP / Euler / PNG helpers, and
 training-job structs.
 
 Linux CMake builds llama.cpp only (`XLLAMA_USE_LLAMA`). UWP ORT GenAI +

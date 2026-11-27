@@ -47,7 +47,7 @@ jobs:
         run: |
           git submodule update --init --depth 1 llama.cpp
           bash scripts/apply-llama-patches.sh
-          bash scripts/check-uwp-sources.sh
+          python scripts/check-uwp-sources.py
 
       - name: Restore NuGet packages
         shell: pwsh

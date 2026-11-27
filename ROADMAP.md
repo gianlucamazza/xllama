@@ -17,23 +17,38 @@ a gamepad UI and an opt-in LAN integration surface. The
 
 ## Current follow-up priorities
 
-1. **Engineering consolidation.** Finish the reproducibility, runtime and
-   client validation work in [#395](https://github.com/gianlucamazza/xllama/issues/395).
-   The [v1.11.0 milestone](https://github.com/gianlucamazza/xllama/milestone/8)
-   tracks the next release backlog.
-   Check the exact distributed MSIX provenance under
-   [#635](https://github.com/gianlucamazza/xllama/issues/635) and record
-   versioned LAN SDK and Open WebUI runs under
-   [#634](https://github.com/gianlucamazza/xllama/issues/634).
-2. **Agent clients on the LAN API.** Multi-step agent tasks fail on Series S at
-   the catalogue context of 2048 tokens: the reasoning or the transcript uses
-   up the budget, or the model writes its plan as text. Fix the tool path that
-   always enables thinking ([#655](https://github.com/gianlucamazza/xllama/issues/655)),
-   add per-request reasoning control ([#648](https://github.com/gianlucamazza/xllama/issues/648)),
-   and measure a larger context for `lfm25-8b-a1b` on the console before cataloguing
-   it ([#649](https://github.com/gianlucamazza/xllama/issues/649), host rung done).
-   Native Ollama chat and model residency wait on a product decision: whether a
-   LAN client may expire or unload the model the console user has loaded.
+1. **Engineering consolidation.** 1.11 shipped. Finish the reproducibility,
+   runtime and client validation work in
+   [#395](https://github.com/gianlucamazza/xllama/issues/395). The versioned
+   client journey ([#634](https://github.com/gianlucamazza/xllama/issues/634))
+   and MSIX provenance ([#635](https://github.com/gianlucamazza/xllama/issues/635))
+   are closed; every main build of the unified MSIX is attested since
+   [#637](https://github.com/gianlucamazza/xllama/pull/637). Open follow-ups:
+   chat fields that are ignored instead of refused
+   ([#665](https://github.com/gianlucamazza/xllama/issues/665)), Gemma 4
+   reasoning split ([#671](https://github.com/gianlucamazza/xllama/issues/671)),
+   a per-request reasoning token budget
+   ([#680](https://github.com/gianlucamazza/xllama/issues/680)), and the
+   unreachable upstream runtime repositories
+   ([#646](https://github.com/gianlucamazza/xllama/issues/646)).
+2. **Agent clients on the LAN API.** Done in 1.11: the tool path reasons only
+   when the model does ([#659](https://github.com/gianlucamazza/xllama/pull/659)),
+   a request can switch reasoning with `reasoning_effort`,
+   `chat_template_kwargs.enable_thinking` or Ollama `think`
+   ([#670](https://github.com/gianlucamazza/xllama/pull/670)), `lfm25-8b-a1b`
+   opens at `n_ctx` 8192 ([#660](https://github.com/gianlucamazza/xllama/pull/660)),
+   native Ollama `/api/chat`, `/api/generate` and `/api/ps` are served while
+   the console app keeps its model
+   ([#663](https://github.com/gianlucamazza/xllama/pull/663),
+   [#666](https://github.com/gianlucamazza/xllama/pull/666)),
+   `/api/catalog` lists the downloadable catalogue
+   ([#662](https://github.com/gianlucamazza/xllama/pull/662)), and a replayed
+   LFM tool call renders before its result
+   ([#669](https://github.com/gianlucamazza/xllama/pull/669), issue
+   [#664](https://github.com/gianlucamazza/xllama/issues/664)). Still open:
+   multi-step agent runs measured on Series S at the larger context (in
+   progress). Routes and residency rules are in the
+   [LAN API reference](docs/api-endpoint.md).
 3. **Release readiness.** Use the [release readiness plan](docs/release-readiness.md)
    for the Store SKU, licence review and App vs Game decision. Developer Mode
    is the supported installation path. The research release still needs
