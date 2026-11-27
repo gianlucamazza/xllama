@@ -387,6 +387,7 @@ def main() -> int:
         "/v1/images/generations",
         "/v1/models",
         "/api/tags",
+        "/api/catalog",
     ):
         if path not in api:
             err(f"api-server missing {path}")

@@ -2,11 +2,11 @@
 
 ## Current product state
 
-The current Developer Mode release is **1.10.0.0**. Its package uses the
+The current Developer Mode release is **1.11.0.0**. Its package uses the
 `GianlucaMazza.xllama` identity. It supports Xbox Series S and Series X.
 The project measures on Series S, with independent Series X results scoped
 in the [positioning guide](docs/positioning.md#series-x).
-See the [release notes](docs/releases/v1.10.0.md),
+See the [release notes](docs/releases/v1.11.0.md),
 [installation guide](docs/install-release.md), and [changelog](CHANGELOG.md)
 for released and unreleased changes.
 
@@ -25,14 +25,23 @@ a gamepad UI and an opt-in LAN integration surface. The
    [#635](https://github.com/gianlucamazza/xllama/issues/635) and record
    versioned LAN SDK and Open WebUI runs under
    [#634](https://github.com/gianlucamazza/xllama/issues/634).
-2. **Release readiness.** Use the [release readiness plan](docs/release-readiness.md)
+2. **Agent clients on the LAN API.** Multi-step agent tasks fail on Series S at
+   the catalogue context of 2048 tokens: the reasoning or the transcript uses
+   up the budget, or the model writes its plan as text. Fix the tool path that
+   always enables thinking ([#655](https://github.com/gianlucamazza/xllama/issues/655)),
+   add per-request reasoning control ([#648](https://github.com/gianlucamazza/xllama/issues/648)),
+   and measure a larger context for `lfm25-8b-a1b` on the console before cataloguing
+   it ([#649](https://github.com/gianlucamazza/xllama/issues/649), host rung done).
+   Native Ollama chat and model residency wait on a product decision: whether a
+   LAN client may expire or unload the model the console user has loaded.
+3. **Release readiness.** Use the [release readiness plan](docs/release-readiness.md)
    for the Store SKU, licence review and App vs Game decision. Developer Mode
    is the supported installation path. The research release still needs
    physical power and thermal evidence before a publication-grade Series S
    baseline, and matched device evidence before cross-platform claims.
    See the [research package](paper/README.md) and
    [benchmark protocol](bench/README.md).
-3. **Catalogue and platform exploration.** Follow the
+4. **Catalogue and platform exploration.** Follow the
    [catalogue milestone](https://github.com/gianlucamazza/xllama/milestone/4),
    the [model matrix](docs/model-matrix.md), and the
    [new model types milestone](https://github.com/gianlucamazza/xllama/milestone/7).
@@ -41,7 +50,7 @@ a gamepad UI and an opt-in LAN integration surface. The
    blocked on the separately tracked llama.cpp pin work. The issue and MoE
    program describe different scheduling states for the pin bump. Reconcile
    them before scheduling the full-catalogue regression or beginning M1.
-4. **Vendor lifecycle.** Follow
+5. **Vendor lifecycle.** Follow
    [#85](https://github.com/gianlucamazza/xllama/issues/85) and the
    [vendor lifecycle plan](docs/vendor-lifecycle-plan.md) for the patched
    runtime rebuild, package qualification, and retirement gates. Track upstream

@@ -85,3 +85,9 @@ Write a benchmark CSV row to the resolved local path.
 void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
                      const char* host_label = nullptr);
 ```
+
+## GGUF decode outcomes
+
+At llama.cpp pin `d8123504`, `llama_decode` returns 1 when there is no KV slot, 2 on backend abort, -1 on an invalid batch, and less than -1 on a fatal backend error. Abort and fatal errors can leave processed ubatches resident. Both `Session::generate` and `run_inference` report a nonzero return as `success == false`, preserve the raw value in `decode_rc`, and set `termination` and `error_msg`. A failed speculative verification is terminal. A resident session drops its sampler, KV cells, token bookkeeping and prefix snapshots and advances its KV epoch. Retry with the full prompt.
+
+On generation, `n_eval` counts sampled output tokens, including an emitted piece whose subsequent KV write failed. History advances only after a successful write. A textual stop retains its final token in the KV for continuation and strips the marker from the returned text. EOG consumes no output token. The effective token limit, EOG, textual stop and a caller cancellation observed between steps are distinct outcomes. A caller receiving a cancelled generation can display the partial reply and must send the full prompt to resume. A stall fails the run. A partial result on error retains text already generated.

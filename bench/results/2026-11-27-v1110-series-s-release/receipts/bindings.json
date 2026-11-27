@@ -1,0 +1,56 @@
+{
+  "device": {
+    "Platform": "Xbox Series S",
+    "OsVersion": "26100.9662.amd64fre.xb_flt_2610ge.261104-2200",
+    "OsEdition": "SystemOS"
+  },
+  "package": {
+    "version": "1.11.0.2203",
+    "sku": "Developer Mode unified CI MSVC (xllama-appx, build-uwp push workflow run 46070519230 on the source commit)",
+    "attestation": "gh attestation verify: signer build-uwp.yml, source refs/heads/main at the source commit (exit 0)",
+    "install": "in-place update over 1.10.0.2117 via Device Portal; LocalState top-level listing identical before and after the update except xllama.log",
+    "health": {
+      "api": 1,
+      "capabilities": [
+        "cached_tokens",
+        "catalog",
+        "chat_context",
+        "embeddings",
+        "images",
+        "model_sampling",
+        "ollama_chat",
+        "ollama_keep_alive",
+        "preferences",
+        "pull",
+        "reasoning_content",
+        "reasoning_control",
+        "reasoning_tokens",
+        "tools",
+        "tools_stream",
+        "training_status"
+      ],
+      "runtime": {
+        "llama_cpp": "d812350",
+        "patches": [
+          "0001-uwp-appcontainer-guards",
+          "0003-kv-cache-k-shift-unallocated-input",
+          "0004-recurrent-state-fill-zero",
+          "0005-required-tool-call-no-content-prefix",
+          "0006-peg-escape-control-chars-in-tool-args",
+          "0007-lfm2-undeclared-tool-calls-in-auto"
+        ]
+      },
+      "sampling": [
+        "temperature",
+        "top_p",
+        "top_k",
+        "repetition_penalty",
+        "seed"
+      ],
+      "response_formats": [
+        "text"
+      ]
+    }
+  },
+  "source_sha": "ee6a718d151465e357dc6f3e2b5091bb2a35416e"
+}
