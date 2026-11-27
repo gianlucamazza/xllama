@@ -27,7 +27,7 @@ missing bindings remain owned by the prepared campaign; test receipts retain the
 source revision actually checked.
 
 When a stage changes, update this table, its tracker (#479/#480/#481), and the
-corresponding roadmap checkbox in the same implementation PR. Complete a runtime
+corresponding roadmap summary in the same implementation PR. Complete a runtime
 stage only after its implementation has merged and its stated validation gates
 are evidenced. Retain original failed/pending records; add dated outcomes rather
 than rewriting them. Update `docs/model-matrix.md` only if catalogue admission is

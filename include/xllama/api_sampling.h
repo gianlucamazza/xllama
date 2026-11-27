@@ -41,6 +41,15 @@ inline constexpr std::array<ApiSamplingField, 5> kApiSamplingFields = {{
     {"seed", -2147483648.0, 4294967295.0, true},
 }};
 
+// The table row for |key|, or nullptr. The CLI and the catalogue parser use
+// it to apply the same bounds as a request.
+inline const ApiSamplingField* find_api_sampling_field(std::string_view key) {
+    for (const ApiSamplingField& field : kApiSamplingFields)
+        if (key == field.key)
+            return &field;
+    return nullptr;
+}
+
 // llama.cpp's server spelling of repetition_penalty, accepted as an alias.
 inline constexpr const char* kRepeatPenaltyAlias = "repeat_penalty";
 
