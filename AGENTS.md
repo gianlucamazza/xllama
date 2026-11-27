@@ -265,6 +265,7 @@ Load-bearing headers agents usually touch:
 | `memory_admission.h`                 | Pre-load GGUF memory admission (weights + KV + compute)        |
 | `tool_budget.h`                      | Tool-proposal `prompt too long` text, `code`, and `param`      |
 | `sampling.h`                         | Sampler defaults shared by CLI, bench, GUI, API                |
+| `model_sampling.h`                   | Per-model catalogue sampling; global < model < user < request  |
 | `chat_prompt.h`                      | `ChatFormat` and stop sequences                                |
 | `thinking_split.h`                   | `<think>` reasoning vs content, batch and streamed             |
 | `embedding.h`                        | Embedding params and pooling trim                              |
