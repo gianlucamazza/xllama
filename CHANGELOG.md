@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Chat refuses a `response_format` it cannot honour.** An explicit `json_object` or `json_schema` was ignored, so a client asking for structured output got free text with 200. It is now HTTP 400 `unsupported_response_format` (`error.param` `response_format`), before compute admission. `null`, `{"type":"text"}` and an absent field are plain chat as before. `/health` lists `"response_formats":["text"]` so a client can check first; the `api` contract stays 1.
+
 ## [1.10.0]
 
 User-facing notes: [docs/releases/v1.10.0.md](docs/releases/v1.10.0.md).

@@ -44,3 +44,24 @@ TEST_CASE("validate_api_number: range before any cast") {
     CHECK(validate_api_number("temperature", std::nan(""), 0, 2, false) ==
           "temperature must be a finite number");
 }
+
+TEST_CASE("api_response_format_supported: text, absent or null only") {
+    using Kind = xllama::ApiResponseFormat::Kind;
+    xllama::ApiResponseFormat f;
+    CHECK(xllama::api_response_format_supported(f)); // absent
+    f.kind = Kind::Null;                             // OpenAI's "not given"
+    CHECK(xllama::api_response_format_supported(f));
+    f = {Kind::Object, 1, true, "text"};
+    CHECK(xllama::api_response_format_supported(f));
+    // A schema next to "text" would be a constraint silently dropped.
+    f = {Kind::Object, 2, true, "text"};
+    CHECK_FALSE(xllama::api_response_format_supported(f));
+    f = {Kind::Object, 1, true, "json_object"};
+    CHECK_FALSE(xllama::api_response_format_supported(f));
+    f = {Kind::Object, 1, false, ""}; // type is not a string
+    CHECK_FALSE(xllama::api_response_format_supported(f));
+    f = {Kind::Object, 0, false, ""};
+    CHECK_FALSE(xllama::api_response_format_supported(f));
+    f.kind = Kind::Other; // "text" as a bare string, a number, an array
+    CHECK_FALSE(xllama::api_response_format_supported(f));
+}

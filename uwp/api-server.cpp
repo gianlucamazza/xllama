@@ -310,21 +310,29 @@ std::string ollama_error_json(const std::string& message) {
     return winrt::to_string(root.Stringify());
 }
 
-// The default chat contract can satisfy only the OpenAI text response format.
-// Reject extra properties too: ignoring a nested schema would silently remove
-// a constraint even if the caller supplied type "text".
+// Reads `response_format` for the decision in api_policy.h
+// (api_response_format_supported).
 bool accepts_response_format(JsonObject const& root) {
-    if (!root.HasKey(L"response_format"))
-        return true;
-    const auto value = root.GetNamedValue(L"response_format");
-    if (value.ValueType() != JsonValueType::Object)
-        return false;
-    const auto format = value.GetObject();
-    if (format.Size() != 1 || !format.HasKey(L"type"))
-        return false;
-    const auto type = format.GetNamedValue(L"type");
-    return type.ValueType() == JsonValueType::String &&
-           type.GetString() == winrt::to_hstring(::xllama::kTextResponseFormat);
+    using Kind = ::xllama::ApiResponseFormat::Kind;
+    ::xllama::ApiResponseFormat format;
+    if (root.HasKey(L"response_format")) {
+        const auto value = root.GetNamedValue(L"response_format");
+        if (value.ValueType() == JsonValueType::Null) {
+            format.kind = Kind::Null;
+        } else if (value.ValueType() == JsonValueType::Object) {
+            const auto object = value.GetObject();
+            format.kind = Kind::Object;
+            format.members = object.Size();
+            if (object.HasKey(L"type") &&
+                object.GetNamedValue(L"type").ValueType() == JsonValueType::String) {
+                format.type_is_string = true;
+                format.type = winrt::to_string(object.GetNamedString(L"type"));
+            }
+        } else {
+            format.kind = Kind::Other;
+        }
+    }
+    return ::xllama::api_response_format_supported(format);
 }
 
 enum class SseHeadStatus { Written, FailedBeforeBytes, FailedUnknown };

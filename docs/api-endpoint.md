@@ -629,12 +629,13 @@ curl -sS -o /tmp/xllama-gui-busy.json -w '%{http_code}\n' \
 ### Chat response format
 
 When `GET /health` contains `"response_formats":["text"]`, omit
-`response_format` or send `{"type":"text"}` for ordinary chat. All other
-explicit values, including `json_object`, `json_schema`, null and extra
-object members, receive HTTP 400 with `error.code` equal to
+`response_format`, send `null` (OpenAI's "not given") or send `{"type":"text"}`
+for ordinary chat. All other values, including `json_object`, `json_schema`
+and extra object members, receive HTTP 400 with `error.code` equal to
 `unsupported_response_format` and `error.param` equal to `response_format`.
 This validation precedes compute admission, model lookup and the SSE response
-head. Tool proposals keep their own grammar and execution boundary.
+head, as does the check that the body is JSON (`invalid JSON body`).
+The decision is `api_response_format_supported` in `include/xllama/api_policy.h`. Tool proposals keep their own grammar and execution boundary.
 Earlier packages omitted the discovery field and could silently ignore an
 explicit format. A client requiring structured output must verify support
 before sending a request.
