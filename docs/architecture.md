@@ -208,6 +208,16 @@ expects an empty `<think>\n\n</think>` block after the assistant header.
 `qwen3-1.7b`). It must **not** apply to Qwen2.5-Coder or to LFM Thinking:
 those either are plain ChatML or emit real CoT (stripped at display time).
 
+**Per-request reasoning (#648).** `chat_format_for(model, thinking)` renders
+the thinking or the no-think path of the Qwen3 / Qwen3.5, MiniCPM5 and SmolLM3
+templates; the one-argument form is the model's default, `model_is_thinking`.
+`decide_reasoning` (`include/xllama/reasoning_control.h`) is the one decision
+for a request: the default, or the request's switch where
+`model_supports_reasoning_control` allows it. The LAN API passes that value to
+plain chat and as a tool template's `enable_thinking`; the GUI can call the
+same function. With thinking on, Qwen3.5 and MiniCPM5 open `<think>` in the
+prompt, so `ChatFormat::reasoning_prefill` is split and counted with the reply.
+
 **Thinking models.** Basename contains `thinking` → `strip_thinking_content` on
 the `ChatFormat`. After each turn, UI and LAN call `postprocess_output`, which
 runs `strip_thinking_blocks` so history and screen keep the final answer only.
@@ -953,6 +963,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_api_activity.cpp`            | `api_activity.h`                                                                                                                                      |
 | `test_api_discovery.cpp`           | `api_discovery.h` (`/health` and `/v1/models` shapes)                                                                                                 |
 | `test_api_ollama.cpp`              | `api_ollama.h` (native Ollama request translation, refusals, `think`, tool replay, `keep_alive`, `num_ctx`, `ollama_chat_model`)                      |
+| `test_reasoning_control.cpp`       | `reasoning_control.h` (#648 policy table, `reasoning_effort` / `enable_thinking` parsing, plain-chat and tool renders of the effective decision)      |
 | `test_session_residency.cpp`       | `session_residency.h`, `session_hub.h` residency (who owns the session, `keep_alive_action`, stale leases)                                            |
 | `test_thinking_split.cpp`          | `thinking_split.h` (batch and stream reasoning split, spans, reasoning token count, `split_output`)                                                   |
 | `test_compute_admission.cpp`       | `compute_admission.h`                                                                                                                                 |

@@ -4,7 +4,7 @@
 #include "xllama/api_ollama.h"
 
 #include "xllama/api_sampling.h"
-#include "xllama/chat_prompt.h"
+#include "xllama/reasoning_control.h"
 
 #include <nlohmann/json.hpp>
 
@@ -272,12 +272,20 @@ OllamaRequest parse_ollama_request(std::string_view body, OllamaRoute route) {
     }
     if (requested("top_logprobs", 0))
         return fail("top_logprobs is unsupported");
-    // `think` may restate what the model does; changing it is #648.
-    if (input.contains("think") && !input["think"].is_null() &&
-        (!input["think"].is_boolean() || input["think"].get<bool>() != model_is_thinking(model)))
-        return fail(kOllamaThinkUnsupported);
-
     Json normalized{{"model", model}};
+    // `think` maps onto the OpenAI reasoning fields; whether the model can
+    // honour it is decided with them (decide_reasoning, reasoning_control.h).
+    if (input.contains("think") && !input["think"].is_null()) {
+        const Json& think = input["think"];
+        if (think.is_boolean())
+            normalized["chat_template_kwargs"] = {{"enable_thinking", think.get<bool>()}};
+        else if (think.is_string() &&
+                 reasoning_effort_switch(think.get_ref<const std::string&>()) ==
+                     ReasoningSwitch::On)
+            normalized["reasoning_effort"] = think;
+        else
+            return fail(kOllamaThinkInvalid);
+    }
     if (input.contains("options") && !input["options"].is_null()) {
         if (const auto error = normalize_options(input["options"], normalized); !error.empty())
             return fail(error);

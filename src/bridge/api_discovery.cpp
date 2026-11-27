@@ -63,6 +63,7 @@ ApiCapabilities build_api_capabilities() {
     caps.cached_tokens = true;     // #595: prompt tokens the KV prefix reuse skipped
     caps.model_sampling = true;    // catalogue "sampling" applies to omitted fields
     caps.chat_context = true;      // options.num_ctx reduces a chat load
+    caps.reasoning_control = true; // #648: per model, capabilities.reasoning_control
     return caps;
 }
 
@@ -92,6 +93,7 @@ std::string health_json(const std::string& version, const ApiCapabilities& caps,
     out += ",\"ollama_chat\":" + std::string(boolean(caps.ollama_chat));
     out += ",\"ollama_keep_alive\":" + std::string(boolean(caps.ollama_keep_alive));
     out += ",\"chat_context\":" + std::string(boolean(caps.chat_context));
+    out += ",\"reasoning_control\":" + std::string(boolean(caps.reasoning_control));
     // The sampling fields a chat request may set (api_sampling.h, #609); a
     // client sends only these instead of assuming them per version.
     out += "},\"sampling\":[";
@@ -131,7 +133,9 @@ std::string models_list_json(const std::vector<ModelInfo>& models, std::int64_t 
             out += ",\"sampling\":" + sampling_json(m.sampling);
 
         out += ",\"capabilities\":{\"tools\":" + std::string(boolean(m.tools)) +
-               ",\"reasoning\":" + boolean(m.reasoning) + ",\"embedding\":" + boolean(m.embedding) +
+               ",\"reasoning\":" + boolean(m.reasoning) +
+               ",\"reasoning_control\":" + boolean(m.reasoning_control) +
+               ",\"embedding\":" + boolean(m.embedding) +
                ",\"ollama_chat\":" + boolean(m.ollama_chat) + "}}";
     }
     out += "]}";

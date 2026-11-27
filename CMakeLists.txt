@@ -89,6 +89,7 @@ add_library(xllama STATIC
     src/bridge/memory_admission.cpp
     src/bridge/api_discovery.cpp
     src/bridge/api_ollama.cpp
+    src/bridge/reasoning_control.cpp
     src/bridge/thinking_split.cpp
     src/bridge/tool_budget.cpp
     src/bridge/moe_streaming.cpp

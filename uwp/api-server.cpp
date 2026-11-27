@@ -42,6 +42,7 @@
     #include "xllama/platform.h"
     #include "xllama/preference_capture.h"
     #include "xllama/prompt_budget.h"
+    #include "xllama/reasoning_control.h"
     #include "xllama/routing_policy.h"
     #include "xllama/session.h"
     #include "xllama/session_hub.h"
@@ -1201,7 +1202,7 @@ std::string chat_reply_json(const ChatResponse& response, const std::string& mod
 // without it, the return is the JSON response.
 std::string write_tool_proposal(::xllama::GenerateParams& gp, const ::xllama::ToolRequest& request,
                                 const std::vector<::xllama::ChatMessage>& messages,
-                                ::xllama::Session* session, const std::string& model,
+                                ::xllama::Session* session, const std::string& model, bool thinking,
                                 ::xllama::ApiActivity::Ticket& ticket, const char*& status,
                                 std::chrono::steady_clock::time_point started,
                                 ::xllama::ReasoningTokenCounter& reasoning_tokens, ChatStream* sse,
@@ -1228,7 +1229,7 @@ std::string write_tool_proposal(::xllama::GenerateParams& gp, const ::xllama::To
     }
     const bool hit_cap = generated.n_eval >= gp.n_predict;
     const ::xllama::ToolParseResult parsed = ::xllama::parse_tool_generation(
-        session->resident_llama_model(), model, "", messages, request.tools, request.choice,
+        session->resident_llama_model(), thinking, "", messages, request.tools, request.choice,
         request.forced_name, generated.output_text, hit_cap);
     const auto parsed_at = Clock::now();
     const auto elapsed_us = [](Clock::time_point begin, Clock::time_point end) {
@@ -1238,7 +1239,6 @@ std::string write_tool_proposal(::xllama::GenerateParams& gp, const ::xllama::To
         "[xllama] api: tool_proposal prepare_us=" + std::to_string(elapsed_us(started, prepared)) +
         " generate_us=" + std::to_string(elapsed_us(prepared, generated_at)) +
         " parse_us=" + std::to_string(elapsed_us(generated_at, parsed_at)) + "\n");
-    const bool thinking = ::xllama::model_is_thinking(model);
     const ::xllama::ChoiceAssembly assembly = ::xllama::assemble_choice(
         generated.output_text, parsed.content, parsed.calls, hit_cap, thinking, parsed.reasoning);
     const int n_reasoning = reasoning_tokens.count(thinking, parsed.reasoning);
@@ -1307,13 +1307,11 @@ std::string write_tool_proposal(::xllama::GenerateParams& gp, const ::xllama::To
 // Client-side tool proposal. The process does not run the tool. One generate,
 // constrained by the template's own grammar (ADR 0005), then its parser. KV reuse stays off: the
 // schema lives in the template's system prefix, so a pinned plain-chat prefix would be wrong.
-std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRequest& request,
-                                        ::xllama::Session* session, const std::string& model,
-                                        bool model_is_coding, int policy_n_ctx, int n_predict,
-                                        const ::xllama::SamplingOverrides& model_sampling,
-                                        ::xllama::ApiActivity::Ticket& ticket, const char*& status,
-                                        StreamSocket const& socket, bool stream,
-                                        const ChatResponse& response) {
+std::string handle_tool_proposal_locked(
+    JsonObject const& root, ::xllama::ToolRequest& request, ::xllama::Session* session,
+    const std::string& model, bool thinking, bool model_is_coding, int policy_n_ctx, int n_predict,
+    const ::xllama::SamplingOverrides& model_sampling, ::xllama::ApiActivity::Ticket& ticket,
+    const char*& status, StreamSocket const& socket, bool stream, const ChatResponse& response) {
     using Clock = std::chrono::steady_clock;
     const auto started = Clock::now();
     bool has_system = false;
@@ -1342,7 +1340,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
             request.messages, request.tools, policy_n_ctx, gp.n_predict,
             [&](const std::vector<::xllama::ChatMessage>& messages,
                 const std::vector<::xllama::ToolSpec>& tools) {
-                return ::xllama::render_tool_prompt(llama_model, model, "", messages, tools,
+                return ::xllama::render_tool_prompt(llama_model, thinking, "", messages, tools,
                                                     request.choice, request.forced_name);
             },
             [session](const std::string& text) { return session->count_tokens(text); });
@@ -1389,8 +1387,8 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
             return failed_body;
         gp.abort_flag = &abort;
         try {
-            write_tool_proposal(gp, request, fit.messages, session, model, ticket, status, started,
-                                reasoning_tokens, sse.get(), abort, response);
+            write_tool_proposal(gp, request, fit.messages, session, model, thinking, ticket, status,
+                                started, reasoning_tokens, sse.get(), abort, response);
         } catch (...) {
             const ::xllama::ApiFailureReply failure = reply_for_current_exception(
                 "chat tool stream", "malformed request body", "generation failed");
@@ -1399,18 +1397,21 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
         }
         return {}; // the stream owns the response
     }
-    return write_tool_proposal(gp, request, fit.messages, session, model, ticket, status, started,
-                               reasoning_tokens, nullptr, abort, response);
+    return write_tool_proposal(gp, request, fit.messages, session, model, thinking, ticket, status,
+                               started, reasoning_tokens, nullptr, abort, response);
 }
 
 // Handles one chat request under session_hub().mtx (already locked by the caller).
 // |native| is the parsed Ollama request for /api/chat and /api/generate (its
-// canonical body is |body|), null for /v1/chat/completions. Errors return the
-// OpenAI error shape; handle_connection rewrites them for a native client.
+// canonical body is |body|), null for /v1/chat/completions. |thinking| is the
+// request's effective reasoning, decided before admission (decide_reasoning,
+// reasoning_control.h); plain chat and a tool proposal both render it. Errors
+// return the OpenAI error shape; handle_connection rewrites them for a native
+// client.
 std::string handle_chat_locked(JsonObject const& root, const std::string& body, const char*& status,
                                ::xllama::ApiActivity::Ticket& ticket, StreamSocket const& socket,
                                bool stream, ChatResponse& response,
-                               const ::xllama::OllamaRequest* native) {
+                               const ::xllama::OllamaRequest* native, bool thinking) {
     // A tool proposal is parsed here and executed by the client. This process
     // does not run tools. Plain chat (no schema, empty tools, tool_choice none)
     // stays on ChatFormat below. A native transcript that replays tool calls
@@ -1584,7 +1585,7 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
     }
 
     if (proposal)
-        return handle_tool_proposal_locked(root, request, session, model, model_is_coding,
+        return handle_tool_proposal_locked(root, request, session, model, thinking, model_is_coding,
                                            policy_n_ctx, n_predict, model_sampling, ticket, status,
                                            socket, stream, response);
 
@@ -1595,7 +1596,7 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
     if (system.empty())
         system = model_is_coding ? ::xllama::kCodingSystemPrompt : ::xllama::kDefaultSystemPrompt;
 
-    const ::xllama::ChatFormat fmt = ::xllama::chat_format_for(model);
+    const ::xllama::ChatFormat fmt = ::xllama::chat_format_for(model, thinking);
     ::xllama::GenerateParams gp;
     gp.stop_sequences = fmt.stop_sequences;
     gp.reuse_kv = false; // OpenAI chat is stateless: messages[] carry full history
@@ -1654,24 +1655,25 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
         ::xllama::StopSequenceFilter stop_filter(gp.stop_sequences);
         // A thinking model's <think> block goes out as delta.reasoning_content,
         // split after the stop filter so a stop is matched on the raw text.
-        std::optional<::xllama::ThinkingStreamSplitter> thinking;
+        std::optional<::xllama::ThinkingStreamSplitter> splitter;
         if (fmt.strip_thinking_content)
-            thinking.emplace();
-        const auto send = [&sse, &thinking](std::string_view text, bool finishing) {
-            if (!thinking) {
+            splitter.emplace(fmt.reasoning_prefill());
+        const auto send = [&sse, &splitter](std::string_view text, bool finishing) {
+            if (!splitter) {
                 sse->write_delta(text);
                 return;
             }
-            ::xllama::ThinkingSplit split = thinking->push(text);
+            ::xllama::ThinkingSplit split = splitter->push(text);
             if (finishing) {
-                const ::xllama::ThinkingSplit tail = thinking->finish();
+                const ::xllama::ThinkingSplit tail = splitter->finish();
                 split.reasoning += tail.reasoning;
                 split.content += tail.content;
             }
             sse->write_delta(split.reasoning, /*reasoning=*/true);
             sse->write_delta(split.content);
         };
-        ::xllama::ReasoningTokenCounter reasoning_tokens; // #585, before the stop filter
+        // #585, before the stop filter
+        ::xllama::ReasoningTokenCounter reasoning_tokens(fmt.reasoning_prefill());
         gp.on_token = [&stop_filter, &send, &reasoning_tokens](std::string_view piece) {
             reasoning_tokens.push(piece);
             const std::string text = stop_filter.push(piece);
@@ -1707,7 +1709,7 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
         }
         return std::string(); // handle_connection must not write a second response
     }
-    ::xllama::ReasoningTokenCounter reasoning_tokens; // #585
+    ::xllama::ReasoningTokenCounter reasoning_tokens(fmt.reasoning_prefill()); // #585
     gp.on_token = [&reasoning_tokens](std::string_view piece) { reasoning_tokens.push(piece); };
     const ::xllama::InferenceResult r = session->generate(gp);
     if (!r.success) {
@@ -1850,6 +1852,7 @@ std::string models_json() {
             m.n_ctx = active_n_ctx;
         m.embedding = ::xllama::role_is_embedding(m.role);
         m.reasoning = ::xllama::model_is_thinking(id);
+        m.reasoning_control = !m.embedding && ::xllama::model_supports_reasoning_control(id);
         m.tools = m.kind == "gguf" && !m.embedding && gguf_model_renders_tools(id);
         // What a chat request that sets no sampling field gets for this model.
         m.has_sampling = !m.embedding && m.kind != "diffusion";
@@ -2708,6 +2711,18 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                                       : error_json(error, "invalid_value", "options.num_ctx"));
                 return;
             }
+            // reasoning_effort, chat_template_kwargs.enable_thinking (and Ollama
+            // `think`, mapped onto them): a switch the model cannot honour is
+            // the client's error, so it is refused here, not after a load.
+            const ::xllama::ReasoningDecision reasoning = ::xllama::decide_reasoning(
+                request_model(root), ::xllama::read_reasoning_fields(body));
+            if (!reasoning.error.empty()) {
+                write_response(socket, "400 Bad Request",
+                               native
+                                   ? ollama_error_json(reasoning.error)
+                                   : error_json(reasoning.error, reasoning.code, reasoning.param));
+                return;
+            }
             const bool stream = native ? native->stream : root.GetNamedBoolean(L"stream", false);
             // Like response_format: a malformed option is the client's error
             // (400), not a reason to wait behind inference or report busy.
@@ -2755,7 +2770,7 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             std::string json;
             try {
                 json = handle_chat_locked(root, body, status, ticket, socket, stream, response,
-                                          native ? &*native : nullptr);
+                                          native ? &*native : nullptr, reasoning.thinking);
                 // Native Ollama errors are {"error":"<text>"}.
                 if (native && status[0] != '2' && !json.empty())
                     json = ollama_error_json(error_text(json));

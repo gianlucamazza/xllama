@@ -1,7 +1,9 @@
 // Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 #include "xllama/api_discovery.h"
+#include "xllama/chat_prompt.h"
 #include "xllama/llama_patches.h"
+#include "xllama/reasoning_control.h"
 
 #include <doctest/doctest.h>
 #include <nlohmann/json.hpp>
@@ -26,7 +28,8 @@ TEST_CASE("health_json keeps the original fields first and adds version, api, ca
     CHECK(j["capabilities"]["ollama_chat"] == false);
     CHECK(j["capabilities"]["ollama_keep_alive"] == false);
     CHECK(j["capabilities"]["chat_context"] == false);
-    CHECK(j["capabilities"].size() == 14);
+    CHECK(j["capabilities"]["reasoning_control"] == false);
+    CHECK(j["capabilities"].size() == 15);
     // The accepted sampling fields, from the same table the request is checked against.
     CHECK(j["sampling"] ==
           json::array({"temperature", "top_p", "top_k", "repetition_penalty", "seed"}));
@@ -65,6 +68,7 @@ TEST_CASE("build_api_capabilities follows the compiled backends") {
     CHECK(caps.cached_tokens);
     CHECK(caps.model_sampling);
     CHECK(caps.chat_context);
+    CHECK(caps.reasoning_control);
 #ifdef XLLAMA_USE_LLAMA
     CHECK(caps.ollama_chat);
     CHECK(caps.ollama_keep_alive);
@@ -102,6 +106,7 @@ TEST_CASE("models_list_json is an OpenAI list with xllama's per-model fields") {
     CHECK(a["n_ctx"] == 4096);
     CHECK(a["capabilities"]["tools"] == true);
     CHECK(a["capabilities"]["reasoning"] == false);
+    CHECK(a["capabilities"]["reasoning_control"] == false);
     CHECK(a["capabilities"]["ollama_chat"] == true);
     // The values a request that sets none of them gets, written as short decimals.
     const json& s = a["sampling"];
@@ -123,4 +128,28 @@ TEST_CASE("models_list_json is an OpenAI list with xllama's per-model fields") {
     CHECK_FALSE(b.contains("sampling"));
     CHECK(b["capabilities"]["tools"] == false);
     CHECK(b["capabilities"]["ollama_chat"] == false);
+}
+
+// #648: each chat model says whether a request may switch its reasoning; the
+// value is the policy's, never a list kept here.
+TEST_CASE("models_list_json reports capabilities.reasoning_control from the policy") {
+    std::vector<xllama::ModelInfo> models;
+    for (const char* id : {"qwen3-4b", "lfm25-8b-a1b", "lfm25-350m"}) {
+        xllama::ModelInfo m;
+        m.id = id;
+        m.kind = "gguf";
+        m.reasoning = xllama::model_is_thinking(id);
+        m.reasoning_control = xllama::model_supports_reasoning_control(id);
+        models.push_back(std::move(m));
+    }
+    const json j = json::parse(xllama::models_list_json(models, 0));
+    REQUIRE(j["data"].size() == 3);
+    const auto caps = [&](std::size_t i) { return j["data"][i]["capabilities"]; };
+    CHECK(caps(0)["reasoning"] == false);
+    CHECK(caps(0)["reasoning_control"] == true);
+    CHECK(caps(1)["reasoning"] == true);
+    CHECK(caps(1)["reasoning_control"] == false);
+    CHECK(caps(2)["reasoning"] == false);
+    CHECK(caps(2)["reasoning_control"] == false);
+    CHECK(caps(0).size() == 5);
 }

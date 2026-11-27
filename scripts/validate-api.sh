@@ -10,7 +10,12 @@
 #   spike  bind gate only: GET / -> HTTP 200 (proves the StreamSocketListener
 #          survives the Series S firewall/PLM). No inference.
 #   chat   POST /v1/chat/completions -> non-empty assistant content + a 503-busy
-#          check (two concurrent requests). Implies the spike gate first.
+#          check (two concurrent requests). When /health lists
+#          reasoning_control (#648): reasoning_effort "none" on a model whose
+#          capabilities.reasoning_control is true (REASONING_MODEL, default the
+#          first such model installed) returns no reasoning_content, and a
+#          switch the policy refuses (a model with reasoning_control false) is
+#          400 reasoning_control_unsupported. Implies the spike gate first.
 #   stream SSE streaming round-trip: text/event-stream, chunked framing, one
 #          delta per frame, a final finish_reason chunk and `data: [DONE]`.
 #          Implies the spike gate first.
@@ -227,6 +232,8 @@ for entry in m["data"]:
         assert key in entry, (key, entry)
     for key in ("tools", "reasoning", "embedding"):
         assert isinstance(entry["capabilities"][key], bool), entry
+    if caps.get("reasoning_control"):
+        assert isinstance(entry["capabilities"]["reasoning_control"], bool), entry
     chat = entry["role"] != "embedding" and entry.get("kind") != "diffusion"
     if caps.get("model_sampling") and chat:
         s = entry["sampling"]
@@ -244,6 +251,90 @@ for entry in m["data"]:
 	fi
 	echo "discovery: FAIL"
 	return 1
+}
+
+# --- per-request reasoning control (#648) ----------------------------------
+
+# Part of the chat gate. The models come from /v1/models
+# (capabilities.reasoning_control), never from a list kept here.
+validate_reasoning_control() {
+	local health models picks on_model refused_model refused_effort
+	health=$(curl -fsS -m 10 "${API_URL}/health" || true)
+	if ! printf '%s' "$health" | python3 -c '
+import json, sys
+sys.exit(0 if json.load(sys.stdin)["capabilities"].get("reasoning_control") else 1)
+' 2>/dev/null; then
+		echo "  note: /health does not list reasoning_control: skipped"
+		return 0
+	fi
+	models=$(curl -fsS -m 10 "${API_URL}/v1/models" || true)
+	# Prints "<switchable model> <refused model> <effort it refuses>"; "-" when absent.
+	picks=$(printf '%s' "$models" | python3 -c '
+import json, sys
+wanted = sys.argv[1]
+chat = [e for e in json.load(sys.stdin)["data"]
+        if e["role"] != "embedding" and e.get("kind") != "diffusion"]
+on = [e["id"] for e in chat if e["capabilities"].get("reasoning_control")]
+if wanted:
+    on = [i for i in on if i == wanted] or ["missing:" + wanted]
+off = [e for e in chat if not e["capabilities"].get("reasoning_control")]
+# A model that reasons cannot be turned off; one that does not cannot be turned on.
+off.sort(key=lambda e: not e["capabilities"]["reasoning"])
+refused = off[0] if off else None
+print(on[0] if on else "-",
+      refused["id"] if refused else "-",
+      ("none" if refused["capabilities"]["reasoning"] else "high") if refused else "-")
+' "${REASONING_MODEL:-}" || echo "- - -")
+	read -r on_model refused_model refused_effort <<<"$picks"
+	local verdict=0 status
+	if [[ "$on_model" == missing:* ]]; then
+		echo "  FAIL: REASONING_MODEL ${on_model#missing:} does not report reasoning_control"
+		verdict=1
+	elif [[ "$on_model" == "-" ]]; then
+		echo "  note: no installed model reports reasoning_control: true; switch not checked"
+	else
+		# Off: the template's no-think path, so no reasoning comes back.
+		status=$(post_chat "$(printf '{"model":"%s","messages":[{"role":"user","content":"What is 2+2? Answer with the number."}],"max_tokens":64,"temperature":0,"seed":42,"reasoning_effort":"none"}' "$on_model")" \
+			"${TMPDIR_LOCAL}/reasoning-off.json")
+		if [[ "$status" == 200 ]] && python3 -c '
+import json, sys
+m = json.load(open(sys.argv[1]))["choices"][0]["message"]
+sys.exit(0 if not m.get("reasoning_content") and m.get("content") else 1)
+' "${TMPDIR_LOCAL}/reasoning-off.json"; then
+			echo "  ok: ${on_model} with reasoning_effort none answered without reasoning_content"
+		else
+			echo "  FAIL: ${on_model} reasoning_effort none: HTTP ${status} $(head -c 300 "${TMPDIR_LOCAL}/reasoning-off.json")"
+			verdict=1
+		fi
+		# On: reported, not asserted (a short answer may skip the reasoning).
+		status=$(post_chat "$(printf '{"model":"%s","messages":[{"role":"user","content":"What is 2+2? Answer with the number."}],"max_tokens":256,"temperature":0,"seed":42,"reasoning_effort":"high"}' "$on_model")" \
+			"${TMPDIR_LOCAL}/reasoning-on.json")
+		echo "  note: ${on_model} reasoning_effort high: HTTP ${status}, $(python3 -c '
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+    print("%d reasoning tokens" % d["usage"]["completion_tokens_details"]["reasoning_tokens"])
+except Exception:
+    print("no usage")
+' "${TMPDIR_LOCAL}/reasoning-on.json")"
+	fi
+	if [[ "$refused_model" == "-" ]]; then
+		echo "  note: every installed chat model reports reasoning_control: true; refusal not checked"
+	else
+		status=$(post_chat "$(printf '{"model":"%s","messages":[{"role":"user","content":"Hi"}],"reasoning_effort":"%s"}' "$refused_model" "$refused_effort")" \
+			"${TMPDIR_LOCAL}/reasoning-refused.json")
+		if [[ "$status" == 400 ]] && python3 -c '
+import json, sys
+err = json.load(open(sys.argv[1]))["error"]
+sys.exit(0 if (err.get("code"), err.get("param")) == ("reasoning_control_unsupported", "reasoning_effort") else 1)
+' "${TMPDIR_LOCAL}/reasoning-refused.json"; then
+			echo "  ok: ${refused_model} reasoning_effort ${refused_effort} is 400 reasoning_control_unsupported"
+		else
+			echo "  FAIL: ${refused_model} reasoning_effort ${refused_effort}: HTTP ${status} $(head -c 300 "${TMPDIR_LOCAL}/reasoning-refused.json")"
+			verdict=1
+		fi
+	fi
+	return $verdict
 }
 
 # --- chat round-trip -------------------------------------------------------
@@ -334,6 +425,8 @@ sys.exit(0 if (err.get("code"), err.get("param")) == ("unsupported_response_form
 		echo "  FAIL: expected HTTP 400 response_format validation error, got ${format_status}"
 		verdict=1
 	fi
+
+	validate_reasoning_control || verdict=1
 
 	# 503-busy: fire two concurrent requests; at least one should be 503 while the
 	# single slot is occupied (best-effort — a very fast model may serialize both).
