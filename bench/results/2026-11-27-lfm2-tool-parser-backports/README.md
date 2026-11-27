@@ -47,14 +47,18 @@ rerun on 2000; `console-log.txt` shows both runs.
 
 Probes, 8 seeds each:
 
-| Probe     | Model                 | before                                                                                       | after                                                                             |
-| --------- | --------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `undecl`  | `lfm25-8b-a1b`        | 6 calls, **all forced onto `get_weather`**; 2 text replies                                   | 6 calls, **all `reseat_sim_card`**; 2 text replies                                |
-| `undecl`  | `lfm25-1.2b-instruct` | 0 calls (text)                                                                               | 0 calls (text)                                                                    |
-| `newline` | `lfm25-8b-a1b`        | 6 calls, **1 with arguments that are not valid JSON**; 1 raw-marker text; 1 JSON-shaped text | 6 calls, **all valid**, with real newlines; same raw-marker and JSON-shaped texts |
-| `newline` | `lfm25-1.2b-instruct` | 8 valid calls                                                                                | 8 valid calls                                                                     |
-| `named`   | both                  | 8/8 `get_weather`                                                                            | 8/8 `get_weather`                                                                 |
+| Probe     | Model                 | before                                                                                                          | after                                                                             |
+| --------- | --------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `undecl`  | `lfm25-8b-a1b`        | 6 calls, **all forced onto `get_weather`**; 2 text replies                                                      | 6 calls, **all `reseat_sim_card`**; 2 text replies                                |
+| `undecl`  | `lfm25-1.2b-instruct` | 0 calls (text)                                                                                                  | 0 calls (text)                                                                    |
+| `newline` | `lfm25-8b-a1b`        | 6 calls, **1 whose arguments are a JSON string, not an object** (seed 6); 1 raw-marker text; 1 JSON-shaped text | 6 calls, **all valid**, with real newlines; same raw-marker and JSON-shaped texts |
+| `newline` | `lfm25-1.2b-instruct` | 8 valid calls                                                                                                   | 8 valid calls                                                                     |
+| `named`   | both                  | 8/8 `get_weather`                                                                                               | 8/8 `get_weather`                                                                 |
 
+- Seed 6 before: `arguments` decodes to a string holding the object's text with a raw newline
+  inside `content`, which as JSON is an invalid control character. The parser could not build
+  the object, which is the case 0006 fixes; after, the same seed returns an object whose
+  `content` holds the newline, escaped.
 - The 1.2B escapes `\n` itself, so its `newline` probe does not reach the path 0006 changes.
 - The 8B's remaining raw-marker reply (seed 1) is the same text in both phases. The model wrote
   that call malformed, so no parser change recovers it.
