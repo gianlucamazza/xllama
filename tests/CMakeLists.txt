@@ -91,3 +91,9 @@ target_compile_definitions(xllama-tests PRIVATE
     MANIFEST_JSON_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../uwp/models/manifest.json")
 
 add_test(NAME xllama-tests COMMAND xllama-tests)
+
+# Keep replacement operator new/delete for allocation-failure tests out of the shared test runner.
+add_executable(test-admission-allocation test_admission_allocation.cpp)
+target_compile_features(test-admission-allocation PRIVATE cxx_std_17)
+target_include_directories(test-admission-allocation PRIVATE ${PROJECT_SOURCE_DIR}/include)
+add_test(NAME test-admission-allocation COMMAND test-admission-allocation)

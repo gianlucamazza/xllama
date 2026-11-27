@@ -937,6 +937,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_thinking_split.cpp`          | `thinking_split.h` (batch and stream reasoning split, spans, reasoning token count, `split_output`)                                                   |
 | `test_compute_admission.cpp`       | `compute_admission.h`                                                                                                                                 |
 | `test_api_connection.cpp`          | `api_connection.h` — overlapping compute requests are 200+503; connection-gate bound                                                                  |
+| `test_admission_allocation.cpp`    | Isolated allocation-failure test for connection and compute permit ownership                                                                          |
 | `test_api_failure.cpp`             | `api_failure.h` — HRESULT and std exception classification, status per kind                                                                           |
 | `test_debug_dashboard.cpp`         | `debug_dashboard.h`                                                                                                                                   |
 | `test_api_config.cpp`              | LAN API config validation (`uwp/api-server.h`)                                                                                                        |
