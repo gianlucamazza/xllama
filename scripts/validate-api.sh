@@ -422,8 +422,14 @@ else:
 # |long_req|, then a short request must get the session within |limit| s.
 disconnect_round() {
 	local label="$1" long_req="$2" probe_req="$3" limit="$4" code start elapsed
-	printf '%s' "$long_req" | curl -sS -N -m 3 -o /dev/null -H 'Content-Type: application/json' \
-		--data-binary @- "${API_URL}/v1/chat/completions" 2>/dev/null || true
+	local partial="${TMPDIR_LOCAL}/disconnect.sse" curl_status=0
+	printf '%s' "$long_req" | curl -sS -N -m 3 -o "$partial" -H 'Content-Type: application/json' \
+		--data-binary @- "${API_URL}/v1/chat/completions" 2>/dev/null || curl_status=$?
+	if [[ "$curl_status" != 28 ]] || ! grep -q '^data: ' "$partial" ||
+		grep -qE '^data: \[DONE\]|"usage":[[:space:]]*\{' "$partial"; then
+		echo "  FAIL: ${label} did not stop after the stream opened and before completion (curl ${curl_status})"
+		return 1
+	fi
 	start=$(date +%s)
 	while :; do
 		code=$(curl -sS -m 120 -o /dev/null -w "%{http_code}" -H 'Content-Type: application/json' \
@@ -453,6 +459,7 @@ filler = ("Entry %s: the harbour master logged tide tables, cargo manifests and 
           "maintenance schedule for pier seven. ")
 text = "".join(filler % i for i in range(70))
 body = {"model": sys.argv[1], "stream": True, "max_tokens": 16,
+        "stream_options": {"include_usage": True},
         "messages": [{"role": "user", "content": uuid.uuid4().hex + " " + text +
                       "Summarise the log."}]}
 if sys.argv[2] == "tool":
