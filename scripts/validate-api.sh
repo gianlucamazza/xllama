@@ -216,9 +216,17 @@ for entry in m["data"]:
         assert key in entry, (key, entry)
     for key in ("tools", "reasoning", "embedding"):
         assert isinstance(entry["capabilities"][key], bool), entry
+    chat = entry["role"] != "embedding" and entry.get("kind") != "diffusion"
+    if caps.get("model_sampling") and chat:
+        s = entry["sampling"]
+        for key in ("temperature", "top_p", "top_k", "repetition_penalty"):
+            assert isinstance(s[key], (int, float)), (key, entry)
+            assert s["source"][key] in ("default", "model"), (key, entry)
+        assert isinstance(s["top_k"], int), entry
     if entry.get("kind") == "gguf" and entry["role"] != "embedding":
-        print("  %s: n_ctx=%s tools=%s reasoning=%s" % (entry["id"], entry.get("n_ctx"),
-              entry["capabilities"]["tools"], entry["capabilities"]["reasoning"]))
+        print("  %s: n_ctx=%s tools=%s reasoning=%s sampling=%s" % (entry["id"],
+              entry.get("n_ctx"), entry["capabilities"]["tools"],
+              entry["capabilities"]["reasoning"], entry.get("sampling")))
 ' "$health" "$models"; then
 		echo "discovery: PASS"
 		return 0
