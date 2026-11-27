@@ -1116,7 +1116,7 @@ write's `on_done` so the two do not contend for the single gate.
 | `-c, --ctx <N>`                   | Context size                                                         |
 | `-t, --threads <N>`               | Thread count (0 = auto)                                              |
 | `--temp <float>`                  | Sampling temperature                                                 |
-| `--seed <int>`                    | RNG seed (0 = random)                                                |
+| `--seed <int>`                    | RNG seed (-1 = random)                                               |
 | `--top-p <float>`                 | Nucleus cutoff                                                       |
 | `--top-k <N>`                     | Top-k cutoff                                                         |
 | `--repetition-penalty <float>`    | Repetition penalty (last 64 tokens)                                  |
@@ -1147,6 +1147,8 @@ write's `on_done` so the two do not contend for the single gate.
 | `--train-job <job.json>`          | Run a training job                                                   |
 | `--training-capabilities`         | Print the training capability matrix                                 |
 | `-h, --help`                      | Usage                                                                |
+
+Numeric options are parsed strictly: the whole text, base 10 for whole numbers (`parse_knob_i64`, the LocalState knob reader), and a finite value the field can hold. `--temp`, `--top-p`, `--top-k`, `--repetition-penalty` and `--seed` take the bounds a LAN API request has (`kApiSamplingFields` in `api_sampling.h`), so the CLI, the API and the catalogue refuse the same values; `--temp 0` is greedy. A bad value exits with the option name and the reason.
 
 Machine-readable output: `SPEC_STATS` line on stderr for bench scripts.
 
