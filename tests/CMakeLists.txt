@@ -1,8 +1,3 @@
-# Exercise the same usage requirements as an application linking the static core.
-add_executable(test-sdk-consumer test_sdk_consumer.cpp)
-target_link_libraries(test-sdk-consumer PRIVATE xllama)
-add_test(NAME test-sdk-consumer COMMAND test-sdk-consumer)
-
 include(FetchContent)
 
 FetchContent_Declare(

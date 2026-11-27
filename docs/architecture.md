@@ -1063,7 +1063,6 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_routing_policy.cpp`          | `routing_policy.h`                                                                                                                                    |
 | `test_model_sampling.cpp`          | `model_sampling.h` (layer order, catalogue `sampling` parse, bundled manifest)                                                                        |
 | `test_sampling.cpp`                | `sampling.h` (CLI/Session parity opt-in)                                                                                                              |
-| `test_sdk_consumer.cpp`            | Linux CMake consumer compile, link and upstream header visibility                                                                                     |
 | `test_session.cpp`                 | `session.h`, `session_hub.h`                                                                                                                          |
 | `test_session_spec.cpp`            | `session_spec.h`, hub reuse rule                                                                                                                      |
 | `test_speculative.cpp`             | `speculative.h`                                                                                                                                       |

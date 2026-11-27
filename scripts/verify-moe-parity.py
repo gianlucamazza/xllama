@@ -147,24 +147,10 @@ def load_row(path, vocab_size, expected_hash):
     return values
 
 
-def collect_rows(cases, read_row, errors, arm):
-    rows = {}
-    for case in cases:
-        for step in STEPS:
-            try:
-                rows[case["id"], step] = read_row(case, step)
-            except (OSError, ValueError, TypeError, KeyError) as error:
-                errors.append({
-                    "arm": arm, "case": case["id"], "step": step,
-                    "status": "MISSING" if isinstance(error, FileNotFoundError) else "INVALID",
-                    "error": str(error),
-                })
-    return rows
-
-
-def load_reference(directory, cases, template_hash, errors):
+def load_reference(directory, cases, template_hash):
     template = directory / "chat-template.jinja"
     require_value(digest(template.read_bytes()), template_hash, f"{template}: template SHA-256")
+    rows = {}
     for case in cases:
         name = case["id"]
         rendered = directory / name / "rendered.txt"
@@ -174,31 +160,33 @@ def load_reference(directory, cases, template_hash, errors):
         _, tokens = read_object(metadata)
         for key in ("vocab_size", "bos_token_id", "prompt_token_ids", "teacher_forced_token_ids"):
             require_value(tokens.get(key), case[key], f"{metadata}: {key}")
+        for step in STEPS:
+            path = directory / name / f"row-{step}.bin"
+            rows[name, step] = load_row(
+                path, case["vocab_size"], case["resident_row_sha256_by_fed_tokens"][str(step)],
+            )
+    return rows
 
-    def read_row(case, step):
-        path = directory / case["id"] / f"row-{step}.bin"
-        return load_row(path, case["vocab_size"], case["resident_row_sha256_by_fed_tokens"][str(step)])
 
-    return collect_rows(cases, read_row, errors, "resident")
-
-
-def load_streamed(directory, cases, identity, errors):
-    def read_row(case, step):
-        path = directory / case["id"] / f"row-{step}.bin"
-        _, sidecar = read_object(path.with_suffix(".bin.json"))
-        for key, expected in {
-            **identity,
-            "vocab_size": case["vocab_size"],
-            "prompt_token_ids": case["prompt_token_ids"],
-            "fed_continuation_token_ids": case["teacher_forced_token_ids"][:step],
-        }.items():
-            require_value(sidecar.get(key), expected, f"{path}: sidecar {key}")
-        prompt = sidecar.get("prompt")
-        require(isinstance(prompt, str) and digest(prompt.encode("utf-8")) == case["rendered_prompt_sha256"],
-                f"{path}: rendered prompt hash mismatch")
-        return load_row(path, case["vocab_size"], sidecar.get("row_sha256"))
-
-    return collect_rows(cases, read_row, errors, f"streamed-{identity['cache_slots']}")
+def load_streamed(directory, cases, identity):
+    rows = {}
+    for case in cases:
+        name = case["id"]
+        for step in STEPS:
+            path = directory / name / f"row-{step}.bin"
+            _, sidecar = read_object(path.with_suffix(".bin.json"))
+            for key, expected in {
+                **identity,
+                "vocab_size": case["vocab_size"],
+                "prompt_token_ids": case["prompt_token_ids"],
+                "fed_continuation_token_ids": case["teacher_forced_token_ids"][:step],
+            }.items():
+                require_value(sidecar.get(key), expected, f"{path}: sidecar {key}")
+            prompt = sidecar.get("prompt")
+            require(isinstance(prompt, str) and digest(prompt.encode("utf-8")) == case["rendered_prompt_sha256"],
+                    f"{path}: rendered prompt hash mismatch")
+            rows[name, step] = load_row(path, case["vocab_size"], sidecar.get("row_sha256"))
+    return rows
 
 
 def compare_campaign(reference, streamed, thresholds):
@@ -228,7 +216,7 @@ def main():
     parser.add_argument("--receipt", type=Path)
     args = parser.parse_args()
 
-    report = {"schema": "xllama-moe-parity-report-v1", "pairs": [], "row_errors": []}
+    report = {"schema": "xllama-moe-parity-report-v1", "pairs": []}
     try:
         streamed = {2: args.streamed_2, 512: args.streamed_512}
         complete_inputs = [*streamed.values(), args.receipt]
@@ -244,10 +232,9 @@ def main():
         identity = validate_declaration(declaration)
         report["declaration_sha256"] = declaration_hash
         cases = declaration["cases"]
-        reference = load_reference(args.resident, cases, identity["template_sha256"], report["row_errors"])
+        reference = load_reference(args.resident, cases, identity["template_sha256"])
         report["resident_rows"] = len(reference)
         if args.reference_only:
-            require(not report["row_errors"], "resident row preflight failed")
             report["status"], code = "REFERENCE_VERIFIED", 0
         else:
             receipt_raw, receipt = read_object(args.receipt)
@@ -261,10 +248,9 @@ def main():
                 cache: load_streamed(directory, cases, {
                     **identity, "candidate_commit": candidate, "cache_slots": cache,
                     "build_sha256": builds[str(cache)],
-                }, report["row_errors"])
+                })
                 for cache, directory in streamed.items()
             }
-            require(not report["row_errors"], "campaign row preflight failed")
             report["pairs"] = compare_campaign(reference, captures, declaration["comparison"])
             passed = all(result["status"] == "PASS" for result in report["pairs"])
             report["status"], code = ("PASS", 0) if passed else ("FAIL", 1)

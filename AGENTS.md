@@ -32,9 +32,7 @@ git submodule update --init --recursive
 sudo apt-get install -y cmake build-essential libcurl4-openssl-dev
 ```
 
-CMake 3.22 or newer. Presets live in `CMakePresets.json`. Linux CI checks the
-floor with CMake 3.22.0: it lists every preset, configures `linux-test`
-(doctest through FetchContent), and configures and builds `linux-debug`.
+CMake 3.22 or newer. Presets live in `CMakePresets.json`.
 
 Formatter pins, same versions CI installs:
 

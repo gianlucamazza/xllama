@@ -192,20 +192,9 @@ class VerifyMoeParityTests(unittest.TestCase):
             [(CASES[-1], 0, 2)],
         )
 
-    def test_row_errors_from_all_arms_before_comparison(self):
-        self.row(arm="reference", step=1).unlink()
-        self.row(arm="2", step=2).with_suffix(".bin.json").unlink()
-        self.row().write_bytes(struct.pack("<12f", float("nan"), *range(11)))
-        code, report = self.run_verifier()
-        self.assertEqual((code, report["status"], report["pairs"]), (2, "INVALID_INPUT", []))
-        self.assertEqual(report["resident_rows"], 23)
-        self.assertEqual(
-            [(e["arm"], e["case"], e["step"], e["status"]) for e in report["row_errors"]],
-            [("resident", CASES[-1], 1, "MISSING"), ("streamed-2", CASES[-1], 2, "MISSING"),
-             ("streamed-512", CASES[-1], 9, "INVALID")],
-        )
-        self.assertIn("nonfinite logits", report["row_errors"][-1]["error"])
-        self.assert_invalid(reference_only=True)
+    def test_missing_row_rejects_campaign_before_comparison(self):
+        self.row().unlink()
+        self.assert_invalid()
 
     def test_truncated_and_nonfinite_rows_reject_campaign(self):
         for data in (b"bad", struct.pack("<12f", float("nan"), *range(11))):
