@@ -5,7 +5,7 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-api.sh <spike|discovery|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|all>
+#   ./scripts/validate-api.sh <spike|discovery|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|compat|all>
 #
 #   spike  bind gate only: GET / -> HTTP 200 (proves the StreamSocketListener
 #          survives the Series S firewall/PLM). No inference.
@@ -46,6 +46,14 @@
 #          template. Not part of `all`.
 #   prefs  POST /v1/preferences -> appends a like sample (#118).
 #   train  GET /v1/training/status -> JSON with state + usable_samples (#118).
+#   compat native Ollama /api/chat and /api/generate (validate-api-compat.py):
+#          NDJSON and JSON framing, refused options and fields, think,
+#          load-only requests, a tool proposal and its replay, and busy while a
+#          native stream holds the permit. MODEL is a GGUF chat model and
+#          TOOLS_MODEL (default MODEL) a tool-capable GGUF; ORT_MODEL, when
+#          set, must be refused by the native routes. API_COMPAT_SDKS=1 also
+#          runs the installed `openai` and `ollama` Python packages. Not part
+#          of `all`.
 #   all    spike + chat + embed + budget + tools + prefs + train + pull (images are manual).
 #
 # Requires: an installed xllama build with the endpoint, a chat model already in
@@ -1186,6 +1194,12 @@ embed)
 	validate_spike || exit 1
 	validate_embed
 	;;
+compat)
+	validate_spike || exit 1
+	compat_args=(--tool-model "${TOOLS_MODEL:-$MODEL}" --ort-model "${ORT_MODEL:-}")
+	if [[ "${API_COMPAT_SDKS:-0}" == 1 ]]; then compat_args+=(--sdks); fi
+	python3 "${SCRIPT_DIR}/validate-api-compat.py" "$API_URL" "$MODEL" "${compat_args[@]}"
+	;;
 # Every check below, in order: spike, discovery, chat, stream, admission,
 # embed, budget, tools, framing, prefs, train, pull.
 all)
@@ -1212,7 +1226,7 @@ all)
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <spike|discovery|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|all>" >&2
+	echo "Usage: $0 <spike|discovery|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|compat|all>" >&2
 	exit 1
 	;;
 esac
