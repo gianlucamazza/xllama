@@ -85,6 +85,38 @@ curl -s http://<console-ip>:11434/v1/chat/completions \
   -d '{"model":"lfm25-350m","messages":[{"role":"user","content":"hi"}]}'
 ```
 
+Each chat model carries its own sampling defaults, so a request sets only what it wants to change. Read a model's values from `/v1/models`:
+
+```bash
+curl -s http://<console-ip>:11434/v1/models |
+  python3 -c 'import json,sys; m={x["id"]:x for x in json.load(sys.stdin)["data"]}; print(json.dumps(m["lfm25-1.2b-instruct"]["sampling"], indent=2))'
+```
+
+```json
+{
+  "temperature": 0.1,
+  "top_p": 0.9,
+  "top_k": 50,
+  "repetition_penalty": 1.05,
+  "source": {
+    "temperature": "model",
+    "top_p": "default",
+    "top_k": "model",
+    "repetition_penalty": "model"
+  }
+}
+```
+
+`model` values come from the model's card in the catalogue ([measured](bench/results/2026-11-27-lfm25-card-sampling/)); `default` is the global default. This request changes only the temperature, and keeps the model's other three values:
+
+```bash
+curl -s http://<console-ip>:11434/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"lfm25-1.2b-instruct","temperature":0.7,"messages":[{"role":"user","content":"hi"}]}'
+```
+
+A field the request sets applies to that request only. The order of the layers is in [Discovery](docs/api-endpoint.md#discovery-health-and-v1models).
+
 ## How it works
 
 Shared C++17 core, WinRT-free and host-testable, with two front ends (Linux CLI and the UWP app).
