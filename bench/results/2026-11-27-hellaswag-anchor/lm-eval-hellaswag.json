@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "date": "2026-11-27",
+  "hardware": "linux-host-declared",
+  "evaluator": {
+    "lm_eval": "0.4.13",
+    "transformers": "5.24.1",
+    "torch": "2.15.0+cpu",
+    "datasets": "5.2.0"
+  },
+  "model": {
+    "repo": "LiquidAI/LFM2.5-350M",
+    "revision": "9921cd4d82c0e3986887aa4b376f9446729ef8a3",
+    "dtype": "float32 (BF16 weights upcast)",
+    "device": "cpu"
+  },
+  "task": "hellaswag",
+  "dataset": "Rowan/hellaswag validation",
+  "limit": 2000,
+  "num_fewshot": 0,
+  "batch_size": 16,
+  "acc": 37.25,
+  "acc_stderr": 1.08,
+  "acc_norm": 44.3,
+  "acc_norm_stderr": 1.11,
+  "token_mean_recomputed": {
+    "acc": 43.25,
+    "stderr": 1.11,
+    "how": "argmax of loglikelihood / continuation tokens per choice, from --log_samples, tokenised with the same model's tokenizer; the same recomputation reproduces lm-eval's acc (37.25) exactly"
+  }
+}

@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **HellaSwag scoring checked against an independent implementation (#608).** `bench/results/2026-11-27-hellaswag-anchor/` scores the first 2000 validation tasks of `LFM2.5-350M` three ways. `llama-perplexity` on the BF16 GGUF gives 42.1 ± 1.1, and lm-evaluation-harness on the BF16 safetensors gives 43.3 ± 1.1, recomputed with `llama-perplexity`'s metric (the mean log-probability per token): they agree within stderr. The catalogue QAD Q4_0 gives 41.8 ± 1.1, so the quant costs nothing measurable. lm-eval's own `acc` (37.3) and `acc_norm` (44.3) bracket that metric. The standard campaign's README now names the metric correctly: per token, not summed.
 - **A new conversation with the same long prefix reuses it on hybrid models (#601).** LFM2 and Granite-4.0-H kept one prefix checkpoint, a few tokens before the end of the last prefill. A prompt that shared only part of the prefix cleared the cache and prefilled from scratch: a new conversation with the same system prompt and tools, a client changing its tools, a re-rendered turn that diverged early. Over 114 API requests of an agent run, `cached_tokens` was 0 on every one.
   - A long prefill now also captures checkpoints on a grid: every 512 tokens to 2048, then doubling. The grid is aligned to the 512 ubatch, so the prefill computes the same thing.
   - The planner restores the longest checkpoint the new prompt shares.

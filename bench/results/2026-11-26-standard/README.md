@@ -56,11 +56,14 @@ limit.
   (over 2.5 combined standard errors). On ARC-Challenge the gap is about 1.5
   combined standard errors, and on ARC-Easy the two are level near 50 %.
 - The 350M is close to chance on MMLU (28.7 vs 25) and ARC-Challenge.
-- `llama-perplexity` scores multiple choice by the summed log-probability of
-  each ending. That is not the `acc_norm` most leaderboards print, so these
+- `llama-perplexity` scores every task by the mean log-probability per token
+  of each ending (HellaSwag, WinoGrande and multiple choice alike). That is
+  neither the `acc` nor the `acc_norm` most leaderboards print, so these
   figures compare across xllama runs at this pin, not with published model
-  cards. There is no llama.cpp reference figure for these GGUFs to check
-  against.
+  cards. There is no llama.cpp reference figure for these GGUFs. The
+  [HellaSwag anchor](../2026-11-27-hellaswag-anchor/README.md) checks the
+  scorer against lm-evaluation-harness on the same weights, items and metric
+  instead: they agree within stderr (#608).
 - On Series S, all 80 GSM8K passes carry an explicit `Answer:` line; the last-number
   fallback decided none of them.
 - Host and console agree within stderr: IFEval 85 vs 82 and GSM8K 83 vs 80,

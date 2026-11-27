@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "note": "#608 external anchor: the first 2000 tasks of the pinned HellaSwag validation file (its first 12000 lines, `head -n 12000`), which are the first 2000 documents of the HF Rowan/hellaswag validation split in the same order (gold labels and endings checked 2000/2000), so llama-perplexity and lm-evaluation-harness --limit 2000 score the same items.",
+  "datasets": {
+    "hellaswag": {
+      "file": "hellaswag_val_first2000.txt",
+      "url": "https://raw.githubusercontent.com/klosax/hellaswag_text_data/1105d370f8340eac3c63a91fd1fa58e8999f9505/hellaswag_val_full.txt",
+      "sha256": "413d24e6435eb088105a53d083db54b32269861a041dd2e760940bb1645c241a",
+      "upstream": "HellaSwag validation split (Zellers et al. 2019), 10042 tasks, llama.cpp text layout; first 2000 tasks (first 12000 lines of hellaswag_val_full.txt, sha256 d572539320eb2050\u2026)",
+      "upstream_licence": "MIT"
+    }
+  },
+  "tasks": {
+    "hellaswag": {
+      "dataset": "hellaswag",
+      "mode": "hellaswag",
+      "tasks": 0,
+      "n_ctx": 2048,
+      "n_parallel": 4,
+      "chance": 25.0
+    }
+  }
+}
