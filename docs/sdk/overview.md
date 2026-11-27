@@ -65,6 +65,8 @@ int main() {
 
 ## Build Configuration
 
+Linux CMake consumers link the `xllama` target. Its usage requirements include C++17 and the public llama/ggml headers used by the backend integration types. The upstream chat library, backend implementation headers and generated shaders are private to the build.
+
 ### CMake Options
 
 | Option                | Default | Description                                                                 |
