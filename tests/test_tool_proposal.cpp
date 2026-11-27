@@ -247,6 +247,23 @@ TEST_CASE("tool request admits text content and rejects a transcript that cannot
     CHECK(both.error == "tools and functions cannot be combined");
 }
 
+TEST_CASE("options.num_ctx only reduces a load, and a reduced context halves the default reply") {
+    CHECK(xllama::validate_context_override(32, 4096).empty());
+    CHECK(xllama::validate_context_override(4096, 4096).empty());
+    CHECK(xllama::validate_context_override(31, 4096) ==
+          "options.num_ctx must be between 32 and 4096");
+    CHECK(xllama::validate_context_override(8192, 4096) ==
+          "options.num_ctx must be between 32 and 4096");
+    CHECK(xllama::validate_context_override(256.5, 4096) ==
+          "options.num_ctx must be a whole number");
+    CHECK(xllama::default_max_tokens(4096) == 512);
+    CHECK(xllama::default_max_tokens(1025) == 512);
+    CHECK(xllama::default_max_tokens(1024) == 512);
+    CHECK(xllama::default_max_tokens(512) == 256);
+    CHECK(xllama::default_max_tokens(32) == 16);
+    CHECK(xllama::default_max_tokens(1) == 1);
+}
+
 TEST_CASE("the developer role is a system message on both chat paths") {
     const xllama::ToolRequest proposal = xllama::parse_tool_request(
         R"({"messages":[{"role":"developer","content":"be brief"},{"role":"user","content":"hi"}],)"

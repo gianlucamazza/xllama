@@ -37,6 +37,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `session_spec.h`                   | `resolve_session_params`, `same_load` — one catalogue→session resolver for GUI, API and pull; the hub reuses only the same load (ADR 0007)                                                            |
 | `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result` (`echo_stdout`, the `resolve_max_length` #130 ladder), `Backend` enum                                                                             |
 | `session_hub.h`                    | `SessionHub` — the ONE process-wide resident-Session owner (GUI + LAN API); locking + `generation` contract                                                                                           |
+| `session_residency.h`              | Who holds the resident session (GUI or API) and what an Ollama `keep_alive` may do to it: the console app's session never expires or unloads                                                          |
 | `compute_admission.h`              | Process-wide RAII lease for resource-heavy jobs across UI and LAN API; acquire before `session_hub().mtx` (proposed ADR 0008)                                                                         |
 | `api_connection.h`                 | Bounded LAN in-flight slots and the HTTP 200/503 mapping for a compute admit (proposed ADR 0008)                                                                                                      |
 | `api_failure.h`                    | HTTP status for an exception that escapes a LAN API route: 400 only for a Json accessor failure, 503 out of memory, else 500 (#591)                                                                   |
@@ -322,6 +323,23 @@ drop mid-SSE aborts generate and the stack permit releases. The first GUI send
 uses the same bounded wait so it does not fail busy during preload. The permit
 is RAII-owned and may cross worker and UI callback boundaries; `SessionHub::mtx`
 continues to protect resident-session identity and use.
+
+**Residency.** `SessionHub::residency` (`include/xllama/session_residency.h`)
+records who loaded or last used the session. `ensure_locked` takes the asking
+surface (`SessionOwner`, default `Gui`, so a caller that does not say is the
+safe case), `EnsureSession` marks its same-load fast path with `use_locked`,
+and `reset_locked` releases it. A session is the API's only while the API
+loaded it and the GUI has not used it since; any GUI turn, preload or model
+selection makes it the console app's for good. `keep_alive_action` decides what
+a native Ollama `keep_alive` does from that owner: a finite lease and an unload
+apply only to an API-owned session, `keep_alive: 0` on the console app's is a
+409, and an omitted value never expires (unlike Ollama). The lease's deadline
+lives in `residency` under the hub mutex; the LAN server's timer
+(`uwp/api-server.cpp`) carries a `(generation, id)` snapshot, takes the compute
+permit and the hub mutex like any job (permit, then hub, then its own timer
+mutex), and releases the session only if the snapshot is still the current,
+API-owned lease and its time is up. A reload, a renewal, a cancel or a GUI use
+makes an older snapshot stale. Protocol: [Model residency](api-endpoint.md#model-residency-keep_alive-apips).
 
 ## Routing (`routing_policy.h`)
 
@@ -934,7 +952,8 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `test_api_activity.cpp`            | `api_activity.h`                                                                                                                                      |
 | `test_api_discovery.cpp`           | `api_discovery.h` (`/health` and `/v1/models` shapes)                                                                                                 |
-| `test_api_ollama.cpp`              | `api_ollama.h` (native Ollama request translation, refusals, `think`, tool replay, `ollama_chat_model`)                                               |
+| `test_api_ollama.cpp`              | `api_ollama.h` (native Ollama request translation, refusals, `think`, tool replay, `keep_alive`, `num_ctx`, `ollama_chat_model`)                      |
+| `test_session_residency.cpp`       | `session_residency.h`, `session_hub.h` residency (who owns the session, `keep_alive_action`, stale leases)                                            |
 | `test_thinking_split.cpp`          | `thinking_split.h` (batch and stream reasoning split, spans, reasoning token count, `split_output`)                                                   |
 | `test_compute_admission.cpp`       | `compute_admission.h`                                                                                                                                 |
 | `test_api_connection.cpp`          | `api_connection.h` — overlapping compute requests are 200+503; connection-gate bound                                                                  |
