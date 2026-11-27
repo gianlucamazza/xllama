@@ -511,7 +511,11 @@ prefill. The same estimate, on message text only, predicts whether a backend
 that cannot shift its context would overflow on a KV-reuse attempt, and so
 whether to try one. Getting either estimate wrong costs a routing decision or a
 fail-fast retry, never an answer: which turns the model sees is decided once,
-by `fit_prompt`, in tokens.
+by `fit_prompt`, in tokens. A GUI delta gets one full-prompt retry only when
+the session explicitly refuses continuation before generation (changed resident
+state, incompatible ORT generator, or insufficient context) and cancellation
+has not been requested. A load, prefill or decode failure reaches the UI even
+if the engine has completed zero decode steps.
 
 **The two ceilings are separate on purpose.**
 `max_prompt_tokens_for_n_ctx(n_ctx)` → `n_ctx − 250`, floor 256, with the shipping
@@ -701,6 +705,16 @@ positive request that falls back to CPU fails the probe. Record the selected
 prefill experiment and actual dispatch counts alongside the dump. These knobs
 do not change chat routing. Operator benches can use `bench_greedy.txt=1` to
 hold the decode trajectory fixed; their host tag echoes `-greedy`.
+
+### Mandatory Linux CPU numerical smoke
+
+The required Linux job generates a first-party synthetic one-layer Llama GGUF at test time with `scripts/cpu-smoke-fixture.py`, which owns the seed, the shape and the expected SHA-256, and uses the GGUF writer of the checked-out llama.cpp pin. It needs no model download and nothing is cached. Run the same gate after building the test preset:
+
+```bash
+python3 scripts/run-cpu-smoke.py --build-dir build/linux-test --model build/cpu-smoke/model.gguf
+```
+
+`tests/cpu_smoke.cpp` runs prefill and four incremental decode rows through the shared decode loop on one resident context, then three turns through the public Session API (first turn, continuation, full-prompt reset). `scripts/run-cpu-smoke.py` compares every row with the reviewed float64 reference `tests/golden/cpu-smoke.json` (produced by `scripts/reference-cpu-smoke.py`), using the tolerances and counts defined in that script. Changes to reference rows, tokens or tolerances require review. This covers the Linux dense CPU path: GPU qualification uses ADR 0010, streaming MoE its own parity gate, and console performance device receipts.
 
 ### Intermediate tensor capture (#420)
 
@@ -962,6 +976,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `test_api_activity.cpp`            | `api_activity.h`                                                                                                                                      |
 | `test_api_discovery.cpp`           | `api_discovery.h` (`/health` and `/v1/models` shapes)                                                                                                 |
+| `cpu_smoke.cpp`                    | `session.h`, `decode_loop.h` (native CPU GGUF numerics; run by `scripts/run-cpu-smoke.py`, not ctest)                                                 |
 | `test_api_ollama.cpp`              | `api_ollama.h` (native Ollama request translation, refusals, `think`, tool replay, `keep_alive`, `num_ctx`, `ollama_chat_model`)                      |
 | `test_reasoning_control.cpp`       | `reasoning_control.h` (#648 policy table, `reasoning_effort` / `enable_thinking` parsing, plain-chat and tool renders of the effective decision)      |
 | `test_session_residency.cpp`       | `session_residency.h`, `session_hub.h` residency (who owns the session, `keep_alive_action`, stale leases)                                            |
