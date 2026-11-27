@@ -417,6 +417,13 @@ calls the template re-renders differently, or an edited earlier turn.
 text/event-stream` over chunked transfer (no `Content-Length`) and the socket closes at the
 end. Plain chat emits raw token pieces using `GenerateParams::on_token`. The writer
 holds back any suffix that could still complete a stop sequence and drops the match.
+By default xLlama retains the finish chunk with usage. With
+`"stream_options":{"include_usage":true}`, every choice chunk has `"usage":null`
+and a separate final chunk with `"choices":[]` carries the totals before
+`[DONE]`, for plain chat and tool proposals. Explicit `false` omits usage.
+An interrupted stream may end before the totals arrive. A non-null options
+object requires `stream:true`; its only supported key is boolean `include_usage`.
+
 A failure after the head travels as an `{"error":{...}}` event.
 
 A stream that has written nothing for 5 s (`kSseKeepaliveInterval`), as during a
@@ -451,7 +458,7 @@ A tool proposal with `stream: true` opens the stream once the request checks
 pass, before generation. The SSE head and the assistant role go out first, and
 the keepalive above covers the prefill (#594). It then buffers generation,
 applies the GGUF template parser, and sends a delta with the assembled content
-and any indexed `delta.tool_calls[]`, the finish chunk with usage, and
+and any indexed `delta.tool_calls[]`, the finish chunk, usage according to the selected stream options, and
 `data: [DONE]`. The same raw-text fallback as the JSON path applies when parsing
 fails or a tool call is cut off. Request errors are found before the head and
 keep the normal HTTP JSON error response:

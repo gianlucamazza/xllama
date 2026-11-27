@@ -391,8 +391,10 @@ JsonObject usage_json(const ChatUsage& u) {
     return usage;
 }
 
-// Streamed chat completion (docs/api-endpoint.md): each token piece leaves as one
-// `chat.completion.chunk` event, then the finish chunk, then `[DONE]`. A streamed
+enum class StreamUsage { Legacy, Omit, Separate };
+
+// Streamed chat completion (docs/api-endpoint.md): token deltas, finish choice,
+// optional usage summary and [DONE]. A streamed
 // response carries no Content-Length, so the events travel in HTTP/1.1 chunks
 // (xllama::chunk_frame, host tested) and the socket closes at the end.
 //
@@ -400,10 +402,12 @@ JsonObject usage_json(const ChatUsage& u) {
 // model output until the template parser has assembled the reply.
 class SseStream {
   public:
-    SseStream(StreamSocket const& socket, std::string model, std::atomic<bool>* abort)
-        : m_model(std::move(model)), m_abort(abort),
+    SseStream(StreamSocket const& socket, std::string model, std::atomic<bool>* abort,
+              StreamUsage mode)
+        : m_model(std::move(model)), m_usage_mode(mode),
           m_id("chatcmpl-xllama-" + std::to_string(time(nullptr)) + "-" +
-               std::to_string(++g_req_counter)) {
+               std::to_string(++g_req_counter)),
+          m_abort(abort) {
         m_writer = DataWriter(socket.OutputStream());
         m_writer.UnicodeEncoding(UnicodeEncoding::Utf8);
         // OpenAI opens every streamed reply with the assistant role, even when
@@ -493,7 +497,10 @@ class SseStream {
             return;
         try {
             const JsonObject usage = usage_json(usage_counts);
-            send_chunk(JsonObject{}, JsonValue::CreateStringValue(winrt::hstring(reason)), &usage);
+            send_chunk(JsonObject{}, JsonValue::CreateStringValue(winrt::hstring(reason)),
+                       m_usage_mode == StreamUsage::Legacy ? &usage : nullptr);
+            if (!m_finished && m_usage_mode == StreamUsage::Separate)
+                send_choices(JsonArray{}, &usage);
             end();
         } catch (...) {
             stop();
@@ -574,7 +581,10 @@ class SseStream {
         choice.Insert(L"finish_reason", finish_reason);
         JsonArray choices;
         choices.Append(choice);
+        send_choices(choices, usage);
+    }
 
+    void send_choices(JsonArray const& choices, JsonObject const* usage) {
         JsonObject chunk;
         chunk.Insert(L"id", JsonValue::CreateStringValue(winrt::to_hstring(m_id)));
         chunk.Insert(L"object", JsonValue::CreateStringValue(L"chat.completion.chunk"));
@@ -583,6 +593,8 @@ class SseStream {
         chunk.Insert(L"choices", choices);
         if (usage != nullptr)
             chunk.Insert(L"usage", *usage);
+        else if (m_usage_mode == StreamUsage::Separate)
+            chunk.Insert(L"usage", JsonValue::CreateNullValue());
         send(winrt::to_string(chunk.Stringify()));
     }
 
@@ -614,6 +626,7 @@ class SseStream {
 
     DataWriter m_writer{nullptr};
     std::string m_model;
+    StreamUsage m_usage_mode;
     std::string m_id;
     std::string m_pending;           // trailing bytes of a split UTF-8 sequence (content)
     std::string m_pending_reasoning; // the same for reasoning_content
@@ -656,8 +669,8 @@ std::string error_json(const std::string& msg, const char* code = nullptr,
 // when the head provably left no byte, otherwise empty, because a partial head
 // may be on the wire and a second HTTP response cannot follow it.
 std::unique_ptr<SseStream> open_sse_stream(StreamSocket const& socket, const std::string& model,
-                                           std::atomic<bool>* abort, const char*& status,
-                                           std::string& body) {
+                                           std::atomic<bool>* abort, StreamUsage mode,
+                                           const char*& status, std::string& body) {
     body.clear();
     switch (write_sse_head(socket)) {
     case SseHeadStatus::Written:
@@ -672,7 +685,7 @@ std::unique_ptr<SseStream> open_sse_stream(StreamSocket const& socket, const std
     }
     std::unique_ptr<SseStream> sse;
     try {
-        sse = std::make_unique<SseStream>(socket, model, abort);
+        sse = std::make_unique<SseStream>(socket, model, abort, mode);
     } catch (...) {
         status = "500 Internal Server Error";
         return nullptr; // the 200 head is already out
@@ -975,7 +988,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
                                         ::xllama::Session* session, const std::string& model,
                                         bool model_is_coding, int policy_n_ctx, int n_predict,
                                         ::xllama::ApiActivity::Ticket& ticket, const char*& status,
-                                        StreamSocket const& socket, bool stream) {
+                                        StreamSocket const& socket, bool stream, StreamUsage mode) {
     using Clock = std::chrono::steady_clock;
     const auto started = Clock::now();
     bool has_system = false;
@@ -1046,7 +1059,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
     std::unique_ptr<SseStream> sse;
     if (stream) {
         std::string failed_body;
-        sse = open_sse_stream(socket, model, &abort, status, failed_body);
+        sse = open_sse_stream(socket, model, &abort, mode, status, failed_body);
         if (!sse)
             return failed_body;
         gp.abort_flag = &abort;
@@ -1085,6 +1098,28 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
     }
     const bool proposal = request.disposition == ::xllama::ApiToolDisposition::Proposal ||
                           request.disposition == ::xllama::ApiToolDisposition::Legacy;
+
+    StreamUsage mode = StreamUsage::Legacy;
+    if (root.HasKey(L"stream_options")) {
+        const auto value = root.GetNamedValue(L"stream_options");
+        // The SDK permits null for the optional options object.
+        if (value.ValueType() != JsonValueType::Null) {
+            if (value.ValueType() != JsonValueType::Object || !stream) {
+                status = "400 Bad Request";
+                return error_json("stream_options requires stream:true and an object",
+                                  "invalid_value", "stream_options");
+            }
+            for (const auto& field : value.GetObject()) {
+                if (field.Key() != L"include_usage" ||
+                    field.Value().ValueType() != JsonValueType::Boolean) {
+                    status = "400 Bad Request";
+                    return error_json("stream_options supports only a boolean include_usage",
+                                      "invalid_value", "stream_options");
+                }
+                mode = field.Value().GetBoolean() ? StreamUsage::Separate : StreamUsage::Omit;
+            }
+        }
+    }
 
     std::string model = winrt::to_string(root.GetNamedString(L"model", L""));
     if (model.empty())
@@ -1181,7 +1216,8 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
 
     if (proposal)
         return handle_tool_proposal_locked(root, request, session, model, model_is_coding,
-                                           policy_n_ctx, n_predict, ticket, status, socket, stream);
+                                           policy_n_ctx, n_predict, ticket, status, socket, stream,
+                                           mode);
 
     // Small instruct models degrade badly with an empty system turn (they
     // hallucinate the next role instead of answering); the chat UI always seeds
@@ -1240,7 +1276,7 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
     if (stream) {
         std::string failed_body;
         const std::unique_ptr<SseStream> sse =
-            open_sse_stream(socket, model, &abort, status, failed_body);
+            open_sse_stream(socket, model, &abort, mode, status, failed_body);
         if (!sse)
             return failed_body;
         gp.abort_flag = &abort;
