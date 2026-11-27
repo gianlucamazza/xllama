@@ -38,6 +38,79 @@ bool arguments_complete(const std::string& arguments) {
     }
 }
 
+// Some LFM2/LFM2.5 chat templates print an assistant message's `content` and
+// never read its `tool_calls` (llama.cpp models/templates LFM2.5-Instruct.jinja
+// and LFM2-8B-A1B.jinja; the lfm2-2.6b GGUF). A replayed tool turn then shows
+// the tool result with no call before it (#664). The family is the one
+// common/chat.cpp routes to its LFM2 parser: "List of tools: [" (LFM2.5) or
+// the <|tool_list_start|> / <|tool_list_end|> pair (LFM2). A template that
+// names `tool_calls` renders the calls itself and is left alone.
+bool lfm_template_drops_tool_calls(const std::string& source) {
+    const bool lfm = source.find("List of tools: [") != std::string::npos ||
+                     (source.find("<|tool_list_start|>") != std::string::npos &&
+                      source.find("<|tool_list_end|>") != std::string::npos);
+    return lfm && source.find("tool_calls") == std::string::npos;
+}
+
+// One argument value in the model's own call syntax, as the LFM2.5 GGUF
+// template that does render calls writes it: a string in single quotes with
+// \\, \', \n and \r escaped; True / False / None; numbers, objects and arrays
+// as JSON. The LFM2 parser reads each form back to the same JSON value
+// (normalize_quotes_to_json in common/chat-peg-parser.cpp).
+std::string lfm_arg_value(const nlohmann::ordered_json& value) {
+    if (value.is_string()) {
+        std::string out = "'";
+        for (const char c : value.get_ref<const std::string&>()) {
+            switch (c) {
+            case '\\':
+                out += "\\\\";
+                break;
+            case '\'':
+                out += "\\'";
+                break;
+            case '\n':
+                out += "\\n";
+                break;
+            case '\r':
+                out += "\\r";
+                break;
+            default:
+                out += c;
+            }
+        }
+        return out + "'";
+    }
+    if (value.is_boolean())
+        return value.get<bool>() ? "True" : "False";
+    if (value.is_null())
+        return "None";
+    return value.dump();
+}
+
+// Appends <|tool_call_start|>[name(arg=value, ...), ...]<|tool_call_end|> to an
+// assistant message's content. False when a call's arguments are not a JSON
+// object: the syntax has no form for them.
+bool append_lfm_calls(std::string& content, const std::vector<ToolCall>& calls) {
+    if (calls.empty() || content.find("<|tool_call_start|>") != std::string::npos)
+        return true; // nothing to add, or the client replayed the raw call text
+    std::string text = "<|tool_call_start|>[";
+    for (size_t i = 0; i < calls.size(); ++i) {
+        const std::string& raw = calls[i].arguments_json;
+        const auto args = nlohmann::ordered_json::parse(raw.empty() ? "{}" : raw, nullptr, false);
+        if (!args.is_object())
+            return false;
+        text += (i ? ", " : "") + calls[i].name + "(";
+        bool first = true;
+        for (const auto& [name, value] : args.items()) {
+            text += (first ? "" : ", ") + name + "=" + lfm_arg_value(value);
+            first = false;
+        }
+        text += ")";
+    }
+    content += text + "]<|tool_call_end|>";
+    return true;
+}
+
 common_chat_tool_choice map_choice(ToolChoice choice) {
     switch (choice) {
     case ToolChoice::Required:
@@ -122,7 +195,7 @@ GrammarSpec grammar_spec(const common_chat_params& params) {
     return spec;
 }
 
-Applied apply_template(const void* llama_model, const std::string& model_id,
+Applied apply_template(const void* llama_model, bool enable_thinking,
                        const std::string& jinja_override, const std::vector<ChatMessage>& messages,
                        const std::vector<ToolSpec>& tools, ToolChoice choice,
                        const std::string& forced_name) {
@@ -163,15 +236,23 @@ Applied apply_template(const void* llama_model, const std::string& model_id,
         return applied;
     }
 
+    // The variant common_chat_templates_apply renders: tool_use when tools are
+    // offered and the model has one, else the default.
+    std::string source =
+        offered.empty() ? std::string() : common_chat_templates_source(templates.get(), "tool_use");
+    if (source.empty())
+        source = common_chat_templates_source(templates.get());
+    const bool replay_lfm_calls = lfm_template_drops_tool_calls(source);
+
     common_chat_templates_inputs inputs;
     inputs.add_generation_prompt = true;
     inputs.use_jinja = true;
     inputs.parallel_tool_calls = true;
     inputs.reasoning_format = COMMON_REASONING_FORMAT_AUTO;
-    // Same decision as plain chat and /v1/models `reasoning` (#655): a Qwen3,
-    // MiniCPM5 or SmolLM3 id that is not a thinking model renders its no-think
-    // prefill instead of reasoning through max_tokens on every tool turn.
-    inputs.enable_thinking = model_is_thinking(model_id);
+    // The decision plain chat renders (#655, #648): with it off a Qwen3,
+    // MiniCPM5 or SmolLM3 template renders its no-think prefill instead of
+    // reasoning through max_tokens on every tool turn.
+    inputs.enable_thinking = enable_thinking;
     inputs.tool_choice = map_choice(choice);
     for (const ToolSpec& tool : offered) {
         common_chat_tool spec;
@@ -184,6 +265,10 @@ Applied apply_template(const void* llama_model, const std::string& model_id,
         common_chat_msg out;
         out.role = chat_role_name(message.role);
         out.content = message.content;
+        if (replay_lfm_calls && !append_lfm_calls(out.content, message.tool_calls)) {
+            applied.error = "tool call arguments must be a JSON object for this model";
+            return applied;
+        }
         out.tool_call_id = message.tool_call_id;
         out.tool_name = message.name;
         for (const ToolCall& call : message.tool_calls) {
@@ -224,14 +309,14 @@ std::string parsed_content(const common_chat_msg& message) {
 
 } // namespace
 
-ToolTemplateResult render_tool_prompt(const void* llama_model, const std::string& model_id,
+ToolTemplateResult render_tool_prompt(const void* llama_model, bool enable_thinking,
                                       const std::string& jinja_override,
                                       const std::vector<ChatMessage>& messages,
                                       const std::vector<ToolSpec>& tools, ToolChoice choice,
                                       const std::string& forced_name) {
     ToolTemplateResult out;
-    Applied applied =
-        apply_template(llama_model, model_id, jinja_override, messages, tools, choice, forced_name);
+    Applied applied = apply_template(llama_model, enable_thinking, jinja_override, messages, tools,
+                                     choice, forced_name);
     if (!applied.ok) {
         out.error = applied.error;
         return out;
@@ -245,15 +330,15 @@ ToolTemplateResult render_tool_prompt(const void* llama_model, const std::string
     return out;
 }
 
-ToolParseResult parse_tool_generation(const void* llama_model, const std::string& model_id,
+ToolParseResult parse_tool_generation(const void* llama_model, bool enable_thinking,
                                       const std::string& jinja_override,
                                       const std::vector<ChatMessage>& messages,
                                       const std::vector<ToolSpec>& tools, ToolChoice choice,
                                       const std::string& forced_name, const std::string& raw_text,
                                       bool hit_cap) {
     ToolParseResult out;
-    const Applied applied =
-        apply_template(llama_model, model_id, jinja_override, messages, tools, choice, forced_name);
+    const Applied applied = apply_template(llama_model, enable_thinking, jinja_override, messages,
+                                           tools, choice, forced_name);
     if (!applied.ok) {
         log_output(std::string("[xllama] api: tool template unavailable after generation: ") +
                    applied.error + "\n");

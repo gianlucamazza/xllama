@@ -478,7 +478,7 @@ TEST_CASE(
     // an arch that cannot shift (Qwen3.5's imrope cache — seq_add would be
     // a GGML_ASSERT abort, which the gate must prevent) keeps the #173
     // fail-fast, so the overflowing turn must fail CLEANLY with n_eval == 0 —
-    // the exact signature the UI's full-prefill retry keys on.
+    // before it asks the UI to retry with a fitted full prompt.
     const bool shifts = sess->can_context_shift();
     int total_tokens = sess->count_tokens(seed.prompt) + r_seed.n_eval;
     bool saw_clean_overflow = false;
@@ -498,6 +498,7 @@ TEST_CASE(
             CHECK(rc.n_p_eval > 0);
         } else if (!rc.success) {
             CHECK(rc.n_eval == 0);
+            CHECK(rc.retry_full_prompt);
             CHECK(rc.error_msg.find("context full") != std::string::npos);
             saw_clean_overflow = true;
             break;
@@ -851,6 +852,7 @@ TEST_CASE("Session: a continuation on a KV another caller rewrote is refused (op
     const auto r_stale = s->generate(stale);
     CHECK_FALSE(r_stale.success);
     CHECK(r_stale.n_eval == 0);
+    CHECK(r_stale.retry_full_prompt);
     CHECK(r_stale.error_msg.find("changed since the last turn") != std::string::npos);
     CHECK(s->kv_epoch() == api_epoch);
 }
@@ -876,6 +878,7 @@ TEST_CASE("Session: a full prompt past n_ctx leaves the resident KV and its epoc
     const auto r = s->generate(greedy_turn(huge, false, false));
     CHECK_FALSE(r.success);
     CHECK(r.error_msg.find("prompt too long") != std::string::npos);
+    CHECK_FALSE(r.retry_full_prompt);
     CHECK(s->kv_epoch() == epoch); // rejected before the #170a rewind
 
     // ...so the conversation still continues on its own KV.
@@ -957,6 +960,7 @@ TEST_CASE("Session: a shift with no turn boundary to evict fails fast instead of
     CHECK_FALSE(r.success);
     CHECK(r.n_eval == 0);
     CHECK(r.error_msg.find("context full") != std::string::npos);
+    CHECK(r.retry_full_prompt);
 }
 
 // Measurement, not a gate: does a hybrid's recurrent state still carry a fact
@@ -1134,7 +1138,13 @@ TEST_CASE("Session: an abort ends a prefill inside its batch, and the next turn 
     MESSAGE("full prefill " << full_ms << " ms; aborted after " << abort_after_ms
                             << " ms, returned at " << aborted_ms << " ms");
     CHECK_FALSE(aborted.success);
-    CHECK(aborted.error_msg == "aborted during prefill");
+    if (aborted.decode_rc == 2) { // llama.cpp observed Stop within an ubatch
+        CHECK(aborted.termination == xllama::DecodeTermination::BackendAbort);
+    } else { // between chunks
+        CHECK(aborted.decode_rc == 0);
+        CHECK(aborted.termination == xllama::DecodeTermination::Cancelled);
+    }
+    CHECK_FALSE(aborted.error_msg.empty());
     CHECK(aborted_ms < full_ms / 2);
 
     // The partial prefill was dropped and the KV epoch renewed: a continuation
@@ -1252,4 +1262,69 @@ TEST_CASE("Session: an append-only conversation reuses the previous turn as a pr
         }
         history.push_back({user, fmt.postprocess_output(r.output_text)});
     }
+}
+
+TEST_CASE("Session: a zero-token engine failure never requests a full-prompt retry") {
+    xllama::InferenceResult result;
+    result.error_msg = "injected backend failure";
+    CHECK_FALSE(result.retry_full_prompt);
+    CHECK_FALSE(result.completed_reply(false));
+    result.output_text = "already displayed";
+    CHECK_FALSE(result.completed_reply(false));
+    result.success = true;
+    CHECK_FALSE(result.completed_reply(true));
+    CHECK(result.completed_reply(false));
+    result.termination = xllama::DecodeTermination::EndOfGeneration;
+    CHECK(result.completed_reply(true)); // Cancel raced with an already finished turn.
+    result.success = false;
+    result.termination = xllama::DecodeTermination::Unspecified;
+    CHECK_FALSE(result.user_cancelled(true)); // An ORT exception.
+
+    result.termination = xllama::DecodeTermination::BackendAbort;
+    CHECK(result.user_cancelled(true));
+    CHECK_FALSE(result.user_cancelled(false));
+    result.termination = xllama::DecodeTermination::BackendFailure;
+    CHECK_FALSE(result.user_cancelled(true));
+    result.termination = xllama::DecodeTermination::Stalled;
+    result.stalled = true;
+    CHECK_FALSE(result.user_cancelled(true));
+}
+
+TEST_CASE("Session: only preflight refusal authorizes replay (opt-in model)") {
+    const char* path = std::getenv("XLLAMA_TEST_DECODE_FAULT_MODEL");
+    if (!path)
+        path = std::getenv("XLLAMA_TEST_MODEL");
+    if (!path)
+        return;
+    xllama::SessionParams params;
+    params.model_path = path;
+    params.n_ctx = 128;
+    params.n_threads = 1;
+    std::string error;
+    auto session = xllama::Session::create(params, &error);
+    REQUIRE_MESSAGE(session, error);
+
+    REQUIRE(session->generate(greedy_turn("abcd", true, true)).success);
+    const auto epoch = session->kv_epoch();
+    auto stale = greedy_turn("mf", true, false);
+    stale.expected_kv_epoch = epoch + 1;
+    const auto refused = session->generate(stale);
+    REQUIRE_FALSE(refused.success);
+    CHECK(refused.retry_full_prompt);
+    CHECK(refused.n_eval == 0);
+    CHECK(session->kv_epoch() == epoch);
+
+    std::string prompt;
+    for (int i = 0; i < 512; ++i)
+        prompt += "abcdefghijklmnop";
+    REQUIRE(session->count_tokens(prompt) > session->context_length());
+    const auto oversized = session->generate(greedy_turn(prompt, false, false));
+    REQUIRE_FALSE(oversized.success);
+    CHECK(oversized.n_eval == 0);
+    CHECK_FALSE(oversized.retry_full_prompt);
+    const auto delta = session->generate(greedy_turn(prompt, true, false));
+    REQUIRE_FALSE(delta.success);
+    CHECK(delta.retry_full_prompt);
+    stale.expected_kv_epoch = epoch;
+    CHECK(session->generate(stale).success);
 }

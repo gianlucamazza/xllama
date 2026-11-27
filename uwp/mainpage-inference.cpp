@@ -565,10 +565,9 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
             xllama::InferenceResult res;
             if (do_reuse) {
                 res = run_turn(delta_prompt, /*reuse=*/true, /*reset=*/false);
-                // A continuation that fails before emitting any token (e.g. appending
-                // to a finished generator) falls back to a full re-prefill. No tokens
-                // were streamed yet, so the UI stays clean.
-                if (!res.success && res.n_eval == 0) {
+                // Retry only a refused continuation. A backend error can precede the
+                // first token and must reach the UI even when a fresh prefill could run.
+                if (res.retry_full_prompt && !self->m_abort.load()) {
                     ::xllama::log_output("[xllama] KV reuse failed, retrying with full prefill\n");
                     res = run_full_turn(/*reuse=*/kv_reuse, /*reset=*/true);
                 }
@@ -610,7 +609,7 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
             }
 
             std::string output_text = fmt.postprocess_output(res.output_text);
-            bool was_aborted = self->m_abort.load();
+            const bool was_aborted = res.user_cancelled(self->m_abort.load());
             // A thinking model that spent its whole budget reasoning leaves
             // NOTHING after postprocess (strip_thinking_blocks drops an unclosed
             // <think> to EOF). Without a stand-in the turn vanished: no message
@@ -622,7 +621,7 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
             // empties the output too, and blaming the token budget there would
             // be a lie (and would persist a reply the user stopped).
             const bool thinking_only =
-                res.success && !was_aborted && output_text.empty() && !res.output_text.empty();
+                res.completed_reply(was_aborted) && output_text.empty() && !res.output_text.empty();
             if (thinking_only) {
                 output_text = "(reasoning only — the answer did not fit; raise \"Max new "
                               "tokens\" in Settings)";
@@ -632,6 +631,7 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
             dispatcher.RunAsync(
                 CoreDispatcherPriority::Normal,
                 [self, metrics, res, output_text, was_aborted, ep_kv_ok, thinking_only]() {
+                    const bool complete = res.completed_reply(was_aborted);
                     self->m_metricsText.Text(metrics);
                     self->m_last_inference = res;
                     self->m_live_decode_tok_s.reset();
@@ -657,24 +657,26 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
                     // KV-reuse bookkeeping: the persistent generator now holds this
                     // turn only if it completed cleanly. On failure or abort, force a
                     // fresh generator (full re-prefill) next turn.
-                    if (self->m_kv_reuse && res.success && !was_aborted && ep_kv_ok) {
+                    if (self->m_kv_reuse && complete && ep_kv_ok) {
                         self->m_kv_valid = true;
                         self->m_kv_last_ended_with_stop = res.ended_with_stop;
                     } else {
                         self->m_kv_valid = false;
                     }
-                    // Save assistant response (partial-flagged if user aborted)
+                    // Keep previously streamed text, including incomplete replies.
                     if (!output_text.empty()) {
                         xllama::ui::ChatMessage amsg;
                         amsg.role = xllama::ui::MessageRole::Assistant;
                         amsg.content = output_text;
                         amsg.ts_unix = static_cast<int64_t>(std::time(nullptr));
-                        amsg.partial = was_aborted;
+                        amsg.partial = !complete;
                         self->m_current.messages.push_back(std::move(amsg));
                     }
-                    self->SaveCurrentConversation(was_aborted);
-                    if (!was_aborted && !output_text.empty())
+                    self->SaveCurrentConversation();
+                    if (complete && !output_text.empty())
                         self->FinalizeStreamedTurn(output_text);
+                    else if (!complete)
+                        self->RenderConversation();
                 });
         } catch (const std::exception& ex) {
             ::xllama::log_output(std::string("[xllama] thread terminated: ") + ex.what() + "\n");

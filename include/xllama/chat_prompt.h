@@ -6,6 +6,7 @@
 #include "xllama/thinking_split.h"
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace xllama {
@@ -22,6 +23,12 @@ bool model_is_qwen(const std::string& model_id);
 // True for Qwen3.x (thinking-capable) ids — not Qwen2.5 / Qwen2.5-Coder.
 // Substring "qwen3" / "qwen-3" on the basename (catalogue id qwen35-0.8b matches).
 bool model_is_qwen3(const std::string& model_id);
+
+// True for Qwen3.5 ids or filenames ("qwen35", "qwen3.5", "qwen3_5" or
+// "qwen-3.5" in the basename; catalogue id qwen35-0.8b matches). Its template
+// opens <think> in the generation prompt when thinking is on; Qwen3 leaves it
+// to the model.
+bool model_is_qwen35(const std::string& model_id);
 
 // True for catalogue ids or filenames that refer to a Gemma chat model
 // (substring "gemma", case-insensitive).
@@ -65,7 +72,8 @@ bool model_is_smollm3(const std::string& model_id);
 // (tool_template.cpp: the Jinja `enable_thinking`) and /v1/models
 // `capabilities.reasoning` all read it. A model that is not thinking gets its
 // template's no-think path (Qwen3, MiniCPM5, SmolLM3); a template without a
-// thinking switch ignores it.
+// thinking switch ignores it. It is the default a request overrides where the
+// template can switch (decide_reasoning in reasoning_control.h, #648).
 bool model_is_thinking(const std::string& model_id);
 
 // Qwen3.x no-think generation prefill (matches Qwen3.5 Jinja with enable_thinking=false).
@@ -155,8 +163,18 @@ struct ChatFormat {
     std::string bos;
 
     // When true, postprocess_output strips full <think>…</think> reasoning
-    // (thinking models). Empty-think stripping for Qwen3 no-think always runs.
+    // (the format renders the thinking path). Empty-think stripping for a
+    // no-think prefill always runs.
     bool strip_thinking_content = false;
+
+    // The generation prefill opens the reasoning block (gen_suffix ends with
+    // "<think>\n": the Qwen3.5 and MiniCPM5 templates with thinking on), so
+    // the reply starts inside it. split_output, ThinkingStreamSplitter and
+    // ReasoningTokenCounter read the reply after reasoning_prefill().
+    bool reasoning_opened = false;
+    std::string_view reasoning_prefill() const {
+        return reasoning_opened ? kThinkOpenTag : std::string_view{};
+    }
 
     // Full multi-turn prompt ending with the assistant generation header +
     // gen_suffix. History assistant headers also carry it when
@@ -185,7 +203,13 @@ struct ChatFormat {
     ThinkingSplit split_output(std::string text) const;
 };
 
-// Select the chat format for a catalogue id / filename (as model_is_qwen does today).
+// Select the chat format for a catalogue id / filename (as model_is_qwen does
+// today). |thinking| picks the template's thinking or no-think path where it
+// has both (Qwen3 / Qwen3.5, MiniCPM5, SmolLM3); any other template only
+// splits <think> blocks off the reply with it. Callers take it from
+// decide_reasoning (reasoning_control.h). The one-argument form is the
+// model's own behaviour, model_is_thinking(model_id).
+ChatFormat chat_format_for(const std::string& model_id, bool thinking);
 ChatFormat chat_format_for(const std::string& model_id);
 
 } // namespace xllama
