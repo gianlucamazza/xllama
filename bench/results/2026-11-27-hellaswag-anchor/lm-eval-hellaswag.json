@@ -1,0 +1,82 @@
+{
+  "schema": 1,
+  "date": "2026-11-27",
+  "hardware": "linux-host-declared",
+  "evaluator": {
+    "lm_eval": "0.4.13",
+    "transformers": "5.24.1",
+    "torch": "2.15.0+cpu",
+    "datasets": "5.2.0"
+  },
+  "model": {
+    "repo": "LiquidAI/LFM2.5-350M",
+    "revision": "9921cd4d82c0e3986887aa4b376f9446729ef8a3",
+    "dtype": "float32 (BF16 weights upcast)",
+    "device": "cpu"
+  },
+  "task": "hellaswag",
+  "dataset": "Rowan/hellaswag validation",
+  "limit": 2000,
+  "num_fewshot": 0,
+  "batch_size": 16,
+  "acc": 37.25,
+  "acc_stderr": 1.08,
+  "acc_norm": 44.3,
+  "acc_norm_stderr": 1.11,
+  "llama_perplexity_rule": {
+    "script": "scripts/hellaswag_token_mean.py",
+    "on_lm_eval_prompts": {
+      "acc": 43.15,
+      "stderr": 1.11,
+      "n": 2000,
+      "per_item": "per-item-C.jsonl"
+    },
+    "on_klosax_text": {
+      "acc": 42.25,
+      "stderr": 1.1,
+      "n": 2000,
+      "per_item": "per-item-D.jsonl"
+    },
+    "shared_items": 180,
+    "how": "transformers float32 on the same weights; each choice is context plus continuation tokenised with BOS; the token prefix all four share is skipped and the mean log-probability of the rest decides, as perplexity.cpp hellaswag_score does"
+  },
+  "paired": {
+    "test": "McNemar with continuity correction on discordant items; paired stderr sqrt(b+c-(b-c)^2/n)/n",
+    "B-D": {
+      "what": "implementation",
+      "discordant": 5,
+      "first_only": 1,
+      "second_only": 4,
+      "difference": -0.15,
+      "paired_stderr": 0.11,
+      "p": 0.371
+    },
+    "D-C": {
+      "what": "text",
+      "discordant": 68,
+      "first_only": 25,
+      "second_only": 43,
+      "difference": -0.9,
+      "paired_stderr": 0.41,
+      "p": 0.039
+    },
+    "B-C": {
+      "what": "implementation and text",
+      "discordant": 69,
+      "first_only": 24,
+      "second_only": 45,
+      "difference": -1.05,
+      "paired_stderr": 0.41,
+      "p": 0.016
+    },
+    "A-B": {
+      "what": "quantization",
+      "discordant": 168,
+      "first_only": 81,
+      "second_only": 87,
+      "difference": -0.3,
+      "paired_stderr": 0.65,
+      "p": 0.7
+    }
+  }
+}
