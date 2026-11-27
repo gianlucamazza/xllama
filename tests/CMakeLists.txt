@@ -63,6 +63,9 @@ add_executable(xllama-tests
     test_api_config.cpp
     test_api_activity.cpp
     test_api_discovery.cpp
+    test_api_ollama.cpp
+    test_reasoning_control.cpp
+    test_session_residency.cpp
     test_llama_patches.cpp
     test_thinking_split.cpp
     test_debug_dashboard.cpp
@@ -91,6 +94,16 @@ target_compile_definitions(xllama-tests PRIVATE
     MANIFEST_JSON_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../uwp/models/manifest.json")
 
 add_test(NAME xllama-tests COMMAND xllama-tests)
+
+# Inject scripted llama_decode results only into this Linux executable.
+add_executable(test-decode-faults test_main.cpp test_decode_faults.cpp)
+target_link_libraries(test-decode-faults PRIVATE xllama doctest::doctest)
+foreach(symbol llama_decode llama_sampler_sample llama_vocab_is_eog llama_token_to_piece
+               llama_n_batch llama_get_memory llama_memory_seq_pos_max llama_memory_seq_rm
+               llama_synchronize llama_memory_clear llama_set_abort_callback)
+    target_link_options(test-decode-faults PRIVATE "LINKER:--wrap=${symbol}")
+endforeach()
+add_test(NAME test-decode-faults COMMAND test-decode-faults)
 
 # Keep replacement operator new/delete for allocation-failure tests out of the shared test runner.
 add_executable(test-admission-allocation test_admission_allocation.cpp)
