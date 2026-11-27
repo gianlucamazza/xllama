@@ -115,8 +115,8 @@ struct GenerateParams {
     //                                eviction, or sampling change); `prompt` is
     //                                the full context. Subsequent turns pass
     //                                reset_kv = false to reuse it.
-    // On any failure of a continuation turn the session drops its chat state and
-    // reports !success so the caller can retry with reset_kv + the full prompt.
+    // A refused continuation can set InferenceResult::retry_full_prompt before
+    // generation, allowing a retry with reset_kv and the complete conversation.
     // Exception (#169): when the session supports context shift
     // (can_context_shift()), a continuation turn that would overflow n_ctx
     // evicts the oldest tokens past n_keep from the resident KV instead of

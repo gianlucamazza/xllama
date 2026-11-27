@@ -253,11 +253,15 @@ TEST_CASE("failed generation invalidates Session state and fails run_inference (
     script.fail_call = script.calls + 2; // continuation prefill then one emitted token
     auto failed = session->generate(gp);
     CHECK_FALSE(failed.success);
+    CHECK_FALSE(failed.retry_full_prompt);
+    CHECK_FALSE(failed.completed_reply(false));
     CHECK(failed.decode_rc == -3);
     CHECK(failed.n_eval == 1);
     CHECK(session->kv_epoch() != gp.expected_kv_epoch);
     CHECK_FALSE(session->save_state("unused.gguf-state", &err));
-    CHECK_FALSE(session->generate(gp).success);
+    const auto stale = session->generate(gp);
+    CHECK_FALSE(stale.success);
+    CHECK(stale.retry_full_prompt);
     gp.reset_kv = true;
     auto recovered = session->generate(gp);
     REQUIRE(recovered.success);
@@ -272,6 +276,8 @@ TEST_CASE("failed generation invalidates Session state and fails run_inference (
     script.fail_call = script.calls + 2;
     failed = run_inference(ip);
     CHECK_FALSE(failed.success);
+    CHECK_FALSE(failed.retry_full_prompt);
+    CHECK_FALSE(failed.completed_reply(false));
     CHECK(failed.decode_rc == -3);
     CHECK(failed.n_eval == 1);
 }
