@@ -564,7 +564,7 @@ Re-run it with:
 
 ```bash
 source ~/.config/xllama/xbox-env
-./scripts/bench-xbox-ort.sh lfm25-350m --runs 4 \
+./scripts/bench-xbox-ort.sh lfm25-350m --hardware xbox-series-s --runs 4 \
   --prompt bench/prompts/standard-512.txt \
   --out bench/results/phase17-console-2026-08-26.csv
 ```
@@ -576,7 +576,7 @@ idle/prefill/sustained-decode watts remain an open measurement gate. Do not
 describe these three short repetitions as thermally equilibrated production
 throughput until a sidecar is produced with `write-benchmark-sidecar.py`.
 
-- **On-console**: `./scripts/bench-xbox-ort.sh <model> --runs 3 --out bench/results/<file>.csv`
+- **On-console**: `./scripts/bench-xbox-ort.sh <model> --hardware xbox-series-s --runs 3 --out bench/results/<file>.csv`
   (model already provisioned). KV bench: drop a `bench_turns.txt`; diffusion:
   `phase5-diffuse`.
 - **Host (llama.cpp GGUF only)**: `./build/linux-release/bin/xllama-cli -m <model.gguf>

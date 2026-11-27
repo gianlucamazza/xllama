@@ -124,6 +124,8 @@ python3 scripts/check-coherence.py
 python3 scripts/generate-benchmark-summary.py --check
 python3 scripts/build-research-package.py --check
 python3 scripts/check-release-metadata.py
+# after the linux-test build; it writes its own GGUF fixture
+python3 scripts/run-cpu-smoke.py --build-dir build/linux-test --model build/cpu-smoke/model.gguf
 python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sidecar.py \
   tests/test_research_package.py tests/test_xab_contract.py \
   tests/test_release_metadata.py tests/test_release_bundle.py \
@@ -134,7 +136,7 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
   tests/test_measure_api_ttfb.py \
   tests/test_catalog_licenses.py tests/test_package_notices.py \
   tests/test_diffusion_export.py \
-  tests/test_redact_recorded_path.py tests/test_host_model_trust.py \
+  tests/test_redact_recorded_path.py tests/test_phase16_coding.py tests/test_host_model_trust.py \
   tests/test_dependency_monitoring.py tests/test_host_training_env.py \
   tests/test_prepare_ort_source.py \
   tests/test_prepare_genai_source.py \
@@ -147,9 +149,10 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
 The numerical comparator tests need numpy (and `pyyaml` for gguf-py in `test_make_moe_fixture.py`), which CI installs for them:
 
 ```bash
-python3 -m unittest tests/test_compare_logits.py tests/test_verify_moe_parity.py tests/test_compare_tensors.py \
+python3 -m unittest tests/test_cpu_smoke.py tests/test_compare_logits.py tests/test_verify_moe_parity.py tests/test_compare_tensors.py \
   tests/test_control_parity.py tests/test_check_matmul_reference.py \
-  tests/test_paired_bench_summary.py tests/test_make_moe_fixture.py
+  tests/test_paired_bench_summary.py tests/test_make_moe_fixture.py \
+  tests/test_adr0010_maincoder_declaration.py
 ```
 
 `tests/test_diffusion_export.py` runs its export checks only when
@@ -243,41 +246,45 @@ cmake/              CMake helpers
 
 Load-bearing headers agents usually touch:
 
-| Header                               | Role                                                           |
-| ------------------------------------ | -------------------------------------------------------------- |
-| `session.h` / `session_hub.h`        | `Session` API; the one process-wide resident session           |
-| `session_spec.h`                     | Catalogue → `SessionParams`; hub reuse rule (ADR 0007)         |
-| `prefix_snapshot.h`                  | Hybrid-cache prefix plan: keep, rewind, restore or clear       |
-| `context_shift.h`                    | #169 context-shift admission predicate                         |
-| `platform.h` / `path_utils.h`        | Threads, logging, LocalState and model path resolution         |
-| `compute_admission.h`                | Process-wide RAII permit for resource-heavy GUI and API jobs   |
-| `api_connection.h`                   | Bounded LAN slots and HTTP 200/503 mapping for a compute admit |
-| `api_discovery.h`                    | `/health` capabilities, `/v1/models` and `/api/catalog` fields |
-| `debug_dashboard.h`                  | Optional debug dashboard snapshot (real readings)              |
-| `inference_params.h` / `inference.h` | Params, result, `run_inference`                                |
-| `inference_progress.h`               | Prefill/decode progress logs and stall watchdog                |
-| `routing_policy.h`                   | ORT CPU-vs-DML routing and prompt budget                       |
-| `model_file_plan.h`                  | Per-file catalogue fetch plan; `files[].role`; GPU marker heal |
-| `prompt_budget.h`                    | `fit_prompt` and `fit_tool_transcript`                         |
-| `memory_admission.h`                 | Pre-load GGUF memory admission (weights + KV + compute)        |
-| `tool_budget.h`                      | Tool-proposal `prompt too long` text, `code`, and `param`      |
-| `sampling.h`                         | Sampler defaults shared by CLI, bench, GUI, API                |
-| `model_sampling.h`                   | Per-model catalogue sampling; global < model < user < request  |
-| `chat_prompt.h`                      | `ChatFormat` and stop sequences                                |
-| `thinking_split.h`                   | `<think>` reasoning vs content, batch and streamed             |
-| `embedding.h`                        | Embedding params and pooling trim                              |
-| `api_pull_policy.h`                  | Trusted catalogue pulls and API pull admission                 |
-| `withdrawn_models.h`                 | Catalogue ids that must not be downloadable                    |
-| `model_write.h`                      | Shared writer ownership before model mutation                  |
-| `api_policy.h`                       | Classifies a tool proposal; does not execute tools             |
-| `training.h` / `device_train.h`      | Job validation and Lane B device train                         |
-| `personalize.h`                      | In-app personalize helpers                                     |
-| `app_settings.h`                     | settings.json model: parse, format, ranges the dialog uses     |
-| `json_utils.h`                       | JSON escape / parse (header-only)                              |
-| `local_knob.h`                       | LocalState knob/input files: read, write, strict int parse     |
-| `diffusion/request.h`                | Image request contract: steps and seed on every surface        |
-| `stability_attribution.h`            | Image-dialog Stability §IV.a credit predicate                  |
-| `catalog_trust.h`                    | UWP-only catalogue signature types                             |
+| Header                               | Role                                                                                         |
+| ------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `session.h` / `session_hub.h`        | `Session` API; the one process-wide resident session                                         |
+| `session_spec.h`                     | Catalogue → `SessionParams`; hub reuse rule (ADR 0007)                                       |
+| `prefix_snapshot.h`                  | Hybrid-cache prefix plan: keep, rewind, restore or clear                                     |
+| `context_shift.h`                    | #169 context-shift admission predicate                                                       |
+| `platform.h` / `path_utils.h`        | Threads, logging, LocalState and model path resolution                                       |
+| `compute_admission.h`                | Process-wide RAII permit for resource-heavy GUI and API jobs                                 |
+| `api_connection.h`                   | Bounded LAN slots and HTTP 200/503 mapping for a compute admit                               |
+| `api_discovery.h`                    | `/health` capabilities, `/v1/models` and `/api/catalog` fields                               |
+| `api_ollama.h`                       | Native Ollama `/api/chat` and `/api/generate` checked and translated into the chat request   |
+| `session_residency.h`                | Who holds the resident session; what an Ollama `keep_alive` may do (the app keeps its model) |
+| `sse.h`                              | SSE and chunked framing; one terminal write per stream (error, `[DONE]`)                     |
+| `debug_dashboard.h`                  | Optional debug dashboard snapshot (real readings)                                            |
+| `inference_params.h` / `inference.h` | Params, result, `run_inference`                                                              |
+| `inference_progress.h`               | Prefill/decode progress logs and stall watchdog                                              |
+| `routing_policy.h`                   | ORT CPU-vs-DML routing and prompt budget                                                     |
+| `model_file_plan.h`                  | Per-file catalogue fetch plan; `files[].role`; GPU marker heal                               |
+| `prompt_budget.h`                    | `fit_prompt` and `fit_tool_transcript`                                                       |
+| `memory_admission.h`                 | Pre-load GGUF memory admission (weights + KV + compute)                                      |
+| `tool_budget.h`                      | Tool-proposal `prompt too long` text, `code`, and `param`                                    |
+| `sampling.h`                         | Sampler defaults shared by CLI, bench, GUI, API                                              |
+| `model_sampling.h`                   | Per-model catalogue sampling; global < model < user < request                                |
+| `chat_prompt.h`                      | `ChatFormat` and stop sequences                                                              |
+| `thinking_split.h`                   | `<think>` reasoning vs content, batch and streamed                                           |
+| `reasoning_control.h`                | `decide_reasoning`: per-request reasoning on or off where the template allows it             |
+| `embedding.h`                        | Embedding params and pooling trim                                                            |
+| `api_pull_policy.h`                  | Trusted catalogue pulls and API pull admission                                               |
+| `withdrawn_models.h`                 | Catalogue ids that must not be downloadable                                                  |
+| `model_write.h`                      | Shared writer ownership before model mutation                                                |
+| `api_policy.h`                       | Classifies a tool proposal (no executor); `response_format`, numeric and `num_ctx` checks    |
+| `training.h` / `device_train.h`      | Job validation and Lane B device train                                                       |
+| `personalize.h`                      | In-app personalize helpers                                                                   |
+| `app_settings.h`                     | settings.json model: parse, format, ranges the dialog uses                                   |
+| `json_utils.h`                       | JSON escape / parse (header-only)                                                            |
+| `local_knob.h`                       | LocalState knob/input files: read, write, strict int parse                                   |
+| `diffusion/request.h`                | Image request contract: steps and seed on every surface                                      |
+| `stability_attribution.h`            | Image-dialog Stability §IV.a credit predicate                                                |
+| `catalog_trust.h`                    | UWP-only catalogue signature types                                                           |
 
 Sampler chains are not headers under `include/`: `src/bridge/sampler_chain.h`
 (llama.cpp) and `src/bridge/ort_sampling.h` (ORT). Decode loops are
