@@ -7,6 +7,8 @@
 
 #include <algorithm>
 #include <atomic>
+#include <exception>
+#include <future>
 #include <limits>
 #include <optional>
 #include <stdexcept>
@@ -151,6 +153,53 @@ TEST_CASE("moe_expert_cache: workers read coordinator-held leases across a barri
     a.reset();
     b.reset();
     CHECK(c.acquire(0, 3).size() == slice_bytes);
+}
+
+TEST_CASE("moe_expert_cache: a paused worker keeps the only slot pinned through its last read") {
+    Reader r;
+    auto c = cache_for(r, 1);
+    auto held = c.acquire(0, 0);
+    auto alias = c.acquire(0, 0);
+    const auto* original = held.data();
+    REQUIRE(held.size() == slice_bytes);
+
+    std::promise<void> paused;
+    std::promise<void> resume;
+    auto at_pause = paused.get_future();
+    auto can_resume = resume.get_future();
+    unsigned char first = 0, last = 0;
+    std::thread worker([&] {
+        first = original[0];
+        paused.set_value();
+        can_resume.wait();
+        last = original[slice_bytes - 1];
+    });
+    at_pause.wait();
+    alias.reset();
+    // Capture the outcome before resuming. Even a failing assertion must not
+    // leave a joinable worker waiting on the coordinator.
+    std::exception_ptr refusal;
+    try {
+        c.acquire(0, 1);
+    } catch (...) {
+        refusal = std::current_exception();
+    }
+    const auto reads_while_paused = r.offsets.size();
+    resume.set_value();
+    worker.join();
+
+    CHECK(reads_while_paused == 1);
+    CHECK(first == r.value(0));
+    CHECK(last == r.value(slice_bytes - 1));
+    REQUIRE(refusal != nullptr);
+    CHECK_THROWS_AS(std::rethrow_exception(refusal), std::runtime_error);
+    CHECK_THROWS_AS(c.acquire(0, 1), std::runtime_error);
+    CHECK(r.offsets == std::vector<uint64_t>{0});
+    held.reset();
+    auto next = c.acquire(0, 1);
+    CHECK(next.data() == original);
+    check_payload(next, r, slice_bytes, slice_bytes);
+    CHECK(r.offsets == std::vector<uint64_t>{0, slice_bytes});
 }
 
 TEST_CASE("moe_expert_cache: partial, invalid and failed reads cannot publish a hit") {
