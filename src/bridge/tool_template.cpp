@@ -38,6 +38,79 @@ bool arguments_complete(const std::string& arguments) {
     }
 }
 
+// Some LFM2/LFM2.5 chat templates print an assistant message's `content` and
+// never read its `tool_calls` (llama.cpp models/templates LFM2.5-Instruct.jinja
+// and LFM2-8B-A1B.jinja; the lfm2-2.6b GGUF). A replayed tool turn then shows
+// the tool result with no call before it (#664). The family is the one
+// common/chat.cpp routes to its LFM2 parser: "List of tools: [" (LFM2.5) or
+// the <|tool_list_start|> / <|tool_list_end|> pair (LFM2). A template that
+// names `tool_calls` renders the calls itself and is left alone.
+bool lfm_template_drops_tool_calls(const std::string& source) {
+    const bool lfm = source.find("List of tools: [") != std::string::npos ||
+                     (source.find("<|tool_list_start|>") != std::string::npos &&
+                      source.find("<|tool_list_end|>") != std::string::npos);
+    return lfm && source.find("tool_calls") == std::string::npos;
+}
+
+// One argument value in the model's own call syntax, as the LFM2.5 GGUF
+// template that does render calls writes it: a string in single quotes with
+// \\, \', \n and \r escaped; True / False / None; numbers, objects and arrays
+// as JSON. The LFM2 parser reads each form back to the same JSON value
+// (normalize_quotes_to_json in common/chat-peg-parser.cpp).
+std::string lfm_arg_value(const nlohmann::ordered_json& value) {
+    if (value.is_string()) {
+        std::string out = "'";
+        for (const char c : value.get_ref<const std::string&>()) {
+            switch (c) {
+            case '\\':
+                out += "\\\\";
+                break;
+            case '\'':
+                out += "\\'";
+                break;
+            case '\n':
+                out += "\\n";
+                break;
+            case '\r':
+                out += "\\r";
+                break;
+            default:
+                out += c;
+            }
+        }
+        return out + "'";
+    }
+    if (value.is_boolean())
+        return value.get<bool>() ? "True" : "False";
+    if (value.is_null())
+        return "None";
+    return value.dump();
+}
+
+// Appends <|tool_call_start|>[name(arg=value, ...), ...]<|tool_call_end|> to an
+// assistant message's content. False when a call's arguments are not a JSON
+// object: the syntax has no form for them.
+bool append_lfm_calls(std::string& content, const std::vector<ToolCall>& calls) {
+    if (calls.empty() || content.find("<|tool_call_start|>") != std::string::npos)
+        return true; // nothing to add, or the client replayed the raw call text
+    std::string text = "<|tool_call_start|>[";
+    for (size_t i = 0; i < calls.size(); ++i) {
+        const std::string& raw = calls[i].arguments_json;
+        const auto args = nlohmann::ordered_json::parse(raw.empty() ? "{}" : raw, nullptr, false);
+        if (!args.is_object())
+            return false;
+        text += (i ? ", " : "") + calls[i].name + "(";
+        bool first = true;
+        for (const auto& [name, value] : args.items()) {
+            text += (first ? "" : ", ") + name + "=" + lfm_arg_value(value);
+            first = false;
+        }
+        text += ")";
+    }
+    content += text + "]<|tool_call_end|>";
+    return true;
+}
+
 common_chat_tool_choice map_choice(ToolChoice choice) {
     switch (choice) {
     case ToolChoice::Required:
@@ -163,6 +236,14 @@ Applied apply_template(const void* llama_model, const std::string& model_id,
         return applied;
     }
 
+    // The variant common_chat_templates_apply renders: tool_use when tools are
+    // offered and the model has one, else the default.
+    std::string source =
+        offered.empty() ? std::string() : common_chat_templates_source(templates.get(), "tool_use");
+    if (source.empty())
+        source = common_chat_templates_source(templates.get());
+    const bool replay_lfm_calls = lfm_template_drops_tool_calls(source);
+
     common_chat_templates_inputs inputs;
     inputs.add_generation_prompt = true;
     inputs.use_jinja = true;
@@ -184,6 +265,10 @@ Applied apply_template(const void* llama_model, const std::string& model_id,
         common_chat_msg out;
         out.role = chat_role_name(message.role);
         out.content = message.content;
+        if (replay_lfm_calls && !append_lfm_calls(out.content, message.tool_calls)) {
+            applied.error = "tool call arguments must be a JSON object for this model";
+            return applied;
+        }
         out.tool_call_id = message.tool_call_id;
         out.tool_name = message.name;
         for (const ToolCall& call : message.tool_calls) {
