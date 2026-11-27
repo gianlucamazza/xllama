@@ -59,6 +59,13 @@ bool model_is_smollm3(const std::string& model_id);
 // user-visible answer (basename contains "thinking", e.g. lfm25-1.2b-thinking).
 // These keep plain ChatML with no Qwen3 no-think prefill; postprocess strips
 // think blocks for display/persist.
+//
+// The one answer to "does this model reason on a request" (#655). Plain chat
+// (chat_format_for: no-think prefill off, think stripping on), a tool proposal
+// (tool_template.cpp: the Jinja `enable_thinking`) and /v1/models
+// `capabilities.reasoning` all read it. A model that is not thinking gets its
+// template's no-think path (Qwen3, MiniCPM5, SmolLM3); a template without a
+// thinking switch ignores it.
 bool model_is_thinking(const std::string& model_id);
 
 // Qwen3.x no-think generation prefill (matches Qwen3.5 Jinja with enable_thinking=false).
