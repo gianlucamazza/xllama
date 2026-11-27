@@ -50,6 +50,8 @@ Sources: [OpenAPI 3.1.1](https://spec.openapis.org/oas/v3.1.1.html), [JSON Schem
 
 ## Final validation report
 
+Statuses are as of the baseline (16a58a9, 2026-11-27); each PR link carries its current state. #621–#623 (catalogue sampling) landed on main after this review, so the sampling rows above describe the earlier global-defaults state.
+
 | Change                                                                             | Status at review                  | Observed evidence                                                                                                                                                                   | Remaining gate                                                  |
 | ---------------------------------------------------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
 | [#624 patch verification](https://github.com/gianlucamazza/xllama/pull/624)        | Implemented on independent branch | Empty-clone failure in apply/check, initial patch application and idempotence on real pin                                                                                           | Maintainer review                                               |
