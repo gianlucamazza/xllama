@@ -1,0 +1,24 @@
+# phase before (1.10.0.2000), first run: evals for both models and 1.2B probes; the 8B probes stopped on a harness error (see README)
+before server 1.10.0.2000 patches ['0001-uwp-appcontainer-guards', '0003-kv-cache-k-shift-unallocated-input', '0004-recurrent-state-fill-zero', '0005-required-tool-call-no-content-prefix']
+before lfm25-1.2b-instruct eval 169/238 pass 0.71 [0.626, 0.786] text_instead_of_call 23/162 recall 162/174 by {'irrelevance': '28/52', 'missing_param': '0/12', 'multiturn': '28/30', 'retrieval': '51/74', 'single': '46/46', 'web': '16/24'}
+before lfm25-1.2b-instruct probe newline: calls=8/8 names=['write_file'] args_ok=8 newline_args=8 raw_markers_in_text=0 http=[200]
+before lfm25-1.2b-instruct probe undecl: calls=0/8 names=[] args_ok=0 newline_args=0 raw_markers_in_text=0 http=[200]
+before lfm25-1.2b-instruct probe named: calls=8/8 names=['get_weather'] args_ok=8 newline_args=0 raw_markers_in_text=0 http=[200]
+before lfm25-8b-a1b eval 61/64 pass 0.953 [0.891, 1.0] text_instead_of_call 1/34 recall 34/34 by {'irrelevance': '25/26', 'multiturn': '14/15', 'single': '22/23'}
+# phase before, 8B probes rerun after the harness fix
+before lfm25-8b-a1b probe newline: calls=6/8 names=['write_file'] args_ok=5 newline_args=5 raw_markers_in_text=1 http=[200]
+before lfm25-8b-a1b probe undecl: calls=6/8 names=['get_weather'] args_ok=6 newline_args=0 raw_markers_in_text=0 http=[200]
+before lfm25-8b-a1b probe named: calls=8/8 names=['get_weather'] args_ok=8 newline_args=0 raw_markers_in_text=0 http=[200]
+# phase after (1.10.0.2009)
+after server 1.10.0.2009 patches ['0001-uwp-appcontainer-guards', '0003-kv-cache-k-shift-unallocated-input', '0004-recurrent-state-fill-zero', '0005-required-tool-call-no-content-prefix', '0006-peg-escape-control-chars-in-tool-args', '0007-lfm2-undeclared-tool-calls-in-auto']
+after lfm25-1.2b-instruct eval 166/238 pass 0.697 [0.613, 0.773] text_instead_of_call 23/162 recall 162/174 by {'irrelevance': '27/52', 'missing_param': '0/12', 'multiturn': '27/30', 'retrieval': '50/74', 'single': '45/46', 'web': '17/24'}
+after lfm25-1.2b-instruct probe newline: calls=8/8 names=['write_file'] args_ok=8 newline_args=8 raw_markers_in_text=0 http=[200]
+after lfm25-1.2b-instruct probe undecl: calls=0/8 names=[] args_ok=0 newline_args=0 raw_markers_in_text=0 http=[200]
+after lfm25-1.2b-instruct probe named: calls=8/8 names=['get_weather'] args_ok=8 newline_args=0 raw_markers_in_text=0 http=[200]
+after lfm25-8b-a1b eval 63/64 pass 0.984 [0.953, 1.0] text_instead_of_call 0/34 recall 34/34 by {'irrelevance': '26/26', 'multiturn': '15/15', 'single': '22/23'}
+after lfm25-8b-a1b probe newline: calls=6/8 names=['write_file'] args_ok=6 newline_args=6 raw_markers_in_text=1 http=[200]
+after lfm25-8b-a1b probe undecl: calls=6/8 names=['reseat_sim_card'] args_ok=6 newline_args=0 raw_markers_in_text=0 http=[200]
+after lfm25-8b-a1b probe named: calls=8/8 names=['get_weather'] args_ok=8 newline_args=0 raw_markers_in_text=0 http=[200]
+# paired compare, after vs before (case = unit)
+lfm25-1.2b-instruct {"cases": 119, "pass_rate": "71% \u2192 70%", "pass_rate_change": -0.013, "change_ci95": [-0.034, 0.004], "cases_changed": {"better": 1, "worse": 4}, "p_value": 0.375, "within_noise": true, "fixed": ["web-2"], "broken": ["irrel-0", "multi-tool-ls-it", "retrieval-15", "single-ls-sub"]}
+lfm25-8b-a1b {"cases": 64, "pass_rate": "95% \u2192 98%", "pass_rate_change": 0.031, "change_ci95": [0.0, 0.078], "cases_changed": {"better": 2, "worse": 0}, "p_value": 0.5, "within_noise": true, "fixed": ["irrel-3", "multi-invented-ls-it"], "broken": []}
