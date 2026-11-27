@@ -22,7 +22,11 @@ def main():
             "temperature": 0,
             "max_completion_tokens": 32,
         }
-        for options in ({}, {"response_format": {"type": "text"}}):
+        for options in (
+            {},
+            {"response_format": {"type": "text"}},
+            {"extra_body": {"response_format": None}},
+        ):
             completion = client.chat.completions.create(**request, **options)
             if not completion.choices or completion.choices[0].message.role != "assistant":
                 raise ValueError("expected an assistant completion")
@@ -37,9 +41,8 @@ def main():
             {},
             [],
             "text",
-            None,
         ):
-            # extra_body sends malformed cases verbatim, including JSON null.
+            # extra_body sends the unsupported cases verbatim.
             try:
                 client.chat.completions.create(
                     **request, stream=True, extra_body={"response_format": invalid}
