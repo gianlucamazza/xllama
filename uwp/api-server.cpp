@@ -960,7 +960,7 @@ std::string write_tool_proposal(::xllama::GenerateParams& gp, const ::xllama::To
     }
     const bool hit_cap = generated.n_eval >= gp.n_predict;
     const ::xllama::ToolParseResult parsed = ::xllama::parse_tool_generation(
-        session->resident_llama_model(), "", messages, request.tools, request.choice,
+        session->resident_llama_model(), model, "", messages, request.tools, request.choice,
         request.forced_name, generated.output_text, hit_cap);
     const auto parsed_at = Clock::now();
     const auto elapsed_us = [](Clock::time_point begin, Clock::time_point end) {
@@ -1055,7 +1055,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
             request.messages, request.tools, policy_n_ctx, gp.n_predict,
             [&](const std::vector<::xllama::ChatMessage>& messages,
                 const std::vector<::xllama::ToolSpec>& tools) {
-                return ::xllama::render_tool_prompt(llama_model, "", messages, tools,
+                return ::xllama::render_tool_prompt(llama_model, model, "", messages, tools,
                                                     request.choice, request.forced_name);
             },
             [session](const std::string& text) { return session->count_tokens(text); });
@@ -1130,13 +1130,6 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
     }
     const bool proposal = request.disposition == ::xllama::ApiToolDisposition::Proposal ||
                           request.disposition == ::xllama::ApiToolDisposition::Legacy;
-
-    if (!stream_usage(root, stream)) {
-        status = "400 Bad Request";
-        return error_json("stream_options requires stream:true and an object whose "
-                          "include_usage, if present, is a boolean",
-                          "invalid_value", "stream_options");
-    }
 
     std::string model = winrt::to_string(root.GetNamedString(L"model", L""));
     if (model.empty())
@@ -2291,6 +2284,15 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 return;
             }
             const bool stream = root.GetNamedBoolean(L"stream", false);
+            // Like response_format: a malformed option is the client's error
+            // (400), not a reason to wait behind inference or report busy.
+            if (!stream_usage(root, stream)) {
+                write_response(socket, "400 Bad Request",
+                               error_json("stream_options requires stream:true and an object whose "
+                                          "include_usage, if present, is a boolean",
+                                          "invalid_value", "stream_options"));
+                return;
+            }
             auto compute_permit = acquire_compute_job_or_busy();
             if (!compute_permit) {
                 activity().busy();

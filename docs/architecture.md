@@ -993,7 +993,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_stability_attribution.cpp`   | `stability_attribution.h`                                                                                                                             |
 | `test_stop_filter.cpp`             | `stop_sequence_filter.h` parity with `apply_stop_sequences`                                                                                           |
 | `test_tool_budget.cpp`             | `tool_budget.h`                                                                                                                                       |
-| `test_tool_proposal.cpp`           | `api_policy.h`, `tool_request.h`, `tool_transcript.h`, `prompt_budget.h`, `tool_template.h`                                                           |
+| `test_tool_proposal.cpp`           | `api_policy.h`, `tool_request.h`, `tool_transcript.h`, `prompt_budget.h`, `tool_template.h`, `chat_prompt.h`                                          |
 | `test_training.cpp`                | `training.h` / `training_params.h`                                                                                                                    |
 | `test_utf8.cpp`                    | `utf8_utils.h`                                                                                                                                        |
 
