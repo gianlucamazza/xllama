@@ -97,6 +97,14 @@ Notes:
   forbids). `arithmetic_multistep` fails in both, and no reply contains a turn
   marker any more.
 
+**Sampling (2026-11-27).** `lfm25-1.2b-instruct` and `lfm25-8b-a1b` carry their model
+cards' sampling values in the catalogue (`sampling`). The 1.2B has temperature 0.1, top_k
+50 and repetition penalty 1.05; the 8B has 0.2, 80 and 1.05. A paired eval on Series S
+found no regression and no measured gain against the global defaults: +0.002 [−0.008,
++0.013] on the 1.2B and +0.016 [−0.042, +0.074] on the 8B
+([`2026-11-27-lfm25-card-sampling/`](../bench/results/2026-11-27-lfm25-card-sampling/)).
+Other entries keep the global defaults until they are measured.
+
 ### A2. Phase 14 — console-validated (Series S, 2026-07-27)
 
 MSIX **1.5.1.737** (unified), t6, `standard-512` prompt, 2 recorded runs after
@@ -183,6 +191,12 @@ compiles into the UWP static lib via the `src/models/*.cpp` wildcard. Two risks 
 on record before the run: the ~4.0 GB estimate **breaks the 3.5 GB product gate**
 even though it clears H2's 4 GB one, and the model reasons on every turn without
 saying so in its name, so it is wired as a thinking model.
+
+In plain chat without tools (2026-11-27 eval,
+[`2026-11-27-lfm25-card-sampling/`](../bench/results/2026-11-27-lfm25-card-sampling/)), it
+passes about half the abstention cases (21/42 and 19/42). About a third of the failures write
+a tool call as text, such as `[ls_files()]` or a JSON `tool_calls` object, and it often
+answers Italian in English. These are traits of the model, not of its sampling.
 
 ### A4. Catalogued, console T3 pending
 
