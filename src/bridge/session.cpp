@@ -220,11 +220,17 @@ class OrtSession final : public Session {
         if (!gp.reset_kv && gp.expected_kv_epoch != 0 && gp.expected_kv_epoch != kv_epoch()) {
             // The persistent generator is not the one the caller left (see
             // GenerateParams::expected_kv_epoch); the caller retries in full.
+            res.retry_full_prompt = true;
             res.error_msg = "the resident context changed since the last turn";
             log_output("[xllama] session generate: " + res.error_msg + " — continuation refused\n");
             return;
         }
-        const bool reuse = !gp.reset_kv && sampling_matches(gp);
+        const bool reuse = !gp.reset_kv;
+        if (reuse && !sampling_matches(gp)) {
+            res.retry_full_prompt = true;
+            res.error_msg = "the resident generator cannot accept this continuation";
+            return;
+        }
         if (!reuse) {
             reset_chat_state();
             m_chat_params = make_params(gp);
@@ -254,15 +260,16 @@ class OrtSession final : public Session {
 
         // #173: a continuation that cannot fit (KV + delta + >=1 generated token
         // over n_ctx) is predictable from state we already hold — fail before
-        // touching the generator instead of letting the append discover it. The
-        // throw lands in generate()'s catch, which resets the chat state; the
-        // caller sees n_eval == 0 and falls back to a trimmed full prefill.
+        // touching the generator. The caller can refit the full conversation.
         if (reuse) {
             const int kv = static_cast<int>(OgaGenerator_GetSequenceCount(m_chat_gen.get(), 0));
-            if (kv + n_prompt_tok + 1 > m_n_ctx)
-                throw std::runtime_error("context full: kv=" + std::to_string(kv) +
-                                         " + delta=" + std::to_string(n_prompt_tok) +
-                                         " exceeds n_ctx=" + std::to_string(m_n_ctx));
+            if (kv + n_prompt_tok + 1 > m_n_ctx) {
+                res.retry_full_prompt = true;
+                res.error_msg = "context full: kv=" + std::to_string(kv) +
+                                " + delta=" + std::to_string(n_prompt_tok) +
+                                " exceeds n_ctx=" + std::to_string(m_n_ctx);
+                return;
+            }
         }
 
         if (gp.on_status)
@@ -279,6 +286,7 @@ class OrtSession final : public Session {
                    &wd);
         if (wd.stalled()) {
             res.success = false;
+            reset_chat_state();
             res.stalled = true;
             res.error_msg = wd.stall_error();
             log_output(("[xllama] " + res.error_msg + "\n").c_str());
@@ -746,6 +754,7 @@ class LlamaSession final : public Session {
             // turn (kv_epoch). Appending this delta would continue THEIR
             // conversation; refuse before touching anything so the caller's
             // full-prompt retry rebuilds its own context.
+            res.retry_full_prompt = true;
             res.error_msg = "the resident context changed since the last turn";
             log_output("[xllama] session generate: " + res.error_msg + " — continuation refused\n");
             return res;
@@ -976,6 +985,7 @@ class LlamaSession final : public Session {
                 // #173 fail-fast: the caller retries with the trimmed full
                 // prompt. Reached when the cache cannot shift, the bookkeeping
                 // is out of sync, or even a full eviction would not fit.
+                res.retry_full_prompt = true;
                 res.error_msg = "context full: kv=" + std::to_string(kv_len) +
                                 " + delta=" + std::to_string(n_pf) +
                                 " exceeds n_ctx=" + std::to_string(m_n_ctx);
