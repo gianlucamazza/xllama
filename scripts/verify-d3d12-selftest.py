@@ -56,6 +56,9 @@ def verify(stream, log="", bias=False, rope=False, allow_unavailable=False):
     for row in reader:
         if None in row or any(not (row[k] or "").strip() for k in FIELDS):
             raise ValueError(f"line {reader.line_num}: incomplete or overlong row")
+        # The producer (uwp/inference-bridge.cpp) labels every run xbox-series-s;
+        # a Series X selftest needs the label from the device before this can
+        # accept it (bench/README.md, hardware declaration).
         if row["host"] != "xbox-series-s":
             raise ValueError(f"line {reader.line_num}: expected xbox-series-s host")
         try:
