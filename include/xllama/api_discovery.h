@@ -34,6 +34,10 @@ struct ApiCapabilities {
     bool reasoning_tokens = false;  // usage.completion_tokens_details.reasoning_tokens
     bool cached_tokens = false;     // usage.prompt_tokens_details.cached_tokens
     bool model_sampling = false;    // /v1/models "sampling"; omitted fields take it
+    bool ollama_chat = false;       // native /api/chat and /api/generate (api_ollama.h)
+    bool ollama_keep_alive = false; // keep_alive preload, lease and unload; GET /api/ps
+    bool chat_context = false;      // options.num_ctx on chat requests (reduction only)
+    bool reasoning_control = false; // reasoning_effort / enable_thinking / think (#648)
     bool catalog = false;           // /api/catalog
 };
 
@@ -58,14 +62,16 @@ std::string health_json(const std::string& version, const ApiCapabilities& caps,
 
 struct ModelInfo {
     std::string id;
-    std::string display; // catalogue display name; empty when not catalogued
-    std::string kind;    // "gguf", "ort-genai" or "diffusion"; empty when unknown
-    std::string role;    // catalogue role ("", "coding", "embedding")
-    int n_ctx = 0;       // context the session uses (resident one, else catalogue)
-    bool active = false; // the resident session's model
-    bool tools = false;  // its chat template renders a tool schema
-    bool reasoning = false;
+    std::string display;            // catalogue display name; empty when not catalogued
+    std::string kind;               // "gguf", "ort-genai" or "diffusion"; empty when unknown
+    std::string role;               // catalogue role ("", "coding", "embedding")
+    int n_ctx = 0;                  // context the session uses (resident one, else catalogue)
+    bool active = false;            // the resident session's model
+    bool tools = false;             // its chat template renders a tool schema
+    bool reasoning = false;         // reasons by default (model_is_thinking)
+    bool reasoning_control = false; // a request may switch it (model_supports_reasoning_control)
     bool embedding = false;
+    bool ollama_chat = false; // /api/chat and /api/generate serve it (ollama_chat_model)
     // The sampling a request that sets none of the fields gets, and where each
     // value came from (model_sampling.h). Written for chat models only.
     bool has_sampling = false;

@@ -25,9 +25,15 @@
 //     (the GUI's KV-reuse flag) must record it and drop that state when it
 //     no longer matches — the other surface may have swapped models between
 //     turns.
+//   - `residency` records who loaded or last used the session (GUI or API)
+//     and any Ollama keep_alive lease on it (session_residency.h). Every path
+//     that ensures or uses the session says who it is: ensure_locked's
+//     |owner| (default Gui, the fail-safe: a GUI-owned session never expires)
+//     and use_locked. reset_locked releases it.
 #pragma once
 
 #include "xllama/session.h"
+#include "xllama/session_residency.h"
 #include "xllama/session_spec.h" // same_load
 
 #include <atomic>
@@ -55,19 +61,26 @@ struct SessionHub {
     // before they attempt mtx (observed on-console during Phase C validation).
     std::atomic<bool> preloading{false};
 
+    SessionResidency residency; // guarded by mtx
+
     // Under mtx: return the resident session for |model_id|, creating it (and
     // destroying any other model's session FIRST — never 2x model in RAM) if
     // needed. On creation failure the hub is left empty and nullptr returns.
+    // |owner| is the surface asking: a new session is that surface's, and a
+    // GUI reuse takes an API-loaded one over (session_residency.h).
     Session* ensure_locked(const std::string& model_id, const SessionParams& sp,
-                           std::string* err = nullptr) {
+                           std::string* err = nullptr, SessionOwner owner = SessionOwner::Gui) {
         // Reuse only the same load (ADR 0007): another adapter, context or
         // GPU-layer split is a different model in RAM, so it reloads like a
         // model switch. Matching the id alone let the first surface's load
         // win (audit F03: the API reused or skipped the GUI's LoRA).
-        if (session && model == model_id && same_load(params, sp))
+        if (session && model == model_id && same_load(params, sp)) {
+            residency.used(owner);
             return session.get();
+        }
         session.reset(); // release the old model before loading the new one
         model.clear();
+        residency.released();
         ++generation;
         auto s = Session::create(sp, err);
         if (!s)
@@ -75,8 +88,15 @@ struct SessionHub {
         session = std::move(s);
         model = model_id;
         params = sp;
+        residency.loaded(owner);
         ++generation;
         return session.get();
+    }
+
+    // Under mtx: |owner| uses the resident session without ensure_locked (the
+    // GUI's same-load fast path).
+    void use_locked(SessionOwner owner) {
+        residency.used(owner);
     }
 
     // Under mtx: the files behind |model_id| changed (pull, import, promotion),
@@ -88,6 +108,7 @@ struct SessionHub {
 
     // Under mtx: drop the resident session (e.g. to free RAM on demand).
     void reset_locked() {
+        residency.released();
         if (session) {
             session.reset();
             model.clear();

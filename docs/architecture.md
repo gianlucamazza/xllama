@@ -37,6 +37,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `session_spec.h`                   | `resolve_session_params`, `same_load` — one catalogue→session resolver for GUI, API and pull; the hub reuses only the same load (ADR 0007)                                                            |
 | `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result` (`echo_stdout`, the `resolve_max_length` #130 ladder), `Backend` enum                                                                             |
 | `session_hub.h`                    | `SessionHub` — the ONE process-wide resident-Session owner (GUI + LAN API); locking + `generation` contract                                                                                           |
+| `session_residency.h`              | Who holds the resident session (GUI or API) and what an Ollama `keep_alive` may do to it: the console app's session never expires or unloads                                                          |
 | `compute_admission.h`              | Process-wide RAII lease for resource-heavy jobs across UI and LAN API; acquire before `session_hub().mtx` (proposed ADR 0008)                                                                         |
 | `api_connection.h`                 | Bounded LAN in-flight slots and the HTTP 200/503 mapping for a compute admit (proposed ADR 0008)                                                                                                      |
 | `api_failure.h`                    | HTTP status for an exception that escapes a LAN API route: 400 only for a Json accessor failure, 503 out of memory, else 500 (#591)                                                                   |
@@ -207,6 +208,16 @@ expects an empty `<think>\n\n</think>` block after the assistant header.
 `qwen3-1.7b`). It must **not** apply to Qwen2.5-Coder or to LFM Thinking:
 those either are plain ChatML or emit real CoT (stripped at display time).
 
+**Per-request reasoning (#648).** `chat_format_for(model, thinking)` renders
+the thinking or the no-think path of the Qwen3 / Qwen3.5, MiniCPM5 and SmolLM3
+templates; the one-argument form is the model's default, `model_is_thinking`.
+`decide_reasoning` (`include/xllama/reasoning_control.h`) is the one decision
+for a request: the default, or the request's switch where
+`model_supports_reasoning_control` allows it. The LAN API passes that value to
+plain chat and as a tool template's `enable_thinking`; the GUI can call the
+same function. With thinking on, Qwen3.5 and MiniCPM5 open `<think>` in the
+prompt, so `ChatFormat::reasoning_prefill` is split and counted with the reply.
+
 **Thinking models.** Basename contains `thinking` → `strip_thinking_content` on
 the `ChatFormat`. After each turn, UI and LAN call `postprocess_output`, which
 runs `strip_thinking_blocks` so history and screen keep the final answer only.
@@ -322,6 +333,23 @@ drop mid-SSE aborts generate and the stack permit releases. The first GUI send
 uses the same bounded wait so it does not fail busy during preload. The permit
 is RAII-owned and may cross worker and UI callback boundaries; `SessionHub::mtx`
 continues to protect resident-session identity and use.
+
+**Residency.** `SessionHub::residency` (`include/xllama/session_residency.h`)
+records who loaded or last used the session. `ensure_locked` takes the asking
+surface (`SessionOwner`, default `Gui`, so a caller that does not say is the
+safe case), `EnsureSession` marks its same-load fast path with `use_locked`,
+and `reset_locked` releases it. A session is the API's only while the API
+loaded it and the GUI has not used it since; any GUI turn, preload or model
+selection makes it the console app's for good. `keep_alive_action` decides what
+a native Ollama `keep_alive` does from that owner: a finite lease and an unload
+apply only to an API-owned session, `keep_alive: 0` on the console app's is a
+409, and an omitted value never expires (unlike Ollama). The lease's deadline
+lives in `residency` under the hub mutex; the LAN server's timer
+(`uwp/api-server.cpp`) carries a `(generation, id)` snapshot, takes the compute
+permit and the hub mutex like any job (permit, then hub, then its own timer
+mutex), and releases the session only if the snapshot is still the current,
+API-owned lease and its time is up. A reload, a renewal, a cancel or a GUI use
+makes an older snapshot stale. Protocol: [Model residency](api-endpoint.md#model-residency-keep_alive-apips).
 
 ## Routing (`routing_policy.h`)
 
@@ -483,7 +511,11 @@ prefill. The same estimate, on message text only, predicts whether a backend
 that cannot shift its context would overflow on a KV-reuse attempt, and so
 whether to try one. Getting either estimate wrong costs a routing decision or a
 fail-fast retry, never an answer: which turns the model sees is decided once,
-by `fit_prompt`, in tokens.
+by `fit_prompt`, in tokens. A GUI delta gets one full-prompt retry only when
+the session explicitly refuses continuation before generation (changed resident
+state, incompatible ORT generator, or insufficient context) and cancellation
+has not been requested. A load, prefill or decode failure reaches the UI even
+if the engine has completed zero decode steps.
 
 **The two ceilings are separate on purpose.**
 `max_prompt_tokens_for_n_ctx(n_ctx)` → `n_ctx − 250`, floor 256, with the shipping
@@ -673,6 +705,16 @@ positive request that falls back to CPU fails the probe. Record the selected
 prefill experiment and actual dispatch counts alongside the dump. These knobs
 do not change chat routing. Operator benches can use `bench_greedy.txt=1` to
 hold the decode trajectory fixed; their host tag echoes `-greedy`.
+
+### Mandatory Linux CPU numerical smoke
+
+The required Linux job generates a first-party synthetic one-layer Llama GGUF at test time with `scripts/cpu-smoke-fixture.py`, which owns the seed, the shape and the expected SHA-256, and uses the GGUF writer of the checked-out llama.cpp pin. It needs no model download and nothing is cached. Run the same gate after building the test preset:
+
+```bash
+python3 scripts/run-cpu-smoke.py --build-dir build/linux-test --model build/cpu-smoke/model.gguf
+```
+
+`tests/cpu_smoke.cpp` runs prefill and four incremental decode rows through the shared decode loop on one resident context, then three turns through the public Session API (first turn, continuation, full-prompt reset). `scripts/run-cpu-smoke.py` compares every row with the reviewed float64 reference `tests/golden/cpu-smoke.json` (produced by `scripts/reference-cpu-smoke.py`), using the tolerances and counts defined in that script. Changes to reference rows, tokens or tolerances require review. This covers the Linux dense CPU path: GPU qualification uses ADR 0010, streaming MoE its own parity gate, and console performance device receipts.
 
 ### Intermediate tensor capture (#420)
 
@@ -934,6 +976,10 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `test_api_activity.cpp`            | `api_activity.h`                                                                                                                                      |
 | `test_api_discovery.cpp`           | `api_discovery.h` (`/health`, `/v1/models` and `/api/catalog` shapes)                                                                                 |
+| `cpu_smoke.cpp`                    | `session.h`, `decode_loop.h` (native CPU GGUF numerics; run by `scripts/run-cpu-smoke.py`, not ctest)                                                 |
+| `test_api_ollama.cpp`              | `api_ollama.h` (native Ollama request translation, refusals, `think`, tool replay, `keep_alive`, `num_ctx`, `ollama_chat_model`)                      |
+| `test_reasoning_control.cpp`       | `reasoning_control.h` (#648 policy table, `reasoning_effort` / `enable_thinking` parsing, plain-chat and tool renders of the effective decision)      |
+| `test_session_residency.cpp`       | `session_residency.h`, `session_hub.h` residency (who owns the session, `keep_alive_action`, stale leases)                                            |
 | `test_thinking_split.cpp`          | `thinking_split.h` (batch and stream reasoning split, spans, reasoning token count, `split_output`)                                                   |
 | `test_compute_admission.cpp`       | `compute_admission.h`                                                                                                                                 |
 | `test_api_connection.cpp`          | `api_connection.h` — overlapping compute requests are 200+503; connection-gate bound                                                                  |
@@ -953,6 +999,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_main.cpp`                    | doctest entry point; stall watchdog off unless `XLLAMA_INFER_STALL_TIMEOUT_S` is exported                                                             |
 | `test_cli.cpp`                     | `cli.h`                                                                                                                                               |
 | `test_decode_loop.cpp`             | `decode_loop.h` via `run_inference` (opt-in model)                                                                                                    |
+| `test_decode_faults.cpp`           | GGUF decode outcomes, speculative KV alignment, and model-backed Session recovery under injected backend faults                                       |
 | `test_inference_progress.cpp`      | `inference_progress.h` cadence, stall policy, watchdog                                                                                                |
 | `test_local_knob.cpp`              | `local_knob.h` LocalState file read/write, CRLF/trim normalisation, strict integer knobs                                                              |
 | `test_device_train.cpp`            | `device_train.h`                                                                                                                                      |
@@ -993,7 +1040,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_stability_attribution.cpp`   | `stability_attribution.h`                                                                                                                             |
 | `test_stop_filter.cpp`             | `stop_sequence_filter.h` parity with `apply_stop_sequences`                                                                                           |
 | `test_tool_budget.cpp`             | `tool_budget.h`                                                                                                                                       |
-| `test_tool_proposal.cpp`           | `api_policy.h`, `tool_request.h`, `tool_transcript.h`, `prompt_budget.h`, `tool_template.h`                                                           |
+| `test_tool_proposal.cpp`           | `api_policy.h`, `tool_request.h`, `tool_transcript.h`, `prompt_budget.h`, `tool_template.h`, `chat_prompt.h`                                          |
 | `test_training.cpp`                | `training.h` / `training_params.h`                                                                                                                    |
 | `test_utf8.cpp`                    | `utf8_utils.h`                                                                                                                                        |
 

@@ -61,6 +61,14 @@ bool model_is_qwen3(const std::string& model_id) {
     return b.find("qwen3") != std::string::npos || b.find("qwen-3") != std::string::npos;
 }
 
+bool model_is_qwen35(const std::string& model_id) {
+    const std::string b = to_lower(model_basename(model_id));
+    for (const char* tag : {"qwen35", "qwen3.5", "qwen3_5", "qwen-3.5"})
+        if (b.find(tag) != std::string::npos)
+            return true;
+    return false;
+}
+
 bool model_is_gemma(const std::string& model_id) {
     return to_lower(model_basename(model_id)).find("gemma") != std::string::npos;
 }
@@ -154,6 +162,10 @@ bool apply_stop_sequences(std::string& output, const std::vector<std::string>& s
 }
 
 ChatFormat chat_format_for(const std::string& model_id) {
+    return chat_format_for(model_id, model_is_thinking(model_id));
+}
+
+ChatFormat chat_format_for(const std::string& model_id, bool thinking) {
     ChatFormat f;
     // Gemma / Llama-3 / Phi-3 / Granite before the ChatML default. Substrings do
     // not collide with smollm2 / lfm2 / qwen ids. Granite file names often carry
@@ -253,8 +265,12 @@ ChatFormat chat_format_for(const std::string& model_id) {
         f.system_sep = "";
         f.system_style = SystemStyle::DedicatedTurn;
         f.stop_sequences = {"<|im_end|>"};
-        f.gen_suffix = "<think>\n\n</think>\n";
-        f.gen_suffix_in_history = true;
+        // The template's /no_think mode prefills an empty think block in the
+        // generation prompt and in every past assistant turn; /think has
+        // neither (render_system_prefix names the mode).
+        f.gen_suffix = thinking ? "" : "<think>\n\n</think>\n";
+        f.gen_suffix_in_history = !thinking;
+        f.strip_thinking_content = thinking;
     } else {
         f.kind = ChatFormatKind::ChatML;
         f.turn_open = "<|im_start|>";
@@ -266,10 +282,19 @@ ChatFormat chat_format_for(const std::string& model_id) {
         f.system_sep = "";
         f.system_style = SystemStyle::DedicatedTurn;
         f.stop_sequences = {"<|im_end|>"};
-        f.gen_suffix = model_is_minicpm5(model_id) ? empty_think_block() + "\n\n"
-                                                   : qwen_no_think_gen_suffix(model_id);
-        f.bos = model_is_minicpm5(model_id) ? "<s>" : "";
-        f.strip_thinking_content = model_is_thinking(model_id);
+        // |thinking| is the decision the tool path renders too (#655, #648):
+        // the no-think prefill only when it is off. With it on, the Qwen3.5
+        // and MiniCPM5 templates open <think> in the prompt; Qwen3 leaves it
+        // to the model.
+        const bool minicpm5 = model_is_minicpm5(model_id);
+        if (!thinking && (minicpm5 || model_is_qwen3(model_id))) {
+            f.gen_suffix = empty_think_block() + "\n\n";
+        } else if (thinking && (minicpm5 || model_is_qwen35(model_id))) {
+            f.gen_suffix = std::string(kThinkOpen) + "\n";
+            f.reasoning_opened = true;
+        }
+        f.bos = minicpm5 ? "<s>" : "";
+        f.strip_thinking_content = thinking;
     }
     return f;
 }
@@ -295,8 +320,9 @@ std::string ChatFormat::render_system_prefix(const std::string& system) const {
         return turn_open + system_tag + role_sep +
                "## Metadata\n\n"
                "Knowledge Cutoff Date: June 2025\nToday Date: " +
-               kSmolLM3FrozenDate + "\nReasoning Mode: /no_think\n\n## Custom Instructions\n\n" +
-               instructions + "\n\n" + turn_close;
+               kSmolLM3FrozenDate +
+               "\nReasoning Mode: " + (strip_thinking_content ? "/think" : "/no_think") +
+               "\n\n## Custom Instructions\n\n" + instructions + "\n\n" + turn_close;
     }
     if (system_style == SystemStyle::DedicatedTurn)
         return bos + turn_open + system_tag + role_sep + system + turn_close;
@@ -366,6 +392,9 @@ std::string ChatFormat::postprocess_output(std::string text) const {
 ThinkingSplit ChatFormat::split_output(std::string text) const {
     ThinkingSplit out;
     if (strip_thinking_content) {
+        // After an opened block the reply starts inside it, and one cut off
+        // mid-thought has no closer either: split it as the model saw it.
+        text.insert(0, reasoning_prefill());
         out = split_thinking(text);
         text = std::move(out.content);
     }

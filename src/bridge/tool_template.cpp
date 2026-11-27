@@ -7,6 +7,7 @@
 
 #include "xllama/tool_template.h"
 
+#include "xllama/chat_prompt.h"
 #include "xllama/platform.h"
 
 #include <string>
@@ -121,9 +122,10 @@ GrammarSpec grammar_spec(const common_chat_params& params) {
     return spec;
 }
 
-Applied apply_template(const void* llama_model, const std::string& jinja_override,
-                       const std::vector<ChatMessage>& messages, const std::vector<ToolSpec>& tools,
-                       ToolChoice choice, const std::string& forced_name) {
+Applied apply_template(const void* llama_model, bool enable_thinking,
+                       const std::string& jinja_override, const std::vector<ChatMessage>& messages,
+                       const std::vector<ToolSpec>& tools, ToolChoice choice,
+                       const std::string& forced_name) {
     Applied applied;
     if (llama_model == nullptr && jinja_override.empty()) {
         applied.error = "tools require a GGUF chat template";
@@ -166,7 +168,10 @@ Applied apply_template(const void* llama_model, const std::string& jinja_overrid
     inputs.use_jinja = true;
     inputs.parallel_tool_calls = true;
     inputs.reasoning_format = COMMON_REASONING_FORMAT_AUTO;
-    inputs.enable_thinking = true;
+    // The decision plain chat renders (#655, #648): with it off a Qwen3,
+    // MiniCPM5 or SmolLM3 template renders its no-think prefill instead of
+    // reasoning through max_tokens on every tool turn.
+    inputs.enable_thinking = enable_thinking;
     inputs.tool_choice = map_choice(choice);
     for (const ToolSpec& tool : offered) {
         common_chat_tool spec;
@@ -219,13 +224,14 @@ std::string parsed_content(const common_chat_msg& message) {
 
 } // namespace
 
-ToolTemplateResult render_tool_prompt(const void* llama_model, const std::string& jinja_override,
+ToolTemplateResult render_tool_prompt(const void* llama_model, bool enable_thinking,
+                                      const std::string& jinja_override,
                                       const std::vector<ChatMessage>& messages,
                                       const std::vector<ToolSpec>& tools, ToolChoice choice,
                                       const std::string& forced_name) {
     ToolTemplateResult out;
-    Applied applied =
-        apply_template(llama_model, jinja_override, messages, tools, choice, forced_name);
+    Applied applied = apply_template(llama_model, enable_thinking, jinja_override, messages, tools,
+                                     choice, forced_name);
     if (!applied.ok) {
         out.error = applied.error;
         return out;
@@ -239,14 +245,15 @@ ToolTemplateResult render_tool_prompt(const void* llama_model, const std::string
     return out;
 }
 
-ToolParseResult parse_tool_generation(const void* llama_model, const std::string& jinja_override,
+ToolParseResult parse_tool_generation(const void* llama_model, bool enable_thinking,
+                                      const std::string& jinja_override,
                                       const std::vector<ChatMessage>& messages,
                                       const std::vector<ToolSpec>& tools, ToolChoice choice,
                                       const std::string& forced_name, const std::string& raw_text,
                                       bool hit_cap) {
     ToolParseResult out;
-    const Applied applied =
-        apply_template(llama_model, jinja_override, messages, tools, choice, forced_name);
+    const Applied applied = apply_template(llama_model, enable_thinking, jinja_override, messages,
+                                           tools, choice, forced_name);
     if (!applied.ok) {
         log_output(std::string("[xllama] api: tool template unavailable after generation: ") +
                    applied.error + "\n");
@@ -289,7 +296,7 @@ bool chat_template_renders_tools(const std::string& jinja) {
     probe.name = "xllama_probe";
     probe.description = "Probe tool.";
     probe.parameters_json = R"({"type":"object","properties":{}})";
-    return render_tool_prompt(nullptr, jinja, {user}, {probe}, ToolChoice::Auto, "").ok;
+    return render_tool_prompt(nullptr, "", jinja, {user}, {probe}, ToolChoice::Auto, "").ok;
 }
 
 std::string gguf_chat_template(const std::string& gguf_path) {
@@ -313,7 +320,7 @@ std::string gguf_chat_template(const std::string& gguf_path) {
 
 namespace xllama {
 
-ToolTemplateResult render_tool_prompt(const void*, const std::string&,
+ToolTemplateResult render_tool_prompt(const void*, const std::string&, const std::string&,
                                       const std::vector<ChatMessage>&, const std::vector<ToolSpec>&,
                                       ToolChoice, const std::string&) {
     ToolTemplateResult out;
@@ -321,7 +328,7 @@ ToolTemplateResult render_tool_prompt(const void*, const std::string&,
     return out;
 }
 
-ToolParseResult parse_tool_generation(const void*, const std::string&,
+ToolParseResult parse_tool_generation(const void*, const std::string&, const std::string&,
                                       const std::vector<ChatMessage>&, const std::vector<ToolSpec>&,
                                       ToolChoice, const std::string&, const std::string&, bool) {
     ToolParseResult out;

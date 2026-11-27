@@ -205,6 +205,21 @@ inline int resolve_max_length(int n_ctx, int n_prompt, int n_predict, int overri
     return static_cast<int>(std::min<int64_t>(n_ctx, int64_t{n_prompt} + n_predict));
 }
 
+/// Terminal reason reported by the GGUF backend.
+enum class DecodeTermination {
+    Unspecified, // backend did not report a decode outcome
+    TokenLimit,
+    EndOfGeneration,
+    StopSequence,
+    Cancelled, // caller stopped between steps, with a consistent prefix
+    NoKvSlot,
+    BackendAbort,
+    InvalidBatch,
+    BackendFailure,
+    RewindFailure,
+    Stalled,
+};
+
 /// Result of an inference call.
 struct InferenceResult {
     /// Whether generation succeeded.
@@ -267,6 +282,33 @@ struct InferenceResult {
 
     /// True when the stall watchdog ended the run (see inference_progress.h).
     bool stalled = false;
+
+    DecodeTermination termination = DecodeTermination::Unspecified;
+    int decode_rc = 0; // raw llama_decode status, including unknown backend errors
+
+    bool hit_token_limit(int requested) const {
+        if (termination == DecodeTermination::Unspecified)
+            return !ended_with_stop && n_eval >= requested;
+        return termination == DecodeTermination::TokenLimit;
+    }
+
+    /// A continuation precondition refused the delta before generation. Its caller
+    /// may retry once with the complete conversation if the request is still live.
+    bool retry_full_prompt = false;
+
+    bool user_cancelled(bool requested) const noexcept {
+        if (termination == DecodeTermination::Cancelled)
+            return true;
+        // Preserve voluntary cancellation for ORT and a native abort callback.
+        // A racing Cancel cannot relabel a fatal decode or watchdog stall.
+        return requested && !stalled &&
+               (termination == DecodeTermination::BackendAbort ||
+                (termination == DecodeTermination::Unspecified && success));
+    }
+
+    bool completed_reply(bool cancel_requested) const noexcept {
+        return success && !user_cancelled(cancel_requested);
+    }
 };
 
 } // namespace xllama

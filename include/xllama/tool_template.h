@@ -40,12 +40,19 @@ struct ToolParseResult {
     std::vector<IncomingCall> calls;
 };
 
-ToolTemplateResult render_tool_prompt(const void* llama_model, const std::string& jinja_override,
+// enable_thinking is the template's `enable_thinking`: the request's
+// effective reasoning (decide_reasoning in reasoning_control.h, #648), which
+// defaults to model_is_thinking, the decision plain chat renders too (#655).
+// Pass the same value to parse_tool_generation so the parser matches the
+// prompt.
+ToolTemplateResult render_tool_prompt(const void* llama_model, bool enable_thinking,
+                                      const std::string& jinja_override,
                                       const std::vector<ChatMessage>& messages,
                                       const std::vector<ToolSpec>& tools, ToolChoice choice,
                                       const std::string& forced_name);
 
-ToolParseResult parse_tool_generation(const void* llama_model, const std::string& jinja_override,
+ToolParseResult parse_tool_generation(const void* llama_model, bool enable_thinking,
+                                      const std::string& jinja_override,
                                       const std::vector<ChatMessage>& messages,
                                       const std::vector<ToolSpec>& tools, ToolChoice choice,
                                       const std::string& forced_name, const std::string& raw_text,

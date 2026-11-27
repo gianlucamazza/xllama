@@ -134,7 +134,7 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
   tests/test_release_metadata.py tests/test_release_bundle.py \
   tests/test_make_shape_gguf.py tests/test_bench_run_status.py \
   tests/test_wdp_curl_auth.py tests/test_package_identity.py \
-  tests/test_console_run_log.py tests/test_console_temp_chats.py \
+  tests/test_console_run_log.py tests/test_console_temp_chats.py tests/test_console_settings_restore.py \
   tests/test_console_taesd_result.py tests/test_api_framing_status.py \
   tests/test_measure_api_ttfb.py \
   tests/test_catalog_licenses.py tests/test_package_notices.py \
@@ -143,7 +143,7 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
   tests/test_dependency_monitoring.py tests/test_host_training_env.py \
   tests/test_prepare_ort_source.py \
   tests/test_prepare_genai_source.py \
-  tests/test_d3d12_layer_log.py tests/test_ort_profile.py \
+  tests/test_d3d12_layer_log.py tests/test_d3d12_selftest.py tests/test_ort_profile.py \
   tests/test_bench_kv_driver.py tests/test_eval_standard.py tests/test_hellaswag_token_mean.py \
   tests/test_eval_standard_generative.py tests/test_benchmark_summary_standard.py \
   tests/test_apply_llama_patches.py
@@ -182,7 +182,7 @@ source ~/.config/xllama/xbox-env
 ./scripts/validate-console.sh <gate|all>
 # modes: serve|rate|serve-stale|rate-stale|lora-rt|device-train|all
 ./scripts/validate-console-training.sh <mode>
-./scripts/validate-api.sh <spike|discovery|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|all>
+./scripts/validate-api.sh <spike|discovery|chat|stream|admission|disconnect|budget|tools|framing|embed|pull|prefs|train|compat|all>
 ```
 
 ## Code style
@@ -226,7 +226,7 @@ hand-edit that file or `docs/benchmarks-charts.html`.
 include/xllama/     WinRT-free headers. One concern per header.
   diffusion/        CLIP tokenizer, Euler scheduler, PNG writer (host-testable)
 src/bridge/         Shared .cpp for Linux and UWP (inference, session, training, probes)
-src/main.cpp        Linux CLI (getopt_long)
+src/main.cpp        Linux CLI entry point (argument parsing in src/bridge/cli.cpp)
 uwp/                C++/WinRT app, LAN API, headless flags, AppxManifest, vcxproj
   models/manifest.json   Catalogue data
   packages.config        NuGet pins

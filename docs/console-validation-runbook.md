@@ -103,7 +103,7 @@ Host-only regression tests (no console or credentials):
 
 ```bash
 python3 -m unittest tests/test_console_run_log.py tests/test_console_temp_chats.py \
-  tests/test_console_taesd_result.py
+  tests/test_console_settings_restore.py tests/test_console_taesd_result.py
 ```
 
 ## Official automated suite
@@ -123,7 +123,8 @@ hardware gates pass:
   baseline is seeded with the opposite of each target, so an op that silently
   does nothing fails rather than inheriting a value that already matched (needs
   `smollm2-360m-cpu-int4` in LocalState; `set_taesd` / `set_system_prompt` need
-  an app build >= 1.4.0.632, the rest >= 1.4.0.606);
+  an app build >= 1.4.0.632, the rest >= 1.4.0.606). Its test values do not
+  outlive the run: see [The console is left as found](#the-console-is-left-as-found);
 - **GGUF chat** — the default LFM model loads through llama.cpp and generates,
   **and the conversation is read back from `chats/index.json` with a non-empty
   title**. That second half was added after the gate passed for months over a
@@ -206,6 +207,21 @@ n_ctx` — rather than the answer's length, which keeps the verdict independent
   a concurrent chat. Not wired into `validate-console.sh all` today — run it
   from another host on the LAN.
 
+### The console is left as found
+
+The gates seed `settings.json` (`routing`, `settings`) and their `set_model`,
+`set_sampling` and other `set_*` autopilot ops save test values, and every
+gate ends with `quit`. So for any gate or `all`, `validate-console.sh` first
+records whether xllama is running, then stops it and saves the user's
+`settings.json`, or notes that there was none. On exit (pass, fail or
+interrupt) it stops the app and puts that file back, or deletes the gates'
+copy, then relaunches the app if it was running before, so a LAN API client
+gets the server back. Gates inside `all` still see each other's settings, as
+before; only the end state changes. A backup it cannot read stops the run
+before any gate. A restore that fails fails the run and keeps the copy in the
+retained recovery directory and says how to put it back. `cleanup` does
+not touch settings and does not relaunch.
+
 ### When a gate fails, look at the screen
 
 Verdicts come from grepping `xllama.log`, which cannot describe a failure that
@@ -256,9 +272,31 @@ Run an individual gate while debugging:
 ./scripts/validate-console.sh genroom
 ./scripts/validate-console.sh taesd
 ./scripts/validate-api.sh all          # spike + chat + stream + admission + embed + budget + tools + framing + prefs + train + pull
+./scripts/validate-api.sh compat       # native Ollama routes, num_ctx, keep_alive (not in all)
 ./scripts/validate-console-training.sh rate   # preference UI path
 ./scripts/validate-console-training.sh rate-stale   # negative control (F04)
 ```
+
+### Ollama residency with the console app
+
+`validate-api.sh compat` checks leases on a session the API loads. The console
+app's side needs the pad, on the same build
+([Model residency](api-endpoint.md#model-residency-keep_alive-apips)):
+
+1. With the GUI's selected model resident after a GUI turn, `GET /api/ps`
+   shows it with `owner` `console` and no `expires_at`. A native request for
+   that model with `keep_alive: "10s"` is answered, and `/api/ps` still shows
+   no `expires_at`; after 15 s the model is still listed.
+2. An empty `/api/generate` for that model with `keep_alive: 0` is HTTP 409
+   `{"error":"model is in use by the console app"}`, and `/api/ps` still lists
+   it.
+3. From a LAN host, load another model (`/api/generate`
+   `{"model":"<other>"}`), then the GUI's selected model again with
+   `{"model":"<gui-model>","keep_alive":"60s"}`: `/api/ps` shows `owner` `api`
+   and `expires_at`. Within the minute, send a GUI turn without changing the
+   selection. `/api/ps` then shows `owner` `console` and no `expires_at`, the
+   turn did not reload the model (`xllama.log` has no new load), and after the
+   minute the model is still resident.
 
 Training gates count only what the current run created: new chat ids for
 `serve`, exactly one new `like` carrying the run id for `rate`, and a fresh
