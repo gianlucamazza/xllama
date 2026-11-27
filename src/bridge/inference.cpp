@@ -602,7 +602,13 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         params.on_status("loading model");
 
     install_llama_log();
+    // Upstream t_load_ms is revised after the first evaluation and can include
+    // prefill. Time the same boundary as the ORT path: model creation itself.
+    const auto load_start = std::chrono::steady_clock::now();
     llama_model* raw_model = llama_model_load_from_file(abs_model_path.c_str(), mparams);
+    res.t_load_ms =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - load_start)
+            .count();
     log_gguf_ws("after model load");
     if (!raw_model) {
         res.error_msg = "failed to load model: " + abs_model_path;
@@ -918,10 +924,6 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     const double gen_ms =
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_gen0)
             .count();
-    // Own chrono timing: llama_context_default_params().no_perf disables the
-    // built-in perf counters, so llama_perf_context reports zeros by default.
-    llama_perf_context_data perf = llama_perf_context(ctx.get());
-    res.t_load_ms = perf.t_load_ms > 0 ? perf.t_load_ms : 0.0;
     res.t_p_eval_ms = prompt_ms;
     res.t_eval_ms = gen_ms;
     res.t_first_token_ms = dlr.first_token_ms > 0.0 ? prompt_ms + dlr.first_token_ms : 0.0;
