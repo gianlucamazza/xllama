@@ -27,7 +27,11 @@ struct ToolRequest {
 
 // `error` is set on a malformed body. Plain chat (`None`) does not parse
 // message content here: parse_plain_chat does, with the same content rules.
-ToolRequest parse_tool_request(const std::string& body);
+// |replay_without_tools| (a native Ollama transcript that replays tool calls
+// and results but offers no tools, api_ollama.h) turns what would be plain
+// chat into a proposal with ToolChoice::None, so the GGUF template renders the
+// tool turns plain chat cannot.
+ToolRequest parse_tool_request(const std::string& body, bool replay_without_tools = false);
 
 // A plain-chat messages[] folded into ChatFormat::render_prompt's inputs. Both
 // parsers read a message the same way: `developer` (OpenAI's newer name for

@@ -1,0 +1,193 @@
+// Copyright (c) 2024 Gianluca Mazza
+// SPDX-License-Identifier: MIT
+
+#include "xllama/api_ollama.h"
+#include "xllama/chat_prompt.h"
+#include "xllama/tool_request.h"
+
+#include <doctest/doctest.h>
+#include <nlohmann/json.hpp>
+
+using namespace xllama;
+using nlohmann::json;
+
+TEST_CASE("Ollama: generate becomes a chat body with options mapped to the shared fields") {
+    const auto request = parse_ollama_request(
+        R"({"model":"chat","prompt":"hello","system":"be brief","options":{"num_predict":32,)"
+        R"("repeat_penalty":1.2,"stop":["end"],"temperature":0,"seed":7}})",
+        OllamaRoute::Generate);
+    REQUIRE_MESSAGE(request.error.empty(), request.error);
+    CHECK(request.stream);
+    CHECK(request.action == OllamaAction::Generate);
+    const json body = json::parse(request.body);
+    CHECK(body["model"] == "chat");
+    CHECK(body["max_completion_tokens"] == 32);
+    CHECK(body["repeat_penalty"] == 1.2);
+    CHECK(body["stop"] == json::array({"end"}));
+    CHECK(body["temperature"] == 0);
+    CHECK(body["seed"] == 7);
+    REQUIRE(body["messages"].size() == 2);
+    CHECK(body["messages"][0]["role"] == "system");
+    CHECK(body["messages"][1]["content"] == "hello");
+    // The shared plain-chat parser reads it as it reads an OpenAI request.
+    const PlainChatRequest plain = parse_plain_chat(request.body);
+    CHECK(plain.system == "be brief");
+    CHECK(plain.final_user == "hello");
+
+    // -1 is Ollama's unbounded default: xllama keeps its own bounded one.
+    const auto unbounded = parse_ollama_request(
+        R"({"model":"chat","prompt":"x","options":{"num_predict":-1}})", OllamaRoute::Generate);
+    REQUIRE(unbounded.error.empty());
+    CHECK_FALSE(json::parse(unbounded.body).contains("max_completion_tokens"));
+    CHECK_FALSE(parse_ollama_request(R"({"model":"chat","prompt":"x","stream":false})",
+                                     OllamaRoute::Generate)
+                    .stream);
+}
+
+TEST_CASE("Ollama: an empty request loads the model and answers with JSON") {
+    for (const auto& [body, route] :
+         {std::pair{R"({"model":"chat","messages":[]})", OllamaRoute::Chat},
+          std::pair{R"({"model":"chat"})", OllamaRoute::Chat},
+          std::pair{R"({"model":"chat","prompt":""})", OllamaRoute::Generate},
+          std::pair{R"({"model":"chat","stream":true})", OllamaRoute::Generate}}) {
+        CAPTURE(body);
+        const auto load = parse_ollama_request(body, route);
+        REQUIRE(load.error.empty());
+        CHECK(load.action == OllamaAction::Load);
+        CHECK_FALSE(load.stream);
+    }
+}
+
+TEST_CASE("Ollama: requests xllama cannot honour are refused before admission") {
+    const auto error = [](const char* body, OllamaRoute route = OllamaRoute::Chat) {
+        return parse_ollama_request(body, route).error;
+    };
+    CHECK(error(R"({"model":"../chat"})") == "model must be an id from /api/tags");
+    CHECK(error(R"({"model":"a/b"})") == "model must be an id from /api/tags");
+    CHECK(error(R"({"model":"chat","stream":"yes"})") == "stream must be boolean");
+    CHECK(error(R"({"model":"chat","options":{"num_gpu":99}})") == "unsupported options.num_gpu");
+    CHECK(error(R"({"model":"chat","options":{"temperature":3}})").find("temperature") !=
+          std::string::npos);
+    CHECK(error(R"({"model":"chat","options":{"temperature":"hot"}})") ==
+          "options.temperature must be a number");
+    CHECK(error(R"({"model":"chat","options":{"stop":[1]}})") ==
+          "options.stop must be a string or an array of strings");
+    CHECK(error(R"({"model":"chat","options":[]})") == "options must be an object");
+    CHECK(error(R"({"model":"chat","format":"json"})") == "format is unsupported");
+    CHECK(error(R"({"model":"chat","prompt":"x","raw":true})", OllamaRoute::Generate) ==
+          "raw is unsupported");
+    CHECK(error(R"({"model":"chat","prompt":"x","images":["AA=="]})", OllamaRoute::Generate) ==
+          "images is unsupported");
+    CHECK(
+        error(R"({"model":"chat","messages":[{"role":"user","content":"x","images":["AA=="]}]})") ==
+        "messages[].images is unsupported");
+    CHECK(error(R"({"model":"chat","messages":[{"role":"user","content":[]}]})") ==
+          "messages[].content must be a string");
+    CHECK(error(R"({"model":"chat","messages":[{"role":"user","content":"x"},)"
+                R"({"role":"assistant","content":"y"}]})") == "last message must be user or tool");
+    // Defaults are not refusals.
+    CHECK(error(R"({"model":"chat","format":"","raw":false,"images":[],"logprobs":false,)"
+                R"("top_logprobs":0,"messages":[{"role":"user","content":"x"}]})")
+              .empty());
+}
+
+TEST_CASE("Ollama: think may restate the model's behaviour, not change it") {
+    // lfm25-350m does not reason; lfm25-1.2b-thinking does (chat_prompt.h).
+    REQUIRE_FALSE(model_is_thinking("lfm25-350m"));
+    REQUIRE(model_is_thinking("lfm25-1.2b-thinking"));
+    const auto think = [](const char* model, const char* value) {
+        return parse_ollama_request(std::string(R"({"model":")") + model +
+                                        R"(","prompt":"x","think":)" + value + "}",
+                                    OllamaRoute::Generate)
+            .error;
+    };
+    CHECK(think("lfm25-350m", "null").empty());
+    CHECK(think("lfm25-350m", "false").empty());
+    CHECK(think("lfm25-1.2b-thinking", "true").empty());
+    CHECK(think("lfm25-350m", "true") == kOllamaThinkUnsupported);
+    CHECK(think("lfm25-1.2b-thinking", "false") == kOllamaThinkUnsupported);
+    CHECK(think("lfm25-1.2b-thinking", R"("high")") == kOllamaThinkUnsupported);
+}
+
+TEST_CASE("Ollama: same-name tool results bind in call order") {
+    const auto request = parse_ollama_request(R"({
+        "model":"chat",
+        "tools":[{"type":"function","function":{"name":"weather"}}],
+        "messages":[{"role":"user","content":"weather?"},
+            {"role":"assistant","tool_calls":[
+                {"function":{"name":"weather","arguments":{"city":"A"}}},
+                {"function":{"name":"weather","arguments":{"city":"B"}}}]},
+            {"role":"tool","tool_name":"weather","content":"rain"},
+            {"role":"tool","tool_name":"weather","content":"sun"}]})",
+                                              OllamaRoute::Chat);
+    REQUIRE_MESSAGE(request.error.empty(), request.error);
+    CHECK_FALSE(request.replay_without_tools);
+    const auto transcript = parse_tool_request(request.body);
+    REQUIRE_MESSAGE(transcript.error.empty(), transcript.error);
+    REQUIRE(transcript.messages.size() == 4);
+    CHECK(transcript.messages[1].tool_calls[0].id.size() == 9);
+    CHECK(transcript.messages[2].tool_call_id == transcript.messages[1].tool_calls[0].id);
+    CHECK(transcript.messages[2].content == "rain");
+    CHECK(transcript.messages[3].tool_call_id == transcript.messages[1].tool_calls[1].id);
+    CHECK(
+        parse_ollama_request(
+            R"({"model":"chat","messages":[{"role":"tool","tool_name":"unknown","content":"r"}]})",
+            OllamaRoute::Chat)
+            .error == "tool result has no matching assistant call");
+    CHECK(parse_ollama_request(R"({"model":"chat","messages":[{"role":"user","content":"q"},)"
+                               R"({"role":"assistant","tool_calls":[{"function":{"name":"w",)"
+                               R"("arguments":"{}"}}]},{"role":"tool","tool_name":"w"}]})",
+                               OllamaRoute::Chat)
+              .error == "tool call function.arguments must be an object");
+}
+
+TEST_CASE("Ollama: results reorder into call order and keep a client's id") {
+    const auto request = parse_ollama_request(R"({
+        "model":"chat","tools":[{"type":"function","function":{"name":"weather"}}],
+        "messages":[{"role":"user","content":"weather?"},
+            {"role":"assistant","tool_calls":[
+                {"id":"custom001","function":{"name":"weather","arguments":{}}},
+                {"function":{"name":"time","arguments":{}}}]},
+            {"role":"tool","tool_name":"time","content":"three"},
+            {"role":"tool","tool_name":"weather","content":"rain"}]})",
+                                              OllamaRoute::Chat);
+    REQUIRE_MESSAGE(request.error.empty(), request.error);
+    const auto transcript = parse_tool_request(request.body);
+    REQUIRE_MESSAGE(transcript.error.empty(), transcript.error);
+    REQUIRE(transcript.messages.size() == 4);
+    CHECK(transcript.messages[1].tool_calls[0].id == "custom001");
+    CHECK(transcript.messages[2].tool_call_id == "custom001");
+    CHECK(transcript.messages[2].content == "rain");
+    CHECK(transcript.messages[3].content == "three");
+}
+
+TEST_CASE("Ollama: a tool replay without tools still renders through the template") {
+    const auto request = parse_ollama_request(R"({
+        "model":"chat","messages":[{"role":"user","content":"weather?"},
+            {"role":"assistant","tool_calls":[
+                {"function":{"name":"weather","arguments":{"city":"A"}}}]},
+            {"role":"tool","tool_name":"weather","content":"rain"}]})",
+                                              OllamaRoute::Chat);
+    REQUIRE_MESSAGE(request.error.empty(), request.error);
+    CHECK(request.replay_without_tools);
+    // Without the flag it is plain chat, which cannot render tool turns.
+    CHECK(parse_tool_request(request.body).disposition == ApiToolDisposition::None);
+    const auto transcript = parse_tool_request(request.body, request.replay_without_tools);
+    REQUIRE_MESSAGE(transcript.error.empty(), transcript.error);
+    CHECK(transcript.disposition == ApiToolDisposition::Proposal);
+    CHECK(transcript.choice == ToolChoice::None);
+    CHECK(transcript.tools.empty());
+    REQUIRE(transcript.messages.size() == 3);
+    CHECK(transcript.messages.back().tool_call_id == transcript.messages[1].tool_calls[0].id);
+}
+
+TEST_CASE("Ollama: the native routes serve GGUF text models with a plain id") {
+    CHECK(ollama_chat_model("lfm25-350m", true, false));
+    CHECK_FALSE(ollama_chat_model("smollm2-360m-cpu-int4", false, false)); // ONNX
+    CHECK_FALSE(ollama_chat_model("bge-m3", true, true));                  // embedding
+    CHECK_FALSE(ollama_chat_model("C:\\models\\x.gguf", true, false));     // a raw path
+    CHECK(ollama_model_id("qwen3-4b.Q4_K_M"));
+    CHECK_FALSE(ollama_model_id(""));
+    CHECK_FALSE(ollama_model_id(".."));
+    CHECK_FALSE(ollama_model_id("qwen3:4b"));
+}

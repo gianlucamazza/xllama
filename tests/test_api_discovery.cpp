@@ -23,7 +23,8 @@ TEST_CASE("health_json keeps the original fields first and adds version, api, ca
     CHECK(j["capabilities"]["reasoning_tokens"] == false);
     CHECK(j["capabilities"]["cached_tokens"] == false);
     CHECK(j["capabilities"]["model_sampling"] == false);
-    CHECK(j["capabilities"].size() == 11);
+    CHECK(j["capabilities"]["ollama_chat"] == false);
+    CHECK(j["capabilities"].size() == 12);
     // The accepted sampling fields, from the same table the request is checked against.
     CHECK(j["sampling"] ==
           json::array({"temperature", "top_p", "top_k", "repetition_penalty", "seed"}));
@@ -61,6 +62,9 @@ TEST_CASE("build_api_capabilities follows the compiled backends") {
     CHECK(caps.reasoning_tokens);
     CHECK(caps.cached_tokens);
     CHECK(caps.model_sampling);
+#ifdef XLLAMA_USE_LLAMA
+    CHECK(caps.ollama_chat);
+#endif
 }
 
 TEST_CASE("models_list_json is an OpenAI list with xllama's per-model fields") {
@@ -71,6 +75,7 @@ TEST_CASE("models_list_json is an OpenAI list with xllama's per-model fields") {
     chat.n_ctx = 4096;
     chat.active = true;
     chat.tools = true;
+    chat.ollama_chat = true;
     xllama::SamplingOverrides card;
     card.temperature = 0.1f;
     card.top_k = 50;
@@ -93,6 +98,7 @@ TEST_CASE("models_list_json is an OpenAI list with xllama's per-model fields") {
     CHECK(a["n_ctx"] == 4096);
     CHECK(a["capabilities"]["tools"] == true);
     CHECK(a["capabilities"]["reasoning"] == false);
+    CHECK(a["capabilities"]["ollama_chat"] == true);
     // The values a request that sets none of them gets, written as short decimals.
     const json& s = a["sampling"];
     CHECK(a.dump().find("\"temperature\":0.1,") != std::string::npos);
@@ -112,4 +118,5 @@ TEST_CASE("models_list_json is an OpenAI list with xllama's per-model fields") {
     CHECK_FALSE(b.contains("n_ctx"));
     CHECK_FALSE(b.contains("sampling"));
     CHECK(b["capabilities"]["tools"] == false);
+    CHECK(b["capabilities"]["ollama_chat"] == false);
 }

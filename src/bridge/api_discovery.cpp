@@ -49,6 +49,7 @@ ApiCapabilities build_api_capabilities() {
     caps.tools = true;
     caps.tools_stream = true;
     caps.embeddings = true;
+    caps.ollama_chat = true; // /api/chat and /api/generate serve GGUF models
 #endif
 #ifdef XLLAMA_USE_ORT
     caps.images = true;
@@ -86,6 +87,7 @@ std::string health_json(const std::string& version, const ApiCapabilities& caps,
     out += ",\"reasoning_tokens\":" + std::string(boolean(caps.reasoning_tokens));
     out += ",\"cached_tokens\":" + std::string(boolean(caps.cached_tokens));
     out += ",\"model_sampling\":" + std::string(boolean(caps.model_sampling));
+    out += ",\"ollama_chat\":" + std::string(boolean(caps.ollama_chat));
     // The sampling fields a chat request may set (api_sampling.h, #609); a
     // client sends only these instead of assuming them per version.
     out += "},\"sampling\":[";
@@ -126,7 +128,7 @@ std::string models_list_json(const std::vector<ModelInfo>& models, std::int64_t 
 
         out += ",\"capabilities\":{\"tools\":" + std::string(boolean(m.tools)) +
                ",\"reasoning\":" + boolean(m.reasoning) + ",\"embedding\":" + boolean(m.embedding) +
-               "}}";
+               ",\"ollama_chat\":" + boolean(m.ollama_chat) + "}}";
     }
     out += "]}";
     return out;

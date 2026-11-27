@@ -224,7 +224,7 @@ bool read_tool_array(const json& array, std::vector<ToolSpec>& tools, std::strin
 
 } // namespace
 
-ToolRequest parse_tool_request(const std::string& body) {
+ToolRequest parse_tool_request(const std::string& body, bool replay_without_tools) {
     ToolRequest out;
     json root;
     try {
@@ -274,15 +274,19 @@ ToolRequest parse_tool_request(const std::string& body) {
         out.error = classified.error;
         return out;
     }
-    if (classified.disposition == ApiToolDisposition::None)
-        return out;
-
-    const json& schemas = classified.disposition == ApiToolDisposition::Legacy
-                              ? root.at("functions")
-                              : root.at("tools");
-    if (!read_tool_array(schemas, out.tools, out.error)) {
-        out.disposition = ApiToolDisposition::Invalid;
-        return out;
+    if (classified.disposition == ApiToolDisposition::None) {
+        if (!replay_without_tools)
+            return out;
+        out.disposition = ApiToolDisposition::Proposal;
+        out.choice = ToolChoice::None;
+    } else {
+        const json& schemas = classified.disposition == ApiToolDisposition::Legacy
+                                  ? root.at("functions")
+                                  : root.at("tools");
+        if (!read_tool_array(schemas, out.tools, out.error)) {
+            out.disposition = ApiToolDisposition::Invalid;
+            return out;
+        }
     }
     if (!root.contains("messages") || !root.at("messages").is_array()) {
         out.disposition = ApiToolDisposition::Invalid;
