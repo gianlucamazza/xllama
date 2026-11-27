@@ -27,6 +27,12 @@ case "${1:-}" in
 esac
 
 cd "$ROOT/llama.cpp"
+# Git otherwise walks up to the superproject from an empty submodule directory.
+# In that directory git apply skips paths outside its prefix and reports success.
+if [[ ! -e .git ]]; then
+	echo "apply-llama-patches: initialize llama.cpp with git submodule update --init --recursive" >&2
+	exit 1
+fi
 applied=0
 present=0
 missing=()

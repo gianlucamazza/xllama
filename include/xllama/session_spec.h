@@ -10,6 +10,7 @@
 #include "xllama/routing_policy.h" // catalogue_n_ctx, resolve_gguf_gpu_layers
 #include "xllama/session.h"
 
+#include <filesystem>
 #include <string>
 
 namespace xllama {
@@ -59,8 +60,9 @@ inline SessionParams resolve_session_params(const std::string& model, const Cata
     sp.n_gpu_layers = resolve_gguf_gpu_layers(c.gpu_layers, gpu_layers_knob);
     if (!c.lora.empty()) {
         sp.lora_path = model_dir;
-        if (!sp.lora_path.empty() && sp.lora_path.back() != '\\' && sp.lora_path.back() != '/')
-            sp.lora_path.push_back('\\');
+        constexpr char sep = static_cast<char>(std::filesystem::path::preferred_separator);
+        if (!sp.lora_path.empty() && sp.lora_path.back() != sep && sp.lora_path.back() != '/')
+            sp.lora_path.push_back(sep);
         sp.lora_path += c.lora;
         sp.lora_scale = c.lora_scale;
     }
