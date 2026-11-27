@@ -74,7 +74,7 @@ and llama.cpp (GGUF, CPU).
 
 7. Benchmark and compare against the current baseline:
    ```bash
-   ./scripts/bench-xbox-ort.sh <model-name> --runs 3 --out bench/results/phase1-cpu.csv
+   ./scripts/bench-xbox-ort.sh <model-name> --hardware xbox-series-s --runs 3 --out bench/results/phase1-cpu.csv
    ```
    Store results in a campaign-specific CSV under `bench/results/`; do not append
    unrelated models to the historical Phase 1 file.

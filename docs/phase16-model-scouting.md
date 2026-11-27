@@ -160,7 +160,7 @@ Invocations, in order:
 ./scripts/quantize.sh in.gguf out.gguf Q4_K_M                                 # T2
 ./scripts/validate-logit-parity.sh                                            # T2, ORT/DML only
 ./scripts/provision-models.sh <name>                                          # T3
-./scripts/bench-xbox-ort.sh <name> --runs 4 --n-predict 96 \
+./scripts/bench-xbox-ort.sh <name> --hardware xbox-series-s --runs 4 --n-predict 96 \
     --out bench/results/phase16-<ws>.csv                                      # T3 (+ --gpu-sample for DML)
 ./scripts/eval-xbox-models.sh --models a,b --out bench/results/phase16-h9.jsonl  # T4
 python3 scripts/check-coherence.py && ./scripts/validate-console.sh all       # T5

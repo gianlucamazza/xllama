@@ -56,7 +56,7 @@ Series S, Developer Mode; not a speed claim. Provenance: [`xllama-demo-v1.5.6.mp
 ## What you can do
 
 - **Chat** — multi-turn pad UI with the default LFM2.5-350M model, plus other catalogue models you download.
-- **LAN API** — OpenAI-compatible completions on your local network; **off by default and has no authentication**.
+- **LAN API** — OpenAI-compatible and native Ollama chat (`/api/chat`, `/api/generate`, `/api/ps`) on your local network, a downloadable-model list (`/api/catalog`) and per-request reasoning control; **off by default and has no authentication**. See [docs/api-endpoint.md](docs/api-endpoint.md).
 - **Image generation** — SD-Turbo on the console. **Powered by Stability AI.**
 - **Benchmarks** — headless tok/s and platform probes on the console. See [bench/README.md](bench/README.md).
 - **Experimental fine-tuning** — on-device last-block fine-tune, host PEFT on a workstation, and serving a merged GGUF. The in-app _Train on my feedback_ flow is not yet walked end to end on a console.
