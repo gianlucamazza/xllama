@@ -88,13 +88,13 @@ jobs:
       - name: Verify logit parity and tensor comparator negative controls
         run: |
           python3 -m pip install 'numpy==2.3.5' 'pyyaml==6.0.2'
-          python3 -m unittest tests/test_compare_logits.py tests/test_verify_moe_parity.py tests/test_compare_tensors.py tests/test_control_parity.py tests/test_check_matmul_reference.py tests/test_paired_bench_summary.py tests/test_make_moe_fixture.py tests/test_adr0010_maincoder_declaration.py
+          python3 -m unittest tests/test_cpu_smoke.py tests/test_compare_logits.py tests/test_verify_moe_parity.py tests/test_compare_tensors.py tests/test_control_parity.py tests/test_check_matmul_reference.py tests/test_paired_bench_summary.py tests/test_make_moe_fixture.py tests/test_adr0010_maincoder_declaration.py
 
       - name: Test ORT profile integrity
         run: python3 -m unittest tests/test_ort_profile.py
 
-      - name: Test D3D12 layer log parser
-        run: python3 -m unittest tests/test_d3d12_layer_log.py
+      - name: Test D3D12 layer log and selftest receipt
+        run: python3 -m unittest tests/test_d3d12_layer_log.py tests/test_d3d12_selftest.py
 
       - name: Smoke test debug tooling (profile analyzer + GPU sampler parser)
         run: |
@@ -195,6 +195,9 @@ jobs:
 
       - name: Run unit tests
         run: ctest --test-dir build/linux-test --output-on-failure
+
+      - name: Native CPU GGUF numerical smoke
+        run: python3 scripts/run-cpu-smoke.py --build-dir build/linux-test --model build/cpu-smoke/model.gguf
 
       - name: Verify the test-suite size
         run: |

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 #include "xllama/sse.h"
 
+#include "xllama/json_utils.h"
+
 #include <charconv>
 #include <system_error>
 
@@ -87,6 +89,23 @@ std::string chunk_frame(std::string_view payload) {
 
 std::string chunk_final() {
     return "0\r\n\r\n";
+}
+
+std::string ollama_error_json(const std::string& message) {
+    return "{\"error\":\"" + json_escape(message) + "\"}";
+}
+
+std::string chat_terminal_frames(ChatWire wire, const std::string* error) {
+    if (wire != ChatWire::OpenAI)
+        return (error ? chunk_frame(ollama_error_json(*error) + "\n") : std::string()) +
+               chunk_final();
+    std::string frames;
+    if (error) {
+        const std::string payload =
+            "{\"error\":{\"message\":\"" + json_escape(*error) + "\",\"type\":\"xllama_error\"}}";
+        frames = chunk_frame(sse_event(payload));
+    }
+    return frames + chunk_frame(sse_done()) + chunk_final();
 }
 
 namespace {

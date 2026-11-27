@@ -1,0 +1,296 @@
+// Copyright (c) 2024 Gianluca Mazza
+// SPDX-License-Identifier: MIT
+//
+// #648: per-request reasoning control. The policy table (which model can
+// switch which way), the request parser (reasoning_effort and
+// chat_template_kwargs.enable_thinking), and what plain chat and a tool
+// proposal render for the effective decision, against the real templates.
+#include "xllama/chat_prompt.h"
+#include "xllama/reasoning_control.h"
+#include "xllama/thinking_split.h"
+#include "xllama/tool_request.h"
+#include "xllama/tool_template.h"
+
+#include <doctest/doctest.h>
+
+#include <fstream>
+#include <iterator>
+#include <string>
+#include <vector>
+
+using namespace xllama;
+
+namespace {
+
+std::string read_template(const char* name) {
+    std::ifstream file(std::string(LLAMA_TEMPLATES_DIR) + "/" + name);
+    return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+}
+
+bool ends_with(const std::string& text, const std::string& suffix) {
+    return text.size() >= suffix.size() &&
+           text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+ReasoningFields effort(ReasoningSwitch s) {
+    ReasoningFields f;
+    f.effort = s;
+    return f;
+}
+
+std::string plain_prompt(const std::string& model, bool thinking) {
+    return chat_format_for(model, thinking).render_prompt("sys", {{"hi", "hello"}}, "ping please");
+}
+
+} // namespace
+
+TEST_CASE("reasoning control: which models a request can switch") {
+    struct Row {
+        const char* id;
+        bool reasons; // model_is_thinking: the default
+        bool control; // model_supports_reasoning_control
+    };
+    const Row rows[] = {
+        // Hybrid templates with a thinking and a no-think path.
+        {"qwen3-4b", false, true},
+        {"qwen3-1.7b", false, true},
+        {"Qwen3-4B-Q4_K_M.gguf", false, true},
+        {"qwen35-0.8b", false, true},
+        {"minicpm5-1b-Q4_K_M.gguf", false, true},
+        {"smollm3-3b", false, true},
+        // Thinking-only: no off switch.
+        {"lfm25-1.2b-thinking", true, false},
+        {"lfm25-8b-a1b", true, false},
+        {"qwen3-4b-thinking-2507", true, false},
+        // No thinking path.
+        {"qwen3-4b-instruct-2507", false, false},
+        {"Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf", false, false},
+        {"lfm25-350m", false, false},
+        {"qwen25-coder-1.5b", false, false},
+        {"llama32-3b", false, false},
+        {"gemma4-e2b", false, false}, // its thought channel is not split in plain chat
+        {"smollm2-360m-cpu-int4", false, false},
+        {"embed-bge-m3", false, false},
+    };
+    for (const Row& row : rows) {
+        CAPTURE(row.id);
+        CHECK(model_is_thinking(row.id) == row.reasons);
+        CHECK(model_supports_reasoning_control(row.id) == row.control);
+    }
+}
+
+TEST_CASE("reasoning control: decision per model family and request") {
+    using S = ReasoningSwitch;
+    const char* controllable[] = {"qwen3-4b", "qwen35-0.8b", "minicpm5-1b", "smollm3-3b"};
+    for (const char* id : controllable) {
+        CAPTURE(id);
+        CHECK_FALSE(decide_reasoning(id, ReasoningFields{}).thinking); // default: off
+        CHECK_FALSE(decide_reasoning(id, effort(S::Off)).thinking);
+        const ReasoningDecision on = decide_reasoning(id, effort(S::On));
+        CHECK(on.error.empty());
+        CHECK(on.thinking);
+    }
+
+    // Thinking-only: restating is fine, turning it off is refused.
+    for (const char* id : {"lfm25-1.2b-thinking", "lfm25-8b-a1b"}) {
+        CAPTURE(id);
+        CHECK(decide_reasoning(id, ReasoningFields{}).thinking);
+        CHECK(decide_reasoning(id, effort(S::On)).thinking);
+        const ReasoningDecision off = decide_reasoning(id, effort(S::Off));
+        CHECK(std::string(off.code) == kReasoningUnsupportedCode);
+        CHECK(std::string(off.param) == "reasoning_effort");
+        CHECK(off.error.find("always reasons") != std::string::npos);
+        CHECK(off.error.find(id) != std::string::npos);
+    }
+
+    // No reasoning: off restates, on is refused.
+    for (const char* id : {"lfm25-350m", "gemma4-e2b", "qwen25-coder-1.5b"}) {
+        CAPTURE(id);
+        CHECK(decide_reasoning(id, effort(S::Off)).error.empty());
+        ReasoningFields on;
+        on.enable_thinking = S::On;
+        const ReasoningDecision refused = decide_reasoning(id, on);
+        CHECK(std::string(refused.code) == kReasoningUnsupportedCode);
+        CHECK(std::string(refused.param) == "chat_template_kwargs.enable_thinking");
+        CHECK(refused.error.find("does not reason") != std::string::npos);
+    }
+}
+
+TEST_CASE("reasoning control: request parser, both spellings, conflicts and wrong types") {
+    const auto decide = [](const char* model, const std::string& extra) {
+        return decide_reasoning(
+            model,
+            read_reasoning_fields(std::string(R"({"model":"m","messages":[])") + extra + "}"));
+    };
+    CHECK(reasoning_effort_switch("none") == ReasoningSwitch::Off);
+    for (const char* level : {"low", "medium", "high"})
+        CHECK(reasoning_effort_switch(level) == ReasoningSwitch::On);
+    for (const char* other : {"minimal", "xhigh", "None", ""})
+        CHECK(reasoning_effort_switch(other) == ReasoningSwitch::Invalid);
+
+    CHECK(decide("qwen3-4b", R"(,"reasoning_effort":"high")").thinking);
+    CHECK_FALSE(decide("qwen3-4b", R"(,"reasoning_effort":"none")").thinking);
+    CHECK(decide("qwen3-4b", R"(,"chat_template_kwargs":{"enable_thinking":true})").thinking);
+    CHECK_FALSE(
+        decide("qwen3-4b", R"(,"chat_template_kwargs":{"enable_thinking":false})").thinking);
+    // null is "not given".
+    CHECK(decide("lfm25-8b-a1b", R"(,"reasoning_effort":null)").thinking);
+    CHECK(decide("lfm25-8b-a1b", R"(,"chat_template_kwargs":null)").error.empty());
+    CHECK(decide("lfm25-8b-a1b", R"(,"chat_template_kwargs":{"enable_thinking":null})")
+              .error.empty());
+    // Both spellings must agree.
+    CHECK(decide("qwen3-4b",
+                 R"(,"reasoning_effort":"low","chat_template_kwargs":{"enable_thinking":true})")
+              .thinking);
+    const ReasoningDecision conflict =
+        decide("qwen3-4b",
+               R"(,"reasoning_effort":"none","chat_template_kwargs":{"enable_thinking":true})");
+    CHECK(conflict.error == "reasoning_effort and chat_template_kwargs.enable_thinking disagree");
+    CHECK(std::string(conflict.code) == "invalid_value");
+
+    struct Bad {
+        const char* extra;
+        const char* param;
+    };
+    const Bad bad[] = {
+        {R"(,"reasoning_effort":"max")", "reasoning_effort"},
+        {R"(,"reasoning_effort":true)", "reasoning_effort"},
+        {R"(,"reasoning_effort":{"effort":"low"})", "reasoning_effort"},
+        {R"(,"chat_template_kwargs":true)", "chat_template_kwargs"},
+        {R"(,"chat_template_kwargs":[])", "chat_template_kwargs"},
+        {R"(,"chat_template_kwargs":{"enable_thinking":"yes"})",
+         "chat_template_kwargs.enable_thinking"},
+        {R"(,"chat_template_kwargs":{"enable_thinking":1})",
+         "chat_template_kwargs.enable_thinking"},
+        // A template variable xllama would silently drop.
+        {R"(,"chat_template_kwargs":{"preserve_thinking":true})", "chat_template_kwargs"},
+    };
+    for (const Bad& b : bad) {
+        CAPTURE(b.extra);
+        const ReasoningDecision d = decide("qwen3-4b", b.extra);
+        CHECK_FALSE(d.error.empty());
+        CHECK(std::string(d.code) == "invalid_value");
+        CHECK(std::string(d.param) == b.param);
+    }
+    // A body that is not an object has no reasoning fields; the handler reports it.
+    CHECK(read_reasoning_fields("not json").effort == ReasoningSwitch::Absent);
+}
+
+TEST_CASE("reasoning control: plain chat renders the effective decision") {
+    const std::string empty_think = "<think>\n\n</think>\n\n";
+    SUBCASE("Qwen3: off renders the empty think block, on leaves <think> to the model") {
+        CHECK(ends_with(plain_prompt("qwen3-4b", false), "<|im_start|>assistant\n" + empty_think));
+        const ChatFormat on = chat_format_for("qwen3-4b", true);
+        CHECK(ends_with(plain_prompt("qwen3-4b", true), "<|im_start|>assistant\n"));
+        CHECK(on.strip_thinking_content);
+        CHECK_FALSE(on.reasoning_opened);
+        // The default is the model's own behaviour.
+        CHECK(chat_format_for("qwen3-4b").gen_suffix ==
+              chat_format_for("qwen3-4b", false).gen_suffix);
+        const ThinkingSplit split = on.split_output("<think>plan</think>answer");
+        CHECK(split.reasoning == "plan");
+        CHECK(split.content == "answer");
+    }
+    SUBCASE("Qwen3.5 and MiniCPM5 open <think> in the prompt when on") {
+        for (const char* id : {"qwen35-0.8b", "minicpm5-1b-Q4_K_M.gguf"}) {
+            CAPTURE(id);
+            CHECK(ends_with(plain_prompt(id, false), "assistant\n" + empty_think));
+            const ChatFormat on = chat_format_for(id, true);
+            CHECK(ends_with(plain_prompt(id, true), "<|im_start|>assistant\n<think>\n"));
+            REQUIRE(on.reasoning_opened);
+            CHECK(on.reasoning_prefill() == "<think>");
+            // The reply starts inside the block; one cut off mid-thought is reasoning.
+            ThinkingSplit split = on.split_output("plan</think>answer");
+            CHECK(split.reasoning == "plan");
+            CHECK(split.content == "answer");
+            split = on.split_output("still planning");
+            CHECK(split.reasoning == "still planning");
+            CHECK(split.content.empty());
+            // Streamed and counted the same way.
+            ThinkingStreamSplitter stream(on.reasoning_prefill());
+            ThinkingSplit streamed = stream.push("plan</thi");
+            const ThinkingSplit rest = stream.push("nk>answer");
+            streamed.reasoning += rest.reasoning;
+            streamed.content += rest.content;
+            CHECK(streamed.reasoning == "plan");
+            CHECK(streamed.content == "answer");
+            ReasoningTokenCounter counter(on.reasoning_prefill());
+            for (const char* piece : {"pl", "an", "</think>", "ans", "wer"})
+                counter.push(piece);
+            CHECK(counter.count(true) == 3);
+        }
+        CHECK(chat_format_for("minicpm5-1b", true).bos == "<s>");
+    }
+    SUBCASE("SmolLM3: the template's /think mode, golden from its Jinja") {
+        // HuggingFaceTB-SmolLM3-3B.jinja: "Reasoning Mode: /think", no empty
+        // think block in past assistant turns or in the generation prompt.
+        const std::string on = plain_prompt("smollm3-3b", true);
+        CHECK(on.find("Reasoning Mode: /think\n") != std::string::npos);
+        CHECK(on.find("<|im_start|>assistant\nhello<|im_end|>\n") != std::string::npos);
+        CHECK(ends_with(on, "<|im_start|>assistant\n"));
+        CHECK(on.find("</think>") == std::string::npos);
+        const std::string off = plain_prompt("smollm3-3b", false);
+        CHECK(off.find("Reasoning Mode: /no_think\n") != std::string::npos);
+        CHECK(off.find("<|im_start|>assistant\n<think>\n\n</think>\nhello<|im_end|>\n") !=
+              std::string::npos);
+        CHECK(ends_with(off, "<|im_start|>assistant\n<think>\n\n</think>\n"));
+        CHECK(chat_format_for("smollm3-3b", true).strip_thinking_content);
+    }
+    SUBCASE("a template without a switch renders the same either way") {
+        CHECK(plain_prompt("lfm25-350m", true) == plain_prompt("lfm25-350m", false));
+        CHECK(plain_prompt("gemma4-e2b", true) == plain_prompt("gemma4-e2b", false));
+    }
+}
+
+TEST_CASE("reasoning control: a tool proposal renders the same decision as plain chat") {
+    std::vector<ChatMessage> msgs(1);
+    msgs[0].role = ChatRole::User;
+    msgs[0].content = "ping please";
+    ToolSpec ping;
+    ping.name = "ping";
+    ping.description = "reply";
+    ping.parameters_json = R"({"type":"object","properties":{"text":{"type":"string"}}})";
+    const auto tool_prompt = [&](const std::string& jinja, bool thinking) {
+        const ToolTemplateResult r =
+            render_tool_prompt(nullptr, thinking, jinja, msgs, {ping}, ToolChoice::Auto, "");
+        REQUIRE_MESSAGE(r.ok, r.error);
+        return r.prompt;
+    };
+    struct Case {
+        const char* jinja;
+        const char* id;
+    };
+    for (const Case& c :
+         {Case{"Qwen-Qwen3-0.6B.jinja", "qwen3-4b"}, Case{"Qwen3.5-4B.jinja", "qwen35-0.8b"},
+          Case{"openbmb-MiniCPM5-1B.jinja", "minicpm5-1b"}}) {
+        CAPTURE(c.jinja);
+        const std::string jinja = read_template(c.jinja);
+        REQUIRE_FALSE(jinja.empty());
+        for (const bool thinking : {false, true}) {
+            CAPTURE(thinking);
+            // The request decides; the generation prompt ends where plain chat's does.
+            const ReasoningDecision d = decide_reasoning(
+                c.id, effort(thinking ? ReasoningSwitch::On : ReasoningSwitch::Off));
+            REQUIRE(d.error.empty());
+            CHECK(ends_with(tool_prompt(jinja, d.thinking),
+                            "<|im_start|>assistant\n" +
+                                chat_format_for(c.id, d.thinking).gen_suffix));
+        }
+    }
+    // The parser follows the same value: reasoning is split off with it on.
+    const std::string qwen = read_template("Qwen-Qwen3-0.6B.jinja");
+    const ToolParseResult parsed = parse_tool_generation(
+        nullptr, true, qwen, msgs, {ping}, ToolChoice::Auto, "", "<think>plan</think>pong", false);
+    CHECK_FALSE(parsed.parser_threw);
+    CHECK(parsed.reasoning == "plan");
+    CHECK(parsed.content == "pong");
+
+    // LFM2.5 Thinking cannot be turned off: the request is refused before any
+    // render, and its default keeps reasoning.
+    const ReasoningDecision lfm = decide_reasoning("lfm25-8b-a1b", effort(ReasoningSwitch::Off));
+    CHECK(std::string(lfm.code) == kReasoningUnsupportedCode);
+    const std::string a1b = read_template("LFM2.5-8B-A1B.jinja");
+    REQUIRE_FALSE(a1b.empty());
+    CHECK_FALSE(ends_with(tool_prompt(a1b, decide_reasoning("lfm25-8b-a1b", {}).thinking),
+                          "<think>\n\n</think>\n\n"));
+}
