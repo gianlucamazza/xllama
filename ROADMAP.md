@@ -10,8 +10,8 @@ performance belongs in `docs/benchmarks.md`.
   showcase shell; the LAN OpenAI-compat endpoint is the current
   integration probe. Limits and non-claims:
   [docs/positioning.md](docs/positioning.md).
-- Current manifest: **1.9.0.0** under the **`GianlucaMazza.xllama`** identity.
-  See the [release notes](docs/releases/v1.9.0.md) and
+- Current manifest: **1.10.0.0** under the **`GianlucaMazza.xllama`** identity.
+  See the [release notes](docs/releases/v1.10.0.md) and
   [installation guide](docs/install-release.md) for updates from earlier builds.
 - Shipping artifact: unified ORT GenAI + llama.cpp, with pinned patched runtime
   DLLs while upstream fixes have not reached NuGet. The UWP ggml build now

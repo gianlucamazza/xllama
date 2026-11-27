@@ -107,6 +107,7 @@ path checklist for discovery — descriptions are not repeated.
 [crossbuild-console.md](./crossbuild-console.md) (Windows host MSVC, or Linux → Xbox via uwp-crossbuild + openappx) ·
 [console-validation-runbook.md](./console-validation-runbook.md) ·
 [release-readiness.md](./release-readiness.md) · [privacy.md](./privacy.md) ·
+[releases/v1.10.0.md](./releases/v1.10.0.md) ·
 [releases/v1.9.0.md](./releases/v1.9.0.md) ·
 [releases/v1.8.1.md](./releases/v1.8.1.md) ·
 [releases/v1.8.0.md](./releases/v1.8.0.md) ·
@@ -171,7 +172,7 @@ Spot-checked against code + evidence:
 | GPU allowlist `-v2` only                            | `dml_text_model_ok`                                       | OK                                                           |
 | NuGet 0.14.1 / 1.24.4 / DML 1.15.4                  | `packages.config`                                         | OK                                                           |
 | Decode table (97.9 / 40.0 / 17.9 / 74.8 / 41.2 / …) | `generate-benchmark-summary.py --check`                   | OK (2026-10-11: five Series S rows remeasured on 1.6.0.1163) |
-| Package identity `GianlucaMazza.xllama` (1.9.0.0)   | `uwp/AppxManifest.xml`; migration in `install-release.md` | OK (in-place from 1.5.x; breaking vs ≤1.4.x)                 |
+| Package identity `GianlucaMazza.xllama` (1.10.0.0)  | `uwp/AppxManifest.xml`; migration in `install-release.md` | OK (in-place from 1.5.x; breaking vs ≤1.4.x)                 |
 | One resident Session (GUI+API)                      | `include/xllama/session_hub.h`                            | OK (PR #161/#164)                                            |
 | H9 6/8 · 7/8 · 4/8 · 5/8                            | `2026-09-30-h9-rescore.jsonl` (#243 scorer)               | OK                                                           |
 | Lane B peak_ws 1195 MiB, wall 446 s                 | `phase10-console-devtrain-result.json`                    | OK                                                           |
