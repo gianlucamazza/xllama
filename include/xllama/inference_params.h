@@ -302,8 +302,8 @@ struct InferenceResult {
         // Preserve voluntary cancellation for ORT and a native abort callback.
         // A racing Cancel cannot relabel a fatal decode or watchdog stall.
         return requested && !stalled &&
-               (success || termination == DecodeTermination::BackendAbort ||
-                termination == DecodeTermination::Unspecified);
+               (termination == DecodeTermination::BackendAbort ||
+                (termination == DecodeTermination::Unspecified && success));
     }
 
     bool completed_reply(bool cancel_requested) const noexcept {

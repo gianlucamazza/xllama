@@ -1274,7 +1274,12 @@ TEST_CASE("Session: a zero-token engine failure never requests a full-prompt ret
     result.success = true;
     CHECK_FALSE(result.completed_reply(true));
     CHECK(result.completed_reply(false));
+    result.termination = xllama::DecodeTermination::EndOfGeneration;
+    CHECK(result.completed_reply(true)); // Cancel raced with an already finished turn.
     result.success = false;
+    result.termination = xllama::DecodeTermination::Unspecified;
+    CHECK_FALSE(result.user_cancelled(true)); // An ORT exception.
+
     result.termination = xllama::DecodeTermination::BackendAbort;
     CHECK(result.user_cancelled(true));
     CHECK_FALSE(result.user_cancelled(false));
