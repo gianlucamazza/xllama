@@ -1,7 +1,8 @@
 name: build-uwp-patched
 
 # Manual lane: build the #2280-patched onnxruntime-genai.dll from source
-# (scripts/vendor-genai-dml-patch.ps1 -Build: tag v0.14.1 +
+# (scripts/vendor-genai-dml-patch.ps1 -Build: the nuspec-pinned rel-0.14.1 commit,
+# verified by scripts/prepare_genai_source.py, +
 # patches/onnxruntime-genai-2280-dml-fallback.patch) and package MSIX variants
 # with it, without a local Windows machine. Dispatch-only: the source build is
 # slow and this lane exists only to REFRESH the pin. The shipping lane in
@@ -11,6 +12,11 @@ name: build-uwp-patched
 # and issue #84.
 on:
   workflow_dispatch:
+    inputs:
+      source_url:
+        description: "Git URL for the GenAI source (upstream or a mirror; the pinned commit and tree are verified)"
+        required: false
+        default: "https://github.com/microsoft/onnxruntime-genai.git"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -50,7 +56,9 @@ jobs:
 
       - name: Build patched onnxruntime-genai.dll (#2280) from source
         shell: pwsh
-        run: ./scripts/vendor-genai-dml-patch.ps1 -Build
+        env:
+          GENAI_SOURCE_URL: ${{ inputs.source_url }}
+        run: ./scripts/vendor-genai-dml-patch.ps1 -Build -SourceUrl $env:GENAI_SOURCE_URL
 
       - name: Verify the patched DLL replaced the NuGet copy
         shell: pwsh

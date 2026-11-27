@@ -10,9 +10,11 @@
 
     Resolution order:
       1. vendor/onnxruntime-genai-patched/win-x64/onnxruntime-genai.dll (pre-built)
-      2. -Build: clone onnxruntime-genai @ rel-0.14.1 (pinned commit), apply
-         patch, cmake --build against the restored NuGet ORT (ORT_HOME)
-         (requires VS2022 + CMake + prior 'nuget restore'; full GenAI build — slow)
+      2. -Build: fetch the pinned rel-0.14.1 commit from -SourceUrl, verify the
+         checkout with scripts/prepare_genai_source.py (pinned commit and tree,
+         reviewed patch applied), cmake --build against the restored NuGet ORT
+         (ORT_HOME) (requires VS2022 + CMake + Python + prior 'nuget restore';
+         full GenAI build — slow)
 
 .PARAMETER Build
     Build the DLL from source. Ignores (and overwrites) a cached vendor DLL —
@@ -22,13 +24,21 @@
     onnxruntime-genai version to match uwp/packages.config (default 0.14.1).
     NB: upstream ships 0.14.1 as branch rel-0.14.1, not a tag.
 
+.PARAMETER SourceUrl
+    Git URL to fetch the pinned GenAI commit from (default: upstream
+    microsoft/onnxruntime-genai, which returns 404 since about 2026-11-17).
+    A mirror is acceptable: the build runs only if prepare_genai_source.py
+    verifies the pinned commit and the reviewed tree.
+
 .EXAMPLE
     ./scripts/vendor-genai-dml-patch.ps1
     ./scripts/vendor-genai-dml-patch.ps1 -Build
+    ./scripts/vendor-genai-dml-patch.ps1 -Build -SourceUrl https://example.org/onnxruntime-genai.git
 #>
 param(
     [switch]$Build,
-    [string]$GenAiVersion = "0.14.1"
+    [string]$GenAiVersion = "0.14.1",
+    [string]$SourceUrl = "https://github.com/microsoft/onnxruntime-genai.git"
 )
 
 $ErrorActionPreference = "Stop"
@@ -80,51 +90,60 @@ Upstream: https://github.com/microsoft/onnxruntime-genai/pull/2280
 # --- Build from source -------------------------------------------------------
 $WorkDir = Join-Path $RepoRoot "build/vendor-onnxruntime-genai"
 $CloneDir = Join-Path $WorkDir "onnxruntime-genai"
-# 0.14.1 exists upstream only as branch rel-0.14.1 (no v0.14.1 tag); pin the
-# commit so a moving branch cannot change what we build.
+$Prepare = Join-Path $PSScriptRoot "prepare_genai_source.py"
+# 0.14.1 exists upstream only as branch rel-0.14.1 (no v0.14.1 tag). The pin is
+# the commit in the NuGet nuspec, kept once in prepare_genai_source.py.
 $Branch = "rel-$GenAiVersion"
-$PinnedCommit = "a30f479af016cb098688726831a9acbb8d19f0b2"
+$PinnedCommit = (python $Prepare --pin).Trim()
+if ($LASTEXITCODE -ne 0 -or $PinnedCommit -notmatch '^[0-9a-f]{40}$') {
+    Write-Error "Could not read the GenAI source pin from $Prepare"
+    exit 1
+}
 
+# Fetch the pinned commit from $SourceUrl (upstream or a mirror). The source is
+# trusted only after prepare_genai_source.py verifies the commit and tree.
 if (-not (Test-Path $CloneDir)) {
-    New-Item -ItemType Directory -Path $WorkDir -Force | Out-Null
-    git clone --depth 1 --branch $Branch https://github.com/microsoft/onnxruntime-genai.git $CloneDir
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "git clone of $Branch failed"
-        exit 1
-    }
+    New-Item -ItemType Directory -Path $CloneDir -Force | Out-Null
+    git -C $CloneDir init --quiet
+    if ($LASTEXITCODE -ne 0) { Write-Error "git init failed in $CloneDir"; exit 1 }
 }
-
-Push-Location $CloneDir
-$Head = git rev-parse HEAD
+$Head = git -C $CloneDir rev-parse --verify --quiet HEAD
 if ($Head -ne $PinnedCommit) {
-    git fetch --depth 1 origin $PinnedCommit
-    git checkout $PinnedCommit
+    git -C $CloneDir fetch --depth 1 $SourceUrl $PinnedCommit
     if ($LASTEXITCODE -ne 0) {
-        Pop-Location
-        Write-Error "Could not check out pinned commit $PinnedCommit (branch $Branch drifted?)"
+        # Some mirrors refuse fetch-by-SHA; take the release branch and find the pin in it.
+        git -C $CloneDir fetch $SourceUrl "refs/heads/${Branch}"
+    }
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Could not fetch $PinnedCommit or branch $Branch from $SourceUrl"
+        exit 1
+    }
+    git -C $CloneDir checkout --quiet --detach $PinnedCommit
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Could not check out pinned commit $PinnedCommit from $SourceUrl"
         exit 1
     }
 }
 
-# Apply the patch, or accept a tree where it is already applied (reverse-check).
-git apply --check $PatchFile 2>$null
-if ($LASTEXITCODE -eq 0) {
-    git apply $PatchFile
-    if ($LASTEXITCODE -ne 0) {
-        Pop-Location
-        Write-Error "git apply failed for $PatchFile"
-        exit 1
-    }
-} else {
-    git apply --reverse --check $PatchFile 2>$null
-    if ($LASTEXITCODE -ne 0) {
-        Pop-Location
-        Write-Error "Patch $PatchFile neither applies nor is already applied — refusing to build an unpatched DLL."
-        exit 1
-    }
-    Write-Host "Patch already applied; continuing."
+# Submodule gitlinks are part of the verified tree; their checkouts must match them.
+git -C $CloneDir submodule update --init --recursive
+if ($LASTEXITCODE -ne 0) { Write-Error "GenAI submodule checkout failed"; exit 1 }
+$Submodules = @(git -C $CloneDir submodule status --recursive)
+if ($LASTEXITCODE -ne 0 -or ($Submodules -match '^[+U-]')) {
+    Write-Error "GenAI submodules must be initialized at their recorded commits."
+    exit 1
 }
-Pop-Location
+# A reused checkout keeps the previous build/ (ignored by Git), which the
+# verification refuses: start every build from source only.
+$OldBuild = Join-Path $CloneDir "build"
+if (Test-Path $OldBuild) { Remove-Item -Recurse -Force $OldBuild }
+# Refuses untracked, ignored or hidden edits and any tree other than the pin or
+# the pin + the reviewed patch; applies the patch when the tree is the pin.
+python $Prepare $CloneDir $GenAiVersion
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "GenAI source verification failed; see output above."
+    exit 1
+}
 
 # ORT_HOME staged from the restored NuGet ORT (uwp/packages.config), so the DLL
 # links the exact onnxruntime the MSIX ships. Without ORT_HOME the GenAI build
