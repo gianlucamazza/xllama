@@ -246,9 +246,9 @@ needs a decision-log entry.
 - **Measure:** (a) arch delta —
   `git -C llama.cpp log --oneline b10094..<new> -- src/models/ src/llama-arch.cpp`
   plus the `LLM_ARCH_NAMES` diff; (b) `scripts/apply-llama-patches.sh` applies
-  clean; (c) `scripts/check-uwp-sources.sh`; (d) a **manual diff of the
-  `ggml/src` source list** against `uwp/ggml-uwp.vcxproj` (not covered by CI —
-  see R2); (e) an A/B of `lfm25-350m` Q4_K_M at t6 into
+  clean; (c) `scripts/check-uwp-sources.sh` verifies the ggml, llama and chat
+  inventories; (d) review any new backend directories and the chat link closure
+  against the candidate pin; (e) an A/B of `lfm25-350m` Q4_K_M at t6 into
   `bench/results/phase16-pin-before.csv` / `phase16-pin-after.csv`.
 - **PASS:** the needed arch is present, the patch applies (or rebases in ≤20
   lines), 10/10 console gates, and prefill/decode stay within ±3% of
