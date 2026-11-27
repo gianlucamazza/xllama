@@ -49,6 +49,8 @@ ApiCapabilities build_api_capabilities() {
     caps.tools = true;
     caps.tools_stream = true;
     caps.embeddings = true;
+    caps.ollama_chat = true;       // /api/chat and /api/generate serve GGUF models
+    caps.ollama_keep_alive = true; // session_residency.h: the console app wins
 #endif
 #ifdef XLLAMA_USE_ORT
     caps.images = true;
@@ -60,6 +62,8 @@ ApiCapabilities build_api_capabilities() {
     caps.reasoning_tokens = true;  // #585: the same replies' usage
     caps.cached_tokens = true;     // #595: prompt tokens the KV prefix reuse skipped
     caps.model_sampling = true;    // catalogue "sampling" applies to omitted fields
+    caps.chat_context = true;      // options.num_ctx reduces a chat load
+    caps.reasoning_control = true; // #648: per model, capabilities.reasoning_control
     return caps;
 }
 
@@ -86,6 +90,10 @@ std::string health_json(const std::string& version, const ApiCapabilities& caps,
     out += ",\"reasoning_tokens\":" + std::string(boolean(caps.reasoning_tokens));
     out += ",\"cached_tokens\":" + std::string(boolean(caps.cached_tokens));
     out += ",\"model_sampling\":" + std::string(boolean(caps.model_sampling));
+    out += ",\"ollama_chat\":" + std::string(boolean(caps.ollama_chat));
+    out += ",\"ollama_keep_alive\":" + std::string(boolean(caps.ollama_keep_alive));
+    out += ",\"chat_context\":" + std::string(boolean(caps.chat_context));
+    out += ",\"reasoning_control\":" + std::string(boolean(caps.reasoning_control));
     // The sampling fields a chat request may set (api_sampling.h, #609); a
     // client sends only these instead of assuming them per version.
     out += "},\"sampling\":[";
@@ -125,8 +133,10 @@ std::string models_list_json(const std::vector<ModelInfo>& models, std::int64_t 
             out += ",\"sampling\":" + sampling_json(m.sampling);
 
         out += ",\"capabilities\":{\"tools\":" + std::string(boolean(m.tools)) +
-               ",\"reasoning\":" + boolean(m.reasoning) + ",\"embedding\":" + boolean(m.embedding) +
-               "}}";
+               ",\"reasoning\":" + boolean(m.reasoning) +
+               ",\"reasoning_control\":" + boolean(m.reasoning_control) +
+               ",\"embedding\":" + boolean(m.embedding) +
+               ",\"ollama_chat\":" + boolean(m.ollama_chat) + "}}";
     }
     out += "]}";
     return out;

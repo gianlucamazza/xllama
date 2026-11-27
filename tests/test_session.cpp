@@ -1134,7 +1134,13 @@ TEST_CASE("Session: an abort ends a prefill inside its batch, and the next turn 
     MESSAGE("full prefill " << full_ms << " ms; aborted after " << abort_after_ms
                             << " ms, returned at " << aborted_ms << " ms");
     CHECK_FALSE(aborted.success);
-    CHECK(aborted.error_msg == "aborted during prefill");
+    if (aborted.decode_rc == 2) { // llama.cpp observed Stop within an ubatch
+        CHECK(aborted.termination == xllama::DecodeTermination::BackendAbort);
+    } else { // between chunks
+        CHECK(aborted.decode_rc == 0);
+        CHECK(aborted.termination == xllama::DecodeTermination::Cancelled);
+    }
+    CHECK_FALSE(aborted.error_msg.empty());
     CHECK(aborted_ms < full_ms / 2);
 
     // The partial prefill was dropped and the KV epoch renewed: a continuation
