@@ -229,11 +229,12 @@
       ]
     },
     {
-      "_comment": "D3 2026-10-02: GPU default (gpu_layers 99) after D2-r2 PASS — decode 1.64x, peak +163 MB vs CPU (docs/gguf-gpu-decode.md). Phase 7 H1 PASS (2026-07-17) on Q4_K_M. 2026-09-30 QAD Q4_0 regression PASS on Series S (#270): 40.0 tok/s decode, 783 MB peak, H9 6/8 (Q4_K_M was 37.9 / 811 / 6/8) — bench/results/2026-09-30-catalogue-gates.csv. Direct from LiquidAI so the LFM Open License accompanies the weights.",
+      "_comment": "D3 2026-10-02: GPU default (gpu_layers 99) after D2-r2 PASS — decode 1.64x, peak +163 MB vs CPU (docs/gguf-gpu-decode.md). Phase 7 H1 PASS (2026-07-17) on Q4_K_M. 2026-09-30 QAD Q4_0 regression PASS on Series S (#270): 40.0 tok/s decode, 783 MB peak, H9 6/8 (Q4_K_M was 37.9 / 811 / 6/8) — bench/results/2026-09-30-catalogue-gates.csv. Direct from LiquidAI so the LFM Open License accompanies the weights. sampling: the model card's values, paired eval on Series S 2026-11-27 (no regression, no measured gain) — bench/results/2026-11-27-lfm25-card-sampling/.",
       "name": "lfm25-1.2b-instruct",
       "display": "LFM2.5 1.2B Instruct (GGUF · GPU · balanced · QAD)",
       "kind": "gguf",
       "gpu_layers": 99,
+      "sampling": { "temperature": 0.1, "top_k": 50, "repetition_penalty": 1.05 },
       "hf_base_url": "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF/resolve/main",
       "files": [
         {
@@ -451,10 +452,11 @@
       ]
     },
     {
-      "_comment": "LFM2.5-8B-A1B UD-IQ3_S — Phase 15 H2 candidate (MoE): 32 experts, 4 active per token (1/8), 24 blocks. Host gate 2026-07-29: loads on pin b10093 (lfm2moe), coherent at IQ3_S, peak 3502 MB — weights+2.8%, well under the 4 GB H2 gate and the 4864 MB measured console heap ceiling (phase15-ramceil.csv). THINKING MODEL: emits <think> every turn (template's preserve_thinking governs history replay only), so chat_format_for strips it and KV snapshots stay off — model_is_thinking() detects it by family, not by name. Direct from HF unsloth GGUF (>2 GB, not mirrored to models-v1); LFM Open License applies. kind:gguf, CPU-only, KV-reuse, routing disabled.",
+      "_comment": "LFM2.5-8B-A1B UD-IQ3_S — Phase 15 H2 candidate (MoE): 32 experts, 4 active per token (1/8), 24 blocks. Host gate 2026-07-29: loads on pin b10093 (lfm2moe), coherent at IQ3_S, peak 3502 MB — weights+2.8%, well under the 4 GB H2 gate and the 4864 MB measured console heap ceiling (phase15-ramceil.csv). THINKING MODEL: emits <think> every turn (template's preserve_thinking governs history replay only), so chat_format_for strips it and KV snapshots stay off — model_is_thinking() detects it by family, not by name. Direct from HF unsloth GGUF (>2 GB, not mirrored to models-v1); LFM Open License applies. kind:gguf, CPU-only, KV-reuse, routing disabled. sampling: the model card's values (also its generation_config.json), paired eval on Series S 2026-11-27 (no regression, no measured gain) — bench/results/2026-11-27-lfm25-card-sampling/.",
       "name": "lfm25-8b-a1b",
       "display": "LFM2.5 8B-A1B MoE (GGUF · CPU · 3.57 GB, experimental)",
       "kind": "gguf",
+      "sampling": { "temperature": 0.2, "top_k": 80, "repetition_penalty": 1.05 },
       "hf_base_url": "https://huggingface.co/unsloth/LFM2.5-8B-A1B-GGUF/resolve/main",
       "files": [
         {
