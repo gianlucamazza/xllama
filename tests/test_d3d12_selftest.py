@@ -52,16 +52,20 @@ class SelftestGate(unittest.TestCase):
             driver = work / "bench-d3d12-selftest.sh"
             shutil.copy(ROOT / "scripts" / driver.name, driver)
             shutil.copy(SPEC.origin, work)
+            shutil.copy(ROOT / "scripts/console_run_log.py", work)
             deploy = work / "deploy.sh"
             deploy.write_text("""#!/usr/bin/env bash
 set -eu
 case "$1" in
 pfn) echo package ;;
 list-localstate) echo "$LISTING" ;;
-get-log) [[ ! -f "$STARTED" ]] || cat "$RUN_LOG" ;;
 start-app) touch "$STARTED" ;;
 fetch-file)
-    if [[ "$3" == *.done ]]; then echo done >"$4"; else cp "$RECEIPT" "$4"; fi ;;
+    case "$3" in
+    xllama.log) cp "$RUN_LOG" "$4" ;;
+    *.done) echo done >"$4" ;;
+    *) cp "$RECEIPT" "$4" ;;
+    esac ;;
 stop-app|delete-file|upload-file) ;;
 *) exit 2 ;;
 esac
@@ -71,7 +75,7 @@ esac
             (work / "sleep").chmod(0o755)
             started = work / "started"
             run_log = work / "current.log"
-            run_log.write_text(ROPE_LOG)
+            run_log.write_text("[xllama] d3d12be.flag detected -> headless d3d12 backend selftest\n" + ROPE_LOG)
             env = dict(os.environ, PATH=f"{temp}:{os.environ['PATH']}", XBOX_ENV="/dev/null",
                        XBOX_IP="fake", STARTED=str(started), RUN_LOG=str(run_log),
                        RECEIPT=str(RECEIPTS / "d3d12-selftest-b47fe34-rope.csv"))
@@ -85,6 +89,10 @@ esac
             result = run('{"Items":[]}')
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("GATE=PASS", result.stdout)
+            # A historical marker alone cannot authenticate a newly fetched receipt.
+            result = run('{"Items":[{"Name":"xllama.log"}]}')
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("expected exactly one new headless d3d12 marker", result.stderr)
 
     def test_truncated_receipts(self):
         rows = receipt("off")

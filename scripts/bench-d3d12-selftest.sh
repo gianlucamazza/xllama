@@ -78,19 +78,22 @@ import json, sys
 items = json.load(sys.stdin)["Items"]
 if not isinstance(items, list):
     sys.exit("invalid LocalState listing")
-if {"d3d12be-result.csv", "d3d12be-result.csv.done"} & {i["Name"].lower() for i in items}:
+names = {i["Name"].lower() for i in items}
+if {"d3d12be-result.csv", "d3d12be-result.csv.done"} & names:
     sys.exit("stale selftest receipt or completion marker")
-'
+print(int("xllama.log" in names))
+' >"$TMP/log-present"
 
 : >"$TMP/d3d12be.flag"
 "${SCRIPT_DIR}/deploy.sh" upload-file "$TMP/d3d12be.flag" "$PFN" "" "d3d12be.flag"
-log_lines=0
 if ((${#verify_args[@]})); then
-	"${SCRIPT_DIR}/deploy.sh" get-log "$PFN" >"$TMP/before.log"
-	log_lines=$(wc -l <"$TMP/before.log")
+	: >"$TMP/before.log"
+	if [[ $(cat "$TMP/log-present") == 1 ]]; then
+		"${SCRIPT_DIR}/deploy.sh" fetch-file "$PFN" xllama.log "$TMP/before.log"
+	fi
 fi
 sleep 1
-"${SCRIPT_DIR}/deploy.sh" start-app
+"${SCRIPT_DIR}/deploy.sh" start-app "$PFN"
 echo "Waiting for d3d12be-result.csv.done (timeout ${TIMEOUT_S}s) ..."
 done_fetched=0
 deadline=$((SECONDS + TIMEOUT_S))
@@ -113,7 +116,8 @@ echo "Wrote $OUT"
 cat "$OUT"
 
 if ((${#verify_args[@]})); then
-	"${SCRIPT_DIR}/deploy.sh" get-log "$PFN" | tail -n "+$((log_lines + 1))" >"$TMP/after.log"
+	"${SCRIPT_DIR}/deploy.sh" fetch-file "$PFN" xllama.log "$TMP/full.log"
+	python3 "${SCRIPT_DIR}/console_run_log.py" "$TMP/before.log" "$TMP/full.log" "$TMP/after.log" d3d12
 	verify_args+=(--run-log "$TMP/after.log")
 fi
 python3 "${SCRIPT_DIR}/verify-d3d12-selftest.py" "$OUT" "${verify_args[@]}"
