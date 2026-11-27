@@ -171,6 +171,20 @@ jobs:
       - name: Apply llama.cpp patches
         run: bash scripts/apply-llama-patches.sh
 
+      # AGENTS.md promises CMake 3.22: read every preset, configure linux-test
+      # (doctest through FetchContent), and configure and build linux-debug
+      # through its build preset. Runs before the linux-test build so ccache
+      # serves part of that build.
+      - name: Configure and build with the minimum supported CMake
+        run: |
+          python3 -m pip install --target "$RUNNER_TEMP/cmake-min" 'cmake==3.22.0'
+          minimum="$RUNNER_TEMP/cmake-min/cmake/data/bin/cmake"
+          "$minimum" --version
+          "$minimum" --list-presets=all
+          "$minimum" --preset linux-test -B "$RUNNER_TEMP/build-min-test"
+          "$minimum" --preset linux-debug
+          "$minimum" --build --preset linux-debug
+
       - name: Configure (with tests)
         run: cmake --preset linux-test
 
