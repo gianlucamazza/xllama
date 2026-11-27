@@ -41,13 +41,6 @@ void apply_layer(const SamplingOverrides& o, SamplingSource source, ResolvedSamp
     layer(o.repetition_penalty, source, r.repetition_penalty, r.repetition_penalty_source);
 }
 
-const ApiSamplingField* field_named(std::string_view key) {
-    for (const ApiSamplingField& field : kApiSamplingFields)
-        if (key == field.key)
-            return &field;
-    return nullptr;
-}
-
 } // namespace
 
 ResolvedSampling resolve_sampling(const SamplingOverrides& model, const SamplingOverrides& user) {
@@ -75,7 +68,7 @@ std::optional<SamplingOverrides> parse_sampling_overrides(std::string_view json_
     SamplingOverrides out;
     for (auto it = obj.begin(); it != obj.end(); ++it) {
         const std::string& key = it.key();
-        const ApiSamplingField* field = field_named(key);
+        const ApiSamplingField* field = find_api_sampling_field(key);
         // The seed is per request: a model has no default seed.
         if (!field || key == "seed")
             return fail("sampling." + key + " is not a model sampling field");

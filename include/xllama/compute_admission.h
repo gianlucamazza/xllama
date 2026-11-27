@@ -48,12 +48,15 @@ class ComputeJobAdmission {
         if (!m_state->active.compare_exchange_strong(expected, true, std::memory_order_acquire,
                                                      std::memory_order_relaxed))
             return {};
+        Permit* permit;
         try {
-            return Handle(new Permit(m_state));
+            permit = new Permit(m_state);
         } catch (...) {
             m_state->active.store(false, std::memory_order_release);
             throw;
         }
+        // shared_ptr deletes permit itself if allocating its control block fails.
+        return Handle(permit);
     }
 
   private:

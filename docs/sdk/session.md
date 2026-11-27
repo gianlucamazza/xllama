@@ -109,6 +109,10 @@ Configuration for creating a persistent session.
 | `prompt_lookup`    | false   | Draft-free prompt-lookup speculative decoding                    |
 | `prefix_snapshots` | true    | Hybrid prefix snapshots; `false` or LocalState file `0` opts out |
 
+For GGUF catalogue entries, `resolve_session_params` joins the relative LoRA
+adapter name to the model directory using the host filesystem separator. An
+empty model directory leaves the adapter name relative.
+
 On UWP, interactive GGUF chat (GUI and LAN API) reads
 `LocalState\gguf_n_threads.txt` through `resolve_session_params`. Absent, 0,
 an invalid value, or one above `kGgufNThreadsMax` (ggml's thread-array size)

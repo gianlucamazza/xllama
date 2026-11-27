@@ -14,6 +14,24 @@ unified UWP package. Completed release and demo work belongs in `CHANGELOG.md`.
 missing. Source rebuild workflows are maintenance lanes, not normal shipping
 builds.
 
+## Rebuild source
+
+A source rebuild binds its checkout to the source commit Microsoft recorded in
+the official NuGet nuspec, plus one reviewed patch, before it builds.
+
+| Runtime            | Source pin (nuspec, checked 2026-11-27)           | Verifier                          |
+| ------------------ | ------------------------------------------------- | --------------------------------- |
+| ORT GenAI DirectML | `a30f479` (`<releaseNotes>`, branch `rel-0.14.1`) | `scripts/prepare_genai_source.py` |
+| ORT DirectML       | `2d92497` (`<repository commit=...>`)             | pending xllama #642               |
+
+`github.com/microsoft/onnxruntime` and `github.com/microsoft/onnxruntime-genai`
+return 404 since about 2026-11-17 (xllama #646), so the default upstream fetch
+fails closed. `vendor-genai-dml-patch.ps1 -SourceUrl` takes a mirror. A mirror
+or fork is acceptable only when its checkout passes the verifier unchanged:
+pinned commit, pinned tree or pinned tree + reviewed patch, no untracked,
+ignored or hidden local files. Until a rebuild passes that check and the
+console acceptance, keep the existing DLLs and `SHA256SUMS`.
+
 ## Active upstream work
 
 - **GenAI #2280:** merged upstream; still absent from NuGet 0.14.1. Keep
