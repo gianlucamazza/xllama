@@ -2808,11 +2808,11 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                     json = failure_json(failure.message);
                 }
             }
+            // A new admission can replace the activity ticket. Finish accounting
+            // before releasing ownership, then deliver the request-owned body.
+            record_outcome(ticket, status, json);
             lk.unlock();
             compute_permit.reset();
-            // Record before writing: a client that disconnects makes
-            // write_response throw, and the request was still served.
-            record_outcome(ticket, status, json);
             // A streamed reply is already on the socket; an empty body means the
             // stream (or its error event) was the response.
             if (stream && json.empty())
