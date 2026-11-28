@@ -23,10 +23,39 @@ TEST_CASE("context_shift_allowed: attention can_shift and no SWA is #169") {
 TEST_CASE("context_shift_allowed: hybrid is not a third gate") {
     // LFM2 catalogue models and granitehybrid both report memory_can_shift=1
     // with n_swa=0. Folding is_hybrid into the predicate would change shipping
-    // long-chat behavior. Document the current formula only.
+    // long-chat behavior. Instead, context_shift_mode selects Rebuild for them.
     const bool hybrid_like_memory_can_shift = true;
     const int n_swa = 0;
     CHECK(context_shift_allowed(hybrid_like_memory_can_shift, n_swa));
+}
+
+TEST_CASE("context_shift_mode: selects None, InPlace, or Rebuild") {
+    CHECK(context_shift_mode(false, 0, false, false) == ContextShiftMode::None);
+    CHECK(context_shift_mode(false, 0, true, false) == ContextShiftMode::None);
+    CHECK(context_shift_mode(true, 4, true, false) == ContextShiftMode::None);
+    CHECK(context_shift_mode(true, 4, false, true) == ContextShiftMode::None);
+    CHECK(context_shift_mode(true, 0, false, false) == ContextShiftMode::InPlace);
+    CHECK(context_shift_mode(true, 0, true, false) == ContextShiftMode::Rebuild);
+    CHECK(context_shift_mode(true, 0, false, true) == ContextShiftMode::Rebuild);
+    CHECK(context_shift_mode(true, 0, true, true) == ContextShiftMode::Rebuild);
+}
+
+TEST_CASE("shift_rebuild_checkpoint: picks longest checkpoint at or below keep") {
+    CHECK_FALSE(shift_rebuild_checkpoint({}, 100).has_value());
+    CHECK_FALSE(shift_rebuild_checkpoint({512, 1024}, 0).has_value());
+    CHECK_FALSE(shift_rebuild_checkpoint({0, 512, 1024}, 256).has_value());
+    CHECK(shift_rebuild_checkpoint({512, 1024, 1536}, 512) == 0u);
+    CHECK(shift_rebuild_checkpoint({512, 1536, 1024}, 1200) == 2u);
+    CHECK(shift_rebuild_checkpoint({0, 64, 512}, 64) == 1u);
+}
+
+TEST_CASE("shift_rebuild_capture_points: includes keep inside (kv_keep, head) without duplicates") {
+    CHECK(shift_rebuild_capture_points(0, 64, 600) == std::vector<std::size_t>{64, 512, 592});
+    CHECK(shift_rebuild_capture_points(64, 64, 600) == std::vector<std::size_t>{512, 592});
+    CHECK(shift_rebuild_capture_points(0, 512, 600) == std::vector<std::size_t>{512, 592});
+    CHECK(shift_rebuild_capture_points(0, 0, 600) == std::vector<std::size_t>{512, 592});
+    CHECK(shift_rebuild_capture_points(0, 595, 600) == std::vector<std::size_t>{512, 592});
+    CHECK(shift_rebuild_capture_points(0, 4, 8).empty());
 }
 
 TEST_CASE("turn_aligned_discard: evicts whole turns, never half a message") {

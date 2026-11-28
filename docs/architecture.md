@@ -77,7 +77,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `inference_progress.h`             | Prefill-done + decode-progress logs and the stall watchdog (`XLLAMA_INFER_STALL_TIMEOUT_S`, default 180 s)                                                                                            |
 | `http_framing.h`                   | `parse_http_head` — exact LAN API request framing and deadlines (ADR 0006)                                                                                                                            |
 | `prompt_budget.h`                  | `fit_prompt` for plain chat, `fit_tool_transcript` for a tool proposal — both exact, both on the resident tokenizer                                                                                   |
-| `context_shift.h`                  | #169 context-shift admission predicate (`llama_memory_can_shift` plus the SWA guard)                                                                                                                  |
+| `context_shift.h`                  | #169 / #723 context-shift admission, in-place vs hybrid/recurrent rebuild mode, and turn-aligned eviction                                                                                             |
 | `memory_admission.h`               | Pre-load GGUF memory admission: weights, KV and compute buffers from llama.cpp's dry run against the app limit and GPU budget                                                                         |
 | `tool_budget.h`                    | Tool-proposal overflow 400 with the baseline and tool token contribution, plus a field when one component exceeds the budget                                                                          |
 | `autopilot.h`                      | `AutopilotAction`, `validate_autopilot_script` — console gate contract (WinRT-free)                                                                                                                   |
@@ -299,7 +299,12 @@ prefill captures them in two kinds (#601):
   upstream persists checkpoints the same way, llama.cpp #26004), so after a load a
   turn that diverges inside the tail, such as an edited reply, restores the head
   instead of prefilling the whole history. A missing or malformed trailer only
-  means no checkpoint. The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
+  means no checkpoint. Restore releases the serialized sequence buffer before reading
+  the optional checkpoint and transfers that allocation to the session. If the
+  sequence buffer cannot fit, the current KV stays intact. If only the
+  optional checkpoint cannot fit, a later branch can prefill from the beginning.
+  [Host allocation counts](../bench/results/2026-11-27-hybrid-kv-restore-host.json) cover the restore staging buffers.
+  The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
 
 - **Fingerprinted** (model, n_ctx, KV quant, LoRA) — stale snapshots are
   harmless by construction (they fall back to a normal prefill).
@@ -1066,13 +1071,14 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_personalize.cpp`             | `personalize.h`                                                                                                                                       |
 | `test_preference_capture.cpp`      | `preference_capture.h`                                                                                                                                |
 | `test_prefix_snapshot.cpp`         | `prefix_snapshot.h` — extension keeps; slack restore; regenerate restores; attention prefix required; longest shared checkpoint; grid and byte budget |
-| `test_context_shift.cpp`           | `context_shift.h` — #169 shift admission (`memory_can_shift`, SWA guard); turn-aligned discard                                                        |
+| `test_context_shift.cpp`           | `context_shift.h` — #169 / #723 shift admission, mode selection (`InPlace` / `Rebuild`), checkpoint selection, turn-aligned discard                   |
 | `test_granite_hybrid_snapshot.cpp` | #512 restore on Granite-4.0-H-Tiny (opt-in `XLLAMA_GRANITE_H_TINY`; skips in CI)                                                                      |
 | `test_prompt_budget.cpp`           | `prompt_budget.h`                                                                                                                                     |
 | `test_ramceil.cpp`                 | `ramceil.h`                                                                                                                                           |
 | `test_routing_policy.cpp`          | `routing_policy.h`                                                                                                                                    |
 | `test_model_sampling.cpp`          | `model_sampling.h` (layer order, catalogue `sampling` parse, bundled manifest)                                                                        |
 | `test_sampling.cpp`                | `sampling.h` (CLI/Session parity opt-in)                                                                                                              |
+| `test_state_restore_memory.cpp`    | Public hybrid KV restore with a tiny LFM2, serialized buffer lifetimes, allocation failure, retry and greedy parity                                   |
 | `test_sdk_consumer.cpp`            | Linux CMake consumer compile, link and upstream header visibility                                                                                     |
 | `test_session.cpp`                 | `session.h`, `session_hub.h`                                                                                                                          |
 | `test_session_spec.cpp`            | `session_spec.h`, hub reuse rule                                                                                                                      |

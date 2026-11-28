@@ -1,0 +1,56 @@
+{
+  "measurement": "Maximum concurrently live serialized payload bytes in a fresh receiver during Session::load_state",
+  "utc_date": "2026-11-27",
+  "scope": "Caller-thread C++ allocations of the exact state and checkpoint sizes. The two sizes differ for both fixtures. This does not measure process RSS, wall time or on-console performance.",
+  "host": {
+    "os": "Linux 6.18.57 x86_64",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "cxx": "GCC 14.2.0",
+    "build": "linux-test, Debug -O0, portable AVX2",
+    "backend": "llama.cpp CPU",
+    "threads": 1,
+    "requested_context": 256,
+    "requested_new_tokens": 3,
+    "temperature": 0
+  },
+  "xllama_base": "62a577e00859ec381463707f3baf1430edda5ddc",
+  "candidate_session_cpp_git_blob": "5f13bbaef30969e2cc48fb3e89b189831d02f1a9",
+  "llama_cpp": "d81235049384534c167caea52b85a694f6103d14 with the xLlama patch set",
+  "procedure": "Run scripts/test-kv-restore-memory.py --build-dir build/linux-test for the offline fixture. Pass --model /path/to/LFM2.5-230M-QAD-Q4_0.gguf for the catalogue row. For the baseline, build the same test driver against the base runtime; the footprint assertion fails after printing its counts.",
+  "runs": [
+    {
+      "model": "Generated two-layer LFM2 hybrid",
+      "weights": "F16 matrices, FP32 norms and convolution",
+      "model_sha256": "5a80ea80c630ac7200779791ed6c47e9a4fc3a9846e9f86240f5e7a5f2f56830",
+      "saved_tokens": 84,
+      "checkpoint_tokens": 73,
+      "state_bytes": 23124,
+      "checkpoint_bytes": 564,
+      "baseline": {
+        "checkpoint_allocations": 2,
+        "peak_live_payload_bytes": 24252
+      },
+      "candidate": {
+        "checkpoint_allocations": 1,
+        "peak_live_payload_bytes": 23124
+      }
+    },
+    {
+      "model": "LiquidAI LFM2.5-230M",
+      "weights": "QAD Q4_0",
+      "model_sha256": "e75f83268de11b2a1bcfab5f3b5c5c0c97569ddbbc0990aad88437e45b8ba292",
+      "saved_tokens": 89,
+      "checkpoint_tokens": 78,
+      "state_bytes": 1160624,
+      "checkpoint_bytes": 65756,
+      "baseline": {
+        "checkpoint_allocations": 2,
+        "peak_live_payload_bytes": 1292136
+      },
+      "candidate": {
+        "checkpoint_allocations": 1,
+        "peak_live_payload_bytes": 1160624
+      }
+    }
+  ]
+}
