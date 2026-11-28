@@ -82,8 +82,8 @@ inline void state() {
                 "failed publish");
         r["local_overrides"] = "preserved both existing entries; malformed manifest refused";
         const auto image = home / "test.png";
-        require(diffusion::publish_png_rgb(image, 1, 1, {1, 2, 3}) == fs::file_size(image),
-                "png length");
+        const auto bytes = diffusion::publish_png_rgb(image, 1, 1, {1, 2, 3});
+        require(bytes && bytes == fs::file_size(image), "png length");
         auto prior = read(image);
         fs::create_directory(home / "test.png.tmp");
         require(!diffusion::publish_png_rgb(image, 1, 1, {3, 2, 1}) && read(image) == prior,
