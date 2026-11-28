@@ -22,6 +22,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <new>
 #include <optional>
 #include <string>
 
@@ -520,7 +521,8 @@ llama_context_params make_context_params(int n_ctx, int n_threads, int n_batch, 
 // the real load then reports why.
 std::optional<SessionMemory> estimate_session_memory(const std::string& path,
                                                      const llama_model_params& mparams,
-                                                     const llama_context_params& cparams) {
+                                                     const llama_context_params& cparams,
+                                                     bool weights_resident = false) {
     llama_model_params dry = mparams;
     dry.no_alloc = true;
     dry.load_mode = LLAMA_LOAD_MODE_NONE;
@@ -530,8 +532,7 @@ std::optional<SessionMemory> estimate_session_memory(const std::string& path,
     LlamaContextPtr ctx(llama_init_from_model(model.get(), cparams));
     if (!ctx)
         return std::nullopt;
-    constexpr std::size_t kMb = 1024 * 1024;
-    std::size_t model_b = 0, context_b = 0, compute_b = 0, device_b = 0;
+    SessionMemoryEstimate estimate(weights_resident);
     for (const auto& [buft, mb] : llama_get_memory_breakdown(ctx.get())) {
         const ggml_backend_dev_t dev = ggml_backend_buft_get_device(buft);
         const enum ggml_backend_dev_type type =
@@ -539,22 +540,11 @@ std::optional<SessionMemory> estimate_session_memory(const std::string& path,
         const bool on_device =
             !ggml_backend_buft_is_host(buft) &&
             (type == GGML_BACKEND_DEVICE_TYPE_GPU || type == GGML_BACKEND_DEVICE_TYPE_IGPU);
-        if (on_device)
-            device_b += mb.model + mb.context + mb.compute;
-        // System memory: CPU buffer types, host buffers, and an integrated GPU's
-        // buffers (it uses host memory; D3D12 reports IGPU).
-        if (!on_device || type == GGML_BACKEND_DEVICE_TYPE_IGPU) {
-            model_b += mb.model;
-            context_b += mb.context;
-            compute_b += mb.compute;
-        }
+        // An integrated GPU allocation consumes both the app and device quotas.
+        const bool on_host = !on_device || type == GGML_BACKEND_DEVICE_TYPE_IGPU;
+        estimate.add_buffer(mb.model, mb.context, mb.compute, on_host, on_device);
     }
-    SessionMemory m;
-    m.host_model_mb = model_b / kMb;
-    m.host_context_mb = context_b / kMb;
-    m.host_compute_mb = compute_b / kMb;
-    m.device_mb = device_b / kMb;
-    return m;
+    return estimate.charges();
 }
 
 ::xllama::MemoryVerdict admit_memory(const std::optional<SessionMemory>& need, int n_ctx) {
@@ -644,15 +634,27 @@ class LlamaSession final : public Session {
           m_kv_q8(kv_q8), m_prompt_lookup(prompt_lookup), m_prefix_snapshots(prefix_snapshots),
           m_gpu_layers(gpu_layers), m_model_path(std::move(model_path)), m_mparams(mparams) {}
 
-    // Admission for a context other than the one the session was admitted
-    // with (an embedding context). The weights are already resident, so only
-    // the context and compute parts of the dry run are new.
-    ::xllama::MemoryVerdict admit_context(const llama_context_params& cparams) const {
-        std::optional<SessionMemory> need =
-            estimate_session_memory(m_model_path, m_mparams, cparams);
-        if (need)
-            need->host_model_mb = 0;
-        return admit_memory(need, static_cast<int>(cparams.n_ctx));
+    // Embedding and default-KV fallback can allocate a different context than
+    // the one admitted on load. Current process and GPU usage include weights.
+    bool admit_new_context(const llama_context_params& cparams, std::string* err) const {
+        const auto need =
+            estimate_session_memory(m_model_path, m_mparams, cparams, /*weights_resident=*/true);
+        MemoryVerdict v;
+        if (need) {
+            v = admit_memory(need, static_cast<int>(cparams.n_ctx));
+        } else if (app_memory_limit_mb() != 0 ||
+                   (m_gpu_layers > 0 && gpu_mem_info().budget_mb != 0) ||
+                   m_n_ctx > bound_unadmitted_n_ctx(m_n_ctx)) {
+            v.ok = false;
+            v.message = std::string(kMemoryRefusalPrefix) +
+                        "cannot size the replacement context at n_ctx " + std::to_string(m_n_ctx);
+        }
+        if (!v.ok) {
+            if (err)
+                *err = v.message;
+            log_output("[xllama] session: " + v.message + "\n");
+        }
+        return v.ok;
     }
 
     const void* resident_llama_model() const override {
@@ -669,18 +671,8 @@ class LlamaSession final : public Session {
             llama_context_params cparams =
                 make_context_params(m_n_ctx, m_n_threads, m_n_batch, m_n_ubatch, m_gpu_layers,
                                     m_kv_q8, m_prompt_lookup, for_embedding);
-            if (for_embedding && !m_model_path.empty()) {
-                // The session was admitted for chat; an embedding context batches
-                // the whole input in one ubatch, so its compute buffer is larger.
-                // Check that context before creating it (the weights are resident).
-                const ::xllama::MemoryVerdict v = admit_context(cparams);
-                if (!v.ok) {
-                    if (err)
-                        *err = v.message;
-                    log_output("[xllama] session: " + v.message + "\n");
-                    return false;
-                }
-            }
+            if (for_embedding && !admit_new_context(cparams, err))
+                return false;
             m_ctx.reset(llama_init_from_model(m_model.get(), cparams));
             if (!m_ctx && m_kv_q8) {
                 log_output("[xllama] session: q8_0 KV context failed — falling back "
@@ -688,8 +680,11 @@ class LlamaSession final : public Session {
                 cparams =
                     make_context_params(m_n_ctx, m_n_threads, m_n_batch, m_n_ubatch, m_gpu_layers,
                                         /*kv_q8=*/false, m_prompt_lookup, for_embedding);
-                m_kv_q8 = false;
+                if (!admit_new_context(cparams, err))
+                    return false;
                 m_ctx.reset(llama_init_from_model(m_model.get(), cparams));
+                if (m_ctx)
+                    m_kv_q8 = false;
             }
             m_cpu_pools.attach(m_gpu_layers, m_ctx.get(), m_n_threads, m_n_threads);
             log_gguf_ws("after context");
@@ -1740,22 +1735,31 @@ class LlamaSession final : public Session {
             return false;
         }
 
-        std::vector<llama_token> tokens(n_tokens);
-        std::vector<uint8_t> blob(n_state);
-        if (!io_chunked(fp, tokens.data(), n_tokens * sizeof(llama_token), /*write=*/false) ||
-            !io_chunked(fp, blob.data(), n_state, /*write=*/false)) {
-            if (err)
-                *err = "state file truncated";
-            return false;
-        }
-
+        std::vector<llama_token> tokens;
         size_t used = 0;
-        try {
-            used = llama_state_seq_set_data(m_ctx.get(), blob.data(), blob.size(), 0);
-        } catch (const std::exception& e) {
-            used = 0;
-            if (err)
-                *err = std::string("state_seq_set_data threw: ") + e.what();
+        {
+            // Release the serialized sequence before reading the optional checkpoint.
+            std::vector<uint8_t> blob;
+            try {
+                tokens.resize(n_tokens);
+                blob.resize(n_state);
+            } catch (const std::bad_alloc&) {
+                if (err)
+                    *err = "out of memory";
+                return false;
+            }
+            if (!io_chunked(fp, tokens.data(), n_tokens * sizeof(llama_token), /*write=*/false) ||
+                !io_chunked(fp, blob.data(), n_state, /*write=*/false)) {
+                if (err)
+                    *err = "state file truncated";
+                return false;
+            }
+            try {
+                used = llama_state_seq_set_data(m_ctx.get(), blob.data(), blob.size(), 0);
+            } catch (const std::exception& e) {
+                if (err)
+                    *err = std::string("state_seq_set_data threw: ") + e.what();
+            }
         }
         touch_kv(); // the cells are the file's now, or cleared below
         if (used == 0) {
@@ -1796,16 +1800,20 @@ class LlamaSession final : public Session {
             std::string(magic) != kCheckpointMagic || n == 0 || n > m_kv_tokens.size() ||
             bytes == 0 || bytes > kMaxStateBytes)
             return;
-        std::vector<uint8_t> blob(static_cast<size_t>(bytes));
-        if (!io_chunked(fp, blob.data(), blob.size(), /*write=*/false))
-            return;
-        PrefixCheckpoint c;
-        c.n = static_cast<size_t>(n);
-        c.head = true;
-        c.blob = std::move(blob);
-        m_checkpoints.assign(1, std::move(c));
-        m_prefix_tokens.assign(m_kv_tokens.begin(),
-                               m_kv_tokens.begin() + static_cast<std::ptrdiff_t>(n));
+        try {
+            PrefixCheckpoint c;
+            c.n = static_cast<size_t>(n);
+            c.head = true;
+            c.blob.resize(static_cast<size_t>(bytes));
+            if (!io_chunked(fp, c.blob.data(), c.blob.size(), /*write=*/false))
+                return;
+            m_prefix_tokens.assign(m_kv_tokens.begin(),
+                                   m_kv_tokens.begin() + static_cast<std::ptrdiff_t>(n));
+            m_checkpoints.push_back(std::move(c));
+        } catch (const std::bad_alloc&) {
+            // The full sequence has been restored. A future branch can prefill again.
+            drop_prefix_snapshot();
+        }
     }
 };
 
