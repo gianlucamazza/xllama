@@ -294,15 +294,6 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
 
     co_await resume_background();
     try {
-        std::error_code begin_ec;
-        if (!writer.begin(begin_ec)) {
-            if (dispatcher)
-                co_await winrt::resume_foreground(dispatcher);
-            done(false, L"Cannot prepare model write: " + utf8_to_wstring(begin_ec.message()));
-            co_return;
-        }
-        log_output("[downloader] writer acquired: download\n");
-
         HttpBaseProtocolFilter filter;
         filter.AllowAutoRedirect(true);
         // The default filter also writes each response to the system HTTP
@@ -384,20 +375,18 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                 fetch.push_back({file.approx_bytes, local_file_size(local_dir_fs, file.filename),
                                  local_file_size(local_dir_fs, file.filename + L".previous")});
             }
-            std::error_code space_ec;
-            const std::filesystem::space_info si = std::filesystem::space(local_dir_fs, space_ec);
-            if (!space_ec) {
-                const DownloadSpaceCheck space =
-                    check_download_space(download_peak_bytes(fetch), si.available);
-                if (!space.ok) {
-                    const std::string msg = download_space_error(space);
-                    log_output(("[downloader] " + msg + "\n").c_str());
-                    if (dispatcher)
-                        co_await winrt::resume_foreground(dispatcher);
-                    done(false, utf8_to_wstring(msg));
-                    co_return;
-                }
+            std::error_code begin_ec;
+            DownloadSpaceCheck space;
+            if (!writer.begin(begin_ec, download_peak_bytes(fetch), space)) {
+                const auto msg = space.ok ? "Cannot prepare model write: " + begin_ec.message()
+                                          : download_space_error(space);
+                log_output(("[downloader] " + msg + "\n").c_str());
+                if (dispatcher)
+                    co_await winrt::resume_foreground(dispatcher);
+                done(false, utf8_to_wstring(msg));
+                co_return;
             }
+            log_output("[downloader] writer acquired: download\n");
         }
 
         for (size_t i = 0; i < files.size(); ++i) {
