@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <share.h>
 
 namespace audit_fixtures {
 using namespace winrt::Windows::Storage;
@@ -74,6 +75,18 @@ inline void state() {
         require(saved.at("models").size() == 3 && saved.at("models")[0].at("name") == "alias-a" &&
                     saved.at("models")[1].at("name") == "alias-b",
                 "local overrides lost");
+        const auto live_manifest = home / "manifest.json";
+        FILE* held = _wfsopen(live_manifest.c_str(), L"rb", _SH_DENYWR);
+        require(held != nullptr, "open the manifest under a sharing lock");
+        std::ofstream(home / "merged.gguf") << "locked generation";
+        const auto refused = !publish_personalized_model(home, home / "merged.gguf", &error);
+        std::fclose(held);
+        require(refused, "manifest replacement must be refused while locked");
+        require(recover_personalized_publication(home, &error), "retry publication recovery");
+        require(Json::parse(read(live_manifest)) == saved &&
+                    read(home / "models/personalized/model.gguf") == "fixture generation",
+                "failed manifest swap changed model or overrides");
+        r["manifest_sharing_failure"] = "refused and previous generation recovered";
         std::ofstream(home / "manifest.json") << "{bad";
         std::ofstream(home / "merged.gguf") << "failed generation";
         require(!publish_personalized_model(home, home / "merged.gguf", &error) &&

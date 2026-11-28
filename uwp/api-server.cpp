@@ -2808,8 +2808,27 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                     json = failure_json(failure.message);
                 }
             }
+            const auto audit_end = std::chrono::steady_clock::now();
             lk.unlock();
             compute_permit.reset();
+            // Test-package barrier. An independent caller uses exactly the GUI admission
+            // path while this request still owns its buffered response and connection.
+            if (!stream && ::xllama::read_local_text("audit-transport.txt") == "probe") {
+                std::thread probe([audit_end] {
+                    auto permit = ::xllama::try_acquire_compute_job_while_preloading(
+                        ::xllama::session_hub().preloading);
+                    std::unique_lock<std::mutex> hub_lock(::xllama::session_hub().mtx,
+                                                          std::try_to_lock);
+                    const auto us = std::chrono::duration_cast<std::chrono::microseconds>(
+                                        std::chrono::steady_clock::now() - audit_end)
+                                        .count();
+                    ::xllama::write_local_text(
+                        "audit-transport-result.txt",
+                        std::string(permit && hub_lock.owns_lock() ? "admitted " : "busy ") +
+                            std::to_string(us));
+                });
+                probe.join();
+            }
             // Record before writing: a client that disconnects makes
             // write_response throw, and the request was still served.
             record_outcome(ticket, status, json);
