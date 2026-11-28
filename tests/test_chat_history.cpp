@@ -308,3 +308,29 @@ TEST_CASE("ChatHistory reads titles that older releases cut inside a UTF-8 chara
     CHECK(loaded.title == prefix + "...");
     CHECK(history.TitleFrom(text) == prefix + "...");
 }
+
+TEST_CASE("ChatHistory refuses unrepresentable metadata without replacing the existing index") {
+    ChatDirectory temp;
+    xllama::ui::ChatHistory history(temp.path.string());
+    REQUIRE(history.Save({"current", "keep", {}}));
+    const auto path = temp.path / "index.json";
+    const auto marker = temp.path / "current.json.pending";
+    for (const char* field :
+         {R"("n_messages":-1)", R"("n_messages":1.5)", R"("n_messages":2147483648)",
+          R"("last_modified":18446744073709551615)"}) {
+        const std::string bad = std::string(R"([{"id":"other",)") + field + "}]";
+        REQUIRE(xllama::replace_file_bytes(path, bad));
+        std::ofstream(marker).close();
+        CHECK_FALSE(history.LoadIndex());
+        CHECK_FALSE(history.Save({"new", "wait", {}}));
+        CHECK(std::filesystem::exists(marker));
+        std::ifstream input(path, std::ios::binary);
+        CHECK(std::string(std::istreambuf_iterator<char>(input), {}) == bad);
+    }
+    REQUIRE(xllama::replace_file_bytes(
+        path, R"([{"id":"other","n_messages":2147483647,"last_modified":9223372036854775807}])"));
+    REQUIRE(history.LoadIndex());
+    REQUIRE(history.Index().size() == 2);
+    CHECK(history.Index().front().n_messages == 2147483647);
+    CHECK(history.Index().front().last_modified == INT64_MAX);
+}

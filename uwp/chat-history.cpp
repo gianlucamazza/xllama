@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <ctime>
 #include <fstream>
+#include <limits>
 #include <nlohmann/json.hpp>
 
 namespace xllama::ui {
@@ -44,6 +45,25 @@ nlohmann::json read_index_json(std::ifstream& in) {
         remaining.remove_prefix(step.take);
     }
     return nlohmann::json::parse(repaired, nullptr, false);
+}
+// nlohmann converts numbers to the destination type on get<T>(), including
+// truncation of fractions and unsigned values outside the signed range.
+bool read_history_integer(const nlohmann::json& row, const char* key, int64_t& value) {
+    const auto field = row.find(key);
+    if (field == row.end())
+        return true; // optional in older histories
+    if (!field->is_number_integer() ||
+        (field->is_number_unsigned() && field->get<uint64_t>() > INT64_MAX))
+        return false;
+    value = field->get<int64_t>();
+    return true;
+}
+
+constexpr auto max_message_count = std::numeric_limits<int>::max();
+
+ConversationMeta metadata_for(const Conversation& conv) {
+    return {conv.id, conv.title, static_cast<int64_t>(std::time(nullptr)),
+            static_cast<int>(conv.messages.size())};
 }
 } // namespace
 
@@ -110,8 +130,12 @@ bool ChatHistory::ReadIndex() {
             if (meta.id.empty())
                 return false;
             meta.title = item.value("title", std::string{});
-            meta.last_modified = item.value("last_modified", int64_t{0});
-            meta.n_messages = item.value("n_messages", 0);
+            int64_t count = 0;
+            if (!read_history_integer(item, "last_modified", meta.last_modified) ||
+                !read_history_integer(item, "n_messages", count) || count < 0 ||
+                count > max_message_count)
+                return false;
+            meta.n_messages = static_cast<int>(count);
             index.push_back(std::move(meta));
         }
         std::sort(index.begin(), index.end(),
@@ -119,6 +143,8 @@ bool ChatHistory::ReadIndex() {
         m_index = std::move(index);
         return true;
     } catch (const nlohmann::json::exception&) {
+        return false;
+    } catch (const std::ios_base::failure&) {
         return false;
     }
 }
@@ -129,7 +155,7 @@ bool ChatHistory::LoadIndex() {
         return false;
     std::error_code ec;
     std::vector<std::filesystem::path> pending;
-    std::vector<Conversation> recovered;
+    std::vector<ConversationMeta> recovered;
     std::filesystem::directory_iterator it(std::filesystem::u8path(m_dir), ec), end;
     if (ec == std::errc::no_such_file_or_directory)
         ec.clear();
@@ -139,10 +165,11 @@ bool ChatHistory::LoadIndex() {
         if (marker.extension() != ".pending" || source.extension() != ".json")
             continue;
         if (std::filesystem::exists(source, ec)) {
-            auto conv = Load(source.stem().string());
+            const auto name = source.stem().u8string();
+            const auto conv = Load(std::string(name.begin(), name.end()));
             if (conv.id.empty())
                 return false;
-            recovered.push_back(std::move(conv));
+            recovered.push_back(metadata_for(conv));
         } else if (ec) {
             return false;
         }
@@ -150,8 +177,8 @@ bool ChatHistory::LoadIndex() {
     }
     if (ec)
         return false;
-    for (const auto& conv : recovered)
-        UpdateMeta(conv);
+    for (auto& meta : recovered)
+        UpdateMeta(std::move(meta));
     if (!pending.empty()) {
         if (!SaveIndex())
             return false;
@@ -208,7 +235,7 @@ void ChatHistory::Clear() {
 }
 
 bool ChatHistory::Save(const Conversation& conv) {
-    if (!m_index_ready && !LoadIndex())
+    if (conv.messages.size() > max_message_count || (!m_index_ready && !LoadIndex()))
         return false;
     // Ensure directory exists
     std::error_code ec;
@@ -244,7 +271,7 @@ bool ChatHistory::Save(const Conversation& conv) {
         }))
         return false;
 
-    UpdateMeta(conv);
+    UpdateMeta(metadata_for(conv));
     if (!SaveIndex()) {
         m_index_ready = false;
         return false;
@@ -253,15 +280,9 @@ bool ChatHistory::Save(const Conversation& conv) {
     return true;
 }
 
-void ChatHistory::UpdateMeta(const Conversation& conv) {
-    int64_t now_ts = static_cast<int64_t>(std::time(nullptr));
+void ChatHistory::UpdateMeta(ConversationMeta meta) {
     auto it = std::find_if(m_index.begin(), m_index.end(),
-                           [&](const ConversationMeta& m) { return m.id == conv.id; });
-    ConversationMeta meta;
-    meta.id = conv.id;
-    meta.title = conv.title;
-    meta.last_modified = now_ts;
-    meta.n_messages = static_cast<int>(conv.messages.size());
+                           [&](const ConversationMeta& m) { return m.id == meta.id; });
     if (it != m_index.end()) {
         *it = std::move(meta);
     } else {
@@ -319,6 +340,8 @@ Conversation ChatHistory::Load(const std::string& id) const {
             return {};
         Conversation conv{id, root.value("title", std::string{}), {}};
         auto& messages = root.at("messages");
+        if (messages.size() > max_message_count)
+            return {};
         conv.messages.reserve(messages.size());
         for (auto& item : messages) {
             ChatMessage msg;
@@ -330,12 +353,8 @@ Conversation ChatHistory::Load(const std::string& id) const {
             else if (role != "user")
                 return {};
             msg.content = std::move(item.at("content").get_ref<std::string&>());
-            if (const auto ts = item.find("ts"); ts != item.end()) {
-                if (!ts->is_number_integer() ||
-                    (ts->is_number_unsigned() && ts->get<uint64_t>() > INT64_MAX))
-                    return {};
-                msg.ts_unix = ts->get<int64_t>();
-            }
+            if (!read_history_integer(item, "ts", msg.ts_unix))
+                return {};
             msg.partial = item.value("partial", false);
             msg.feedback_label = item.value("feedback_label", std::string{});
             conv.messages.push_back(std::move(msg));

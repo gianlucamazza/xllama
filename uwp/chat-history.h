@@ -77,7 +77,7 @@ class ChatHistory {
 
   private:
     bool ReadIndex();
-    void UpdateMeta(const Conversation& conv);
+    void UpdateMeta(ConversationMeta meta);
     bool SaveIndex();
     std::filesystem::path ConvPath(const std::string& id) const;
 
