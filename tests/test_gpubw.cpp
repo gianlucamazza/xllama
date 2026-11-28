@@ -3,9 +3,14 @@
 
 #include <doctest/doctest.h>
 
+#include "../src/bridge/d3d12_compute.h"
 #include "xllama/gpubw.h"
 
+#include <array>
+#include <memory>
+#include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace xllama;
@@ -147,4 +152,177 @@ TEST_CASE("gpubw: plan_dispatch is 1D when groups fit in one axis") {
             kGpubwThreadsPerGroup;
         CHECK(static_cast<std::uint64_t>(d.n_groups) >= need);
     }
+}
+
+namespace {
+
+using d3d12c::FenceResult;
+constexpr auto removed_counter = (std::numeric_limits<std::uint64_t>::max)();
+
+struct ProbeQueueDouble {
+    bool accepts = false;
+    std::uint64_t completed = 0;
+    std::vector<std::uint64_t> signals;
+    int executed = 0;
+    int reads = 0;
+};
+
+struct ProbeOwnerDouble {
+    virtual ~ProbeOwnerDouble() = default;
+    d3d12c::ProbeMarker marker;
+    ProbeQueueDouble* queue = nullptr;
+    std::shared_ptr<int> allocator = std::make_shared<int>(0);
+    std::shared_ptr<int> list = std::make_shared<int>(0);
+
+    bool pending() const {
+        return marker.pending();
+    }
+    bool try_retire() {
+        observe();
+        return !pending();
+    }
+    FenceResult observe() {
+        auto read = [&] {
+            ++queue->reads;
+            return queue->completed;
+        };
+        return marker.retire(
+            [&](std::uint64_t target) {
+                queue->signals.push_back(target);
+                return queue->accepts;
+            },
+            read, [&](std::uint64_t target) { return d3d12c::fence_result(target, read()); });
+    }
+};
+
+struct ProbeWithBuffers : ProbeOwnerDouble {
+    std::shared_ptr<int> heap = std::make_shared<int>(0);
+    std::shared_ptr<int> staging = std::make_shared<int>(0);
+    std::shared_ptr<int> readback = std::make_shared<int>(0);
+};
+
+} // namespace
+
+TEST_CASE("D3D12 probes retain a rejected submission through retries and release its whole owner") {
+    for (const bool remove_while_unmarked : {false, true}) {
+        ProbeQueueDouble queue;
+        // A normal counter alone cannot certify a marker that the queue rejected.
+        queue.completed = 7;
+        d3d12c::ProbeSlot<ProbeOwnerDouble> slot;
+        std::array<std::weak_ptr<int>, 5> resources;
+        int readbacks = 0;
+        REQUIRE(slot.try_run<ProbeWithBuffers>([&](auto& owner) {
+            owner.queue = &queue;
+            resources = {owner.allocator, owner.list, owner.heap, owner.staging, owner.readback};
+            REQUIRE(owner.marker.submit([&] { ++queue.executed; }));
+            const auto result = owner.observe();
+            CHECK(result == FenceResult::signal_rejected);
+            if (result == FenceResult::complete)
+                ++readbacks;
+            CHECK_FALSE(owner.marker.submit([&] { ++queue.executed; }));
+        }));
+
+        auto unexpected = [](auto&) { FAIL("allocated new work while the submission is live"); };
+        for (int i = 0; i < 8; ++i)
+            CHECK_FALSE(slot.try_run<ProbeWithBuffers>(unexpected));
+        CHECK(queue.signals == std::vector<std::uint64_t>(9, 1));
+        CHECK(queue.reads == 9);
+        for (const auto& resource : resources)
+            CHECK_FALSE(resource.expired());
+
+        if (!remove_while_unmarked) {
+            queue.accepts = true;
+            queue.completed = 0;
+            CHECK_FALSE(slot.try_run<ProbeWithBuffers>(unexpected));
+            for (int i = 0; i < 8; ++i)
+                CHECK_FALSE(slot.try_run<ProbeWithBuffers>(unexpected));
+            CHECK(queue.signals == std::vector<std::uint64_t>(10, 1));
+            CHECK(queue.reads == 18);
+            queue.completed = 1;
+        } else {
+            queue.completed = removed_counter;
+        }
+        CHECK(slot.try_run<ProbeWithBuffers>([&](auto&) {
+            for (const auto& resource : resources)
+                CHECK(resource.expired());
+        }));
+        CHECK(queue.executed == 1);
+        CHECK(readbacks == 0);
+    }
+}
+
+TEST_CASE("D3D12 probes time out an accepted marker and poll the same marker on retry") {
+    for (const bool notify : {false, true}) {
+        for (const auto terminal : {std::uint64_t{1}, removed_counter}) {
+            d3d12c::ProbeMarker marker;
+            int executions = 0, signals = 0, arms = 0, elapsed = 0;
+            std::uint64_t completed = 0;
+            auto signal = [&](std::uint64_t) {
+                ++signals;
+                return true;
+            };
+            auto read = [&] { return completed; };
+            REQUIRE(marker.submit([&] { ++executions; }));
+            const auto initial = marker.retire(signal, read, [&](std::uint64_t target) {
+                return d3d12c::wait_accepted_fence_until(
+                    target, false, read,
+                    [&] {
+                        ++arms;
+                        return notify;
+                    },
+                    [&] {
+                        ++elapsed;
+                        return true;
+                    },
+                    [&] { ++elapsed; }, [&] { return elapsed >= 5; });
+            });
+            CHECK(initial == FenceResult::pending);
+            CHECK(elapsed == 5);
+            CHECK(arms == 1);
+            CHECK_FALSE(marker.submit([&] { ++executions; }));
+            completed = terminal;
+            const auto status = marker.retire(signal, read, [&](std::uint64_t target) {
+                return d3d12c::fence_result(target, completed);
+            });
+            CHECK(status ==
+                  (terminal == removed_counter ? FenceResult::removed : FenceResult::complete));
+            CHECK_FALSE(marker.pending());
+            CHECK(signals == 1);
+            CHECK(executions == 1);
+        }
+    }
+}
+
+TEST_CASE("D3D12 probes reject simultaneous admission before allocating a second campaign") {
+    d3d12c::ProbeSlot<ProbeOwnerDouble> slot;
+    bool other_admitted = true, other_started = false;
+    REQUIRE(slot.try_run<ProbeWithBuffers>([&](auto&) {
+        std::thread contender([&] {
+            other_admitted = slot.try_run<ProbeWithBuffers>([&](auto&) { other_started = true; });
+        });
+        contender.join();
+    }));
+    CHECK_FALSE(other_admitted);
+    CHECK_FALSE(other_started);
+    CHECK(slot.try_run<ProbeWithBuffers>([](auto&) {}));
+}
+
+TEST_CASE("D3D12 probe unwinding releases unsubmitted work and retains submitted work") {
+    d3d12c::ProbeSlot<ProbeOwnerDouble> slot;
+    ProbeQueueDouble queue;
+    std::weak_ptr<int> backing;
+    for (const bool submitted : {false, true}) {
+        auto run = [&](auto& owner) {
+            owner.queue = &queue;
+            backing = owner.staging;
+            if (submitted)
+                REQUIRE(owner.marker.submit([&] { ++queue.executed; }));
+            throw std::runtime_error("injected after setup");
+        };
+        CHECK_THROWS_AS(slot.try_run<ProbeWithBuffers>(run), std::runtime_error);
+        CHECK(backing.expired() == !submitted);
+    }
+    queue.completed = removed_counter;
+    CHECK(slot.try_run<ProbeWithBuffers>([&](auto&) { CHECK(backing.expired()); }));
+    CHECK(queue.executed == 1);
 }

@@ -243,16 +243,14 @@ ComPtr<ID3D12Resource> create_buffer(ID3D12Device* device, UINT64 size, D3D12_HE
     return res;
 }
 
-} // namespace
+struct BandwidthProbe : d3d12c::ProbeCommands {
+    ComPtr<ID3D12Resource> input_default, input_upload, output_default, output_readback, cb_upload;
 
-GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
-    GpubwResult r;
-    if (iterations < 1)
-        iterations = 1;
-    const std::size_t n_words = std::max<std::size_t>(buffer_bytes / sizeof(std::uint32_t), 1);
-    r.buffer_bytes = n_words * sizeof(std::uint32_t);
-    r.iterations = iterations;
+    void measure(GpubwResult& r);
+};
 
+void BandwidthProbe::measure(GpubwResult& r) {
+    const std::size_t n_words = r.buffer_bytes / sizeof(std::uint32_t);
     // Cap partial buffer for expected checksum: full buffer xor on CPU of 1 GiB
     // is fine (few hundred ms once).
     std::vector<std::uint32_t> host_in(n_words);
@@ -264,17 +262,16 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
     HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
     if (FAILED(hr)) {
         throw_if_failed(hr, "CreateDXGIFactory1", r);
-        return r;
+        return;
     }
 
     auto create_device = d3d12_dyn::CreateDevice();
     if (!create_device) {
         r.error_msg = "D3D12CreateDevice not available";
-        return r;
+        return;
     }
 
     ComPtr<IDXGIAdapter1> adapter;
-    ComPtr<ID3D12Device> device;
     for (UINT i = 0; factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
         DXGI_ADAPTER_DESC1 ad = {};
         adapter->GetDesc1(&ad);
@@ -291,92 +288,86 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
         hr = create_device(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
         if (FAILED(hr)) {
             throw_if_failed(hr, "D3D12CreateDevice", r);
-            return r;
+            return;
         }
     }
 
     D3D12_COMMAND_QUEUE_DESC qd = {};
     qd.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    ComPtr<ID3D12CommandQueue> queue;
     hr = device->CreateCommandQueue(&qd, IID_PPV_ARGS(&queue));
     if (FAILED(hr)) {
         throw_if_failed(hr, "CreateCommandQueue", r);
-        return r;
+        return;
     }
 
-    ComPtr<ID3D12CommandAllocator> alloc;
     hr = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&alloc));
     if (FAILED(hr)) {
         throw_if_failed(hr, "CreateCommandAllocator", r);
-        return r;
+        return;
     }
 
-    ComPtr<ID3D12GraphicsCommandList> cl;
     hr = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, alloc.Get(), nullptr,
                                    IID_PPV_ARGS(&cl));
     if (FAILED(hr)) {
         throw_if_failed(hr, "CreateCommandList", r);
-        return r;
+        return;
     }
 
-    ComPtr<ID3D12RootSignature> root = create_root_sig(device.Get(), r);
+    root = create_root_sig(device.Get(), r);
     if (!root)
-        return r;
+        return;
 
     D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
     pso_desc.pRootSignature = root.Get();
     pso_desc.CS.pShaderBytecode = kGpubwStreamDxil;
     pso_desc.CS.BytecodeLength = kGpubwStreamDxilSize;
-    ComPtr<ID3D12PipelineState> pso;
     hr = device->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&pso));
     if (FAILED(hr)) {
         throw_if_failed(hr, "CreateComputePipelineState", r);
-        return r;
+        return;
     }
 
     // Multi-dim Dispatch: 1 GiB → 1_048_576 groups > 65535 on a single axis.
     const GpubwDispatch plan = gpubw_plan_dispatch(n_words);
     if (!gpubw_dispatch_dims_legal(plan) || plan.n_groups < 1) {
         r.error_msg = "gpubw_plan_dispatch produced illegal Dispatch dims";
-        return r;
+        return;
     }
     const UINT groups = plan.n_groups; // total groups (may pad beyond need)
     const UINT64 input_bytes = static_cast<UINT64>(r.buffer_bytes);
     const UINT64 out_bytes = static_cast<UINT64>(groups) * sizeof(std::uint32_t);
 
-    ComPtr<ID3D12Resource> input_default =
+    input_default =
         create_buffer(device.Get(), input_bytes, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_FLAG_NONE,
                       D3D12_RESOURCE_STATE_COPY_DEST, r, "input_default");
     if (!input_default)
-        return r;
-    ComPtr<ID3D12Resource> input_upload =
+        return;
+    input_upload =
         create_buffer(device.Get(), input_bytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_FLAG_NONE,
                       D3D12_RESOURCE_STATE_GENERIC_READ, r, "input_upload");
     if (!input_upload)
-        return r;
-    ComPtr<ID3D12Resource> output_default =
-        create_buffer(device.Get(), out_bytes, D3D12_HEAP_TYPE_DEFAULT,
-                      D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                      D3D12_RESOURCE_STATE_UNORDERED_ACCESS, r, "output_default");
+        return;
+    output_default = create_buffer(device.Get(), out_bytes, D3D12_HEAP_TYPE_DEFAULT,
+                                   D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                                   D3D12_RESOURCE_STATE_UNORDERED_ACCESS, r, "output_default");
     if (!output_default)
-        return r;
-    ComPtr<ID3D12Resource> output_readback =
+        return;
+    output_readback =
         create_buffer(device.Get(), out_bytes, D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_FLAG_NONE,
                       D3D12_RESOURCE_STATE_COPY_DEST, r, "output_readback");
     if (!output_readback)
-        return r;
-    ComPtr<ID3D12Resource> cb_upload =
-        create_buffer(device.Get(), 256, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_FLAG_NONE,
-                      D3D12_RESOURCE_STATE_GENERIC_READ, r, "cb_upload");
+        return;
+    cb_upload = create_buffer(device.Get(), 256, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_FLAG_NONE,
+                              D3D12_RESOURCE_STATE_GENERIC_READ, r, "cb_upload");
     if (!cb_upload)
-        return r;
+        return;
 
     {
         void* mapped = nullptr;
         hr = input_upload->Map(0, nullptr, &mapped);
         if (FAILED(hr)) {
             throw_if_failed(hr, "Map input_upload", r);
-            return r;
+            return;
         }
         std::memcpy(mapped, host_in.data(), r.buffer_bytes);
         input_upload->Unmap(0, nullptr);
@@ -397,7 +388,7 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
         hr = cb_upload->Map(0, nullptr, &mapped);
         if (FAILED(hr)) {
             throw_if_failed(hr, "Map cb", r);
-            return r;
+            return;
         }
         std::memcpy(mapped, &params, sizeof(params));
         cb_upload->Unmap(0, nullptr);
@@ -408,11 +399,10 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
     heap_desc.NumDescriptors = 3;
     heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    ComPtr<ID3D12DescriptorHeap> heap;
     hr = device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&heap));
     if (FAILED(hr)) {
         throw_if_failed(hr, "CreateDescriptorHeap", r);
-        return r;
+        return;
     }
     const UINT incr =
         device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -444,17 +434,9 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
     uav.Buffer.StructureByteStride = sizeof(std::uint32_t);
     device->CreateUnorderedAccessView(output_default.Get(), nullptr, &uav, cpu_uav);
 
-    d3d12c::QueueFence fence;
-    if (!fence.init(device.Get(), &r.error_msg)) {
-        return r;
+    if (!init_fence(r.error_msg)) {
+        return;
     }
-    auto wait_gpu = [&]() {
-        if (fence.signal_and_wait(queue.Get(), false))
-            return true;
-        r.error_msg = "queue fence failed or device removed";
-        return false;
-    };
-
     // Upload input once.
     {
         cl->CopyResource(input_default.Get(), input_upload.Get());
@@ -467,21 +449,20 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
         // After CreateCommitted COMMON + CopyResource destination is COPY_DEST
         // on some paths; reset list carefully.
         cl->ResourceBarrier(1, &b);
-        cl->Close();
-        ID3D12CommandList* lists[] = {cl.Get()};
-        queue->ExecuteCommandLists(1, lists);
-        if (!wait_gpu()) {
-            return r;
+        if (!close_list(r.error_msg) || !execute(r.error_msg)) {
+            return;
         }
     }
+
+    input_upload.Reset();
 
     double best_gbs = 0.0;
     std::uint32_t last_checksum = 0;
     bool any_ok = false;
 
-    for (int it = 0; it < iterations; ++it) {
-        alloc->Reset();
-        cl->Reset(alloc.Get(), pso.Get());
+    for (int it = 0; it < r.iterations; ++it) {
+        if (!reset_list(pso.Get(), r.error_msg))
+            return;
         cl->SetComputeRootSignature(root.Get());
         ID3D12DescriptorHeap* heaps[] = {heap.Get()};
         cl->SetDescriptorHeaps(1, heaps);
@@ -501,13 +482,12 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
         b.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
         b.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
         cl->ResourceBarrier(1, &b);
-        cl->Close();
+        if (!close_list(r.error_msg))
+            return;
 
         const auto t0 = std::chrono::steady_clock::now();
-        ID3D12CommandList* lists[] = {cl.Get()};
-        queue->ExecuteCommandLists(1, lists);
-        if (!wait_gpu()) {
-            return r;
+        if (!execute(r.error_msg)) {
+            return;
         }
         const double sec =
             std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
@@ -523,7 +503,7 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
             hr = output_readback->Map(0, &range, &mapped);
             if (FAILED(hr)) {
                 throw_if_failed(hr, "Map readback", r);
-                return r;
+                return;
             }
             const auto* partials = static_cast<const std::uint32_t*>(mapped);
             std::uint32_t x = 0;
@@ -543,6 +523,17 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
         r.error_msg = "checksum mismatch";
     if (r.checksum_ok)
         r.error_msg.clear();
+}
+
+} // namespace
+
+GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
+    GpubwResult r;
+    r.buffer_bytes =
+        std::max<std::size_t>(buffer_bytes / sizeof(std::uint32_t), 1) * sizeof(std::uint32_t);
+    r.iterations = std::max(iterations, 1);
+    if (!d3d12c::probe_slot().try_run<BandwidthProbe>([&](auto& probe) { probe.measure(r); }))
+        r.error_msg = "D3D12 probe busy or previous submission pending";
     return r;
 }
 
