@@ -1011,6 +1011,123 @@ TEST_CASE("Session: probe for evicted-turn recall after a context shift (opt-in:
     MESSAGE("evicted-turn recall: " << verdict << " — reply '" << probe.output_text << "'");
 }
 
+TEST_CASE("Session: post-shift continuation matches a cold session across multiple shifts "
+          "(opt-in: XLLAMA_TEST_MODEL)") {
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+
+    const std::string sys = "<|im_start|>system\nYou are terse.<|im_end|>\n";
+    const std::string turn_close = "<|im_end|>\n";
+
+    auto run_case = [&](bool prefix_snapshots) {
+        xllama::SessionParams sp;
+        sp.model_path = model;
+        sp.n_ctx = 128;
+        sp.n_threads = 2;
+        sp.prefix_snapshots = prefix_snapshots;
+        std::string error;
+        auto s = xllama::Session::create(sp, &error);
+        REQUIRE_MESSAGE(s, error);
+
+        const int n_keep = s->count_tokens(sys);
+        REQUIRE(n_keep > 0);
+        if (!s->can_context_shift())
+            return;
+
+        // Track turns explicitly so the cold session can prefill the exact
+        // surviving history after shifts.
+        struct TurnRec {
+            std::string user;
+            std::string assistant;
+        };
+        std::vector<TurnRec> turns;
+        auto render_full = [&](size_t start_turn, const std::string& next_user) {
+            std::string p = sys;
+            for (size_t i = start_turn; i < turns.size(); ++i) {
+                p += "<|im_start|>user\n" + turns[i].user + "<|im_end|>\n<|im_start|>assistant\n" +
+                     turns[i].assistant + "<|im_end|>\n";
+            }
+            p += "<|im_start|>user\n" + next_user + "<|im_end|>\n<|im_start|>assistant\n";
+            return p;
+        };
+        auto send_turn = [&](const std::string& user_msg, int n_predict) {
+            const std::string p = turns.empty() ? render_full(0, user_msg)
+                                                : "<|im_end|>\n<|im_start|>user\n" + user_msg +
+                                                      "<|im_end|>\n<|im_start|>assistant\n";
+            xllama::GenerateParams gp = greedy_turn(p, true, turns.empty());
+            gp.n_predict = n_predict;
+            gp.n_keep = n_keep;
+            gp.turn_close = turn_close;
+            if (!turns.empty())
+                gp.expected_kv_epoch = s->kv_epoch();
+            const auto r = s->generate(gp);
+            REQUIRE_MESSAGE(r.success, r.error_msg);
+            turns.push_back({user_msg, r.output_text});
+            return r;
+        };
+
+        send_turn("Remember the first word: ALPHA.", 6);
+        int approx_total = s->count_tokens(render_full(0, "")) + 6;
+        for (int i = 0; i < 16 && approx_total <= sp.n_ctx * 2; ++i) {
+            const std::string u = "Filler turn " + std::to_string(i) + ": count to three.";
+            const int delta_tok = s->count_tokens("<|im_end|>\n<|im_start|>user\n" + u +
+                                                  "<|im_end|>\n<|im_start|>assistant\n");
+            const auto r = send_turn(u, 6);
+            approx_total += delta_tok + r.n_eval;
+        }
+        REQUIRE(approx_total > sp.n_ctx * 2);
+
+        const std::string q_user = "Say one word: OK.";
+        const std::string q_delta =
+            "<|im_end|>\n<|im_start|>user\n" + q_user + "<|im_end|>\n<|im_start|>assistant\n";
+        xllama::GenerateParams qgp = greedy_turn(q_delta, true, false);
+        qgp.n_predict = 8;
+        qgp.n_keep = n_keep;
+        qgp.turn_close = turn_close;
+        qgp.expected_kv_epoch = s->kv_epoch();
+        const auto warm = s->generate(qgp);
+        REQUIRE_MESSAGE(warm.success, warm.error_msg);
+
+        // Read the resident token count after the warm turn to identify the
+        // exact surviving turn suffix for the cold reference session.
+        const auto kv_path = std::filesystem::temp_directory_path() / "xllama-shift-parity.kv";
+        REQUIRE_MESSAGE(s->save_state(kv_path.string(), &error), error);
+        size_t resident_n = 0;
+        {
+            std::ifstream in(kv_path, std::ios::binary);
+            std::string magic;
+            size_t n_state = 0;
+            REQUIRE(static_cast<bool>(in >> magic >> n_state >> resident_n));
+            REQUIRE(magic == "xllama-kv");
+        }
+        std::filesystem::remove(kv_path);
+
+        const size_t expected_pre = resident_n - static_cast<size_t>(warm.n_eval);
+        size_t surviving_start = turns.size();
+        for (size_t j = 1; j < turns.size(); ++j) {
+            if (static_cast<size_t>(s->count_tokens(render_full(j, q_user))) == expected_pre) {
+                surviving_start = j;
+                break;
+            }
+        }
+        REQUIRE(surviving_start < turns.size());
+        s.reset();
+
+        auto cold = xllama::Session::create(sp, &error);
+        REQUIRE_MESSAGE(cold, error);
+        xllama::GenerateParams cold_gp =
+            greedy_turn(render_full(surviving_start, q_user), true, true);
+        cold_gp.n_predict = 8;
+        const auto cold_res = cold->generate(cold_gp);
+        REQUIRE_MESSAGE(cold_res.success, cold_res.error_msg);
+        CHECK(warm.output_text == cold_res.output_text);
+    };
+
+    run_case(true);
+    run_case(false);
+}
+
 // Private (anonymous) resident memory. The console reads weights into
 // allocated buffers (no mmap, docs/uwp-constraints.md §1), so this, not VmRSS
 // with the mapped GGUF pages, is the host figure that matches it.
