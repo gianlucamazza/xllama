@@ -46,8 +46,8 @@ struct SessionParams {
     // #171: quantize the llama.cpp KV cache to q8_0 (halves its footprint) and
     // force flash attention, which quantized V requires — the pin throws at
     // context creation otherwise. On any context-creation failure the session
-    // retries with default cache types, so an architecture without flash
-    // attention support degrades to F16 KV instead of failing to load.
+    // checks the default cache against the current memory budget before
+    // retrying, so a supported fallback can fit differing KV requirements.
     // Default off until the on-console measurement decides (#171).
     bool kv_q8 = false;
 

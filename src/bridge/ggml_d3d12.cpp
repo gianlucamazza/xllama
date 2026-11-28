@@ -505,6 +505,15 @@ std::vector<D3d12DispatchRow> D3d12DispatchProfile::sorted() const {
     return out;
 }
 
+namespace {
+void write_ms_or_missing(char* buf, std::size_t n, std::uint64_t timed, double ms) {
+    if (timed == 0)
+        std::snprintf(buf, n, "missing");
+    else
+        std::snprintf(buf, n, "%.3f", ms);
+}
+} // namespace
+
 std::string format_d3d12_dispatch_profile(const char* phase, const D3d12DispatchProfile& p) {
     if (p.empty())
         return {};
@@ -525,12 +534,14 @@ std::string format_d3d12_dispatch_profile(const char* phase, const D3d12Dispatch
         total += r.gpu_ms;
         timed += r.count;
     }
+    char gpu[32];
+    write_ms_or_missing(gpu, sizeof(gpu), timed, total);
     char buf[256];
     std::snprintf(buf, sizeof(buf),
                   "[xllama] d3d12-dispatch phase=%s summary kinds=%zu timed=%llu missing=%llu "
-                  "gpu_ms=%.3f\n",
+                  "gpu_ms=%s\n",
                   phase ? phase : "-", p.rows().size(), static_cast<unsigned long long>(timed),
-                  static_cast<unsigned long long>(p.missing()), total);
+                  static_cast<unsigned long long>(p.missing()), gpu);
     out += buf;
     return out;
 }
@@ -556,13 +567,6 @@ std::optional<int> parse_nonneg_int(std::string_view s, std::size_t i, std::size
 
 bool layer_component_end(std::string_view s, std::size_t j) {
     return j == s.size() || s[j] == '.' || s[j] == '#' || s[j] == '/';
-}
-
-void write_ms_or_missing(char* buf, std::size_t n, std::uint64_t timed, double ms) {
-    if (timed == 0)
-        std::snprintf(buf, n, "missing");
-    else
-        std::snprintf(buf, n, "%.3f", ms);
 }
 
 } // namespace
@@ -1053,8 +1057,7 @@ bool init_gpu(Gpu& g) {
             err.clear();
         }
     }
-    if (g.ts)
-        g.dispatch_timing = d3d12_flag_enabled(read_local_text("d3d12-dispatch-timing.txt"));
+    g.dispatch_timing = d3d12_flag_enabled(read_local_text("d3d12-dispatch-timing.txt"));
     log_output(std::string("[xllama] d3d12: dispatch_timing=") + (g.dispatch_timing ? "1" : "0") +
                "\n");
     g.staging = d3d12c::create_buffer(g.device.Get(), kStagingBytes, D3D12_HEAP_TYPE_UPLOAD,
@@ -1489,9 +1492,7 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
     D3D12_RESOURCE_BARRIER uav = {};
     uav.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
     uav.UAV.pResource = nullptr;
-    double exec_before = 0.0;
-    if (dt)
-        exec_before = g.phase.exec_wait_ms;
+    const double exec_before = g.phase.exec_wait_ms;
     bool missing_pso = false;
     const bool ran = run_now(
         g,
@@ -1650,44 +1651,39 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
         }
     }
     ++(ts_ok ? g.phase.ts_valid : g.phase.ts_missing);
-    if (dt) {
-        // wait = exec_wait − submission GPU time. Missing GPU timestamps leave
-        // wait as missing; it is not filled in from wall time.
-        const std::optional<double> wait_share =
-            ts_ok && !ops.empty()
-                ? std::optional<double>((g.phase.exec_wait_ms - exec_before - submission_gpu_ms) /
-                                        static_cast<double>(ops.size()))
-                : std::nullopt;
-        void* p = nullptr;
-        const D3D12_RANGE range = {0, (ops.size() + 1) * sizeof(std::uint64_t)};
-        if (SUCCEEDED(g.dts_rb->Map(0, &range, &p))) {
-            const auto* t = static_cast<const std::uint64_t*>(p);
-            for (std::size_t i = 0; i < ops.size(); ++i) {
-                const ggml_tensor* node = ops[i].node;
-                const ggml_tensor* w = dispatch_weight(node);
-                if (t[i + 1] <= t[i]) {
-                    g.phase.dispatch.note_missing();
-                    g.phase.layer.add(dispatch_layer_key(node), std::nullopt, wait_share);
-                    continue;
-                }
-                const double ms =
-                    1000.0 * static_cast<double>(t[i + 1] - t[i]) / static_cast<double>(g.ts_freq);
-                const double bytes = node->op == GGML_OP_ADD || node->op == GGML_OP_ROPE
-                                         ? static_cast<double>(ggml_nbytes(w))
-                                     : node->op == GGML_OP_GET_ROWS
-                                         ? static_cast<double>(w->nb[1]) * node->ne[1]
-                                         : static_cast<double>(w->nb[1]) * w->ne[1];
-                g.phase.dispatch.add(dispatch_kind(node), ms, bytes, dispatch_columns(node));
-                g.phase.layer.add(dispatch_layer_key(node), ms, wait_share);
-            }
-            const D3D12_RANGE none = {0, 0};
-            g.dts_rb->Unmap(0, &none);
-        } else {
-            for (std::size_t i = 0; i < ops.size(); ++i) {
+    // A valid submission can still contribute its wait when the per-dispatch
+    // query heap/readback is unavailable. Compute the equal split once.
+    const std::optional<double> wait_share =
+        g.dispatch_timing && ts_ok && !ops.empty()
+            ? std::optional<double>((g.phase.exec_wait_ms - exec_before - submission_gpu_ms) /
+                                    static_cast<double>(ops.size()))
+            : std::nullopt;
+    const bool mapped = d3d12_read_dispatch_times(
+        g.dispatch_timing, dt, ops.size(), g.ts_freq,
+        [&]() -> const std::uint64_t* {
+            void* p = nullptr;
+            const D3D12_RANGE range = {0, (ops.size() + 1) * sizeof(std::uint64_t)};
+            return SUCCEEDED(g.dts_rb->Map(0, &range, &p)) ? static_cast<const std::uint64_t*>(p)
+                                                           : nullptr;
+        },
+        [&](std::size_t i, const std::optional<double>& ms) {
+            const ggml_tensor* node = ops[i].node;
+            g.phase.layer.add(dispatch_layer_key(node), ms, wait_share);
+            if (!ms) {
                 g.phase.dispatch.note_missing();
-                g.phase.layer.add(dispatch_layer_key(ops[i].node), std::nullopt, wait_share);
+                return;
             }
-        }
+            const ggml_tensor* w = dispatch_weight(node);
+            const double bytes = node->op == GGML_OP_ADD || node->op == GGML_OP_ROPE
+                                     ? static_cast<double>(ggml_nbytes(w))
+                                 : node->op == GGML_OP_GET_ROWS
+                                     ? static_cast<double>(w->nb[1]) * node->ne[1]
+                                     : static_cast<double>(w->nb[1]) * w->ne[1];
+            g.phase.dispatch.add(dispatch_kind(node), *ms, bytes, dispatch_columns(node));
+        });
+    if (mapped) {
+        const D3D12_RANGE none = {0, 0};
+        g.dts_rb->Unmap(0, &none);
     }
     g.n_dispatches += ops.size();
     g.phase.dispatches += ops.size();
