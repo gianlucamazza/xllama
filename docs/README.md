@@ -18,7 +18,7 @@ Technical notes and design decisions for xllama.
 5. **English only** for docs, code comments, and commit messages (project
    convention).
 
-The active consolidation program is [Engineering excellence execution — 2026-11-07](audit/excellence/execution-2026-11-07.md). Its dated discovery receipt does not replace the owners below. The [November standards review](audit/excellence/standards-2026-11-27/README.md) applies [proposed ADR 0011](adr/0011-standard-first-and-upstream-first.md) to the v1.10 release.
+The active consolidation program is [Engineering excellence execution — 2026-11-07](audit/excellence/execution-2026-11-07.md). Its dated discovery receipt does not replace the owners below. The [November standards review](audit/excellence/standards-2026-11-27/README.md) applies [proposed ADR 0011](adr/0011-standard-first-and-upstream-first.md) to the v1.10 release. The [hardware-aware performance report](research/gpu-acceleration-report.md) links the critical path, measured opportunities, host replay and open device gates in [#694](https://github.com/gianlucamazza/xllama/issues/694).
 
 ## Documentation ownership
 
@@ -63,6 +63,7 @@ The active consolidation program is [Engineering excellence execution — 2026-1
 | Demo / screenshot capture and presentation edit                                          | [`../demo/demo-showcase-script.json`](../demo/demo-showcase-script.json) + [`../scripts/capture-demo-video.sh`](../scripts/capture-demo-video.sh) + [`../scripts/edit-demo-video.sh`](../scripts/edit-demo-video.sh) + [`./screenshots/`](./screenshots/) |
 | Phase 16 model-scouting campaign (funnel, ladder, workstream cards, verdicts)            | [phase16-model-scouting.md](./phase16-model-scouting.md)                                                                                                                                                                                                  |
 | GPU acceleration audit, profiling coverage and staged backlog                            | [research/gpu-acceleration-baseline.md](research/gpu-acceleration-baseline.md) + [working report](research/gpu-acceleration-report.md)                                                                                                                    |
+| Distributed inference research (OOC-6), proposed decisions and experiment gates          | [research/distributed/](research/distributed/README.md)                                                                                                                                                                                                   |
 | MoE contribution stages, source review, checks and numerical preparation                 | [research/moe-upstream-readiness.md](research/moe-upstream-readiness.md)                                                                                                                                                                                  |
 | GGUF GPU decode design (architecture, cost model, D1–D3/FA gates, controls and verdicts) | [gguf-gpu-decode.md](./gguf-gpu-decode.md)                                                                                                                                                                                                                |
 | Shape speed gate for a Series S–shaped SLM (random-weight GGUFs, predeclared gates)      | [shape-gate-plan.md](./shape-gate-plan.md)                                                                                                                                                                                                                |
@@ -128,7 +129,7 @@ path checklist for discovery — descriptions are not repeated.
 
 **Audits:** [2026-09-30 excellence audit](audit/excellence/README.md) (dated findings and evidence, not a replacement for current contracts).
 
-**Research:** [`../paper/`](../paper/) (current citable report, provenance and release runbook) ·
+**Research:** [Distributed computing and multi-Xbox inference](research/distributed/README.md) · [`../paper/`](../paper/) (current citable report, provenance and release runbook) ·
 [technical-report.md](technical-report.md) (frozen July 2026 historical snapshot) ·
 [floppylm.md](./floppylm.md) (not an xllama engine; closed here 2026-10-01)
 
