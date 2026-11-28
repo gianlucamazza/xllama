@@ -44,10 +44,11 @@ class ChatHistory {
     explicit ChatHistory(const std::string& chats_dir); // absolute path to LocalState/chats
     void SetDir(const std::string& chats_dir) {
         m_dir = chats_dir;
+        m_index_ready = false;
     }
 
-    // Load index from disk. Call once at startup (best-effort; empty on failure).
-    void LoadIndex();
+    // Load the index and reconcile pending saves. Failed reads leave the files available for retry.
+    bool LoadIndex();
 
     // Save conversation to disk and update index.
     bool Save(const Conversation& conv);
@@ -75,11 +76,12 @@ class ChatHistory {
     static std::string TitleFrom(const std::string& text);
 
   private:
-    void ReadIndex();
+    bool ReadIndex();
     void UpdateMeta(const Conversation& conv);
     bool SaveIndex();
     std::filesystem::path ConvPath(const std::string& id) const;
 
+    bool m_index_ready = false;
     std::string m_dir;
     std::vector<ConversationMeta> m_index;
 };

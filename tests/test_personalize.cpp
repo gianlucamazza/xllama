@@ -180,6 +180,15 @@ TEST_CASE("personalized model publication restores all three files after interru
     REQUIRE(read(model) == "trained generation");
     REQUIRE(read(marker) == "ok");
 
+    for (const auto* abandoned : {".publish-stage", ".publish-done"}) {
+        fs::create_directory(dir / abandoned);
+        std::ofstream(dir / abandoned / "weights") << "disposable model bytes";
+        REQUIRE(recover_personalized_publication(root, &error));
+        CHECK_FALSE(fs::exists(dir / abandoned));
+        CHECK(read(model) == "trained generation");
+        CHECK(read(manifest) == previous_manifest);
+        CHECK(read(marker) == "ok");
+    }
     const auto journal = dir / ".publish-pending";
     fs::create_directory(journal);
     fs::rename(model, journal / "old-model");
