@@ -13,7 +13,7 @@ xllama is a free, MIT-licensed open-source project for running local language mo
 <!-- XLLAMA_DOI_END -->
 
 Supported on Series S and Series X. The project's own figures are measured on a Series S; the Series X figures below were measured by an independent tester (Joshua Henne / Eidon Labs Inc.) and are labelled as such ([details](docs/positioning.md#series-x)).
-On a Series S, the default model LFM2.5-350M generates text at **97.9 tok/s** (decode speed, llama.cpp on CPU, 6 threads, median of 3 runs; [benchmarks](docs/benchmarks.md)).
+On a Series S, the default model LFM2.5-350M generates text at **97.3 tok/s** (decode speed, llama.cpp on CPU, 6 threads, median of 3 runs; [benchmarks](docs/benchmarks.md)).
 
 On a Series X, measured by an independent tester (Joshua Henne / Eidon Labs Inc., xllama 1.7.0.1495, [discussion #434](https://github.com/gianlucamazza/xllama/discussions/434)), not by the project:
 
@@ -67,13 +67,13 @@ Headline decode figures from [docs/benchmarks.md](docs/benchmarks.md). Hugging F
 
 | Model              | Decode tok/s | Backend         | Peak RAM (MiB) |
 | ------------------ | ------------ | --------------- | -------------- |
-| LFM2.5-230M        | 127.1        | llama.cpp CPU   | 237            |
-| LFM2.5-350M        | 97.9         | llama.cpp CPU   | 311            |
-| LFM2.5-1.2B        | 74.8         | llama.cpp d3d12 | 860            |
-| Qwen2.5-Coder-1.5B | 26.1         | llama.cpp CPU   | 1179           |
-| LFM2-2.6B          | 17.9         | llama.cpp CPU   | 1623           |
+| LFM2.5-230M        | 126.9        | llama.cpp CPU   | 237            |
+| LFM2.5-350M        | 97.3         | llama.cpp CPU   | 311            |
+| LFM2.5-1.2B        | 74.0         | llama.cpp d3d12 | 861            |
+| Qwen2.5-Coder-1.5B | 26.1         | llama.cpp CPU   | 1176           |
+| LFM2-2.6B          | 18.1         | llama.cpp CPU   | 1629           |
 
-Series S, Developer Mode, median of n runs (n=3 except Qwen2.5-Coder-1.5B, n=2). LFM2.5-1.2B is the default GPU model on llama.cpp d3d12. None of these run READMEs state a Game designation.
+Series S, Developer Mode, median of 3 runs on the v1.11.0 release package. LFM2.5-1.2B is the default GPU model on llama.cpp d3d12. None of these run READMEs state a Game designation.
 
 ## LAN API
 
