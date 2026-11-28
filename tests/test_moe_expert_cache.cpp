@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "ggml-cpp.h"
 #include "xllama/moe_expert_cache.h"
 
 #include <algorithm>
@@ -82,6 +83,30 @@ TEST_CASE("moe_expert_cache: hits refresh deterministic LRU") {
     CHECK(c.counters().requests == 6);
     CHECK(c.counters().hits == 2);
     CHECK(c.counters().evictions == 2);
+}
+
+TEST_CASE("moe_expert_cache: every slot can back a mapped GGML CPU buffer") {
+    const auto alignment = ggml_backend_buft_get_alignment(ggml_backend_cpu_buffer_type());
+    const size_t capacity = alignment + 1;
+    const auto budget = MoeExpertCache::required_bytes(1, 2, capacity);
+    CHECK(budget - MoeExpertCache::required_bytes(1, 2, alignment) == 2 * alignment);
+    Reader r;
+    CHECK_THROWS_AS(MoeExpertCache(r, file_bytes, &f32, 1, 2, capacity, budget - 1),
+                    std::invalid_argument);
+    MoeExpertCache cache(r, file_bytes, &f32, 1, 2, capacity, budget);
+    auto first = cache.acquire(0, 0);
+    auto second = cache.acquire(0, 1);
+    for (const auto* lease : {&first, &second}) {
+        // The pinned mapper asserts on a misaligned base. Diagnose it before calling GGML.
+        REQUIRE(reinterpret_cast<uintptr_t>(lease->data()) % alignment == 0);
+        // The C API takes void* even for a mapping used only to read weights.
+        ggml_backend_buffer_ptr buffer(ggml_backend_cpu_buffer_from_ptr(
+            const_cast<unsigned char*>(lease->data()), lease->size()));
+        REQUIRE(buffer != nullptr);
+        CHECK(ggml_backend_buffer_get_base(buffer.get()) == lease->data());
+        CHECK(ggml_backend_buffer_get_size(buffer.get()) == slice_bytes);
+    }
+    CHECK(r.offsets == std::vector<uint64_t>{0, slice_bytes});
 }
 
 TEST_CASE("moe_expert_cache: eviction waits for the last lease to a repeated key") {

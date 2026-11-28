@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 
-#include "ggml.h"
+#include "ggml-backend.h"
 #include "xllama/moe_streaming.h"
 
 #include <atomic>
@@ -60,7 +60,8 @@ class MoeExpertCache {
     struct Storage {
         std::unique_ptr<Tensor[]> tensors;
         std::unique_ptr<Slot[]> slots;
-        std::unique_ptr<unsigned char[]> arena;
+        std::unique_ptr<unsigned char[]> allocation;
+        unsigned char* arena = nullptr;
         size_t stride = 0, owners = 1; // cache plus every live lease
 #ifndef NDEBUG
         std::thread::id coordinator = std::this_thread::get_id();
@@ -99,7 +100,7 @@ class MoeExpertCache {
         }
 
         const unsigned char* data() const noexcept {
-            return storage_ ? storage_->arena.get() + index_ * storage_->stride : nullptr;
+            return storage_ ? storage_->arena + index_ * storage_->stride : nullptr;
         }
         size_t size() const noexcept {
             return storage_ ? storage_->tensors[storage_->slots[index_].tensor].bytes : 0;
@@ -133,7 +134,7 @@ class MoeExpertCache {
         size_t total = sizeof(MoeExpertCache) + sizeof(Storage);
         total = add(total, multiply(tensor_count, sizeof(Tensor)));
         total = add(total, multiply(slots, sizeof(Slot)));
-        return add(total, multiply(slots, aligned_stride(slot_bytes)));
+        return add(total, arena_bytes(slots, aligned_stride(slot_bytes)));
     }
 
     MoeExpertCache(MoeExpertReader& reader, uint64_t file_bytes, const MoeExpertTensor* tensors,
@@ -157,7 +158,12 @@ class MoeExpertCache {
         for (size_t i = 0; i < slots; ++i)
             storage->slots[i].rank = i;
         storage->stride = aligned_stride(slot_bytes);
-        storage->arena.reset(new unsigned char[slots * storage->stride]);
+        size_t space = arena_bytes(slots, storage->stride);
+        storage->allocation.reset(new unsigned char[space]);
+        void* base = storage->allocation.get();
+        storage->arena = static_cast<unsigned char*>(
+            std::align(cpu_alignment(), slots * storage->stride, base, space));
+        assert(storage->arena != nullptr);
         storage_ = storage.release();
     }
 
@@ -210,8 +216,8 @@ class MoeExpertCache {
         reading_ = true;
         size_t returned;
         try {
-            returned = reader_.read(offset, storage_->arena.get() + victim * storage_->stride,
-                                    tensor.bytes);
+            returned =
+                reader_.read(offset, storage_->arena + victim * storage_->stride, tensor.bytes);
         } catch (...) {
             reading_ = false;
             throw;
@@ -258,10 +264,18 @@ class MoeExpertCache {
             throw std::overflow_error("expert cache budget overflow");
         return a + b;
     }
+    static size_t cpu_alignment() {
+        return ggml_backend_buft_get_alignment(ggml_backend_cpu_buffer_type());
+    }
     static size_t aligned_stride(size_t bytes) {
-        constexpr size_t alignment = alignof(std::max_align_t);
+        const size_t alignment = cpu_alignment();
         const auto remainder = bytes % alignment;
         return remainder ? add(bytes, alignment - remainder) : bytes;
+    }
+    static size_t arena_bytes(size_t slots, size_t stride) {
+        // GGML checks the base of every mapped CPU buffer. Reserve the worst-case leading pad
+        // as well as the stride padding, even when the allocator already aligns the first slot.
+        return add(multiply(slots, stride), cpu_alignment() - 1);
     }
     static void count(uint64_t& value, uint64_t amount) noexcept {
         constexpr auto max = std::numeric_limits<uint64_t>::max();
