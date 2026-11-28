@@ -122,3 +122,10 @@ TEST_CASE("provision: SD-Turbo licence pairing requires LICENSE and NOTICE") {
     present.push_back(L"NOTICE");
     CHECK(dir_satisfies_expected_files(present, expected));
 }
+
+TEST_CASE("USB inventory identifies the missing catalogue path before publication") {
+    const std::vector<std::wstring> expected{L"genai_config.json", L"decoder/model.onnx"};
+    CHECK(xllama::missing_expected_file({L"genai_config.json"}, expected) == L"decoder/model.onnx");
+    CHECK(xllama::missing_expected_file({L"GENAI_CONFIG.JSON", L"decoder\\model.onnx"}, expected)
+              .empty());
+}
