@@ -150,7 +150,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     winrt::fire_and_forget ShowImageDialog();
     void StartDiffusion(::xllama::ComputeJobAdmission::Handle permit);
     void PollDiffuseProgress();
-    void FinishDiffusion();
+    void FinishDiffusion(bool published);
     bool SaveCurrentConversation(bool partial = false);
     // #170b: hand the KV of the conversation we are leaving to disk, off the UI
     // thread. Call BEFORE the switch clears m_kv_valid / m_active_model.

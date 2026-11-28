@@ -320,6 +320,7 @@ void MainPageController::StartDiffusion(::xllama::ComputeJobAdmission::Handle pe
     m_diffuse_timer.Start();
 
     std::thread([self, dispatcher, permit = std::move(permit)]() {
+        bool published = false;
         try {
             winrt::init_apartment(); // MTA — ApplicationData + ORT DML
             // Free the resident chat model first when the pipeline would not fit
@@ -329,14 +330,14 @@ void MainPageController::StartDiffusion(::xllama::ComputeJobAdmission::Handle pe
                                                              ::xllama::app_memory_limit_mb()))
                 ::xllama::log_output("[xllama] diffuse: released the resident chat model to fit "
                                      "the image pipeline\n");
-            ::xllama::bridge::run_diffuse();
+            published = ::xllama::bridge::run_diffuse() != 0;
         } catch (const std::exception& ex) {
             ::xllama::log_output(std::string("[xllama] diffuse thread: ") + ex.what() + "\n");
         } catch (...) {
             ::xllama::log_output("[xllama] diffuse thread: unknown exception\n");
         }
         dispatcher.RunAsync(CoreDispatcherPriority::Normal,
-                            [self, permit]() { self->FinishDiffusion(); });
+                            [self, permit, published]() { self->FinishDiffusion(published); });
     }).detach();
 }
 
@@ -349,7 +350,7 @@ void MainPageController::PollDiffuseProgress() {
                                : (stage == "done" ? StatusKind::Success : StatusKind::Working));
 }
 
-void MainPageController::FinishDiffusion() {
+void MainPageController::FinishDiffusion(bool published) {
     if (m_diffuse_timer) {
         m_diffuse_timer.Stop();
         m_diffuse_timer.Tick(m_diffuse_tick_token);
@@ -357,14 +358,12 @@ void MainPageController::FinishDiffusion() {
     m_diffuse_running.store(false);
 
     const std::string stage = ::xllama::read_local_text("diffuse-progress.txt");
-    if (stage == "done") {
+    if (published) {
         SetStatus(L"Image ready — open [*] Image to view", StatusKind::Success);
     } else if (stage == "cancelled") {
         SetStatus(L"Image generation cancelled", StatusKind::Info);
-    } else if (stage == "error" || stage.empty()) {
-        SetStatus(L"Image generation failed — see xllama.log", StatusKind::Error);
     } else {
-        SetStatus(format_diffuse_stage(stage), StatusKind::Working);
+        SetStatus(L"Image generation failed — see xllama.log", StatusKind::Error);
     }
     SetRunning(false);
 }
