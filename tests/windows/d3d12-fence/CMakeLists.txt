@@ -1,0 +1,21 @@
+cmake_minimum_required(VERSION 3.22)
+project(xllama_d3d12_fence_test LANGUAGES CXX)
+
+if(NOT WIN32)
+    message(FATAL_ERROR "This fixture requires the Windows desktop SDK and the WARP adapter")
+endif()
+
+set(root "${CMAKE_CURRENT_LIST_DIR}/../../..")
+add_executable(d3d12-fence-test fence.cpp "${root}/src/bridge/d3d12_compute.cpp")
+target_compile_features(d3d12-fence-test PRIVATE cxx_std_17)
+target_include_directories(d3d12-fence-test PRIVATE "${root}/src/bridge" "${root}/include")
+target_link_libraries(d3d12-fence-test PRIVATE d3d12 dxgi)
+
+enable_testing()
+add_test(NAME warp-fence COMMAND d3d12-fence-test)
+add_test(NAME warp-fence-debug-layer COMMAND d3d12-fence-test --debug-layer)
+set_tests_properties(warp-fence warp-fence-debug-layer PROPERTIES TIMEOUT 45)
+option(XLLAMA_REQUIRE_DEBUG_LAYER "Fail qualification when Windows Graphics Tools are missing" OFF)
+if(NOT XLLAMA_REQUIRE_DEBUG_LAYER)
+    set_tests_properties(warp-fence-debug-layer PROPERTIES SKIP_RETURN_CODE 77)
+endif()

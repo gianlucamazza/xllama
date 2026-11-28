@@ -1,0 +1,23 @@
+name: D3D12 Windows reference
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/d3d12-warp.yml"
+      - "include/xllama/d3d12_dyn.h"
+      - "src/bridge/d3d12_compute.*"
+      - "tests/windows/d3d12-fence/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fence:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - run: cmake -S tests/windows/d3d12-fence -B build/warp -A x64
+      - run: cmake --build build/warp --config Release
+      - run: ctest --test-dir build/warp -C Release --verbose --no-tests=error

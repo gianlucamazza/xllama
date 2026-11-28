@@ -123,3 +123,15 @@ curl --basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS \
 
 Use `./scripts/deploy.sh diagnose-startup` for process state, logs and minidumps;
 Device Portal details are in `docs/device-portal.md`.
+
+## Desktop D3D12 queue fixture
+
+On Windows x64, run the production queue fence against the WARP software adapter. The fixture alternates event and spin waits, reads back distinct words after reusing the allocator and command list, removes its idle test device, rejects a further marker and repeats the copies on a fresh device. CTest limits each process to 45 seconds.
+
+```powershell
+cmake -S tests/windows/d3d12-fence -B build/warp -A x64 -DXLLAMA_REQUIRE_DEBUG_LAYER=ON
+cmake --build build/warp --config Release
+ctest --test-dir build/warp -C Release --verbose --no-tests=error
+```
+
+Install Windows Graphics Tools for the debug-layer run. On ordinary CI the plain WARP test is required and a missing debug layer yields an explicit skipped test. The strict command above requires both tests. Keep the Windows receipt with the commit. Rejected markers on a live queue, retained resources and the exact Xbox package have separate acceptance criteria in [#714](https://github.com/gianlucamazza/xllama/issues/714).
