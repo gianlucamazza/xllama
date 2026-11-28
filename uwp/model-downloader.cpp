@@ -44,6 +44,8 @@ static constexpr wchar_t kCompleteMarker[] = L".complete";
 
 bool ModelDownloader::IsComplete(std::wstring const& local_dir) {
     std::filesystem::path p(local_dir);
+    if (usb_import_pending(p))
+        return false;
     p /= kCompleteMarker;
     return std::filesystem::exists(p);
 }
@@ -930,6 +932,8 @@ bool IsModelProvisioned(std::wstring const& model_name,
     // The .complete marker is a fast-path ONLY in loose mode: in expected mode a
     // stale-quant dir can still carry a valid old marker — exactly what defeats
     // auto-upgrade — so the expected-file scan is authoritative there.
+    if (usb_import_pending(local_dir))
+        return false;
     if (expected_files.empty() && ModelDownloader::IsComplete(local_dir))
         return true;
     if (dir_provisioned(std::filesystem::path(local_dir), expected_files))
