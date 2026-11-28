@@ -4,7 +4,7 @@ Status: Proposed for maintainer review. [RPC inventory](../research/distributed/
 
 ## Context
 
-GGML already supplies backend registration, remote buffers, tensor transport and graph computation. The pinned code has desktop and failure assumptions. The xLlama GPU path is a separately registered local D3D12 backend. Upstream version agreement, a socket connection and a successful model load each test different properties.
+GGML already supplies backend registration, remote buffers, tensor transport and graph computation. The pinned code has desktop and failure assumptions. The xllama GPU path is a separately registered local D3D12 backend. Upstream version agreement, a socket connection and a successful model load each test different properties.
 
 ## Decision proposed
 

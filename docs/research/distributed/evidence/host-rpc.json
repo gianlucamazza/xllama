@@ -21,7 +21,7 @@
     "generator": "Unix Makefiles",
     "target": "CPU, built-in GGML backends, static Release, plain TCP"
   },
-  "reproduction_note": "From the xLlama repository root on a disposable host. Commands normalize the observed build path to build/rpc-research and assume cmake and ctest 3.31.10 on PATH.",
+  "reproduction_note": "From the xllama repository root on a disposable host. Commands normalize the observed build path to build/rpc-research and assume cmake and ctest 3.31.10 on PATH.",
   "commands": [
     "git ls-tree HEAD llama.cpp",
     "scripts/apply-llama-patches.sh",
