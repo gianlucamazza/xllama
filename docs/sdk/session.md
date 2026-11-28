@@ -170,20 +170,19 @@ prompt extends the checkpoint's tokens and the attention cells up to it are
 still resident, the recurrent state is restored, the attention KV is truncated
 to the checkpoint and only the suffix prefills — including an exact
 regenerate, whose output matches a cold run. A checkpoint that does not apply
-is dropped and the full prompt prefills; a context shift drops it too.
+is dropped and the full prompt prefills.
 
 A continuation that would overflow `n_ctx` shifts the context (#169) when the
-cache supports it: the oldest tokens after `n_keep` are evicted and the rest is
-RoPE-shifted down. Eviction ends right after a complete `turn_close` (the
-format's turn terminator), so it drops whole turns and never half a message or
-a template marker. Without a boundary that frees enough room, or with an empty
-`turn_close`, the session sets `retry_full_prompt` (#173). The caller can then
-refit the complete conversation if the request is still live. Zero decoded
-tokens alone do not authorize retry after a backend error. On hybrid
-caches the recurrent state keeps what it absorbed from evicted tokens
-(llama.cpp's approximation); a recall probe on LFM2.5, Granite-4.0-H-Tiny and
-Qwen2.5-Coder-3B did not recall a fact from an evicted turn.
-`SessionParams::prefix_snapshots` defaults on;
+cache supports it: the oldest tokens after `n_keep` are evicted up to a
+complete `turn_close` boundary so whole turns drop and never half a message or
+a template marker. Attention-only caches shift in-place (`seq_rm` + `seq_add`);
+hybrid and recurrent caches rebuild from the longest saved prefix checkpoint at
+or below `n_keep` (or clear) and re-prefill the kept window plus the delta so
+evicted turns do not remain in the recurrent state (#723). Without a boundary
+that frees enough room, or with an empty `turn_close`, the session sets
+`retry_full_prompt` (#173). The caller can then refit the complete conversation
+if the request is still live. Zero decoded tokens alone do not authorize retry
+after a backend error. `SessionParams::prefix_snapshots` defaults on;
 `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. Disk `load_state` is
 still not a delta-prefill guarantee — it includes generated tokens, so a
 hybrid tail that cannot rewind falls back to a full prefill. See

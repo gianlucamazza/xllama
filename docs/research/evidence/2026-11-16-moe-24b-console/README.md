@@ -34,6 +34,34 @@ package was installed over it.
 - "Read" is application-level reader bytes, not measured SSD traffic.
   "Max sampled usage" is the in-process MemoryManager reading, not a peak.
 
+## Where the single CPU worker spent time
+
+The 246 native frames cover 48 prompt tokens and 198 fed generated tokens. The
+last sampled token terminates generation. Measure prefill from `start_ns` to
+`prefilled_ns`, then use `end_ns` for the remaining generation interval. Take
+the cumulative synchronous Reader time at the last prompt frame and subtract
+it from the final Reader total for the second interval. Opening, the model SHA
+passes and teardown lie outside these wall-clock intervals.
+
+| Cache | Phase         | Wall (s) | Inside Reader (s) | Reader share |
+| ----- | ------------- | -------: | ----------------: | -----------: |
+| A2    | Prefill       |    67.61 |             59.15 |        87.5% |
+| A2    | After prefill |   274.40 |            239.59 |        87.3% |
+| B512  | Prefill       |    48.51 |             39.93 |        82.3% |
+| B512  | After prefill |   198.53 |            163.64 |        82.4% |
+
+This run spent over four fifths of both intervals inside synchronous reads.
+The timestamps cover the entire Reader call, including software and OS waits.
+Disk-service time and physical bytes require independent device counters.
+Both profiles use the same prompt and route, with A2 run first. Cold versus
+warm storage and the effect of changing cache size need repeated matched runs
+with controlled ordering. Reproduce the attribution from this directory's
+frozen binary and output pairs with:
+
+```bash
+python3 scripts/replay-moe-cache.py docs/research/evidence/2026-11-16-moe-24b-console --reader-timing
+```
+
 ## What this does not show
 
 - Numerical parity: identical tokens across cache sizes are not a
