@@ -1,0 +1,81 @@
+{
+  "scope": "Linux host resident GGUF admission calibration, one application process, two sequential contexts",
+  "status": "PASS",
+  "xllama_commit": "f44bde861246ce21a7d31f8a1f53000d15606d14",
+  "llama_cpp_commit": "d81235049384534c167caea52b85a694f6103d14",
+  "patches": {
+    "0001-uwp-appcontainer-guards.patch": "1041743635f5d67e8c64591727b627095532c62d832646ca49468cadd9ff8ccb",
+    "0003-kv-cache-k-shift-unallocated-input.patch": "4380ae6a9bd6d7725b2da857351401a0e39c535920e77b9aef88726772d938b4",
+    "0004-recurrent-state-fill-zero.patch": "64e6783c45e7225f99021a4ec9765a8d95d2dd389bb0d44d0c77b0452829cf5d",
+    "0005-required-tool-call-no-content-prefix.patch": "c2d6d21481e4690e840904249f42a368e2f6141257546ba961aca193aacd7643",
+    "0006-peg-escape-control-chars-in-tool-args.patch": "ee9ac8c19e7fe55f9f89a7dcbf608bc98e70a8e922e7f48fc1dc5b29480323c3",
+    "0007-lfm2-undeclared-tool-calls-in-auto.patch": "dad9e6027cbc15d656e0b0b44306ae7bf942fea65971c5ff4189e400bc0364f7"
+  },
+  "host": {
+    "kernel": "Linux 6.18.57 x86_64",
+    "compiler": "GCC 14.2.0 (Debian 14.2.0-19)",
+    "preset": "linux-test",
+    "debug_flags": {
+      "C": "-g0",
+      "CXX": "-g0"
+    },
+    "cmake": "4.4.5",
+    "doctest": "2.4.11",
+    "xllama_tests_sha256": "e184b5051fa326bacae74bf0c8734f9c81f0a7de73c9be2255a13d5c157b3985"
+  },
+  "checkpoint": {
+    "filename": "LFM2.5-350M-QAD-Q4_0.gguf",
+    "bytes": 219312832,
+    "sha256": "3d10b6ab8fc91a919534b9558e266255aca0bbc7f6d015963599aa9e74e05b1d",
+    "source": "uwp/models/manifest.json at xllama_commit"
+  },
+  "reproduce": [
+    "git submodule update --init --recursive",
+    "bash scripts/apply-llama-patches.sh",
+    "cmake --preset linux-test -DCMAKE_C_FLAGS_DEBUG=-g0 -DCMAKE_CXX_FLAGS_DEBUG=-g0",
+    "cmake --build build/linux-test --target xllama-tests",
+    "XLLAMA_TEST_MODEL=/absolute/path/to/LFM2.5-350M-QAD-Q4_0.gguf build/linux-test/tests/xllama-tests --test-case='Session::estimate_memory*'"
+  ],
+  "measurements": [
+    {
+      "requested_context": 2048,
+      "estimated_session_mib": 373,
+      "estimated_model_mib": 207,
+      "estimated_context_mib": 25,
+      "estimated_compute_mib": 141,
+      "observed_anonymous_rss_growth_mib": 182
+    },
+    {
+      "requested_context": 8192,
+      "estimated_session_mib": 451,
+      "estimated_model_mib": 207,
+      "estimated_context_mib": 97,
+      "estimated_compute_mib": 147,
+      "observed_anonymous_rss_growth_mib": 252
+    }
+  ],
+  "context_at_trained_limit_mib": 1501,
+  "reserve_mib": 192,
+  "method": "The repository samples Linux /proc/self/status RssAnon in whole MiB immediately before session creation and after a successful first turn. Growth is max(0, after minus before). The host may map weights from its page cache. RSS growth varies between runs and is neither a sampled maximum nor a peak.",
+  "calibration_tests": {
+    "executed_cases": 2,
+    "passed_assertions": 16,
+    "exit_status": 0,
+    "log": "resident-admission.log",
+    "log_sha256": "870865042f75e1f29316c90ab81be40f331496be210fd6d2042acff63f5a92b0"
+  },
+  "exploratory_attempt": {
+    "status": "FAIL",
+    "checkpoint_sha256": "ea5812a29a3260b9d489fadb272e1dddedadaf291d5fcf839b944ee440311881",
+    "reason": "The CPU-logit fixture uses a restricted vocabulary; the optional calibration uses natural-language chat text. Session load and estimation passed, then tokenization raised unordered_map::at. The fixture passes its separate frozen CPU smoke with the intended input tokens.",
+    "log": "fixture-calibration-attempt.log",
+    "log_sha256": "4daa26bac5f6ca4d7da9cd74589c45e94dcc709fd9dbaef7db1153a9b19b42aa"
+  },
+  "not_run": [
+    "Xbox resident admission on this candidate",
+    "GPU memory measurements",
+    "streamed admission since #480 is blocked"
+  ],
+  "reviewed_tree_sha": "4f5c8168a52cea805554c462e44e4082999fa5a3",
+  "published_commit_with_same_tree": "9f8a8a8d20a352bbe076527cd8c36aeb96041b41"
+}

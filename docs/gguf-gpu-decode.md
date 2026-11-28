@@ -954,8 +954,11 @@ of dispatch, sorted by GPU time, and a summary:
 
 A kind is the operation, the weight type, the kernel's columns per group
 (`cpg`), its thread width and a column class (`1`, `2-63`, `64-511`,
-`512+`). `missing` counts dispatches whose timestamp pair was not increasing;
-their time is not in any row. The barriers serialise dispatches that could
+`512+`). `missing` counts completed dispatches with unavailable or non-increasing
+timestamp pairs. If the adapter provides no usable timestamps, or the query heap
+or readback is unavailable for a submission, every affected dispatch is counted.
+The dispatch summary prints `gpu_ms=missing` when none were timed. An independently
+measured submission can still contribute a layer wait share. The barriers serialise dispatches that could
 overlap without them, so the per-dispatch times add up to more than an
 unmodified run's GPU time: compare a run with the knob against one without
 before reading absolute figures. The knob changes no result.
