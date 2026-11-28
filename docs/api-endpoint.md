@@ -498,6 +498,8 @@ passes it as the template's `enable_thinking`. With reasoning on, the reply
 carries it as `reasoning_content` (`thinking` on the native routes) and counts
 it in `reasoning_tokens`, as for a model that reasons by default.
 
+The catalogue Gemma 4 E2B IT checkpoint signals enabled reasoning with `<|think|>` in the system turn. Its generated `<|channel>thought` block is returned in the reasoning field in buffered and streamed replies. A model can answer a short question directly in either mode. The qualified GGUF is `gemma-4-E2B-it-Q3_K_S.gguf`; other Gemma checkpoints keep their existing capability response. [Pinned GGUF](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/blob/0314792d7f1f7e229411f620751375812bb9faf2/gemma-4-E2B-it-Q3_K_S.gguf).
+
 ### Model residency (`keep_alive`, `/api/ps`)
 
 The console app wins. `SessionHub` records who loaded or last used the

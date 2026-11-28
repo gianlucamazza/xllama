@@ -1182,16 +1182,19 @@ std::string chat_reply_json(const ChatResponse& response, const std::string& mod
 // Generates, parses and answers one tool proposal. With |sse| the stream is
 // already open, so a failure is an SSE error event and the return is empty;
 // without it, the return is the JSON response.
-std::string write_tool_proposal(::xllama::GenerateParams& gp, const ::xllama::ToolRequest& request,
+std::string write_tool_proposal(::xllama::GenerateParams gp, const ::xllama::ToolRequest& request,
                                 const std::vector<::xllama::ChatMessage>& messages,
                                 ::xllama::Session* session, const std::string& model, bool thinking,
                                 ::xllama::ApiActivity::Ticket& ticket, const char*& status,
-                                std::chrono::steady_clock::time_point started,
-                                ::xllama::ReasoningTokenCounter& reasoning_tokens, ChatStream* sse,
+                                std::chrono::steady_clock::time_point started, ChatStream* sse,
                                 const std::atomic<bool>& abort, const ChatResponse& response) {
     using Clock = std::chrono::steady_clock;
     const bool native = native_wire(response);
     const bool stream = sse != nullptr;
+    const auto markup = ::xllama::chat_format_for(model, thinking).thinking_markup;
+    const auto prefill = ::xllama::thinking_prefill_at_end(gp.prompt, markup);
+    ::xllama::ReasoningTokenCounter reasoning_tokens(prefill, markup);
+    gp.on_token = [&reasoning_tokens](std::string_view piece) { reasoning_tokens.push(piece); };
     const auto prepared = Clock::now();
     const ::xllama::InferenceResult generated = session->generate(gp);
     const auto generated_at = Clock::now();
@@ -1221,8 +1224,9 @@ std::string write_tool_proposal(::xllama::GenerateParams& gp, const ::xllama::To
         "[xllama] api: tool_proposal prepare_us=" + std::to_string(elapsed_us(started, prepared)) +
         " generate_us=" + std::to_string(elapsed_us(prepared, generated_at)) +
         " parse_us=" + std::to_string(elapsed_us(generated_at, parsed_at)) + "\n");
-    const ::xllama::ChoiceAssembly assembly = ::xllama::assemble_choice(
-        generated.output_text, parsed.content, parsed.calls, hit_cap, thinking, parsed.reasoning);
+    const ::xllama::ChoiceAssembly assembly =
+        ::xllama::assemble_choice(generated.output_text, parsed.content, parsed.calls, hit_cap,
+                                  thinking, parsed.reasoning, markup, prefill);
     const int n_reasoning = reasoning_tokens.count(thinking, parsed.reasoning);
 
     // Native Ollama content is always a string (empty beside tool calls), its
@@ -1352,10 +1356,6 @@ std::string handle_tool_proposal_locked(
     gp.grammar = std::move(fit.rendered.grammar); // ADR 0005
     append_client_stops(root, gp.stop_sequences);
 
-    // Every token's piece, for usage.completion_tokens_details (#585).
-    ::xllama::ReasoningTokenCounter reasoning_tokens;
-    gp.on_token = [&reasoning_tokens](std::string_view piece) { reasoning_tokens.push(piece); };
-
     // Every request check is done, so a streamed proposal opens its stream now,
     // before generation (#594). The keepalive then watches the socket through a
     // long prefill, and a client that leaves aborts it as on plain chat (#581).
@@ -1369,8 +1369,8 @@ std::string handle_tool_proposal_locked(
             return failed_body;
         gp.abort_flag = &abort;
         try {
-            write_tool_proposal(gp, request, fit.messages, session, model, thinking, ticket, status,
-                                started, reasoning_tokens, sse.get(), abort, response);
+            write_tool_proposal(std::move(gp), request, fit.messages, session, model, thinking,
+                                ticket, status, started, sse.get(), abort, response);
         } catch (...) {
             const ::xllama::ApiFailureReply failure = reply_for_current_exception(
                 "chat tool stream", "malformed request body", "generation failed");
@@ -1379,8 +1379,8 @@ std::string handle_tool_proposal_locked(
         }
         return {}; // the stream owns the response
     }
-    return write_tool_proposal(gp, request, fit.messages, session, model, thinking, ticket, status,
-                               started, reasoning_tokens, nullptr, abort, response);
+    return write_tool_proposal(std::move(gp), request, fit.messages, session, model, thinking,
+                               ticket, status, started, nullptr, abort, response);
 }
 
 // Handles one chat request under session_hub().mtx (already locked by the caller).
@@ -1639,7 +1639,7 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
         // split after the stop filter so a stop is matched on the raw text.
         std::optional<::xllama::ThinkingStreamSplitter> splitter;
         if (fmt.strip_thinking_content)
-            splitter.emplace(fmt.reasoning_prefill());
+            splitter.emplace(fmt.reasoning_prefill(), fmt.thinking_markup);
         const auto send = [&sse, &splitter](std::string_view text, bool finishing) {
             if (!splitter) {
                 sse->write_delta(text);
@@ -1655,7 +1655,8 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
             sse->write_delta(split.content);
         };
         // #585, before the stop filter
-        ::xllama::ReasoningTokenCounter reasoning_tokens(fmt.reasoning_prefill());
+        ::xllama::ReasoningTokenCounter reasoning_tokens(fmt.reasoning_prefill(),
+                                                         fmt.thinking_markup);
         gp.on_token = [&stop_filter, &send, &reasoning_tokens](std::string_view piece) {
             reasoning_tokens.push(piece);
             const std::string text = stop_filter.push(piece);
@@ -1691,7 +1692,8 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
         }
         return std::string(); // handle_connection must not write a second response
     }
-    ::xllama::ReasoningTokenCounter reasoning_tokens(fmt.reasoning_prefill()); // #585
+    ::xllama::ReasoningTokenCounter reasoning_tokens(fmt.reasoning_prefill(),
+                                                     fmt.thinking_markup); // #585
     gp.on_token = [&reasoning_tokens](std::string_view piece) { reasoning_tokens.push(piece); };
     const ::xllama::InferenceResult r = session->generate(gp);
     if (!r.success) {

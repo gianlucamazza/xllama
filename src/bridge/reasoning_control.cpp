@@ -41,7 +41,8 @@ ReasoningDecision refused(std::string message, const char* code, const char* par
 bool model_supports_reasoning_control(const std::string& model_id) {
     if (model_is_thinking(model_id))
         return false; // thinking-only: no template here has an off switch
-    if (model_is_minicpm5(model_id) || model_is_smollm3(model_id))
+    if (model_is_minicpm5(model_id) || model_is_smollm3(model_id) ||
+        model_is_gemma4_e2b_it(model_id))
         return true;
     if (!model_is_qwen3(model_id))
         return false;

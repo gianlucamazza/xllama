@@ -79,6 +79,11 @@ bool model_is_gemma4(const std::string& model_id) {
            b.find("gemma_4") != std::string::npos;
 }
 
+bool model_is_gemma4_e2b_it(const std::string& model_id) {
+    const std::string b = to_lower(model_basename(model_id));
+    return b == "gemma4-e2b" || b == "gemma-4-e2b-it-q3_k_s.gguf";
+}
+
 bool model_is_llama(const std::string& model_id) {
     return to_lower(model_basename(model_id)).find("llama") != std::string::npos;
 }
@@ -173,7 +178,7 @@ ChatFormat chat_format_for(const std::string& model_id, bool thinking) {
     // tokenizer (add_bos) for Gemma and Llama-3 GGUF — not emitted in the template string.
     if (model_is_gemma4(model_id)) {
         // Gemma 4 canonical template: new turn tokens and a dedicated system
-        // turn. Thinking stays off, so generation starts at the model header.
+        // turn. The E2B template signals thinking in the system turn.
         f.kind = ChatFormatKind::Gemma;
         f.turn_open = "<|turn>";
         f.turn_close = "<turn|>\n";
@@ -184,6 +189,10 @@ ChatFormat chat_format_for(const std::string& model_id, bool thinking) {
         f.system_sep = "";
         f.system_style = SystemStyle::DedicatedTurn;
         f.stop_sequences = {"<turn|>"};
+        if (model_is_gemma4_e2b_it(model_id)) {
+            f.thinking_markup = ThinkingMarkup::GemmaChannel;
+            f.strip_thinking_content = thinking;
+        }
         f.gen_suffix = {};
     } else if (model_is_gemma(model_id)) {
         f.kind = ChatFormatKind::Gemma;
@@ -324,6 +333,8 @@ std::string ChatFormat::render_system_prefix(const std::string& system) const {
                "\nReasoning Mode: " + (strip_thinking_content ? "/think" : "/no_think") +
                "\n\n## Custom Instructions\n\n" + instructions + "\n\n" + turn_close;
     }
+    if (thinking_markup == ThinkingMarkup::GemmaChannel && strip_thinking_content)
+        return bos + turn_open + system_tag + role_sep + "<|think|>\n" + system + turn_close;
     if (system_style == SystemStyle::DedicatedTurn)
         return bos + turn_open + system_tag + role_sep + system + turn_close;
     return bos;
@@ -395,7 +406,7 @@ ThinkingSplit ChatFormat::split_output(std::string text) const {
         // After an opened block the reply starts inside it, and one cut off
         // mid-thought has no closer either: split it as the model saw it.
         text.insert(0, reasoning_prefill());
-        out = split_thinking(text);
+        out = split_thinking(text, thinking_markup);
         text = std::move(out.content);
     }
     out.content = strip_empty_thinking_tags(std::move(text));
