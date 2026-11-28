@@ -24,6 +24,7 @@
 
 #include "xllama/model_provision.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -329,15 +330,28 @@ sidecar_background_write_files(const std::vector<ManifestFilePin>& expected, boo
 // Slack kept free beyond the plan (marker files, rollback bookkeeping, logs).
 inline constexpr uint64_t kDownloadSpaceMarginBytes = 64ull * 1024 * 1024;
 
-// Bytes the files in `fetch` will write, from their catalogue sizes.
-inline uint64_t download_bytes_needed(const std::vector<ManifestFilePin>& fetch) {
-    uint64_t need = 0;
-    for (const auto& pin : fetch) {
-        if (need > UINT64_MAX - pin.approx_bytes)
-            return UINT64_MAX;
-        need += pin.approx_bytes;
+// Files are replaced in order. During promotion the .part coexists with a
+// backup of the live target. An earlier .previous is overwritten in place.
+struct DownloadSpaceFile {
+    uint64_t incoming;
+    uint64_t live;
+    uint64_t previous;
+};
+
+inline uint64_t download_peak_bytes(const std::vector<DownloadSpaceFile>& files) {
+    const auto add = [](uint64_t a, uint64_t b) { return a > UINT64_MAX - b ? UINT64_MAX : a + b; };
+    uint64_t retained = 0;
+    uint64_t peak = 0;
+    for (const auto& file : files) {
+        const uint64_t staged = add(retained, file.incoming);
+        const uint64_t backup_growth = file.live > file.previous ? file.live - file.previous : 0;
+        peak = std::max(peak, add(staged, backup_growth));
+        // After the rename the old target is released. Credit only a backup
+        // actually overwritten, and never borrow space from a future file.
+        const uint64_t released = file.live ? file.previous : 0;
+        retained = staged > released ? staged - released : 0;
     }
-    return need;
+    return peak;
 }
 
 struct DownloadSpaceCheck {

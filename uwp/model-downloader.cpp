@@ -368,17 +368,19 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
         // Free-space preflight: fail before the first request, with both
         // numbers, instead of at the last megabyte of a multi-gigabyte body.
         {
-            std::vector<ManifestFilePin> fetch;
+            std::vector<DownloadSpaceFile> fetch;
             for (size_t i = 0; i < files.size(); ++i) {
-                if (decisions[i] == PinCheck::Refetch)
-                    fetch.push_back(
-                        make_file_pin(files[i].filename, files[i].approx_bytes, "", ""));
+                if (decisions[i] != PinCheck::Refetch)
+                    continue;
+                const auto& file = files[i];
+                fetch.push_back({file.approx_bytes, local_file_size(local_dir_fs, file.filename),
+                                 local_file_size(local_dir_fs, file.filename + L".previous")});
             }
             std::error_code space_ec;
             const std::filesystem::space_info si = std::filesystem::space(local_dir_fs, space_ec);
             if (!space_ec) {
                 const DownloadSpaceCheck space =
-                    check_download_space(download_bytes_needed(fetch), si.available);
+                    check_download_space(download_peak_bytes(fetch), si.available);
                 if (!space.ok) {
                     const std::string msg = download_space_error(space);
                     log_output(("[downloader] " + msg + "\n").c_str());
