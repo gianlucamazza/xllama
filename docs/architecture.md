@@ -299,7 +299,12 @@ prefill captures them in two kinds (#601):
   upstream persists checkpoints the same way, llama.cpp #26004), so after a load a
   turn that diverges inside the tail, such as an edited reply, restores the head
   instead of prefilling the whole history. A missing or malformed trailer only
-  means no checkpoint. The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
+  means no checkpoint. Restore releases the serialized sequence buffer before reading
+  the optional checkpoint and transfers that allocation to the session. If the
+  sequence buffer cannot fit, the current KV stays intact. If only the
+  optional checkpoint cannot fit, a later branch can prefill from the beginning.
+  [Host allocation counts](../bench/results/2026-11-27-hybrid-kv-restore-host.json) cover the restore staging buffers.
+  The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
 
 - **Fingerprinted** (model, n_ctx, KV quant, LoRA) — stale snapshots are
   harmless by construction (they fall back to a normal prefill).
@@ -1073,6 +1078,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_routing_policy.cpp`          | `routing_policy.h`                                                                                                                                    |
 | `test_model_sampling.cpp`          | `model_sampling.h` (layer order, catalogue `sampling` parse, bundled manifest)                                                                        |
 | `test_sampling.cpp`                | `sampling.h` (CLI/Session parity opt-in)                                                                                                              |
+| `test_state_restore_memory.cpp`    | Public hybrid KV restore with a tiny LFM2, serialized buffer lifetimes, allocation failure, retry and greedy parity                                   |
 | `test_sdk_consumer.cpp`            | Linux CMake consumer compile, link and upstream header visibility                                                                                     |
 | `test_session.cpp`                 | `session.h`, `session_hub.h`                                                                                                                          |
 | `test_session_spec.cpp`            | `session_spec.h`, hub reuse rule                                                                                                                      |

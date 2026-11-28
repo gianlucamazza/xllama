@@ -22,6 +22,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <new>
 #include <optional>
 #include <string>
 
@@ -1672,22 +1673,31 @@ class LlamaSession final : public Session {
             return false;
         }
 
-        std::vector<llama_token> tokens(n_tokens);
-        std::vector<uint8_t> blob(n_state);
-        if (!io_chunked(fp, tokens.data(), n_tokens * sizeof(llama_token), /*write=*/false) ||
-            !io_chunked(fp, blob.data(), n_state, /*write=*/false)) {
-            if (err)
-                *err = "state file truncated";
-            return false;
-        }
-
+        std::vector<llama_token> tokens;
         size_t used = 0;
-        try {
-            used = llama_state_seq_set_data(m_ctx.get(), blob.data(), blob.size(), 0);
-        } catch (const std::exception& e) {
-            used = 0;
-            if (err)
-                *err = std::string("state_seq_set_data threw: ") + e.what();
+        {
+            // Release the serialized sequence before reading the optional checkpoint.
+            std::vector<uint8_t> blob;
+            try {
+                tokens.resize(n_tokens);
+                blob.resize(n_state);
+            } catch (const std::bad_alloc&) {
+                if (err)
+                    *err = "out of memory";
+                return false;
+            }
+            if (!io_chunked(fp, tokens.data(), n_tokens * sizeof(llama_token), /*write=*/false) ||
+                !io_chunked(fp, blob.data(), n_state, /*write=*/false)) {
+                if (err)
+                    *err = "state file truncated";
+                return false;
+            }
+            try {
+                used = llama_state_seq_set_data(m_ctx.get(), blob.data(), blob.size(), 0);
+            } catch (const std::exception& e) {
+                if (err)
+                    *err = std::string("state_seq_set_data threw: ") + e.what();
+            }
         }
         touch_kv(); // the cells are the file's now, or cleared below
         if (used == 0) {
@@ -1728,16 +1738,20 @@ class LlamaSession final : public Session {
             std::string(magic) != kCheckpointMagic || n == 0 || n > m_kv_tokens.size() ||
             bytes == 0 || bytes > kMaxStateBytes)
             return;
-        std::vector<uint8_t> blob(static_cast<size_t>(bytes));
-        if (!io_chunked(fp, blob.data(), blob.size(), /*write=*/false))
-            return;
-        PrefixCheckpoint c;
-        c.n = static_cast<size_t>(n);
-        c.head = true;
-        c.blob = std::move(blob);
-        m_checkpoints.assign(1, std::move(c));
-        m_prefix_tokens.assign(m_kv_tokens.begin(),
-                               m_kv_tokens.begin() + static_cast<std::ptrdiff_t>(n));
+        try {
+            PrefixCheckpoint c;
+            c.n = static_cast<size_t>(n);
+            c.head = true;
+            c.blob.resize(static_cast<size_t>(bytes));
+            if (!io_chunked(fp, c.blob.data(), c.blob.size(), /*write=*/false))
+                return;
+            m_prefix_tokens.assign(m_kv_tokens.begin(),
+                                   m_kv_tokens.begin() + static_cast<std::ptrdiff_t>(n));
+            m_checkpoints.push_back(std::move(c));
+        } catch (const std::bad_alloc&) {
+            // The full sequence has been restored. A future branch can prefill again.
+            drop_prefix_snapshot();
+        }
     }
 };
 
