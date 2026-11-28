@@ -7,6 +7,12 @@
 #include <doctest/doctest.h>
 #include <filesystem>
 #include <fstream>
+#ifdef __linux__
+    #include <csignal>
+    #include <sys/resource.h>
+    #include <sys/wait.h>
+    #include <unistd.h>
+#endif
 
 TEST_CASE("ChatHistory::TitleFrom — basic") {
     CHECK(xllama::ui::ChatHistory::TitleFrom("Hello world") == "Hello world");
@@ -157,3 +163,38 @@ TEST_CASE("aborted staged write preserves the entire prior chat") {
     REQUIRE(recovered.messages.size() == 1);
     CHECK(recovered.messages.front().content == "existing message");
 }
+
+#ifdef __linux__
+TEST_CASE("ChatHistory keeps the committed conversation after a partial write") {
+    ChatDirectory temp;
+    xllama::ui::ChatHistory history(temp.path.string());
+    xllama::ui::Conversation chat{"limited", "saved", {}};
+    xllama::ui::ChatMessage msg;
+    msg.role = xllama::ui::MessageRole::Assistant;
+    msg.content = "original reply";
+    chat.messages.push_back(msg);
+    REQUIRE(history.Save(chat));
+
+    const auto child = fork();
+    REQUIRE(child >= 0);
+    if (child == 0) {
+        const struct rlimit limit = {600, 600};
+        if (signal(SIGXFSZ, SIG_IGN) == SIG_ERR || setrlimit(RLIMIT_FSIZE, &limit) != 0)
+            _exit(2);
+        chat.title = "interrupted";
+        chat.messages.front().content.assign(65536, 'x');
+        _exit(history.Save(chat) ? 1 : 0);
+    }
+    int status = 0;
+    REQUIRE(waitpid(child, &status, 0) == child);
+    REQUIRE(WIFEXITED(status));
+    REQUIRE(WEXITSTATUS(status) == 0);
+    xllama::ui::ChatHistory reopened(temp.path.string());
+    reopened.LoadIndex();
+    REQUIRE(reopened.Index().size() == 1);
+    CHECK(reopened.Index().front().title == "saved");
+    const auto loaded = reopened.Load(chat.id);
+    REQUIRE(loaded.messages.size() == 1);
+    CHECK(loaded.messages.front().content == "original reply");
+}
+#endif
