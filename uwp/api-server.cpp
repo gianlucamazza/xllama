@@ -2695,6 +2695,11 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             return;
         }
 
+        const auto listener_is_current = [generation] {
+            std::lock_guard<std::mutex> state_lock(g_state_mtx);
+            return g_status.state == ServerState::Running && generation == g_generation;
+        };
+
         // OpenAI chat and the native Ollama text routes share one handler: the
         // native body is checked and translated into the chat body before
         // compute admission (api_ollama.h), and only the reply wire differs.
@@ -2771,16 +2776,14 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             }
             std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
             // A callback from an older listener must not recreate the Session.
-            const auto admission = ::xllama::check_api_chat_admission(lk, compute_permit, [&] {
-                std::lock_guard<std::mutex> state_lock(g_state_mtx);
-                return g_status.state == ServerState::Running && generation == g_generation;
-            });
-            if (admission == ::xllama::ApiChatAdmission::HubBusy) {
+            const auto admission =
+                ::xllama::check_api_session_admission(lk, compute_permit, listener_is_current);
+            if (admission == ::xllama::ApiSessionAdmission::HubBusy) {
                 activity().busy();
                 write_response(socket, ::xllama::kApiBusyStatus, failure_json("busy"));
                 return;
             }
-            if (admission == ::xllama::ApiChatAdmission::ServerStopped) {
+            if (admission == ::xllama::ApiSessionAdmission::ServerStopped) {
                 write_response(socket, ::xllama::kApiBusyStatus, failure_json("server stopped"));
                 return;
             }
@@ -2808,8 +2811,7 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             // A new admission can replace the activity ticket. Finish accounting
             // before releasing ownership, then deliver the request-owned body.
             record_outcome(ticket, status, json);
-            lk.unlock();
-            compute_permit.reset();
+            ::xllama::release_api_session(lk, compute_permit);
             // A streamed reply is already on the socket; an empty body means the
             // stream (or its error event) was the response.
             if (stream && json.empty())
@@ -2834,19 +2836,16 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 return;
             }
             std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
-            if (!lk.owns_lock()) {
+            const auto admission =
+                ::xllama::check_api_session_admission(lk, compute_permit, listener_is_current);
+            if (admission == ::xllama::ApiSessionAdmission::HubBusy) {
                 activity().busy();
-                write_response(socket, "503 Service Unavailable",
+                write_response(socket, ::xllama::kApiBusyStatus,
                                embedding_error_json(embedding_api, "busy"));
                 return;
             }
-            bool active = false;
-            {
-                std::lock_guard<std::mutex> state_lock(g_state_mtx);
-                active = g_status.state == ServerState::Running && generation == g_generation;
-            }
-            if (!active) {
-                write_response(socket, "503 Service Unavailable",
+            if (admission == ::xllama::ApiSessionAdmission::ServerStopped) {
+                write_response(socket, ::xllama::kApiBusyStatus,
                                embedding_error_json(embedding_api, "server stopped"));
                 return;
             }
@@ -2861,9 +2860,8 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 status = failure.status;
                 json = embedding_error_json(embedding_api, failure.message);
             }
-            // Record before writing: a client that disconnects makes
-            // write_response throw, and the request was still served.
             record_outcome(ticket, status, json);
+            ::xllama::release_api_session(lk, compute_permit);
             write_response(socket, status, json);
             return;
         }
