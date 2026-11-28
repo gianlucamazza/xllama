@@ -1153,6 +1153,8 @@ flags are supported:
 non-empty line of the first user message (at most 60 UTF-8 bytes, including the ellipsis). IDs use
 `CoCreateGuid`.
 
+Deletion records a `.deleting` marker before removing a conversation. Recovery keeps the existing index entry when the body is still present and removes it when the body is gone. A failed index replacement leaves the marker for retry. **Clear all** keeps surviving chat entries and their KV snapshots, including an active conversation whose first save failed. The UI reports which stage is pending.
+
 `ManifestEntry` (`uwp/model-downloader.h`) schema:
 
 | Field         | Type          | Default       | Effect                                                                      |
