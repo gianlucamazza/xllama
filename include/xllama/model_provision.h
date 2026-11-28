@@ -41,10 +41,8 @@ inline std::wstring normalize_model_path(std::wstring s) {
 // files[].filename values. Comparison is separator- and case-insensitive. Extra
 // present files are ignored (a superset is fine). An empty `expected` returns
 // false: the predicate never guesses — the caller applies the loose fallback.
-inline bool dir_satisfies_expected_files(const std::vector<std::wstring>& present,
-                                         const std::vector<std::wstring>& expected) {
-    if (expected.empty())
-        return false;
+inline std::wstring missing_expected_file(const std::vector<std::wstring>& present,
+                                          const std::vector<std::wstring>& expected) {
     std::vector<std::wstring> norm_present;
     norm_present.reserve(present.size());
     for (const auto& p : present)
@@ -60,9 +58,14 @@ inline bool dir_satisfies_expected_files(const std::vector<std::wstring>& presen
             }
         }
         if (!found)
-            return false;
+            return want;
     }
-    return true;
+    return {};
+}
+
+inline bool dir_satisfies_expected_files(const std::vector<std::wstring>& present,
+                                         const std::vector<std::wstring>& expected) {
+    return !expected.empty() && missing_expected_file(present, expected).empty();
 }
 
 // True iff a model directory's file listing makes it SERVABLE by Session:

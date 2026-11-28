@@ -338,6 +338,37 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                     if (!usb_model_folder)
                         throw std::runtime_error("USB folder disappeared");
 
+                    // Inspect the source before invalidating the installed model. A stale
+                    // destination file must never mask an incomplete removable source.
+                    using winrt::Windows::Storage::StorageFile;
+                    std::vector<std::pair<std::wstring, StorageFile>> copies;
+                    std::vector<std::wstring> present;
+                    for (auto const& file : co_await usb_model_folder.GetFilesAsync()) {
+                        const std::wstring name(file.Name().c_str());
+                        if (normalize_model_path(name) == L".complete")
+                            continue;
+                        present.push_back(name);
+                        copies.emplace_back(name, file);
+                    }
+                    for (const auto& name : expected_files) {
+                        if (name.find_first_of(L"/\\") == std::wstring::npos)
+                            continue;
+                        auto relative = std::filesystem::path(name);
+                        relative.make_preferred();
+                        if (relative.has_root_path() ||
+                            std::find(relative.begin(), relative.end(), L"..") != relative.end())
+                            throw std::runtime_error("Invalid relative model filename");
+                        auto item = co_await usb_model_folder.TryGetItemAsync(relative.wstring());
+                        if (auto file = item.try_as<StorageFile>()) {
+                            present.push_back(name);
+                            copies.emplace_back(name, file);
+                        }
+                    }
+                    const auto missing = missing_expected_file(present, expected_files);
+                    if (!missing.empty())
+                        throw std::runtime_error("USB model is missing " +
+                                                 wstring_to_utf8(missing));
+
                     std::error_code begin_ec;
                     if (!writer.begin(begin_ec))
                         throw std::runtime_error("Cannot prepare USB model write: " +
@@ -352,24 +383,19 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                     StorageFolder dest_folder = co_await models_folder.CreateFolderAsync(
                         model_name, CreationCollisionOption::OpenIfExists);
 
-                    // Copy each file
-                    auto files = co_await usb_model_folder.GetFilesAsync();
-                    for (auto const& f : files) {
-                        if (f.Name() == L".complete")
-                            continue; // publish only after all files have been copied
-                        log_output(("[xllama] USB copy: " +
-                                    ::xllama::wstring_to_utf8(std::wstring(f.Name().c_str())) +
-                                    "\n")
-                                       .c_str());
-                        if (normalize_model_path(std::wstring(f.Name().c_str())) ==
-                                L"adapter.gguf" &&
-                            co_await dest_folder.TryGetItemAsync(f.Name()))
-                            continue; // a local personalization adapter belongs to its owner
-                        co_await f.CopyAsync(dest_folder, f.Name(),
-                                             NameCollisionOption::ReplaceExisting);
+                    for (const auto& [name, file] : copies) {
+                        StorageFolder folder = dest_folder;
+                        for (const auto& dir : std::filesystem::path(name).parent_path())
+                            folder = co_await folder.CreateFolderAsync(
+                                dir.wstring(), CreationCollisionOption::OpenIfExists);
+                        if (normalize_model_path(name) == L"adapter.gguf" &&
+                            co_await folder.TryGetItemAsync(file.Name()))
+                            continue; // preserve the owner's existing adapter
+                        co_await file.CopyAsync(folder, file.Name(),
+                                                NameCollisionOption::ReplaceExisting);
                     }
                     std::error_code complete_ec;
-                    if (!writer.complete({}, complete_ec))
+                    if (!writer.complete(expected_files, complete_ec))
                         throw std::runtime_error("Cannot complete USB model write: " +
                                                  complete_ec.message());
                     copy_ok = true;
