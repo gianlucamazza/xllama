@@ -537,12 +537,8 @@ std::optional<SessionMemory> estimate_session_memory(const std::string& path,
         const ggml_backend_dev_t dev = ggml_backend_buft_get_device(buft);
         const enum ggml_backend_dev_type type =
             dev ? ggml_backend_dev_type(dev) : GGML_BACKEND_DEVICE_TYPE_CPU;
-        const bool on_device =
-            !ggml_backend_buft_is_host(buft) &&
-            (type == GGML_BACKEND_DEVICE_TYPE_GPU || type == GGML_BACKEND_DEVICE_TYPE_IGPU);
-        // An integrated GPU allocation consumes both the app and device quotas.
-        const bool on_host = !on_device || type == GGML_BACKEND_DEVICE_TYPE_IGPU;
-        estimate.add_buffer(mb.model, mb.context, mb.compute, on_host, on_device);
+        add_gguf_buffer_memory(estimate, type, ggml_backend_buft_is_host(buft), mb.model,
+                               mb.context, mb.compute);
     }
     return estimate.charges();
 }

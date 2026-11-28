@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 #include "xllama/memory_admission.h"
 
+#include "../src/bridge/llama_gpu.h"
+
 #include <doctest/doctest.h>
 
 #include <limits>
@@ -80,6 +82,35 @@ TEST_CASE("admit_session_memory: an embedding context charges only new UMA buffe
         admit_session_memory(context, 2048, app_used + 1, app_limit, gpu_used, gpu_limit).ok);
     CHECK_FALSE(
         admit_session_memory(context, 2048, app_used, app_limit, gpu_used + 1, gpu_limit).ok);
+}
+
+TEST_CASE("admit_session_memory: D3D12_Host compute and weights share the local GPU budget") {
+    constexpr std::size_t mib = 1024 * 1024;
+    for (const bool resident : {false, true}) {
+        xllama::SessionMemoryEstimate estimate(resident);
+        // The dry run reports its scheduler reserve under the mapped D3D12_Host buffer type.
+        xllama::add_gguf_buffer_memory(estimate, GGML_BACKEND_DEVICE_TYPE_IGPU, true, 0, 0,
+                                       8 * mib);
+        xllama::add_gguf_buffer_memory(estimate, GGML_BACKEND_DEVICE_TYPE_IGPU, false, 64 * mib, 0,
+                                       0);
+        // CPU_REPACK also reports is_host=false, but its weights belong to the CPU.
+        xllama::add_gguf_buffer_memory(estimate, GGML_BACKEND_DEVICE_TYPE_CPU, false, 6 * mib, 0,
+                                       0);
+        xllama::add_gguf_buffer_memory(estimate, GGML_BACKEND_DEVICE_TYPE_CPU, true, 0, 3 * mib, 0);
+
+        const auto charge = estimate.charges();
+        CHECK(charge.host_model_mb == (resident ? 0 : 70));
+        CHECK(charge.host_context_mb == 3);
+        CHECK(charge.host_compute_mb == 8);
+        const std::size_t gpu_needed = resident ? 8 : 72;
+        CHECK(charge.device_mb == gpu_needed);
+        constexpr std::size_t gpu_used = 128;
+        CHECK(admit_session_memory(charge, 2048, 0, 0, gpu_used, gpu_used + gpu_needed).ok);
+        const auto over =
+            admit_session_memory(charge, 2048, 0, 0, gpu_used, gpu_used + gpu_needed - 1);
+        CHECK_FALSE(over.ok);
+        CHECK(over.message.find("GPU budget") != std::string::npos);
+    }
 }
 
 TEST_CASE(
