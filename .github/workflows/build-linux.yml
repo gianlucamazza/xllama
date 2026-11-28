@@ -213,15 +213,15 @@ jobs:
       - name: Native CPU GGUF numerical smoke
         run: python3 scripts/run-cpu-smoke.py --build-dir build/linux-test --model build/cpu-smoke/model.gguf
 
-      - name: Test GGUF decode failure and session recovery
+      # The smoke's verified GGUF drives the model-backed decode-failure and
+      # session-recovery cases (test-decode-faults and the opt-in Session case
+      # in xllama-tests); without it they return early with zero assertions.
+      - name: Run unit tests with the GGUF fixture
         env:
           XLLAMA_TEST_DECODE_FAULT_MODEL: ${{ github.workspace }}/build/cpu-smoke/model.gguf
         run: |
           test -s "$XLLAMA_TEST_DECODE_FAULT_MODEL"
-          ctest --test-dir build/linux-test --output-on-failure --no-tests=error -R '^test-decode-faults$'
-
-      - name: Run remaining unit tests
-        run: ctest --test-dir build/linux-test --output-on-failure --no-tests=error -E '^test-decode-faults$'
+          ctest --test-dir build/linux-test --output-on-failure --no-tests=error
 
       - name: Verify the test-suite size
         run: |
