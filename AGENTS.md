@@ -143,6 +143,7 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
   tests/test_prepare_ort_source.py \
   tests/test_prepare_genai_source.py \
   tests/test_d3d12_layer_log.py tests/test_d3d12_selftest.py tests/test_ort_profile.py \
+  tests/test_replay_moe_cache.py \
   tests/test_bench_kv_driver.py tests/test_eval_standard.py tests/test_hellaswag_token_mean.py \
   tests/test_eval_standard_generative.py tests/test_benchmark_summary_standard.py \
   tests/test_apply_llama_patches.py tests/test_distributed_inference_model.py

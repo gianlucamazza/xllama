@@ -398,6 +398,19 @@ done
 Closed 2026-09-30: `phi4-mini` PASS (#268); MiniCPM5-1B (#267) and
 Gemma-3-1B (#269) rejected — measured.
 
+## SSD MoE CPU acceptance on Series S (#481)
+
+Run this gate on the integrated Windows Reader after [#479](https://github.com/gianlucamazza/xllama/issues/479) is accepted and the native worker and checkpoint parity gates in [#480](https://github.com/gianlucamazza/xllama/issues/480) pass for the model under test. Record a missing candidate as `BLOCKED` and the unexecuted console trials as `NOT_RUN`.
+
+1. Obtain exclusive, authorized Device Portal access within the operator's usage budget. Use the candidate's CI MSVC unified package. Record the source commit, actual checkout (including a PR test merge), llama.cpp pin, workflow run, inner MSIX SHA-256, manifest version and existing installed identity. Use `sha256sum "$msix"` and `python3 scripts/package_identity.py identity "$msix"` on the downloaded MSIX. Install it in place, preserve LocalState, and set `XLLAMA_EXPECTED_PFN` to the verified installed package full name.
+2. Record Series S device/OS evidence, foreground state, App/Game designation and app-reported memory quota. Bind checkpoint digest and length to the open Reader handle. Record the prompt, template, context, CPU kernel, workers, cache and staging budgets, admission breakdown and reserve. Keep credentials outside receipts.
+3. Verify that ordinary startup leaves streaming disabled. Use the candidate PR's activation for each declared CPU profile. Keep a new run-scoped log for each attempt, including its model termination, trace completeness, logical Reader bytes and sampled working set. Preserve persistent one-shot claims. When a claim prevents a trial, record `BLOCKED` for that trial.
+4. Exercise normal completion, stop during an outstanding read, and a controlled read error after dispatch. For an overlapped Reader, record the terminal status and transferred byte count for each pending request, including a completion racing cancellation. Keep the buffer, event, `OVERLAPPED` and handle alive through completion. An incomplete expert slice must never reach a worker. See Microsoft's [ReadFile](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-readfile) and [CancelIoEx](https://learn.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiset-cancelioex) contracts.
+5. Use the candidate's controlled quota-pressure fixture during a pending read. Record the admission or stop decision, pending bytes and reserve. With a disposable checkpoint fixture, verify that the application denies writer acquisition while the Reader owns the file. A controlled path-replacement attempt must either be refused by Windows or leave the open handle serving the original bytes. Keep the operator's models intact.
+6. For cancellation, pressure and read failure, retain evidence of worker drain before slot reuse, resource closure before release of the process compute permit, and subsequent writer reacquisition. Check that refusal or failure propagates to the application without falling back to a full resident load. Preserve failed attempts and partial traces.
+
+Record the CPU verdict for that package and checkpoint in [#481](https://github.com/gianlucamazza/xllama/issues/481). The earlier [8B fork runs](research/evidence/2026-11-16-moe-8b-console/README.md#result) reached EOS with `stop_reason: error` and a partial trace. GPU execution has its own acceptance gate.
+
 ## Quant ripin regression (same catalogue id)
 
 Changing the GGUF behind an existing id (for example the LFM2.5 QAD Q4_0 ripin,
