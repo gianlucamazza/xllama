@@ -36,3 +36,28 @@ External specifications and conventions: [SLSA provenance](https://slsa.dev/spec
 ### Independent validation performed
 
 At the audited SHA, 111 Python tests passed in 14 modules covering release archives/metadata, benchmark schemas, standard evaluators and summaries, package identity, XAB, console logs, API framing and first-content timing. `scripts/check-release-metadata.py`, `generate-benchmark-summary.py --check` and `build-research-package.py --check` returned 0. Coherence returned 44 OK, 2 warnings, 0 errors in this reviewer checkout (old demo; CLI binary absent). C++/UWP build statuses above are CI observations. No local device credentials or new Series S/X run. Tests did not publish an archive or exercise an authenticated external release workflow.
+
+### CI and release follow-up on 2026-11-28
+
+At `09ad427d7336d7a3bbeb9f9c594596690008619a`, Linux ASan and UBSan
+passed on main with leak detection enabled. The workflow also runs on pull
+requests touching its listed inputs and accepts manual dispatch. It checks
+instrumentation and runs CTest plus a deterministic F32 GGUF with F16 KV.
+Quantized inference kernels and Xbox/D3D12 require their own coverage.
+[Sanitizer run](https://github.com/gianlucamazza/xllama/actions/runs/46138870485) ·
+[Workflow at that revision](https://github.com/gianlucamazza/xllama/blob/09ad427d7336d7a3bbeb9f9c594596690008619a/.github/workflows/sanitizers.yml).
+
+CodeQL passed on the same revision. It scans first-party C/C++ without a
+build or a submodule checkout on main, pull requests to main and a weekly
+schedule. The checked-in workflows include no continuous fuzz target or
+pull-request dependency-review job. The public repository response omitted
+the secret-scanning and push-protection settings, so their status remains
+unverified. [CodeQL run](https://github.com/gianlucamazza/xllama/actions/runs/46138870420) ·
+[Workflow inventory](https://github.com/gianlucamazza/xllama/tree/09ad427d7336d7a3bbeb9f9c594596690008619a/.github/workflows).
+
+Dependabot is configured weekly for Actions and Git submodules, with the
+llama.cpp pin excluded. Both host Python environments suppress routine
+version PRs. Security alert and remediation status require separate evidence.
+The v1.11.0 package receipt covers the shipping MSIX and three extracted
+runtime DLLs. [Dependabot configuration](https://github.com/gianlucamazza/xllama/blob/09ad427d7336d7a3bbeb9f9c594596690008619a/.github/dependabot.yml)
+· [Release provenance](../../../releases/v1.11.0.md#package-provenance-verified-on-2026-11-28).

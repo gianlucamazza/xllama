@@ -1,0 +1,638 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "com.github.gianlucamazza/xllama",
+  "documentNamespace": "https://spdx.org/spdxdocs/protobom/cae59d02-89ca-4af3-b315-8d193343590e",
+  "creationInfo": {
+    "creators": [
+      "Tool: protobom-v0.0.0-20261127172818-ccf86afa24d1+dirty",
+      "Tool: GitHub.com-Dependency-Graph",
+      "Tool: dependabot"
+    ],
+    "created": "2026-11-28T11:46:49Z"
+  },
+  "packages": [
+    {
+      "name": "onnx-ir",
+      "SPDXID": "SPDXRef-pypi-onnx-ir-1.1.0-115489",
+      "versionInfo": "1.1.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/onnx-ir@1.1.0"
+        }
+      ]
+    },
+    {
+      "name": "torch",
+      "SPDXID": "SPDXRef-pypi-torch-2.13.0-4d16ba",
+      "versionInfo": "2.13.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "BSD-2-Clause",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/torch@2.13.0"
+        }
+      ]
+    },
+    {
+      "name": "accelerate",
+      "SPDXID": "SPDXRef-pypi-accelerate-1.15.0-788389",
+      "versionInfo": "1.15.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/accelerate@1.15.0"
+        }
+      ]
+    },
+    {
+      "name": "onnx",
+      "SPDXID": "SPDXRef-pypi-onnx-1.23.2-23e544",
+      "versionInfo": "1.23.2",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/onnx@1.23.2"
+        }
+      ]
+    },
+    {
+      "name": "transformers",
+      "SPDXID": "SPDXRef-pypi-transformers-5.10.1-d94d3d",
+      "versionInfo": "5.10.1",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/transformers@5.10.1"
+        }
+      ]
+    },
+    {
+      "name": "onnxruntime",
+      "SPDXID": "SPDXRef-pypi-onnxruntime-1.31.1-1bc4d0",
+      "versionInfo": "1.31.1",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/onnxruntime@1.31.1"
+        }
+      ]
+    },
+    {
+      "name": "onnxscript",
+      "SPDXID": "SPDXRef-pypi-onnxscript-0.7.2-97587d",
+      "versionInfo": "0.7.2",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/onnxscript@0.7.2"
+        }
+      ]
+    },
+    {
+      "name": "diffusers",
+      "SPDXID": "SPDXRef-pypi-diffusers-0.40.0-cf4cb5",
+      "versionInfo": "0.40.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/diffusers@0.40.0"
+        }
+      ]
+    },
+    {
+      "name": "huggingface-hub",
+      "SPDXID": "SPDXRef-pypi-huggingface-hub-1.33.0-573ecc",
+      "versionInfo": "1.33.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/huggingface-hub@1.33.0"
+        }
+      ]
+    },
+    {
+      "name": "protobuf",
+      "SPDXID": "SPDXRef-pypi-protobuf-7.36.2-752834",
+      "versionInfo": "7.36.2",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "BSD-3-Clause AND LicenseRef-scancode-protobuf",
+      "copyrightText": "Copyright 2007 Google Inc., Copyright 2008 Google Inc., Copyright 2023 Google LLC., Copyright 2024 Google LLC., Copyright 2025 Google Inc., Copyright 2025 Google LLC., Copyright 2026 Google LLC.",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/protobuf@7.36.2"
+        }
+      ]
+    },
+    {
+      "name": "transformers",
+      "SPDXID": "SPDXRef-pypi-transformers-5.10.1-3e7672",
+      "versionInfo": "5.10.1",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/transformers@5.10.1"
+        }
+      ]
+    },
+    {
+      "name": "safetensors",
+      "SPDXID": "SPDXRef-pypi-safetensors-0.8.0-611740",
+      "versionInfo": "0.8.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/safetensors@0.8.0"
+        }
+      ]
+    },
+    {
+      "name": "torch",
+      "SPDXID": "SPDXRef-pypi-torch-2.13.0-913f95",
+      "versionInfo": "2.13.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "BSD-2-Clause",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/torch@2.13.0"
+        }
+      ]
+    },
+    {
+      "name": "accelerate",
+      "SPDXID": "SPDXRef-pypi-accelerate-1.15.0-5f35c7",
+      "versionInfo": "1.15.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/accelerate@1.15.0"
+        }
+      ]
+    },
+    {
+      "name": "datasets",
+      "SPDXID": "SPDXRef-pypi-datasets-5.0.1-c619bb",
+      "versionInfo": "5.0.1",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "copyrightText": "Copyright (c) 2017-2021 NVIDIA CORPORATION., Copyright 2020 Optuna, Hugging Face, Copyright 2020 The HuggingFace Authors, Copyright 2020 The HuggingFace Datasets Authors, Copyright 2020 The HuggingFace Datasets Authors and the TensorFlow Datasets, Copyright 2020 The TensorFlow Datasets Authors, Copyright 2021 The HuggingFace Authors, Copyright 2022 The HuggingFace Datasets Authors and the TensorFlow Datasets, Copyright 2023 The HuggingFace Authors., Copyright 2023 The HuggingFace Inc. team, Copyright 2023 The HuggingFace Team, Copyright by the AllenNLP authors",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/datasets@5.0.1"
+        }
+      ]
+    },
+    {
+      "name": "peft",
+      "SPDXID": "SPDXRef-pypi-peft-0.21.2-1530c2",
+      "versionInfo": "0.21.2",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "copyrightText": "Copyright (c) 2006-2012 Filip Wasilewski http://en.ig.ma, Copyright (c) 2012- The PyWavelets Developers https://github.com/PyWavelets/pywt, Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES., Copyright (C) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved., Copyright (c) Meta Platforms, Inc. and affiliates, Copyright (c) Microsoft Corporation, Copyright 2021 Moritz Wolter, Copyright 2023 The HuggingFace Team, Copyright 2023-present the HuggingFace Inc. team, Copyright 2024-present the HuggingFace Inc. team, Copyright 2025-present the HuggingFace Inc. team, Copyright 2026-present the HuggingFace Inc. team",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/peft@0.21.2"
+        }
+      ]
+    },
+    {
+      "name": "sentencepiece",
+      "SPDXID": "SPDXRef-pypi-sentencepiece-0.2.3-ac8205",
+      "versionInfo": "0.2.3",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/sentencepiece@0.2.3"
+        }
+      ]
+    },
+    {
+      "name": "fsspec",
+      "SPDXID": "SPDXRef-pypi-fsspec-2026.6.0-be098d",
+      "versionInfo": "2026.6.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "BSD-3-Clause",
+      "copyrightText": "Copyright (c) 2018, Martin Durant, copyright 2018, Martin Durant",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/fsspec@2026.6.0"
+        }
+      ]
+    },
+    {
+      "name": "actions/attest",
+      "SPDXID": "SPDXRef-githubactions-actions-attest-1e69f48acb82d1966a394da916b4c1698aa569d6-6937a7",
+      "versionInfo": "1e69f48acb82d1966a394da916b4c1698aa569d6",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:githubactions/actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6"
+        }
+      ]
+    },
+    {
+      "name": "actions/download-artifact",
+      "SPDXID": "SPDXRef-githubactions-actions-download-artifact-9000827ccba6bdab643e8b6fd33ac0654aef8333-6c80c5",
+      "versionInfo": "9000827ccba6bdab643e8b6fd33ac0654aef8333",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:githubactions/actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333"
+        }
+      ]
+    },
+    {
+      "name": "github/codeql-action/analyze",
+      "SPDXID": "SPDXRef-githubactions-githubcodeql-action-analyze-4..-5cce3b",
+      "versionInfo": "4.*.*",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:githubactions/github/codeql-action/analyze@4.%2A.%2A"
+        }
+      ]
+    },
+    {
+      "name": "github/codeql-action/init",
+      "SPDXID": "SPDXRef-githubactions-githubcodeql-action-init-4..-4b59fc",
+      "versionInfo": "4.*.*",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:githubactions/github/codeql-action/init@4.%2A.%2A"
+        }
+      ]
+    },
+    {
+      "name": "actions/attest-build-provenance",
+      "SPDXID": "SPDXRef-githubactions-actions-attest-build-provenance-4..-36e246",
+      "versionInfo": "4.*.*",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:githubactions/actions/attest-build-provenance@4.%2A.%2A"
+        }
+      ]
+    },
+    {
+      "name": "Microsoft.AI.DirectML",
+      "SPDXID": "SPDXRef-nuget-Microsoft.AI.DirectML-1.15.4-10be6d",
+      "versionInfo": "1.15.4",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT AND LicenseRef-scancode-ms-dxsdk-d3dx-9.29.952.3",
+      "copyrightText": "(c) Microsoft 2024, (c) Microsoft Corporation, Copyright (c) 2012-2021 Christian Rau, Copyright (c) 2015 Microsoft Corporation, Copyright (c) 2016-present, Facebook, Inc., Copyright (c) Microsoft Corporation",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:nuget/Microsoft.AI.DirectML@1.15.4"
+        }
+      ]
+    },
+    {
+      "name": "Microsoft.ML.OnnxRuntime.DirectML",
+      "SPDXID": "SPDXRef-nuget-Microsoft.ML.OnnxRuntime.DirectML-1.24.4-acafb8",
+      "versionInfo": "1.24.4",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "copyrightText": "(c) 1995-2017 Jean-loup Gailly and Mark Adler, (c) 2021 GitHub, Inc., (c) Microsoft 2026, (c) Microsoft Corporation, (c) Residual tensor. Dimensions, Copyright (C) 1987, 1993, 1994, Copyright (c) 1987, 1993, 1994 The Regents of the University of California, Copyright (c) 1995-2011 by Fredrik Lundh, Copyright (c) 1997-2011 by Secret Labs AB, Copyright (c) 1998-2005 Forschungszentrum Juelich, Juelich Supercomputing Centre, Federal Republic of Germany, Copyright (c) 2001-2004 Idiap Research Institute (Ronan Collobert, Samy Bengio, Johnny Mariethoz), Copyright (c) 2002 JSON.org, Copyright (c) 2003-2008, Jouni Malinen <j@w1.fi> and contributors, Copyright (c) 2003-2017 University of Illinois at Urbana-Champaign, Copyright (c) 2004-2008 The Regents of the University of California, Copyright (c) 2004-2010 High Performance Computing Center Stuttgart, University of Stuttgart, Copyright (c) 2004-2010 The Trustees of Indiana University and Indiana University Research and Technology Corporation, Copyright (c) 2004-2017 The University of Tennessee and The University of Tennessee Research Foundation, Copyright (c) 2005-2008 ZIH, TU Dresden, Federal Republic of Germany, Copyright (c) 2005, NumPy Developers, Copyright (c) 2006 Idiap Research Institute (Samy Bengio), Copyright (c) 2006-2009 Myricom, Inc., Copyright (c) 2006-2010 NEC Laboratories America (Ronan Collobert, Leon Bottou, Iain Melvin, Jason Weston), Copyright (c) 2006-2010 QLogic Corporation, Copyright (c) 2006-2010 Sun Microsystems, Inc., Copyright (c) 2006-2010 Voltaire, Inc., Copyright (c) 2006-2012 Oracle and/or its affiliates, Copyright (c) 2006-2013 Alexander Chemeris, Copyright (c) 2006-2017 Cisco Systems, Inc., Copyright (c) 2006-2017 Los Alamos National Security, LLC., Copyright (c) 2006-2017 Sandia National Laboratories, Copyright (c) 2006-2017 The University of Houston, Copyright (c) 2007 Evergrid, Inc., Copyright (c) 2007 Lawrence Livermore National Security, LLC., Copyright (c) 2007 MITSUNARI Shigeo, Copyright (c) 2007-2017 IBM Corporation, Copyright (c) 2007-2017 Mellanox Technologies, Copyright (c) 2007-2017 UT-Battelle, LLC., Copyright (c) 2007-2018 The scikit-learn developers, Copyright (c) 2008 Chelsio, Inc., Copyright (c) 2008-2009 Institut National de Recherche en Informatique, Copyright (c) 2008-2011 INADA Naoki <songofacandy@gmail.com>, Copyright (c) 2008-2017 Oak Ridge National Labs, Copyright (c) 2008, Google Inc., Copyright (c) 2009 The RE2 Authors, Copyright (c) 2009-2015 Bull SAS., Copyright (c) 2010 ARM ltd., Copyright (c) 2010-2011 Alex Brick, Copyright (c) 2010-2012 Marat Dukhan, Copyright (c) 2010-2023 by Alex Clark and contributors, Copyright (c) 2011-2012 NEC Laboratories America (Koray Kavukcuoglu), Copyright (c) 2011-2013 NYU (Clement Farabet), Copyright (c) 2011-2014 Idiap Research Institute (Ronan Collobert), Copyright (c) 2011-2017 Fujitsu Limited, Copyright (c) 2011-2017 NVIDIA Corporation, Copyright (c) 2012 The University of Wisconsin-La Crosse, Copyright (c) 2012-2014, Copyright (c) 2012-2014 Deepmind Technologies (Koray Kavukcuoglu), Copyright (c) 2012-2016 Nicola Iarocci, Copyright (c) 2012-2017 Georgia Institute of Technology, Copyright (c) 2013 Matthew Stevens, Copyright (c) 2013-2016 Intel, Inc., Copyright (c) 2013-2017 Research Organization for Information Science (RIST), Copyright (c) 2013-2019 Niels Lohmann, Copyright (c) 2013, 2014, 2015, the respective contributors, Copyright (c) 2014- Facebook, Inc (Soumith Chintala), Copyright (c) 2014-2015 Hewlett-Packard Development Company, LP., Copyright (c) 2014-2015 The University of Houston System, Copyright (c) 2014-2015 UT-Battelle, LLC., Copyright (c) 2014-2017 The Regents of the University of California (Regents), Copyright (c) 2014-2017, the respective contributors, Copyright (c) 2014-2020 Mellanox Technologies Ltd., Copyright (c) 2015, Copyright (c) 2015 Google Inc., Copyright (c) 2015 Microsoft Corporation, Copyright (c) 2015 The University of Tennessee and The University of Tennessee Research Foundation, Copyright (c) 2015 THL A29 Limited, a Tencent company, and Milo Yip, Copyright (c) 2015 Yangqing Jia, Copyright (c) 2015, 2016 the respective contributors, Copyright (c) 2016 ARM, Inc., Copyright (c) 2016 Broadcom Limited, Copyright (c) 2016 Facebook Inc., Copyright (c) 2016 HalideIR contributors, Copyright (c) 2016 Los Alamos National Security, LLC., Copyright (c) 2016 Wenzel Jakob <wenzel.jakob@epfl.ch>, Copyright (c) 2016- Facebook, Inc (Adam Paszke), Copyright (c) 2016-2020 Advanced Micro Devices, Inc., Copyright (c) 2016-2020 ARM Ltd., Copyright (c) 2016-2020 Stony Brook University, Copyright (c) 2016-present, Facebook Inc., Copyright (c) 2017 - 2022 NVIDIA CORPORATION & AFFILIATES., Copyright (c) 2017 The Android Open Source Project, Copyright (c) 2017 Tzu-Wei Huang, Copyright (c) 2017-2018 Amazon.com, Inc. or its affiliates, Copyright (c) 2017-2018 Facebook Inc., Copyright (c) 2018 DataDirect Networks, Copyright (c) 2018 Emscripten authors, Copyright (c) 2018 Intel Corporation, Copyright (c) 2018 Microsoft, Copyright (c) 2018 Open Neural Network Exchange, Copyright (c) 2018-2019 Triad National Security, LLC., Copyright (c) 2018-2020 NVIDIA CORPORATION., Copyright (c) 2018-2021 Microsoft Corporation, Daan Leijen, Copyright (c) 2018, NVIDIA CORPORATION., Copyright (c) 2019 Google LLC, Copyright (c) 2019 UChicago Argonne, LLC., Copyright (c) 2019, Lisandro Dalcin, Copyright (c) 2020 Huawei Technologies Co., Ltd., Copyright (c) 2020, Apple Inc., Copyright (c) 2022, NVIDIA CORPORATION., Copyright (c) 2022, the respective contributors, Copyright (c) Daniel Stenberg, <daniel@haxx.se> , and many contributors, Copyright (c) Fabian Giesen, 2016, Copyright (c) Facebook, Inc. and its affiliates, Copyright (c) Facebook, Inc. and Microsoft Corporation, Copyright (c) Microsoft Corporation, Copyright 2008 Google Inc., Copyright 2008, Google Inc., Copyright 2014 Google Inc., Copyright 2016-2018 Intel Corporation, Copyright 2016-2019 Intel Corporation, Copyright 2017, Copyright 2017 The TensorFlow Authors, Copyright 2017-2023 The Dawn & Tint Authors, Copyright 2017, The TensorFlow Authors, Copyright 2018 The TensorFlow Authors, Copyright 2018 YANDEX LLC, Copyright 2019 Google LLC, Copyright 2019 JD.com Inc., Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:nuget/Microsoft.ML.OnnxRuntime.DirectML@1.24.4"
+        }
+      ]
+    },
+    {
+      "name": "Microsoft.ML.OnnxRuntimeGenAI.DirectML",
+      "SPDXID": "SPDXRef-nuget-Microsoft.ML.OnnxRuntimeGenAI.DirectML-0.14.1-e7841e",
+      "versionInfo": "0.14.1",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:nuget/Microsoft.ML.OnnxRuntimeGenAI.DirectML@0.14.1"
+        }
+      ]
+    },
+    {
+      "name": "Microsoft.Windows.CppWinRT",
+      "SPDXID": "SPDXRef-nuget-Microsoft.Windows.CppWinRT-2.0.240405.15-5e0177",
+      "versionInfo": "2.0.240405.15",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "copyrightText": "(c) Microsoft 2024, (c) Microsoft Corporation, Copyright (c) Microsoft Corporation",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:nuget/Microsoft.Windows.CppWinRT@2.0.240405.15"
+        }
+      ]
+    },
+    {
+      "name": "actions/upload-artifact",
+      "SPDXID": "SPDXRef-githubactions-actions-upload-artifact-7..-06bf9b",
+      "versionInfo": "7.*.*",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:githubactions/actions/upload-artifact@7.%2A.%2A"
+        }
+      ]
+    },
+    {
+      "name": "actions/checkout",
+      "SPDXID": "SPDXRef-githubactions-actions-checkout-7..-c5c952",
+      "versionInfo": "7.*.*",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:githubactions/actions/checkout@7.%2A.%2A"
+        }
+      ]
+    },
+    {
+      "name": "actions/setup-python",
+      "SPDXID": "SPDXRef-githubactions-actions-setup-python-7..-900e64",
+      "versionInfo": "7.*.*",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:githubactions/actions/setup-python@7.%2A.%2A"
+        }
+      ]
+    },
+    {
+      "name": "com.github.gianlucamazza/xllama",
+      "SPDXID": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "versionInfo": "main",
+      "downloadLocation": "git+https://github.com/gianlucamazza/xllama",
+      "filesAnalyzed": false,
+      "licenseDeclared": "MIT",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:github/gianlucamazza/xllama@main"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-onnx-ir-1.1.0-115489",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-torch-2.13.0-4d16ba",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-accelerate-1.15.0-788389",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-onnx-1.23.2-23e544",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-transformers-5.10.1-d94d3d",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-onnxruntime-1.31.1-1bc4d0",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-onnxscript-0.7.2-97587d",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-diffusers-0.40.0-cf4cb5",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-huggingface-hub-1.33.0-573ecc",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-protobuf-7.36.2-752834",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-transformers-5.10.1-3e7672",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-safetensors-0.8.0-611740",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-torch-2.13.0-913f95",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-accelerate-1.15.0-5f35c7",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-datasets-5.0.1-c619bb",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-peft-0.21.2-1530c2",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-sentencepiece-0.2.3-ac8205",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-pypi-fsspec-2026.6.0-be098d",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-githubactions-actions-setup-python-7..-900e64",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-githubactions-actions-download-artifact-9000827ccba6bdab643e8b6fd33ac0654aef8333-6c80c5",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-githubactions-githubcodeql-action-analyze-4..-5cce3b",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-githubactions-githubcodeql-action-init-4..-4b59fc",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-nuget-Microsoft.ML.OnnxRuntime.DirectML-1.24.4-acafb8",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-githubactions-actions-attest-1e69f48acb82d1966a394da916b4c1698aa569d6-6937a7",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-githubactions-actions-attest-build-provenance-4..-36e246",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-nuget-Microsoft.AI.DirectML-1.15.4-10be6d",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-nuget-Microsoft.ML.OnnxRuntimeGenAI.DirectML-0.14.1-e7841e",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-nuget-Microsoft.Windows.CppWinRT-2.0.240405.15-5e0177",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-githubactions-actions-upload-artifact-7..-06bf9b",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relatedSpdxElement": "SPDXRef-githubactions-actions-checkout-7..-c5c952",
+      "relationshipType": "DEPENDS_ON"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-github-gianlucamazza-xllama-main-eb4199",
+      "relationshipType": "DESCRIBES"
+    }
+  ]
+}

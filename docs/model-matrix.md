@@ -551,6 +551,8 @@ November 2026 Series S tracking:
 pending owner decision).
 These are not catalogue entries. This page records no reopen verdict for them.
 
+The [streamed candidate matrix](research/moe-streaming-candidates.md#header-qualification-for-qwen-deepseek-and-ling-2026-11-28) tracks the separate low-bit Qwen and Qwen Coder study (#720), DeepSeek MLA layouts (#721) and Ling (#526). The resident decisions in §F and §I1 still apply to their measured configurations.
+
 ---
 
 ## See also

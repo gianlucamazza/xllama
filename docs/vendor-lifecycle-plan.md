@@ -34,6 +34,8 @@ pinned commit, pinned tree or pinned tree + reviewed patch, no untracked,
 ignored or hidden local files. Until a rebuild passes that check and the
 console acceptance, keep the existing DLLs and `SHA256SUMS`.
 
+On 2026-11-28 both official GitHub repository API endpoints returned HTTP 404. The DirectML-specific NuGet listings still showed the two versions above. The two DLLs independently downloaded from the [vendor release](https://github.com/gianlucamazza/xllama/releases/tag/vendor-dlls-v1) matched the complete SHA-256 in their tracked files: GenAI 2,640,384 bytes and ORT 20,606,464 bytes. This checks the published binaries. Rebuilding either replacement from source and accepting it on Windows and Series S are separate open gates. [Source access #646](https://github.com/gianlucamazza/xllama/issues/646) · [Replacement gates #85](https://github.com/gianlucamazza/xllama/issues/85).
+
 ## Active upstream work
 
 - **GenAI #2280:** merged upstream; still absent from NuGet 0.14.1. Keep
