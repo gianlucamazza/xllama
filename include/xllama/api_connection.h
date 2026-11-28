@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <utility>
 
 namespace xllama {
@@ -78,9 +79,28 @@ inline ApiConnectionGate& process_api_connection_gate() {
     return gate;
 }
 
+enum class ApiChatAdmission { Ready, HubBusy, ServerStopped };
+
+// Check listener identity under the admitted hub lock. A rejected chat owns no
+// model resources by the time the caller writes its buffered error response.
+template <typename IsCurrent>
+ApiChatAdmission check_api_chat_admission(std::unique_lock<std::mutex>& hub_lock,
+                                          ComputeJobAdmission::Handle& permit,
+                                          IsCurrent&& is_current) {
+    if (!hub_lock.owns_lock()) {
+        permit.reset();
+        return ApiChatAdmission::HubBusy;
+    }
+    if (is_current())
+        return ApiChatAdmission::Ready;
+    hub_lock.unlock();
+    permit.reset();
+    return ApiChatAdmission::ServerStopped;
+}
+
 // One compute request's HTTP outcome. A held permit is 200 (caller serves the
-// reply); an empty permit is 503 busy. The handle stays alive for the whole
-// reply, including SSE; resetting it is the disconnect/abort release.
+// request); an empty permit is 503 busy. A stream keeps its permit while
+// generating tokens.
 struct ApiComputeOutcome {
     int http_code = kApiHttpBusy;
     ComputeJobAdmission::Handle permit;
