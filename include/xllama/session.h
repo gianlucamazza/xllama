@@ -46,8 +46,8 @@ struct SessionParams {
     // #171: quantize the llama.cpp KV cache to q8_0 (halves its footprint) and
     // force flash attention, which quantized V requires — the pin throws at
     // context creation otherwise. On any context-creation failure the session
-    // retries with default cache types, so an architecture without flash
-    // attention support degrades to F16 KV instead of failing to load.
+    // checks the default cache against the current memory budget before
+    // retrying, so a supported fallback can fit differing KV requirements.
     // Default off until the on-console measurement decides (#171).
     bool kv_q8 = false;
 
@@ -147,10 +147,10 @@ struct GenerateParams {
     // pinned head. Callers compute it once per conversation via
     // count_tokens() on the system-only render. Ignored by sessions that
     // cannot shift (ORT, and any arch where llama_memory_can_shift is
-    // false — those keep the fail-fast path). Hybrid caches accept the
-    // front-drop erase (unlike #170a's tail rewind): the recurrent state
-    // holds no cells in the evicted range, only its absorbed history —
-    // an approximation the quality gates measure.
+    // false — those keep the fail-fast path). Attention-only caches shift
+    // in-place; hybrid/recurrent caches rebuild from a checkpoint <= n_keep
+    // (or clear) and re-prefill the surviving window so evicted history does
+    // not remain in the recurrent state (#723).
     int n_keep = 0;
 
     // #169: the chat format's turn terminator (ChatFormat::turn_close, e.g.

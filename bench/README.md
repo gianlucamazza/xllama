@@ -58,7 +58,7 @@ this structural check does not verify provenance or reproduce a measurement.
   - `prompt_tok_s`: tokens/second during prompt processing
   - `decode_tok_s`: tokens/second during generation (excluding prompt)
   - `peak_ws_mb`: peak working set / RSS in MiB
-  - `load_ms`: model load time in milliseconds
+  - `load_ms`: elapsed model-open call in milliseconds. GGUF times `llama_model_load_from_file`; context creation, LoRA attachment, tokenization and prefill follow it. With mmap, later page faults are charged to the phase that touches those pages. GGUF packages built before this change, including the v1.11.0.0 release package 1.11.0.2203 and later `main` CI packages, used `llama_perf_context().t_load_ms`, which extends into the first evaluated batch. Compare those historical load figures only with the same implementation and prompt/batch settings. ORT times model creation separately.
   - `gpu_mem_mb` / `gpu_budget_mb`: per-process GPU memory CurrentUsage/Budget after model load (`QueryVideoMemoryInfo`, LOCAL segment); 0 on CPU-only runs and Linux builds
   - `n_prompt_tok`: prefill token count actually measured. Without it a row cannot be compared with one taken at another prompt length — the reason the pre-2026-07 DirectML rows are not re-readable.
   - ⚠️ **GGUF pre/post-repack boundary (2026-07-25)**: every llama.cpp row written before build 675 predates `GGML_USE_CPU_REPACK` (PR #155 — it was dead code on Series S), so its `prompt_tok_s` is **not comparable** with post-675 rows: the identical model+prompt measures 241.9 pre vs 393.2 post (`phase13-repack-{before,after}.csv`). Decode columns are unaffected.
