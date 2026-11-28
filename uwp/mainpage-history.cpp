@@ -447,19 +447,8 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
         auto cr = co_await confirm.ShowAsync();
         if (cr == winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary) {
             const auto deletion = self->m_history.Clear();
-            if (deletion.all_removed) {
-                kv_store().prune(/*max_files=*/0, /*max_bytes=*/0);
-            } else {
-                for (const auto& id : deletion.removed_ids)
-                    kv_store().erase(id);
-            }
-            if (deletion.all_removed ||
-                std::find(deletion.removed_ids.begin(), deletion.removed_ids.end(),
-                          self->m_current.id) != deletion.removed_ids.end()) {
-                // NewChat saves the active conversation. Drop a confirmed deletion first.
-                self->m_current = xllama::ui::Conversation{};
+            if (deletion.ApplyClear(self->m_current, kv_store()))
                 self->NewChat();
-            }
             if (!deletion.all_removed)
                 self->SetStatus(deletion.index_pending
                                     ? L"Could not delete all conversations. History update pending."
@@ -467,8 +456,8 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
                                 StatusKind::Error);
             else
                 self->SetStatus(deletion.index_pending
-                                    ? L"Conversations cleared. History update pending."
-                                    : L"All conversations cleared");
+                                    ? L"Saved history cleared. History update pending."
+                                    : L"Saved conversation history cleared");
         }
         co_return;
     }

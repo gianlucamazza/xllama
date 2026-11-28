@@ -12,6 +12,7 @@
 #include "chat-history.h"
 #include "xllama/atomic_file.h"
 #include "xllama/json_utils.h"
+#include "xllama/kv_store.h"
 #include "xllama/sse.h"
 
 #include <algorithm>
@@ -98,6 +99,21 @@ ConversationMeta metadata_for(const Conversation& conv) {
             static_cast<int>(conv.messages.size())};
 }
 } // namespace
+
+bool ChatDeletion::ApplyClear(Conversation& active, const KvStore& snapshots) const {
+    // The active conversation may exist only in memory after its first save failed.
+    const bool removed_active =
+        std::find(removed_ids.begin(), removed_ids.end(), active.id) != removed_ids.end();
+    if (all_removed && (removed_active || active.id.empty())) {
+        snapshots.prune(/*max_files=*/0, /*max_bytes=*/0);
+    } else {
+        for (const auto& id : removed_ids)
+            snapshots.erase(id);
+    }
+    if (removed_active)
+        active = {}; // NewChat saves the previous active conversation.
+    return removed_active;
+}
 
 ChatHistory::ChatHistory(const std::string& chats_dir) : m_dir(chats_dir) {}
 

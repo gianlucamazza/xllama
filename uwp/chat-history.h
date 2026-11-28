@@ -8,6 +8,10 @@
 #include <string>
 #include <vector>
 
+namespace xllama {
+struct KvStore;
+}
+
 namespace xllama::ui {
 
 enum class MessageRole { System, User, Assistant };
@@ -38,6 +42,9 @@ struct ChatDeletion {
     std::vector<std::string> removed_ids; // bodies confirmed absent
     bool all_removed = false;
     bool index_pending = false; // a journal will retry the index update
+
+    // Apply Clear to the active chat and its cached state. True means the UI needs a new chat.
+    bool ApplyClear(Conversation& active, const KvStore& snapshots) const;
 };
 
 // ---------------------------------------------------------------------------

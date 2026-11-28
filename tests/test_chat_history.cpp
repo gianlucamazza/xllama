@@ -3,6 +3,7 @@
 
 #include "../uwp/chat-history.h"
 #include "xllama/atomic_file.h"
+#include "xllama/kv_store.h"
 #include <chrono>
 #include <doctest/doctest.h>
 #include <filesystem>
@@ -389,6 +390,65 @@ TEST_CASE("ChatHistory replays a deleted body across failed index publication an
     REQUIRE(reopened.Delete("drop").all_removed); // retry an already absent body
     REQUIRE(reopened.LoadIndex());
     CHECK(reopened.Index().size() == 1);
+}
+
+TEST_CASE("ChatHistory Clear keeps the active draft and KV until their deletion is confirmed") {
+    ChatDirectory temp;
+    const auto chats = temp.path / "chats";
+    xllama::ui::ChatHistory history(chats.string());
+    REQUIRE(history.Save({"old", "saved", {}}));
+    xllama::ui::Conversation active{
+        "active", "draft", {{xllama::ui::MessageRole::User, "unsaved"}}};
+    const auto blocked = chats / "active.json.pending.tmp";
+    std::filesystem::create_directory(blocked);
+    REQUIRE_FALSE(history.Save(active));
+    std::filesystem::remove(blocked);
+    const auto kv = temp.path / "kv";
+    std::filesystem::create_directory(kv);
+    xllama::KvStore snapshots{kv.string()};
+    REQUIRE(xllama::replace_file_bytes(snapshots.path_for("active"), "active KV"));
+    REQUIRE(xllama::replace_file_bytes(snapshots.path_for("old"), "old KV"));
+
+    const auto first = history.Clear();
+    REQUIRE(first.all_removed); // all indexed conversations were removed
+    CHECK_FALSE(first.ApplyClear(active, snapshots));
+    CHECK(active.id == "active");
+    REQUIRE(active.messages.size() == 1);
+    CHECK(active.messages[0].content == "unsaved");
+    CHECK(std::filesystem::exists(snapshots.path_for("active")));
+    CHECK_FALSE(std::filesystem::exists(snapshots.path_for("old")));
+
+    REQUIRE(history.Save(active));
+    REQUIRE(xllama::replace_file_bytes(snapshots.path_for("orphan"), "old cache"));
+    const auto second = history.Clear();
+    REQUIRE(second.all_removed);
+    CHECK(second.ApplyClear(active, snapshots));
+    CHECK(active.id.empty());
+    CHECK(active.messages.empty());
+    CHECK(snapshots.total_bytes() == 0);
+}
+
+TEST_CASE("ChatHistory recovers both save and deletion markers according to the committed body") {
+    ChatDirectory temp;
+    xllama::ui::ChatHistory history(temp.path.string());
+    REQUIRE(history.Save({"keep", "old title", {}}));
+    REQUIRE(history.Save({"drop", "deleted", {}}));
+    REQUIRE(xllama::replace_file_bytes(temp.path / "keep.json",
+                                       R"({"id":"keep","title":"new title","messages":[]})"));
+    REQUIRE(std::filesystem::remove(temp.path / "drop.json"));
+    const char* const markers[] = {"keep.json.deleting", "keep.json.pending", "drop.json.pending",
+                                   "drop.json.deleting"};
+    for (const auto* marker : markers)
+        REQUIRE(xllama::replace_file_bytes(temp.path / marker, ""));
+    REQUIRE(history.LoadIndex());
+    REQUIRE(history.Index().size() == 1);
+    CHECK(history.Index()[0].id == "keep");
+    CHECK(history.Index()[0].title == "new title");
+    for (const auto* marker : markers)
+        CHECK_FALSE(std::filesystem::exists(temp.path / marker));
+    REQUIRE(history.LoadIndex());
+    REQUIRE(history.Index().size() == 1);
+    CHECK(history.Index()[0].id == "keep");
 }
 
 TEST_CASE("ChatHistory rolls back a deletion interrupted before removing its live body") {
