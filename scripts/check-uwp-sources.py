@@ -12,7 +12,7 @@ MSBUILD = "{http://schemas.microsoft.com/developer/msbuild/2003}"
 # review at a pin bump, even if the conclusion is to omit them on UWP.
 COMMON_EXCLUSIONS = {
     "common/arg.cpp", "common/console.cpp", "common/debug.cpp",
-    "common/download.cpp", "common/hf-cache.cpp", "common/imatrix-loader.cpp",
+    "common/download.cpp", "common/file-lock.cpp", "common/hf-cache.cpp", "common/imatrix-loader.cpp",
     "common/llguidance.cpp", "common/preset.cpp", "common/subproc.cpp",
 }
 

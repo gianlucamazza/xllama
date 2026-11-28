@@ -130,6 +130,7 @@ struct Applied {
     bool ok = false;
     std::string error;
     common_chat_params params;
+    std::string prompt;
     std::optional<std::string> prompt_without_tools;
 };
 
@@ -153,7 +154,7 @@ bool template_renders_tools(const common_chat_templates* templates,
     without_tools.tools.clear();
     without_tools.tool_choice = COMMON_CHAT_TOOL_CHOICE_AUTO;
     try {
-        baseline = common_chat_templates_apply(templates, without_tools).prompt;
+        baseline = common_chat_templates_apply(templates, without_tools).prompt.str();
     } catch (const std::exception&) {
         return true; // it needs `tools` to render this transcript, so it reads them
     }
@@ -287,7 +288,8 @@ Applied apply_template(const void* llama_model, bool enable_thinking,
         applied.error = std::string("model chat template failed: ") + ex.what();
         return applied;
     }
-    if (!offered.empty() && !template_renders_tools(templates.get(), inputs, applied.params.prompt,
+    applied.prompt = applied.params.prompt.str();
+    if (!offered.empty() && !template_renders_tools(templates.get(), inputs, applied.prompt,
                                                     offered, applied.prompt_without_tools)) {
         applied.error = "model chat template does not render tools";
         return applied;
@@ -322,7 +324,7 @@ ToolTemplateResult render_tool_prompt(const void* llama_model, bool enable_think
         return out;
     }
     out.ok = true;
-    out.prompt = std::move(applied.params.prompt);
+    out.prompt = std::move(applied.prompt);
     out.prompt_without_tools = std::move(applied.prompt_without_tools);
     out.stop_sequences = applied.params.additional_stops;
     out.preserved_tokens = applied.params.preserved_tokens;
@@ -337,8 +339,8 @@ ToolParseResult parse_tool_generation(const void* llama_model, bool enable_think
                                       const std::string& forced_name, const std::string& raw_text,
                                       bool hit_cap) {
     ToolParseResult out;
-    const Applied applied = apply_template(llama_model, enable_thinking, jinja_override, messages,
-                                           tools, choice, forced_name);
+    Applied applied = apply_template(llama_model, enable_thinking, jinja_override, messages, tools,
+                                     choice, forced_name);
     if (!applied.ok) {
         log_output(std::string("[xllama] api: tool template unavailable after generation: ") +
                    applied.error + "\n");
@@ -347,10 +349,9 @@ ToolParseResult parse_tool_generation(const void* llama_model, bool enable_think
     }
     try {
         common_chat_parser_params parser_params(applied.params);
-        parser_params.parse_tool_calls = true;
-        if (!applied.params.parser.empty())
-            parser_params.parser.load(applied.params.parser);
-        const common_chat_msg message = common_chat_parse(raw_text, hit_cap, parser_params);
+        parser_params.parser = std::move(applied.params.parser);
+        const common_chat_msg message =
+            common_chat_parse(common_chat_input(raw_text), hit_cap, parser_params);
         out.content = parsed_content(message);
         out.reasoning = message.reasoning_content;
         for (const common_chat_tool_call& call : message.tool_calls) {
@@ -381,7 +382,7 @@ bool chat_template_renders_tools(const std::string& jinja) {
     probe.name = "xllama_probe";
     probe.description = "Probe tool.";
     probe.parameters_json = R"({"type":"object","properties":{}})";
-    return render_tool_prompt(nullptr, "", jinja, {user}, {probe}, ToolChoice::Auto, "").ok;
+    return render_tool_prompt(nullptr, true, jinja, {user}, {probe}, ToolChoice::Auto, "").ok;
 }
 
 std::string gguf_chat_template(const std::string& gguf_path) {
@@ -405,7 +406,7 @@ std::string gguf_chat_template(const std::string& gguf_path) {
 
 namespace xllama {
 
-ToolTemplateResult render_tool_prompt(const void*, const std::string&, const std::string&,
+ToolTemplateResult render_tool_prompt(const void*, bool, const std::string&,
                                       const std::vector<ChatMessage>&, const std::vector<ToolSpec>&,
                                       ToolChoice, const std::string&) {
     ToolTemplateResult out;
@@ -413,7 +414,7 @@ ToolTemplateResult render_tool_prompt(const void*, const std::string&, const std
     return out;
 }
 
-ToolParseResult parse_tool_generation(const void*, const std::string&, const std::string&,
+ToolParseResult parse_tool_generation(const void*, bool, const std::string&,
                                       const std::vector<ChatMessage>&, const std::vector<ToolSpec>&,
                                       ToolChoice, const std::string&, const std::string&, bool) {
     ToolParseResult out;
