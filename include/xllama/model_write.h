@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 
-#include "xllama/model_provision.h"
+#include "xllama/model_file_plan.h"
 
 #include <algorithm>
 #include <atomic>
@@ -106,6 +106,12 @@ class ModelWriteOperation {
     }
 
     bool begin(std::error_code& ec) {
+        DownloadSpaceCheck budget;
+        return begin(ec, 0, budget);
+    }
+
+    bool begin(std::error_code& ec, uint64_t required_bytes, DownloadSpaceCheck& budget) {
+        budget = {};
         if (!owns_lock()) {
             ec = std::make_error_code(std::errc::device_or_resource_busy);
             return false;
@@ -113,6 +119,18 @@ class ModelWriteOperation {
         std::filesystem::create_directories(m_root, ec);
         if (ec)
             return false;
+        // Query the real destination volume after it exists. A rejected plan
+        // must leave the installed generation's completion marker readable.
+        if (required_bytes) {
+            const auto space = std::filesystem::space(m_root, ec);
+            if (ec)
+                return false;
+            budget = check_download_space(required_bytes, space.available);
+            if (!budget.ok) {
+                ec = std::make_error_code(std::errc::no_space_on_device);
+                return false;
+            }
+        }
         std::filesystem::remove(m_root / ".complete", ec);
         return !ec;
     }

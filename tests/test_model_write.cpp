@@ -85,6 +85,22 @@ TEST_CASE("Model writer publishes only after success and preserves adapter and r
     CHECK(gate.try_acquire().owns_lock()); // completion callback may chain a download
 }
 
+TEST_CASE("download rejected for storage leaves the installed generation ready") {
+    ModelDir dir;
+    dir.put(".complete", "old marker");
+    dir.put("model.gguf", "existing weights");
+    xllama::ModelWriteGate gate;
+    xllama::ModelWriteOperation writer(gate, dir.path);
+    std::error_code ec;
+    xllama::DownloadSpaceCheck budget;
+    CHECK_FALSE(writer.begin(ec, UINT64_MAX, budget));
+    CHECK(ec == std::errc::no_space_on_device);
+    CHECK_FALSE(budget.ok);
+    CHECK(budget.need_bytes == UINT64_MAX);
+    CHECK(dir.read(".complete") == "old marker");
+    CHECK(dir.read("model.gguf") == "existing weights");
+}
+
 TEST_CASE("Model writer releases after failed preparation and exceptions") {
     ModelDir dir;
     dir.put("not-a-directory", "keep");
