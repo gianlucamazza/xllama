@@ -83,11 +83,25 @@ class ModelWriteOperation {
             ec = std::make_error_code(std::errc::device_or_resource_busy);
             return false;
         }
+        const std::filesystem::path relative(filename);
+        if (relative.has_root_path() || !relative.has_filename() ||
+            std::find(relative.begin(), relative.end(), L"..") != relative.end()) {
+            ec = std::make_error_code(std::errc::invalid_argument);
+            return false;
+        }
         const auto part = m_root / (filename + L".part");
-        if (std::filesystem::is_regular_file(part, ec))
-            std::filesystem::remove(part, ec);
-        if (ec == std::errc::no_such_file_or_directory)
+        const auto status = std::filesystem::symlink_status(part, ec);
+        if (status.type() == std::filesystem::file_type::not_found) {
             ec.clear();
+            return true;
+        }
+        if (ec)
+            return false;
+        if (!std::filesystem::is_regular_file(status)) {
+            ec = std::make_error_code(std::errc::invalid_argument);
+            return false;
+        }
+        std::filesystem::remove(part, ec);
         return !ec;
     }
 
