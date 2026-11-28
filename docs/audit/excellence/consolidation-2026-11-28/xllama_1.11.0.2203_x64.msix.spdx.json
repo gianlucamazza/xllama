@@ -1,0 +1,882 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "xllama_1.11.0.2203_x64.msix",
+  "creationInfo": {
+    "created": "2026-11-27T21:28:18Z",
+    "creators": [
+      "Tool: xllama-msix-sbom"
+    ]
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-MSIX",
+      "name": "GianlucaMazza.xllama",
+      "versionInfo": "1.11.0.2203",
+      "packageFileName": "xllama_1.11.0.2203_x64.msix",
+      "downloadLocation": "NOASSERTION",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "ed6ac5a66a0d5925c7b6103dc27b73a9f320715b5eb2237c12464f12be2f5651"
+        }
+      ],
+      "filesAnalyzed": true,
+      "packageVerificationCode": {
+        "packageVerificationCodeValue": "3ebd0facb119961b2c511b623d75eddf432fb012"
+      },
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "licenseInfoFromFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION",
+      "primaryPackagePurpose": "APPLICATION"
+    },
+    {
+      "SPDXID": "SPDXRef-onnxruntime",
+      "name": "xLlama-patched onnxruntime",
+      "versionInfo": "1.24.4",
+      "packageFileName": "./onnxruntime.dll",
+      "downloadLocation": "NOASSERTION",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "f3c2e1cc9a61f67db2dbf45bef626e6e299490548fae5f6f22f89d441e77391e"
+        }
+      ],
+      "filesAnalyzed": true,
+      "packageVerificationCode": {
+        "packageVerificationCodeValue": "e7700f1092082ae9ae9023e8975ed6d3a457a2c2"
+      },
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "licenseInfoFromFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION",
+      "sourceInfo": "Shipped binary matches vendor/onnxruntime-patched/SHA256SUMS. Build restore pin: Microsoft.ML.OnnxRuntime.DirectML 1.24.4. Packaged license: ./licenses/onnxruntime-LICENSE (LICENSES/SOURCES.md)."
+    },
+    {
+      "SPDXID": "SPDXRef-onnxruntime-genai",
+      "name": "xLlama-patched onnxruntime-genai",
+      "versionInfo": "0.14.1",
+      "packageFileName": "./onnxruntime-genai.dll",
+      "downloadLocation": "NOASSERTION",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "ec034349a28e41f6bfdce52731533caf7e590bab4e8dc7002bb48b92481f334d"
+        }
+      ],
+      "filesAnalyzed": true,
+      "packageVerificationCode": {
+        "packageVerificationCodeValue": "91c0a4674585e9b2cedcc03149d949132991a268"
+      },
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "licenseInfoFromFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION",
+      "sourceInfo": "Shipped binary matches vendor/onnxruntime-genai-patched/SHA256SUMS. Build restore pin: Microsoft.ML.OnnxRuntimeGenAI.DirectML 0.14.1. Packaged license: ./licenses/onnxruntime-genai-LICENSE (LICENSES/SOURCES.md)."
+    },
+    {
+      "SPDXID": "SPDXRef-DirectML",
+      "name": "Microsoft DirectML x64 runtime",
+      "versionInfo": "1.15.4",
+      "packageFileName": "./DirectML.dll",
+      "downloadLocation": "NOASSERTION",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "9c9e6d822561c6c41b90e6994b3e8857cf1d66dbfb1e0c4c799c7c89b4e92da1"
+        }
+      ],
+      "filesAnalyzed": true,
+      "packageVerificationCode": {
+        "packageVerificationCodeValue": "aa0110cd68e0b9f79ee110190a4c90260a3cfa81"
+      },
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "LicenseRef-Microsoft-DirectML",
+      "licenseInfoFromFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION",
+      "sourceInfo": "Shipped binary matches uwp/packages/Microsoft.AI.DirectML.1.15.4/bin/x64-win/DirectML.dll. Build restore pin: Microsoft.AI.DirectML 1.15.4. Packaged license: ./licenses/DirectML-LICENSE.txt (LICENSES/SOURCES.md)."
+    }
+  ],
+  "files": [
+    {
+      "SPDXID": "SPDXRef-File-1",
+      "fileName": "./AppxBlockMap.xml",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "f5d37064d8216c84cce8a655aa00d6fb422c7f09"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "6e4537864483dcbf2d9899f4eff1f5551cb360d4cdb0bc5dbd14141c2f2c4174"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-2",
+      "fileName": "./AppxManifest.xml",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "801e753fb01f1ebc1e43651eaa6650b7c0c0e856"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "4a7f01733a15d96b7a95b8bf8c74e8dc71900473d8e86812e431ba50dabe9555"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-3",
+      "fileName": "./AppxMetadata/CodeIntegrity.cat",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "206fece1bac05b2ba17fcf2771478d28e4ff1af7"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "f72036421e28d49c65c8da6123bdd489625e4536a2a5bb769a0824785af197c8"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-4",
+      "fileName": "./AppxSignature.p7x",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "e023d347388ef18ad94c548996854466c89294c5"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "ab97d92458306a5a5a8562cdc34ef668626cf888b9108baa3b0bb58ffcf1f40a"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-5",
+      "fileName": "./Assets/SplashScreen.png",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "7f86d05c83134f85cde94fd0b2e4c16afb31fe6a"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "60e845ec8bcd2ebe6c7e52fa72f565897bbb65ae436d3b18fdabd1331e94c0bb"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-6",
+      "fileName": "./Assets/Square150x150Logo.png",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "de4b94bc553f1c12adbb07e128d2fc2bb2857171"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "6aa2317177f2f607eff1dafa9ce5554c4baafb3a65dda0565d939fd58fa37898"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-7",
+      "fileName": "./Assets/Square44x44Logo.png",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "0b8f49ed17da8a3827302e98b3035fe4e95e27eb"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "b8b9d2f0fca5624a78bbfc895ab3d65c216cdc783e9e9e9a3a5afb31d2e2e7c5"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-8",
+      "fileName": "./Assets/StoreLogo.png",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "c0ec2c0e2400d63b41597726421bfc679f3c5c05"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "0ada347ce5f6ea1b152ba24a5b72a53214fa72ba984c2ed63aada5be791430fe"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-9",
+      "fileName": "./Assets/Wide310x150Logo.png",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "91688c77f65c2cb70e0fc625616a35436a02132b"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "5e9a9dd3c7bc95f29143b0d4fe34535bf4259095e3ba0889744a8c988877bcd4"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-10",
+      "fileName": "./DirectML.dll",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "a9cdf72540b949520045ef11d7b44879e2181c79"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "9c9e6d822561c6c41b90e6994b3e8857cf1d66dbfb1e0c4c799c7c89b4e92da1"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION",
+      "fileTypes": [
+        "BINARY"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-11",
+      "fileName": "./MSVCP140.dll",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "b370eca8fa727e46cf61d834fcc956698b02e1fd"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "0f885b509a685d2bbfa652fed26b5fb31d88fbdab0a978c641d1c7b8aa460aa9"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION",
+      "fileTypes": [
+        "BINARY"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-12",
+      "fileName": "./MSVCP140_1.dll",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "9ce5c3d6c7d94b175f136f552af8771dca6147b3"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "bfad5aef4c63a669e3c140655cdfdf395b6c979b400a447bd5dcb65ed8826c3d"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION",
+      "fileTypes": [
+        "BINARY"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-13",
+      "fileName": "./VCRUNTIME140.dll",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "3d2998a27d164dd7cc3bc7d3eca08acf89a0ee42"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION",
+      "fileTypes": [
+        "BINARY"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-14",
+      "fileName": "./VCRUNTIME140_1.dll",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "a0330279d3d0d47f19ed984726e25260b547a228"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "1f2d41c4aa5db0bc33ebf7b66d72943a817d7ce6cbe880502a9403823633093f"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION",
+      "fileTypes": [
+        "BINARY"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-15",
+      "fileName": "./[Content_Types].xml",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "09fde1594183abd1dfb8dae43d2b7d6aca13a04d"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "0346320e49a7506a0bf9ca4c7847080ad04fc378e8042d1d345b5fb72cb4268f"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-16",
+      "fileName": "./licenses/DirectML-LICENSE.txt",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "a9178478c6e8d72a3d716626da34a9eef0645c1e"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "a05138e3a085ff60a44881eedfa58dccb03ecc1d7b1f6ae888418e8c2fec4b8d"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-17",
+      "fileName": "./licenses/DirectML-ThirdPartyNotices.txt",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "7f3fdde9f1f6a54e98ef39692208f806e8aa352a"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "2c95795c13ff48a58b6ed916f37901c23d964b5d9d601af422f17ad2172e7950"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-18",
+      "fileName": "./licenses/llama.cpp-LICENSE",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "27f97de41680e07668fefd73ae9a149e2352dab6"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-19",
+      "fileName": "./licenses/onnxruntime-LICENSE",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "7311f2036f240ca974f7ca4adc6247f7d3b59606"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-20",
+      "fileName": "./licenses/onnxruntime-ThirdPartyNotices.txt",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "abe858dda7132d21f8f2cee5b57c3e5de35d485e"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "0e07b95f3a8d6230037707c5c4a2b554d12c4cb67369669ac255635528ffcee2"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-21",
+      "fileName": "./licenses/onnxruntime-genai-LICENSE",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "689ec0681815ecc32bee639c68e7740add7bd301"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-22",
+      "fileName": "./licenses/onnxruntime-genai-ThirdPartyNotices.txt",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "a02cf943c1eb08c40c3c726610e1e6e212d2ef08"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "40f58c9a6d3319e839996de358170da562b067478ee601aef7a5616f80db13ef"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-23",
+      "fileName": "./models/manifest.json",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "bda5982c0b975d2e8163feca943cd146312bbc70"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "a47d9242128b8ec6a342c49baf45cf2bafaac223c2465bef7fbaedb40148e5b1"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-24",
+      "fileName": "./onnxruntime-genai.dll",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "f1486cfbb0bac9de0e16e5bb2bb7293839c7eca6"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "ec034349a28e41f6bfdce52731533caf7e590bab4e8dc7002bb48b92481f334d"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION",
+      "fileTypes": [
+        "BINARY"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-25",
+      "fileName": "./onnxruntime.dll",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "4ede8b0914adae3e6e52b4b671077d488d8e2c89"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "f3c2e1cc9a61f67db2dbf45bef626e6e299490548fae5f6f22f89d441e77391e"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION",
+      "fileTypes": [
+        "BINARY"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-26",
+      "fileName": "./onnxruntime_providers_shared.dll",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "57b594205a6dffe6be2d9ac99c9dace84f81a883"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "265c8daf29637cb259cac8be9f08f2cd45f3883f0f0e4949cbfddd5b4cbec3b6"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION",
+      "fileTypes": [
+        "BINARY"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-27",
+      "fileName": "./resources.pri",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "39cad0b30f4255338a908a1e9f0000173b2e525d"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "31f1933c8dcfac2b8a4e09f5baa609c251b178cee9b15c79e4e6d7707bd549fa"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-28",
+      "fileName": "./xllama.exe",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "99984f922f7d174e2b4ee8463bd2a7ff1c020bd4"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "8a721a426d49187f1cd3fb04715755f22cfa561f3b47ef9ff6e9aea4e9834678"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION",
+      "fileTypes": [
+        "BINARY"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-29",
+      "fileName": "./xllama.winmd",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "76bc436e4729f6d521b73c98e51be19893ef891c"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "89dfc371c271b27ea71269533675349be7162533a23b107374892fcaf08aaec6"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION",
+      "fileTypes": [
+        "BINARY"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-MSIX"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-1"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-2"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-3"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-4"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-5"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-6"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-7"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-8"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-9"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-10"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-11"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-12"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-13"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-14"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-15"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-16"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-17"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-18"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-19"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-20"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-21"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-22"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-23"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-24"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-25"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-26"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-27"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-28"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-29"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-onnxruntime"
+    },
+    {
+      "spdxElementId": "SPDXRef-onnxruntime",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-25"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-onnxruntime-genai"
+    },
+    {
+      "spdxElementId": "SPDXRef-onnxruntime-genai",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-24"
+    },
+    {
+      "spdxElementId": "SPDXRef-MSIX",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-DirectML"
+    },
+    {
+      "spdxElementId": "SPDXRef-DirectML",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-10"
+    }
+  ],
+  "hasExtractedLicensingInfos": [
+    {
+      "licenseId": "LicenseRef-Microsoft-DirectML",
+      "extractedText": "MICROSOFT SOFTWARE LICENSE TERMS\r\nMICROSOFT DIRECTX MACHINE LEARNING (DIRECTML)\r\n\r\nIF YOU LIVE IN (OR ARE A BUSINESS WITH A PRINCIPAL PLACE OF BUSINESS IN) THE UNITED STATES, PLEASE READ THE \u201cBINDING ARBITRATION AND CLASS ACTION WAIVER\u201d SECTION BELOW. IT AFFECTS HOW DISPUTES ARE RESOLVED.\r\n\r\nThese license terms are an agreement between you and Microsoft Corporation (or one of its affiliates). They apply to the software named above and any Microsoft services or software updates (except to the extent such services or updates are accompanied by new or additional terms, in which case those different terms apply prospectively and do not alter your or Microsoft\u2019s rights relating to pre-updated software or services). IF YOU COMPLY WITH THESE LICENSE TERMS, YOU HAVE THE RIGHTS BELOW. BY USING THE SOFTWARE, YOU ACCEPT THESE TERMS.\r\n\r\n1. INSTALLATION AND USE RIGHTS.\r\n\ta) General. Subject to the terms of this agreement, you may install and use any number of copies of the software, and solely for use on Windows and Xbox. You may copy and distribute the software (i.e. make available for third parties) in applications and services you develop in the build with Machine Learning tools and frameworks, and/or games that run on Windows and Xbox.\r\n\tb) Included Microsoft Applications. The software may include other Microsoft applications. These license terms apply to those included applications, if any, unless other license terms are provided with the other Microsoft applications.\r\n\tc) Third Party Components. The software may include third party components with separate legal notices or governed by other agreements, as may be described in the ThirdPartyNotices file(s) accompanying the software.\r\n\r\n2. DATA. \r\n\ta) Data Collection. The software may collect information about you and your use of the software, and send that to Microsoft. Microsoft may use this information to provide services and improve our products and services. You may opt-out of many of these scenarios, but not all, as described in the product documentation.  There are also some features in the software that may enable you to collect data from users of your applications. If you use these features to enable data collection in your applications, you must comply with applicable law, including providing appropriate notices to users of your applications. You can learn more about data collection and use in the help documentation and the privacy statement at https://aka.ms/privacy. Your use of the software operates as your consent to these practices.\r\n\tb) Processing of Personal Data. To the extent Microsoft is a processor or subprocessor of personal data in connection with the software, Microsoft makes the commitments in the European Union General Data Protection Regulation Terms of the Online Services Terms to all customers effective May 25, 2018, at https://docs.microsoft.com/en-us/legal/gdpr.\r\n\r\n3. SCOPE OF LICENSE. The software is licensed, not sold. Microsoft reserves all other rights. Unless applicable law gives you more rights despite this limitation, you will not (and have no right to):\r\n\ta) work around any technical limitations in the software that only allow you to use it in certain ways;\r\n\tb) reverse engineer, decompile or disassemble the software, or otherwise attempt to derive the source code for the software, except and to the extent required by third party licensing terms governing use of certain open source components that may be included in the software;\r\n\tc) remove, minimize, block, or modify any notices of Microsoft or its suppliers in the software;\r\n\td) use the software in any way that is against the law or to create or propagate malware; or\r\n\te) except as expressly stated in Section 1, share, publish, distribute, or lease the software, provide the software as a stand-alone offering for others to use, or transfer the software or this agreement to any third party.\r\n\r\n4. EXPORT RESTRICTIONS. You must comply with all domestic and international export laws and regulations that apply to the software, which include restrictions on destinations, end users, and end use. For further information on export restrictions, visit https://aka.ms/exporting.\r\n\r\n5. SUPPORT SERVICES. Microsoft is not obligated under this agreement to provide any support services for the software. Any support provided is \u201cas is\u201d, \u201cwith all faults\u201d, and without warranty of any kind. \r\n\r\n6. UPDATES. The software may periodically check for updates, and download and install them for you. You may obtain updates only from Microsoft or authorized sources. Microsoft may need to update your system to provide you with updates. You agree to receive these automatic updates without any additional notice. Updates may not include or support all existing software features, services, or peripheral devices.\r\n\r\n7. BINDING ARBITRATION AND CLASS ACTION WAIVER. This Section applies if you live in (or, if a business, your principal place of business is in) the United States.  If you and Microsoft have a dispute, you and Microsoft agree to try for 60 days to resolve it informally. If you and Microsoft can\u2019t, you and Microsoft agree to binding individual arbitration before the American Arbitration Association under the Federal Arbitration Act (\u201cFAA\u201d), and not to sue in court in front of a judge or jury. Instead, a neutral arbitrator will decide. Class action lawsuits, class-wide arbitrations, private attorney-general actions, and any other proceeding where someone acts in a representative capacity are not allowed; nor is combining individual proceedings without the consent of all parties. The complete Arbitration Agreement contains more terms and is at https://aka.ms/arb-agreement-4. You and Microsoft agree to these terms.\r\n\r\n8. ENTIRE AGREEMENT. This agreement, and any other terms Microsoft may provide for supplements, updates, or third-party applications, is the entire agreement for the software.\r\n\r\n9. APPLICABLE LAW AND PLACE TO RESOLVE DISPUTES. If you acquired the software in the United States or Canada, the laws of the state or province where you live (or, if a business, where your principal place of business is located) govern the interpretation of this agreement, claims for its breach, and all other claims (including consumer protection, unfair competition, and tort claims), regardless of conflict of laws principles, except that the FAA governs everything related to arbitration. If you acquired the software in any other country, its laws apply, except that the FAA governs everything related to arbitration. If U.S. federal jurisdiction exists, you and Microsoft consent to exclusive jurisdiction and venue in the federal court in King County, Washington for all disputes heard in court (excluding arbitration). If not, you and Microsoft consent to exclusive jurisdiction and venue in the Superior Court of King County, Washington for all disputes heard in court (excluding arbitration).\r\n\r\n10. CONSUMER RIGHTS; REGIONAL VARIATIONS. This agreement describes certain legal rights. You may have other rights, including consumer rights, under the laws of your state, province, or country. Separate and apart from your relationship with Microsoft, you may also have rights with respect to the party from which you acquired the software. This agreement does not change those other rights if the laws of your state, province, or country do not permit it to do so. For example, if you acquired the software in one of the below regions, or mandatory country law applies, then the following provisions apply to you:\r\n\ta) Australia. You have statutory guarantees under the Australian Consumer Law and nothing in this agreement is intended to affect those rights.\r\n\tb) Canada. If you acquired this software in Canada, you may stop receiving updates by turning off the automatic update feature, disconnecting your device from the Internet (if and when you re-connect to the Internet, however, the software will resume checking for and installing updates), or uninstalling the software. The product documentation, if any, may also specify how to turn off updates for your specific device or software.\r\n\tc) Germany and Austria.\r\n\t\ti. Warranty. The properly licensed software will perform substantially as described in any Microsoft materials that accompany the software. However, Microsoft gives no contractual guarantee in relation to the licensed software.\r\n\t\tii. Limitation of Liability. In case of intentional conduct, gross negligence, claims based on the Product Liability Act, as well as, in case of death or personal or physical injury, Microsoft is liable according to the statutory law.\r\n\t\tSubject to the foregoing clause ii., Microsoft will only be liable for slight negligence if Microsoft is in breach of such material contractual obligations, the fulfillment of which facilitate the due performance of this agreement, the breach of which would endanger the purpose of this agreement and the compliance with which a party may constantly trust in (so-called \"cardinal obligations\"). In other cases of slight negligence, Microsoft will not be liable for slight negligence.\r\n\r\n11. DISCLAIMER OF WARRANTY. THE SOFTWARE IS LICENSED \u201cAS IS.\u201d YOU BEAR THE RISK OF USING IT. MICROSOFT GIVES NO EXPRESS WARRANTIES, GUARANTEES, OR CONDITIONS. TO THE EXTENT PERMITTED UNDER APPLICABLE LAWS, MICROSOFT EXCLUDES ALL IMPLIED WARRANTIES, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.\r\n\r\n12. LIMITATION ON AND EXCLUSION OF DAMAGES. IF YOU HAVE ANY BASIS FOR RECOVERING DAMAGES DESPITE THE PRECEDING DISCLAIMER OF WARRANTY, YOU CAN RECOVER FROM MICROSOFT AND ITS SUPPLIERS ONLY DIRECT DAMAGES UP TO U.S. $5.00. YOU CANNOT RECOVER ANY OTHER DAMAGES, INCLUDING CONSEQUENTIAL, LOST PROFITS, SPECIAL, INDIRECT OR INCIDENTAL DAMAGES.\r\nThis limitation applies to (a) anything related to the software, services, content (including code) on third party Internet sites, or third party applications; and (b) claims for breach of contract, warranty, guarantee, or condition; strict liability, negligence, or other tort; or any other claim; in each case to the extent permitted by applicable law.\r\nIt also applies even if Microsoft knew or should have known about the possibility of the damages. The above limitation or exclusion may not apply to you because your state, province, or country may not allow the exclusion or limitation of incidental, consequential, or other damages."
+    }
+  ],
+  "documentNamespace": "https://spdx.org/spdxdocs/xllama-0ebc845a4e4a9c844b26b7e7f2563f7d706966c46a0f651bb37077ddf3e6ca63"
+}
