@@ -364,7 +364,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                             copies.emplace_back(name, file);
                         }
                     }
-                    const auto missing = missing_expected_file(present, expected_files);
+                    const auto missing = missing_usb_model_file(present, expected_files);
                     if (!missing.empty())
                         throw std::runtime_error("USB model is missing " +
                                                  wstring_to_utf8(missing));
