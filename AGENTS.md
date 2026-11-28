@@ -32,7 +32,9 @@ git submodule update --init --recursive
 sudo apt-get install -y cmake build-essential libcurl4-openssl-dev
 ```
 
-CMake 3.22 or newer. Presets live in `CMakePresets.json`.
+CMake 3.22 or newer. Presets live in `CMakePresets.json`. Linux CI checks the
+floor with CMake 3.22.0: it lists every preset, configures `linux-test`
+(doctest through FetchContent), and configures and builds `linux-debug`.
 
 Formatter pins, same versions CI installs:
 
@@ -114,13 +116,8 @@ One doctest case (wildcard, from the build directory's test binary):
 ./build/linux-test/tests/xllama-tests --test-case='*prompt_budget*'
 ```
 
-ASan:
-
-```bash
-cmake --preset linux-asan
-cmake --build build/linux-asan -j"$(nproc)"
-ctest --test-dir build/linux-asan --output-on-failure
-```
+ASan + UBSan (xllama, llama-common, llama and ggml CPU): the commands are
+[`.github/workflows/sanitizers.yml`](.github/workflows/sanitizers.yml). Its fixture has F32 weights only, so quantized ggml kernels are not exercised.
 
 Python checks that CI runs outside ctest:
 
@@ -146,9 +143,10 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
   tests/test_prepare_ort_source.py \
   tests/test_prepare_genai_source.py \
   tests/test_d3d12_layer_log.py tests/test_d3d12_selftest.py tests/test_ort_profile.py \
+  tests/test_replay_moe_cache.py \
   tests/test_bench_kv_driver.py tests/test_eval_standard.py tests/test_hellaswag_token_mean.py \
   tests/test_eval_standard_generative.py tests/test_benchmark_summary_standard.py \
-  tests/test_apply_llama_patches.py
+  tests/test_apply_llama_patches.py tests/test_distributed_inference_model.py
 ```
 
 The numerical comparator tests need numpy (and `pyyaml` for gguf-py in `test_make_moe_fixture.py`), which CI installs for them:
