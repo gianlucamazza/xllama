@@ -18,8 +18,9 @@ Everything else (embedding width, attention, shared experts, vocabulary) keeps
 the template's shape. The output is NOT a model: weights are random, the
 filename and general.tags say so.
 
-The template can be a local GGUF or an https URL; for a URL only the header is
-downloaded (HTTP Range) into a sparse file of the full size.
+For reproducible remote fixtures, use a revision-pinned HTTPS URL. The tool
+requests progressively larger prefixes up to 256 MiB and caches the parsed
+header by URL in a sparse file. A local GGUF can also supply the template.
 
 Usage:
   scripts/make-moe-fixture.py --template <file|url> --out fixture.gguf \
@@ -28,6 +29,7 @@ Usage:
 """
 
 import argparse
+import hashlib
 import os
 import re
 import subprocess
@@ -51,26 +53,72 @@ def supported_archs(source=TABLE_SOURCE):
     return re.findall(r'\{"([a-z0-9_.-]+)",', block)
 
 
+def fetch_prefix(url, path, want):
+    request = urllib.request.Request(url, headers={"Range": f"bytes=0-{want - 1}",
+                                                   "Accept-Encoding": "identity"})
+    with urllib.request.urlopen(request) as response:
+        if response.headers.get("content-encoding", "identity").lower() != "identity":
+            raise ValueError("GGUF prefix requires an unencoded byte response")
+        length = response.headers.get("content-length")
+        if response.status == 206:
+            span = re.fullmatch(r"bytes 0-(\d+)/(\d+)", response.headers.get("content-range", ""),
+                                re.IGNORECASE)
+            if not span:
+                raise ValueError("invalid Content-Range for GGUF prefix")
+            end, total = map(int, span.groups())
+            if end + 1 != min(want, total) or (length is not None and int(length) != end + 1):
+                raise ValueError("GGUF response range does not match the requested prefix")
+        elif response.status == 200:
+            # Some servers ignore Range. Close the body as soon as we have the prefix.
+            if length is None:
+                head = urllib.request.Request(url, method="HEAD", headers={"Accept-Encoding": "identity"})
+                with urllib.request.urlopen(head) as metadata:
+                    length = metadata.headers.get("x-linked-size") or metadata.headers.get("content-length")
+            if length is None:
+                raise ValueError("GGUF response must identify its full byte size")
+            total = int(length)
+        else:
+            raise ValueError("GGUF response must identify its full byte size")
+        if total <= 0:
+            raise ValueError("GGUF response has an invalid file size")
+
+        count = min(want, total)
+        with path.open("wb") as output:
+            remaining = count
+            while remaining:
+                block = response.read(min(remaining, 64 << 10))
+                if not block:
+                    raise ValueError("short GGUF prefix response")
+                output.write(block)
+                remaining -= len(block)
+            if response.status == 206 and length is None and response.read(1):
+                raise ValueError("GGUF response exceeds its Content-Range")
+            output.truncate(total)
+        return count, total
+
+
 def fetch_header(url, dest, first=8 << 20, limit=256 << 20):
-    """Download only the GGUF header of `url` into a sparse file of full size."""
+    """Publish a sparse template only after receiving its complete GGUF header."""
     from gguf import GGUFReader
 
-    head = urllib.request.Request(url, method="HEAD")
-    with urllib.request.urlopen(head) as r:
-        total = int(r.headers.get("x-linked-size") or r.headers["content-length"])
-    want = first
-    while True:
-        req = urllib.request.Request(url, headers={"Range": f"bytes=0-{want - 1}"})
-        with urllib.request.urlopen(req) as r, open(dest, "wb") as f:
-            f.write(r.read())
-            f.truncate(total)
-        try:
-            GGUFReader(str(dest))
+    dest = Path(dest)
+    want = min(first, limit)
+    if want <= 0:
+        raise ValueError("GGUF header budget must be positive")
+    with tempfile.TemporaryDirectory(dir=dest.parent) as tmp:
+        capture = Path(tmp) / "header.gguf"
+        while True:
+            count, total = fetch_prefix(url, capture, want)
+            try:
+                if GGUFReader(capture).data_offset > count:
+                    raise ValueError("GGUF header extends beyond the downloaded prefix")
+            except (ValueError, IndexError, KeyError, OverflowError):
+                if count >= min(total, limit):
+                    raise
+                want = min(2 * want, total, limit)
+                continue
+            os.replace(capture, dest)
             return dest
-        except Exception:
-            if want >= limit:
-                raise
-            want *= 2
 
 
 def arch_key(arch, name):
@@ -286,7 +334,7 @@ def main(argv=None):
     template = a.template
     if template.startswith("https://"):
         a.cache_dir.mkdir(parents=True, exist_ok=True)
-        local = a.cache_dir / ("header-" + template.rstrip("/").split("/")[-1])
+        local = a.cache_dir / ("header-" + hashlib.sha256(template.encode()).hexdigest() + ".gguf")
         if not local.exists():
             fetch_header(template, local)
         template = local

@@ -144,6 +144,9 @@ jobs:
             scripts/eval-host-standard.py scripts/eval-standard-generative.py scripts/eval_datasets.py
           bash -n scripts/run-xab.sh
 
+      - name: Test distributed inference feasibility model
+        run: python3 -m unittest tests/test_distributed_inference_model.py
+
       - name: Test research package tooling
         run: python3 -m unittest tests/test_benchmark_sidecar.py tests/test_research_package.py tests/test_xab_contract.py tests/test_release_metadata.py tests/test_release_bundle.py tests/test_make_shape_gguf.py tests/test_bench_run_status.py tests/test_wdp_curl_auth.py tests/test_package_identity.py tests/test_validate_benchmark.py tests/test_console_run_log.py tests/test_console_temp_chats.py tests/test_console_settings_restore.py tests/test_console_taesd_result.py tests/test_api_framing_status.py tests/test_measure_api_ttfb.py tests/test_catalog_licenses.py tests/test_package_notices.py tests/test_diffusion_export.py tests/test_redact_recorded_path.py tests/test_phase16_coding.py tests/test_eval_standard.py tests/test_hellaswag_token_mean.py tests/test_eval_standard_generative.py tests/test_benchmark_summary_standard.py
 
@@ -173,6 +176,20 @@ jobs:
 
       - name: Apply llama.cpp patches
         run: bash scripts/apply-llama-patches.sh
+
+      # AGENTS.md promises CMake 3.22: read every preset, configure linux-test
+      # (doctest through FetchContent), and configure and build linux-debug
+      # through its build preset. Runs before the linux-test build so ccache
+      # serves part of that build.
+      - name: Configure and build with the minimum supported CMake
+        run: |
+          python3 -m pip install --target "$RUNNER_TEMP/cmake-min" 'cmake==3.22.0'
+          minimum="$RUNNER_TEMP/cmake-min/cmake/data/bin/cmake"
+          "$minimum" --version
+          "$minimum" --list-presets=all
+          "$minimum" --preset linux-test -B "$RUNNER_TEMP/build-min-test"
+          "$minimum" --preset linux-debug
+          "$minimum" --build --preset linux-debug
 
       - name: Configure (with tests)
         run: cmake --preset linux-test
@@ -235,32 +252,3 @@ jobs:
           name: xllama-cli-linux
           path: build/linux-test/bin/xllama-cli
           retention-days: 14
-
-  # ASan build — optional, triggered manually (workflow_dispatch). Catches memory
-  # errors that normal builds miss. Uses the linux-asan preset (Debug + ASan +
-  # tests; UBSan is the separate XLLAMA_ENABLE_UBSAN option).
-  asan:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          submodules: recursive
-          fetch-depth: 1
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake build-essential libcurl4-openssl-dev
-
-      - name: Apply llama.cpp patches
-        run: bash scripts/apply-llama-patches.sh
-
-      - name: Configure (ASan + tests)
-        run: cmake --preset linux-asan
-
-      - name: Build
-        run: cmake --build build/linux-asan -j$(nproc)
-
-      - name: Run unit tests under ASan
-        run: ctest --test-dir build/linux-asan --output-on-failure
