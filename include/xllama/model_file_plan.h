@@ -24,6 +24,7 @@
 
 #include "xllama/model_provision.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -329,15 +330,31 @@ sidecar_background_write_files(const std::vector<ManifestFilePin>& expected, boo
 // Slack kept free beyond the plan (marker files, rollback bookkeeping, logs).
 inline constexpr uint64_t kDownloadSpaceMarginBytes = 64ull * 1024 * 1024;
 
-// Bytes the files in `fetch` will write, from their catalogue sizes.
-inline uint64_t download_bytes_needed(const std::vector<ManifestFilePin>& fetch) {
-    uint64_t need = 0;
-    for (const auto& pin : fetch) {
-        if (need > UINT64_MAX - pin.approx_bytes)
-            return UINT64_MAX;
-        need += pin.approx_bytes;
+// Files are replaced in order. During promotion the .part coexists with a
+// backup of the live target. An earlier .previous is overwritten in place.
+struct DownloadSpaceFile {
+    uint64_t incoming;
+    uint64_t live;
+    uint64_t previous;
+};
+
+inline uint64_t download_peak_bytes(const std::vector<DownloadSpaceFile>& files) {
+    const auto add = [](uint64_t a, uint64_t b) { return a > UINT64_MAX - b ? UINT64_MAX : a + b; };
+    // Work backwards from the last promotion. A replaced backup can release
+    // more space than the current download takes, including for later files.
+    uint64_t required = 0;
+    for (auto it = files.rbegin(); it != files.rend(); ++it) {
+        const auto& file = *it;
+        const uint64_t released = file.live ? file.previous : 0;
+        const uint64_t backup_growth = file.live > released ? file.live - released : 0;
+        const uint64_t after = required > released ? required - released : 0;
+        required = add(file.incoming, std::max(backup_growth, after));
+        // A saturated suffix may exceed the representable limit. Earlier
+        // backup credits must not turn that unknown peak into an admission.
+        if (required == UINT64_MAX)
+            return required;
     }
-    return need;
+    return required;
 }
 
 struct DownloadSpaceCheck {
@@ -353,10 +370,8 @@ inline DownloadSpaceCheck check_download_space(uint64_t need_bytes, uint64_t ava
     c.available_bytes = available_bytes;
     if (need_bytes == 0)
         return c;
-    const uint64_t with_margin = need_bytes > UINT64_MAX - kDownloadSpaceMarginBytes
-                                     ? UINT64_MAX
-                                     : need_bytes + kDownloadSpaceMarginBytes;
-    c.ok = available_bytes >= with_margin;
+    c.ok =
+        available_bytes >= need_bytes && available_bytes - need_bytes >= kDownloadSpaceMarginBytes;
     return c;
 }
 
