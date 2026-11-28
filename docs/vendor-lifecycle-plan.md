@@ -5,10 +5,12 @@ unified UWP package. Completed release and demo work belongs in `CHANGELOG.md`.
 
 ## Current pins
 
-| Runtime            | NuGet pin | Local overlay                       | Tracker        | Drop condition                          |
-| ------------------ | --------- | ----------------------------------- | -------------- | --------------------------------------- |
-| ORT GenAI DirectML | 0.14.1    | `vendor/onnxruntime-genai-patched/` | xllama #84     | A NuGet release includes GenAI #2280    |
-| ORT DirectML       | 1.24.4    | `vendor/onnxruntime-patched/`       | xllama #85/#86 | Required AppContainer fixes reach NuGet |
+| Runtime            | NuGet pin | Local overlay                       | Tracker    | Drop condition                          |
+| ------------------ | --------- | ----------------------------------- | ---------- | --------------------------------------- |
+| ORT GenAI DirectML | 0.14.1    | `vendor/onnxruntime-genai-patched/` | xllama #85 | A NuGet release includes GenAI #2280    |
+| ORT DirectML       | 1.24.4    | `vendor/onnxruntime-patched/`       | xllama #85 | Required AppContainer fixes reach NuGet |
+
+On 2026-11-27 the NuGet package indices for these two DirectML variants still ended at the shipping pins. The separate Microsoft.AI.DirectML package also matched the project's 1.15.4 pin. Verify the exact package ID when comparing releases. [GenAI DirectML](https://www.nuget.org/packages/Microsoft.ML.OnnxRuntimeGenAI.DirectML) · [ORT DirectML](https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.DirectML) · [DirectML](https://www.nuget.org/packages/Microsoft.AI.DirectML).
 
 `build-uwp.yml` verifies hashes and fails closed if a required cached DLL is
 missing. Source rebuild workflows are maintenance lanes, not normal shipping
@@ -22,7 +24,7 @@ the official NuGet nuspec, plus one reviewed patch, before it builds.
 | Runtime            | Source pin (nuspec, checked 2026-11-27)           | Verifier                          |
 | ------------------ | ------------------------------------------------- | --------------------------------- |
 | ORT GenAI DirectML | `a30f479` (`<releaseNotes>`, branch `rel-0.14.1`) | `scripts/prepare_genai_source.py` |
-| ORT DirectML       | `2d92497` (`<repository commit=...>`)             | pending xllama #642               |
+| ORT DirectML       | `2d92497` (`<repository commit=...>`)             | `scripts/prepare_ort_source.py`   |
 
 `github.com/microsoft/onnxruntime` and `github.com/microsoft/onnxruntime-genai`
 return 404 since about 2026-11-17 (xllama #646), so the default upstream fetch

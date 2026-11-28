@@ -76,6 +76,20 @@ a gamepad UI and an opt-in LAN integration surface. The
    Widening the on-device training filter also remains blocked on runtime
    support. See the [training architecture](docs/training-architecture.md).
 
+## Hardware-aware performance engineering
+
+[Program #694](https://github.com/gianlucamazza/xllama/issues/694) coordinates the [performance report and host measurements](docs/research/gpu-acceleration-report.md), [hardware matrix](docs/research/gpu-acceleration-baseline.md), [technology decisions](docs/phase15-re-opt.md), and [benchmark methodology](bench/README.md). The numbered phases below organize evidence; each owner retains its approval and numerical gates. The report holds the program's [benchmark coverage](docs/research/gpu-acceleration-report.md#benchmark-coverage).
+
+| Phase                     | Prerequisite / owner                                                                                                                                 | Deliverable and acceptance                                                                                                                                                                                                                                                                                 |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0. Discovery and baseline | Fixed source, model, package, OS, designation and device receipt. #395, #421, #422, #686.                                                            | Trace the timed intervals end to end. Reproduce archived baselines and classify evidence by host, operator/device, replay and hypothesis. Preserve null, refused and failed runs.                                                                                                                          |
+| 1. Runtime efficiency     | Attributable phase trace, CPU reference and fail-closed measurements. #421, #703, #714.                                                              | Separate model open and prefill. Account for timed and untimed GPU work. Evaluate one dispatch/barrier/residency change per paired campaign with numerical, cleanup and reset checks.                                                                                                                      |
+| 2. Memory and storage     | Session admission and current per-process budgets. #479 → #480 → #481; proposed research #536.                                                       | Test simultaneous requests, model swap, context growth, cancellation, allocation refusal and a subsequent successful session. Keep Reader/cache bounded; require native resident/streamed logits before target-device acceptance. Use A2/B512 fixed-trace controls, then separate CPU and GPU device runs. |
+| 3. Modern inference       | Exact pin/patch review, tokenizer and architecture support, sufficient admitted memory. #522–#526, #589, #590.                                       | Rank changes per workload. Compare source/reference logits, generation, draft acceptance, quality and resource cost. Include open chat and repetitive code in decoding decisions. Reject an optimization on a failed declared cell.                                                                        |
+| 4. Adaptive execution     | Measured profiles, deterministic defaults, manual precedence and a bounded search. [#704](https://github.com/gianlucamazza/xllama/issues/704), #422. | Compare threads, ubatch, layers and supported KV types on representative and hold-out prompts. Version results by device/driver/designation, package, model and budget. Exercise expired/unsupported profile and memory-pressure fallback.                                                                 |
+| 5. Distributed research   | [#687](https://github.com/gianlucamazza/xllama/issues/687) and #688–#691.                                                                            | Compare independent replicas first. Then assess link costs, partition capacity, numerical equivalence and node loss on an opt-in testbed. Report single-request latency, throughput at concurrency and largest admitted model separately.                                                                  |
+| 6. Consolidation          | Candidate tests, exact Linux/Windows build status, independent review and target-device receipts. #395, #421, #422.                                  | Archive matched A/A noise and A/B effect, publish missing counters, restore defaults, and qualify each SKU. Keep fork credit and local patch exit conditions. Maintainer review governs any merge, release or promotion.                                                                                   |
+
 ## Xbox GPU acceleration program
 
 Complete attributable profiling in
@@ -94,8 +108,7 @@ owns sequence and gates. M0 is the approved execution slice. M2 remains the
 contributor-led track in [#479](https://github.com/gianlucamazza/xllama/issues/479)
 through [#481](https://github.com/gianlucamazza/xllama/issues/481). The
 [readiness report](docs/research/moe-upstream-readiness.md) holds the
-revision-specific evidence and prerequisites. The next contribution gate is a
-concrete cache candidate in #479, followed by native CPU numerical parity in
+revision-specific evidence and prerequisites. [#668](https://github.com/gianlucamazza/xllama/pull/668) merged the portable cache candidate for #479. Next comes native CPU numerical parity in
 [#480](https://github.com/gianlucamazza/xllama/issues/480). Upstream Xbox CPU
 and GPU acceptance remain separate stages in #481. Catalogue admission keeps
 its own gate in [#273](https://github.com/gianlucamazza/xllama/issues/273).
