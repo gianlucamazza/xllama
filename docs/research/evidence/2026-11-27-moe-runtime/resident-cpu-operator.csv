@@ -1,0 +1,7 @@
+"backend_name","op_name","op_params","test_mode","supported","error_message","backend_reg_name"
+"CPU","MUL_MAT_ID","type_a=f32,type_b=f32,n_mats=4,n_used=2,b=0,m=64,n=16,k=3,amax=1.000000,m_v=0","test","1","",""
+"CPU","MUL_MAT_ID","type_a=q4_K,type_b=f32,n_mats=4,n_used=2,b=0,m=64,n=16,k=768,amax=1.000000,m_v=0","test","1","",""
+"CPU","MUL_MAT_ID","type_a=q6_K,type_b=f32,n_mats=4,n_used=2,b=0,m=64,n=16,k=768,amax=1.000000,m_v=0","test","1","",""
+"CPU","MUL_MAT_ID","type_a=f32,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=1,k=256,amax=1.000000,m_v=0","test","1","",""
+"CPU","MUL_MAT_ID","type_a=q4_K,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=1,k=256,amax=1.000000,m_v=0","test","1","",""
+"CPU","MUL_MAT_ID","type_a=q6_K,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=1,k=256,amax=1.000000,m_v=0","test","1","",""
