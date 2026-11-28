@@ -36,11 +36,7 @@ inline std::wstring normalize_model_path(std::wstring s) {
     return s;
 }
 
-// True iff EVERY expected file is present in the directory listing. `present` =
-// directory-relative paths of the files on disk; `expected` = the manifest's
-// files[].filename values. Comparison is separator- and case-insensitive. Extra
-// present files are ignored (a superset is fine). An empty `expected` returns
-// false: the predicate never guesses — the caller applies the loose fallback.
+// Name the first missing catalogue path, using Windows filename semantics.
 inline std::wstring missing_expected_file(const std::vector<std::wstring>& present,
                                           const std::vector<std::wstring>& expected) {
     std::vector<std::wstring> norm_present;
@@ -66,6 +62,20 @@ inline std::wstring missing_expected_file(const std::vector<std::wstring>& prese
 inline bool dir_satisfies_expected_files(const std::vector<std::wstring>& present,
                                          const std::vector<std::wstring>& expected) {
     return !expected.empty() && missing_expected_file(present, expected).empty();
+}
+
+// An operator-provided ORT model may have no catalogue inventory. The USB probe
+// found genai_config.json; require an actual graph among the files being imported.
+inline std::wstring missing_usb_model_file(const std::vector<std::wstring>& present,
+                                           const std::vector<std::wstring>& expected) {
+    if (!expected.empty())
+        return missing_expected_file(present, expected);
+    for (const auto& file : present) {
+        const auto name = normalize_model_path(file);
+        if (name.size() > 5 && name.compare(name.size() - 5, 5, L".onnx") == 0)
+            return {};
+    }
+    return L"an ONNX graph (*.onnx)";
 }
 
 // True iff a model directory's file listing makes it SERVABLE by Session:

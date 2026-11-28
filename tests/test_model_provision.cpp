@@ -125,7 +125,13 @@ TEST_CASE("provision: SD-Turbo licence pairing requires LICENSE and NOTICE") {
 
 TEST_CASE("USB inventory identifies the missing catalogue path before publication") {
     const std::vector<std::wstring> expected{L"genai_config.json", L"decoder/model.onnx"};
-    CHECK(xllama::missing_expected_file({L"genai_config.json"}, expected) == L"decoder/model.onnx");
-    CHECK(xllama::missing_expected_file({L"GENAI_CONFIG.JSON", L"decoder\\model.onnx"}, expected)
+    CHECK(xllama::missing_usb_model_file({L"genai_config.json"}, expected) ==
+          L"decoder/model.onnx");
+    CHECK(xllama::missing_usb_model_file({L"GENAI_CONFIG.JSON", L"decoder\\model.onnx"}, expected)
               .empty());
+}
+
+TEST_CASE("uncatalogued ORT USB imports require a graph beside the config") {
+    CHECK_FALSE(xllama::missing_usb_model_file({L"genai_config.json"}, {}).empty());
+    CHECK(xllama::missing_usb_model_file({L"genai_config.json", L"decoder.ONNX"}, {}).empty());
 }
