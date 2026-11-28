@@ -642,12 +642,18 @@ weights, context (the real per-layer KV and recurrent state, so `n_ctx` and a
 hybrid's layout count) and compute buffers per buffer type. CPU buffer types
 count as host memory. The D3D12 backend reports an integrated GPU (it requires a
 cache-coherent UMA adapter), so its buffers count as host memory too, and also
-against the GPU budget. The sum plus
+against the GPU budget. Byte counts accumulate by category, then round up to
+MiB. An unrepresentable estimate refuses the load. The sum plus
 the working set and `kSessionMemoryMarginMb` must fit `app_memory_limit_mb()`;
 otherwise `Session::create` fails with an `insufficient memory: …` message
 (weights / context / compute / limit) instead of failing inside an allocation.
 The API answers that refusal with `400`. An embedding context, which batches the
-whole input, is admitted again for its own context and compute buffers. Every
+whole input, is admitted again for its own context and compute buffers. Already
+resident weights are present in the measured usage on both UMA budgets. If a
+quantized KV context fails, the session checks the default-KV configuration
+against the current budgets before allocating it. If an alternate context cannot
+be sized, a known budget or a context beyond the unmeasured cap requires a
+refusal. The session can retry after memory becomes available. Every
 load logs the estimate beside the `ws after model load / after context` lines,
 which is the console calibration of the margin. Not `common/fit.h`: it drops
 non-host CPU buffers (CPU_REPACK) and swaps the process-wide llama logger.
@@ -1053,10 +1059,12 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_tensor_capture.cpp`          | `tensor_capture.h`                                                                                                                                    |
 | `test_manifest_merge.cpp`          | `manifest_merge.h`, `withdrawn_models.h`                                                                                                              |
 | `test_membw.cpp`                   | `membw.h`                                                                                                                                             |
+| `test_context_admission.cpp`       | Public GGUF session, failed quantized context, default-KV admission under pressure and retry after relief (pinned CPU fixture)                        |
 | `test_memory_admission.cpp`        | `memory_admission.h` (host limit, GPU budget, refusal prefix); `Session::estimate_memory` opt-in in `test_session.cpp`                                |
 | `test_model_provision.cpp`         | `model_provision.h`                                                                                                                                   |
 | `test_model_file_plan.cpp`         | `model_file_plan.h`                                                                                                                                   |
 | `test_moe_expert_cache.cpp`        | Expert slice admission, eviction, lease lifetime, Reader failures, cancellation and counters                                                          |
+| `test_moe_resident_operator.cpp`   | Resident CPU `MUL_MAT_ID` against scalar dot products for F32, Q4_K and Q6_K with per-token and per-slot activations                                  |
 | `test_moe_streaming.cpp`           | `moe_streaming.h`                                                                                                                                     |
 | `test_model_write.cpp`             | `model_write.h`                                                                                                                                       |
 | `test_path.cpp`                    | `path_utils.h`                                                                                                                                        |

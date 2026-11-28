@@ -62,9 +62,10 @@ a gamepad UI and an opt-in LAN integration surface. The
    [new model types milestone](https://github.com/gianlucamazza/xllama/milestone/7).
    Keep each candidate behind host smoke and console qualification. Keep the
    models in [#522](https://github.com/gianlucamazza/xllama/issues/522)
-   blocked on the separately tracked llama.cpp pin work. The issue and MoE
-   program describe different scheduling states for the pin bump. Reconcile
-   them before scheduling the full-catalogue regression or beginning M1.
+   blocked on the separately tracked llama.cpp pin work. The owner approved a
+   post-M0 evaluation. Selecting a revision and running the full-catalogue
+   regression need a separate PR. M1 also requires its own approval and
+   either a landed pin bump or an explicit deferral.
 5. **Vendor lifecycle.** Follow
    [#85](https://github.com/gianlucamazza/xllama/issues/85) and the
    [vendor lifecycle plan](docs/vendor-lifecycle-plan.md) for the patched
@@ -108,7 +109,10 @@ owns sequence and gates. M0 is the approved execution slice. M2 remains the
 contributor-led track in [#479](https://github.com/gianlucamazza/xllama/issues/479)
 through [#481](https://github.com/gianlucamazza/xllama/issues/481). The
 [readiness report](docs/research/moe-upstream-readiness.md) holds the
-revision-specific evidence and prerequisites. [#668](https://github.com/gianlucamazza/xllama/pull/668) merged the portable cache candidate for #479. Next comes native CPU numerical parity in
+revision-specific evidence and prerequisites. The portable Reader, cache and lease
+candidate for #479 merged in
+[#668](https://github.com/gianlucamazza/xllama/pull/668). The next
+contribution gate is native CPU integration and numerical parity in
 [#480](https://github.com/gianlucamazza/xllama/issues/480). Upstream Xbox CPU
 and GPU acceptance remain separate stages in #481. Catalogue admission keeps
 its own gate in [#273](https://github.com/gianlucamazza/xllama/issues/273).
