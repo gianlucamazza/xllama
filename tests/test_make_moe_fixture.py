@@ -4,10 +4,12 @@
 
 import hashlib
 import importlib.util
+import io
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "llama.cpp" / "gguf-py"))
@@ -150,6 +152,127 @@ class MakeMoeFixtureTest(unittest.TestCase):
                       "--seed", "7"])
             digests.append(hashlib.sha256(out.read_bytes()).hexdigest())
         self.assertEqual(digests[0], digests[1])
+
+
+class FixtureHeaderTest(unittest.TestCase):
+    def setUp(self):
+        import numpy as np
+        from gguf import GGUFReader, GGUFWriter
+
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.directory = Path(temp.name)
+        self.dest = self.directory / "header.gguf"
+        self.url = "https://fixtures.example/rev-a/model.gguf"
+        original = self.directory / "original.gguf"
+        writer = GGUFWriter(original, "header-test")
+        for name in ("one", "two"):
+            writer.add_tensor(name, np.arange(1024, dtype=np.float32))
+        writer.write_header_to_file()
+        writer.write_kv_data_to_file()
+        writer.write_tensors_to_file()
+        writer.close()
+        self.raw = original.read_bytes()
+        reader = GGUFReader(original)
+        self.header_size = reader.data_offset
+        tensor = reader.tensors[-1]
+        self.last_offset_start = tensor.field.offset + sum(p.nbytes for p in tensor.field.parts[:-1])
+        self.last_data_offset = tensor.data_offset
+
+    def respond(self, request, *, status=206, bad_range=False, short=False):
+        total = len(self.raw)
+        if request.get_method() == "HEAD":
+            response = io.BytesIO()
+            response.status = 200
+            response.headers = {"content-length": str(total)}
+            return response
+        end = min(int(request.get_header("Range").split("-")[-1]), total - 1)
+        body = self.raw if status == 200 else self.raw[:end + 1]
+        response = io.BytesIO(body[:-1] if short else body)
+        response.status = status
+        response.headers = {"content-length": str(len(body))}
+        if status == 206:
+            response.headers["content-range"] = f"bytes {int(bad_range)}-{end}/{total}"
+        return response
+
+    def test_sparse_hole_cannot_supply_the_final_tensor_offset(self):
+        from gguf import GGUFReader
+
+        with patch.object(mmf.urllib.request, "urlopen", side_effect=self.respond):
+            mmf.fetch_header(self.url, self.dest, self.last_offset_start, self.header_size)
+        self.assertEqual(GGUFReader(self.dest).tensors[-1].data_offset, self.last_data_offset)
+
+    def test_ignored_range_reads_only_the_requested_prefix(self):
+        for head_only in (False, True):
+            reads = []
+
+            def ignored(request):
+                response = self.respond(request, status=200)
+                if request.get_method() == "HEAD":
+                    return response
+                if head_only:
+                    del response.headers["content-length"]
+                read = response.read
+
+                def counted(size=-1):
+                    data = read(size)
+                    reads.append(len(data))
+                    return data
+
+                response.read = counted
+                return response
+
+            with self.subTest(head_only=head_only), patch.object(mmf.urllib.request, "urlopen", side_effect=ignored):
+                mmf.fetch_header(self.url, self.dest, self.header_size, self.header_size)
+                self.assertEqual(sum(reads), self.header_size)
+                self.assertEqual(self.dest.stat().st_size, len(self.raw))
+
+    def test_chunked_range_checks_exact_length_across_short_reads(self):
+        for extra in (b"", b"x"):
+            def chunked(request):
+                response = self.respond(request)
+                if request.get_method() == "HEAD":
+                    return response
+                del response.headers["content-length"]
+                body = io.BytesIO(response.getvalue() + extra)
+                response.read = lambda size=-1: body.read(min(size, 7) if size >= 0 else -1)
+                return response
+
+            with self.subTest(extra=extra), patch.object(mmf.urllib.request, "urlopen", side_effect=chunked):
+                if extra:
+                    with self.assertRaisesRegex(ValueError, "exceeds its Content-Range"):
+                        mmf.fetch_header(self.url, self.dest, self.header_size, self.header_size)
+                else:
+                    mmf.fetch_header(self.url, self.dest, self.header_size, self.header_size)
+
+    def test_bad_or_short_range_keeps_existing_destination(self):
+        self.dest.write_bytes(b"previous capture")
+        for options in ({"bad_range": True}, {"short": True}):
+            with self.subTest(options=options), patch.object(
+                mmf.urllib.request, "urlopen", side_effect=lambda r: self.respond(r, **options)
+            ):
+                with self.assertRaises(ValueError):
+                    mmf.fetch_header(self.url, self.dest, self.header_size, self.header_size)
+                self.assertEqual(self.dest.read_bytes(), b"previous capture")
+
+    def test_header_over_budget_leaves_no_cache_entry(self):
+        with patch.object(mmf.urllib.request, "urlopen", side_effect=self.respond):
+            with self.assertRaises(ValueError):
+                mmf.fetch_header(self.url, self.dest, self.last_offset_start, self.last_offset_start)
+        self.assertFalse(self.dest.exists())
+
+    def test_same_filename_in_two_revisions_gets_two_cache_entries(self):
+        other_url = self.url.replace("rev-a", "rev-b")
+        cache = self.directory / "cache"
+        # The tiny source exercises the real CLI cache path before architecture admission.
+        with patch.object(mmf.urllib.request, "urlopen", side_effect=self.respond) as requests:
+            for url in (self.url, other_url, self.url):
+                with self.assertRaisesRegex(SystemExit, "not in the streaming table"):
+                    mmf.main(["--template", url, "--cache-dir", str(cache),
+                              "--out", str(self.directory / "fixture.gguf"), "--quant", "none"])
+        gets = [call.args[0].full_url for call in requests.call_args_list
+                if call.args[0].get_method() == "GET"]
+        self.assertEqual(gets, [self.url, other_url])
 
 
 if __name__ == "__main__":
