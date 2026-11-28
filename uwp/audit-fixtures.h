@@ -5,6 +5,7 @@
 #include "chat-history.h"
 #include "xllama/diffusion/png_writer.h"
 #include "xllama/model_file_plan.h"
+#include "xllama/model_write.h"
 #include "xllama/personalize.h"
 #include <filesystem>
 #include <fstream>
@@ -108,6 +109,20 @@ inline void state() {
         auto need = download_peak_bytes({{96 * mib, 96 * mib, 0}});
         require(need == 192 * mib && !check_download_space(need, 170 * mib).ok, "update space");
         r["space"] = "96 MiB update refused with 170 MiB free";
+        const auto installed = home / "installed-model";
+        fs::create_directories(installed);
+        require(replace_file_bytes(installed / ".complete", "ok") &&
+                    replace_file_bytes(installed / "model.gguf", "previous generation"),
+                "seed installed generation");
+        ModelWriteGate gate;
+        ModelWriteOperation writer(gate, installed);
+        DownloadSpaceCheck budget;
+        std::error_code ec;
+        require(!writer.begin(ec, UINT64_MAX, budget) && ec == std::errc::no_space_on_device &&
+                    !budget.ok && read(installed / ".complete") == "ok" &&
+                    read(installed / "model.gguf") == "previous generation",
+                "space refusal changed the installed generation");
+        r["storage_marker"] = "installed marker and weights survived a refused update";
     });
 }
 inline StorageFolder drive() {
