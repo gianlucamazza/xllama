@@ -516,8 +516,8 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         if (!diffuse_flag.empty()) {
             _wremove(diffuse_flag.c_str());
             ::xllama::log_output("[xllama] diffuse.flag detected -> headless diffusion mode\n");
-            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
-                winrt::make<HeadlessView>(&::xllama::bridge::run_diffuse, "diffuse"));
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(winrt::make<HeadlessView>(
+                +[] { (void)::xllama::bridge::run_diffuse(); }, "diffuse"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
         std::wstring bench_flag = flag_path_if_present(L"bench.flag");
