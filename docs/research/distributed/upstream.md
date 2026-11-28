@@ -37,6 +37,31 @@
 
 **Measured.** On the candidate base, the prepared pin's upstream `test-rpc-multi-server` passed **1/1** on Linux x86-64 (Release, GCC 14.2.0, CMake/CTest 3.31.10). One native test client used two independent CPU worker processes on the same host. Both bound exclusively to `127.0.0.1` over TCP. The test took **0.07 s wall clock** including the fixture. It checked remote allocation, graph submission and distinct allocation sizes for two tensor layouts. It loaded no model. No Xbox, LAN, distributed logits, failure recovery or performance measurement follows from this run. [Commands, patch identities, participant roles and results](evidence/host-rpc.json)
 
+### DC-3 matched CPU arithmetic on Linux, 2026-11-28
+
+**MEASURED.** At xllama `e2abab1f4510ca8cc96fa47f378bc00f7b4bc7e8`, the prepared v0.6.0 gitlink and the pristine upstream [v1.1.0 release](https://github.com/ggml-org/llama.cpp/tree/171527522610996f5f0acf12334e185156ca8f44) each ran with matching client and workers. One F32 ADD graph ran on the first loopback CPU worker, `ggml_backend_tensor_copy` moved its four-element result to the second, and a second ADD ran there. Local control, worker pair, fresh local process after worker shutdown and a restarted pair all produced `[5, 0, 0, 25]` in each lane. Each backend reported a 96-byte tensor allocation. The logical boundary held 16 bytes. Process high-water memory and on-wire byte counts remain unmeasured. The stock two-worker CTest also passed for each revision. The [fixture](evidence/rpc-add.cpp) and [receipt](evidence/host-rpc-add.json) give the graph, CPU worker endpoints, source and binary hashes, and raw results.
+
+To replay on Linux, prepare the repository's pin with the patch script above and a second, pristine checkout of the recorded v1.1.0 SHA. From the xllama repository root, run the following once per lane with `src` pointing to the chosen llama.cpp source tree and `build` pointing to a different empty build directory for each tree. The upstream harness launches both workers on loopback and cleans them up on exit.
+
+```sh
+cmake -S "$src" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF -DGGML_RPC=ON -DGGML_RPC_RDMA=OFF \
+  -DGGML_BACKEND_DL=OFF -DLLAMA_BUILD_COMMON=ON -DLLAMA_BUILD_TESTS=ON \
+  -DLLAMA_BUILD_TOOLS=ON -DLLAMA_BUILD_SERVER=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_OPENSSL=OFF
+cmake --build "$build" --target ggml-rpc-server test-rpc-multi-server --parallel 2
+ctest --test-dir "$build" -R '^test-rpc-multi-server$' --timeout 30 --output-on-failure --no-tests=error
+g++ -std=c++17 -O2 -Wall -Wextra -Werror -I"$src/ggml/include" \
+  docs/research/distributed/evidence/rpc-add.cpp -L"$build/ggml/src" \
+  -L"$build/ggml/src/ggml-rpc" -lggml -lggml-cpu -lggml-rpc -lggml-base \
+  -fopenmp -lpthread -ldl -o "$build/bin/rpc-add"
+timeout 30 "$build/bin/rpc-add"
+timeout 30 bash "$src/tests/test-rpc-multi-server.sh" "$build/bin/ggml-rpc-server" "$build/bin/rpc-add"
+timeout 30 "$build/bin/rpc-add"
+timeout 30 bash "$src/tests/test-rpc-multi-server.sh" "$build/bin/ggml-rpc-server" "$build/bin/rpc-add"
+```
+
+**Open [DC-3 criteria](https://github.com/gianlucamazza/xllama/issues/690).** This fixture releases its buffers after successful work. Worker loss during an active request, cancellation, cached weight uploads, model placement, KV ownership and full-checkpoint numerical parity still require distinct evidence. The proposed Xbox package and physical-network gates remain in the [stage register](gates.md).
+
 ## Minimum reuse experiment
 
 **Proposed.** Retain the stock data plane and the local-only default. Compare two separately identified CPU lanes. Lane P is xllama's prepared pin. Lane U is pristine upstream at the recorded SHA. Obtain a passing matched pair within each lane. Keep production pin changes under the independent [#522 gate][pin-gate].
