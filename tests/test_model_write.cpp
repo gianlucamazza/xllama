@@ -163,6 +163,8 @@ TEST_CASE("Download retry reclaims only its own unfinished transfer") {
     xllama::ModelWriteOperation writer(gate, dir.path);
     xllama::ModelWriteOperation competing(gate, dir.path);
     std::error_code ec;
+    CHECK_FALSE(writer.discard_partial(L"", ec));
+    CHECK_FALSE(writer.discard_partial(dir.path.wstring(), ec));
     CHECK_FALSE(competing.discard_partial(L"model.gguf", ec));
     CHECK(dir.read("model.gguf.part") == "unfinished transfer");
     REQUIRE(writer.discard_partial(L"model.gguf", ec));
