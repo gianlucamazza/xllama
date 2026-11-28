@@ -1,0 +1,6 @@
+source=ce948e1036bad4843500409104c6481a09a1afbb platform=Linux queue=synthetic chunk_bytes=4
+weights_get/rejected execute=2 signals=2 outstanding=2 resets_while_outstanding=1 stale_bytes_delivered=8
+weights_write/rejected execute=2 signals=2 outstanding=2 resets_while_outstanding=1 staging_first_byte=2
+run_now/rejected execute=1 signals=1 outstanding=1 resets_while_outstanding=0 returned_success=0
+run_now/next_accepted execute=2 signals=2 outstanding=0 resets_while_outstanding=1 returned_success=1
+run_now/accepted_removed execute=1 signals=1 outstanding=0 resets_while_outstanding=0 returned_success=0
