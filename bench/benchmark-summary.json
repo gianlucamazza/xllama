@@ -5,28 +5,28 @@
     {
       "label": "LFM2.5-230M",
       "params": "230M",
-      "source": "2026-11-15-remeasure-1563/lfm25-230m-qad-q40-cpu-t6-eog.csv",
+      "source": "2026-11-27-v1110-remeasure/lfm25-230m-qad-q40-cpu-t6-eog.csv",
       "selector": {
         "model": "lfm25-230m",
-        "n_threads": "6",
-        "n_prompt_tok": "298"
+        "n_threads": "6"
       },
       "backend_key": "llama",
       "backend_label": "llama.cpp CPU · t6",
-      "quant_label": "QAD Q4_0"
+      "quant_label": "QAD Q4_0",
+      "note": "remeasured on the v1.11.0.2203 release package, 3 runs, fixed-length decode (2026-11-27)"
     },
     {
       "label": "LFM2.5-350M",
       "params": "350M",
-      "source": "2026-11-15-remeasure-1563/lfm25-350m-qad-q40-cpu-t6-eog.csv",
+      "source": "2026-11-27-v1110-remeasure/lfm25-350m-qad-q40-cpu-t6-eog.csv",
       "selector": {
         "model": "lfm25-350m",
-        "n_threads": "6",
-        "n_prompt_tok": "298"
+        "n_threads": "6"
       },
       "backend_key": "llama",
       "backend_label": "llama.cpp CPU · t6",
-      "quant_label": "QAD Q4_0"
+      "quant_label": "QAD Q4_0",
+      "note": "remeasured on the v1.11.0.2203 release package, 3 runs, fixed-length decode (2026-11-27)"
     },
     {
       "label": "Gemma-3-270M",
@@ -104,28 +104,28 @@
     {
       "label": "LFM2.5-1.2B",
       "params": "1.2B",
-      "source": "2026-09-30-catalogue-gates.csv",
+      "source": "2026-11-27-v1110-remeasure/lfm25-1.2b-qad-q40-cpu-t6-eog.csv",
       "selector": {
         "model": "lfm25-1.2b-instruct",
-        "n_threads": "6",
-        "n_prompt_tok": "298"
+        "n_threads": "6"
       },
       "backend_key": "llama",
       "backend_label": "llama.cpp CPU · t6",
-      "quant_label": "QAD Q4_0"
+      "quant_label": "QAD Q4_0",
+      "note": "remeasured on the v1.11.0.2203 release package, 3 runs, fixed-length decode (2026-11-27)"
     },
     {
       "label": "LFM2.5-1.2B",
       "params": "1.2B",
-      "source": "2026-10-02-fa-gguf-gpu.csv",
+      "source": "2026-11-27-v1110-remeasure/lfm25-1.2b-qad-q40-d3d12-g99-eog.csv",
       "selector": {
         "model": "lfm25-1.2b-instruct",
-        "backend": "d3d12",
-        "n_prompt_tok": "298"
+        "backend": "d3d12"
       },
       "backend_key": "llama",
       "backend_label": "llama.cpp · d3d12 GPU (default, D3)",
-      "quant_label": "QAD Q4_0"
+      "quant_label": "QAD Q4_0",
+      "note": "remeasured on the v1.11.0.2203 release package, 3 runs, fixed-length decode (2026-11-27)"
     },
     {
       "label": "LFM2.5-1.2B-Thinking",
@@ -143,7 +143,7 @@
     {
       "label": "Qwen2.5-Coder-1.5B",
       "params": "1.5B",
-      "source": "phase14-console.csv",
+      "source": "2026-11-27-v1110-remeasure/qwen25-coder-1.5b-q4km-cpu-t6-ctx4096-eog.csv",
       "selector": {
         "model": "qwen25-coder-1.5b",
         "n_threads": "6"
@@ -151,7 +151,8 @@
       "backend_key": "llama",
       "backend_label": "llama.cpp CPU · t6",
       "quant_label": "Q4_K_M",
-      "tag": "coding · n_ctx 4096"
+      "tag": "coding · n_ctx 4096",
+      "note": "remeasured on the v1.11.0.2203 release package, 3 runs, fixed-length decode (2026-11-27)"
     },
     {
       "label": "Qwen3-1.7B",
@@ -193,14 +194,14 @@
     {
       "label": "LFM2-2.6B",
       "params": "2.6B",
-      "source": "2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun.csv",
+      "source": "2026-11-27-v1110-remeasure/lfm2-2.6b-q4km-cpu-t6-eog.csv",
       "selector": {
         "model": "lfm2-2.6b",
         "n_threads": "6"
       },
       "backend_key": "llama",
       "backend_label": "llama.cpp CPU · t6",
-      "note": "remeasured on build 1.6.0.1163, 3 runs (2026-10-11); new data points, not reproductions of the July rows. Use the -rerun CSV, not the incomplete first attempt."
+      "note": "remeasured on the v1.11.0.2203 release package, 3 runs, fixed-length decode (2026-11-27)"
     },
     {
       "label": "Qwen2.5-Coder-3B (benchmark; model under a non-commercial research licence)",
