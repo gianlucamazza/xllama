@@ -198,3 +198,43 @@ TEST_CASE("ChatHistory keeps the committed conversation after a partial write") 
     CHECK(loaded.messages.front().content == "original reply");
 }
 #endif
+
+TEST_CASE("ChatHistory retries reconciliation without replacing an unreadable index or chat") {
+    ChatDirectory temp;
+    xllama::ui::ChatHistory history(temp.path.string());
+    REQUIRE(history.Save({"first", "keep", {}}));
+    REQUIRE(history.Save({"second", "pending", {}}));
+    const auto pending = temp.path / "second.json.pending";
+    std::ofstream(pending).close();
+    const auto index = temp.path / "index.json";
+    const auto chat = temp.path / "second.json";
+    for (const auto& input : {index, chat}) {
+        auto backup = input;
+        backup += ".backup";
+        std::filesystem::rename(input, backup);
+        std::ofstream(input) << "{truncated";
+        xllama::ui::ChatHistory reopened(temp.path.string());
+        CHECK_FALSE(reopened.LoadIndex());
+        CHECK_FALSE(reopened.Save({"third", "wait", {}}));
+        CHECK(std::filesystem::exists(pending));
+        CHECK_FALSE(std::filesystem::exists(temp.path / "third.json"));
+        std::filesystem::remove(input);
+        std::filesystem::rename(backup, input);
+    }
+    REQUIRE(history.LoadIndex());
+    CHECK(history.Index().size() == 2);
+    CHECK_FALSE(std::filesystem::exists(pending));
+}
+
+TEST_CASE("ChatHistory reads titles truncated in older UTF-8 indexes") {
+    ChatDirectory temp;
+    std::filesystem::create_directories(temp.path);
+    std::ofstream(temp.path / "index.json")
+        << "[{\"id\":\"a\",\"title\":\"" << std::string(56, 'x') << char(0xc3) << "...\"}]";
+    xllama::ui::ChatHistory history(temp.path.string());
+    REQUIRE(history.LoadIndex());
+    REQUIRE(history.Index().size() == 1);
+    CHECK(history.Index().front().title == std::string(56, 'x') + "\xef\xbf\xbd...");
+    CHECK(history.TitleFrom(std::string(56, 'x') + "\xc3\xa9" + "long") ==
+          std::string(56, 'x') + "...");
+}

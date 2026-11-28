@@ -255,13 +255,15 @@ void MainPageController::FinalizeStreamedTurn(const std::string& output_text) {
 void MainPageController::LoadConversation(const std::string& id) {
     if (!SaveCurrentConversation())
         return;
+    auto loaded = m_history.Load(id);
+    if (loaded.id.empty()) {
+        SetStatus(L"Could not read the selected conversation", StatusKind::Error);
+        return;
+    }
     SaveKvSnapshotAsync();  // #170b: before m_kv_valid/m_active_model are cleared
     m_kv_valid = false;     // switching conversations → the reused KV no longer applies
     m_active_model.clear(); // re-decide EP routing for the loaded conversation
-    m_current = m_history.Load(id);
-    if (m_current.id.empty()) {
-        m_current.id = id;
-    }
+    m_current = std::move(loaded);
     RenderConversation();
     SetStatus(L"Conversation loaded");
 }
@@ -299,7 +301,10 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
     if (m_is_running.load())
         co_return;
 
-    m_history.LoadIndex(); // refresh index before showing
+    if (!m_history.LoadIndex()) {
+        SetStatus(L"Could not read conversation history", StatusKind::Error);
+        co_return;
+    }
     const auto& index = m_history.Index();
 
     winrt::Windows::UI::Xaml::Controls::ContentDialog dlg;

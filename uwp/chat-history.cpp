@@ -13,75 +13,40 @@
 #include "xllama/atomic_file.h"
 #include "xllama/json_utils.h"
 #include "xllama/platform.h"
-#include "xllama/utf8_utils.h"
+#include "xllama/sse.h"
 
 #include <algorithm>
 #include <cstdio>
 #include <ctime>
 #include <fstream>
-#include <sstream>
+#include <nlohmann/json.hpp>
 
 namespace xllama::ui {
 
-// ---------------------------------------------------------------------------
-// Minimal JSON helpers (no external dependency)
-// ---------------------------------------------------------------------------
+namespace {
+nlohmann::json read_chat_json(std::ifstream& in) {
+    auto json = nlohmann::json::parse(in, nullptr, false);
+    if (!json.is_discarded() || in.bad())
+        return json;
 
-// json_escape is in xllama::json_utils.h — included above.
-
-// Parse a JSON string value (after opening "). Returns empty string on failure.
-// Advances `pos` past the closing ".
-static std::string json_parse_string(const std::string& s, size_t& pos) {
-    std::string out;
-    if (!json_read_string(s, pos, out))
-        return {};
-    return out;
-}
-
-// Advance pos past whitespace.
-static void skip_ws(const std::string& s, size_t& pos) {
-    while (pos < s.size() && (s[pos] == ' ' || s[pos] == '\t' || s[pos] == '\n' || s[pos] == '\r'))
-        ++pos;
-}
-
-// Advance pos to next occurrence of ch; return false if not found.
-static bool seek_char(const std::string& s, size_t& pos, char ch) {
-    while (pos < s.size() && s[pos] != ch)
-        ++pos;
-    return pos < s.size();
-}
-
-// Read a JSON key: seek '"', parse string, seek ':', return key.
-static std::string json_read_key(const std::string& s, size_t& pos) {
-    if (!seek_char(s, pos, '"'))
-        return {};
-    ++pos;
-    return json_parse_string(s, pos);
-}
-
-// Read a JSON value (string or number only).
-static std::string json_read_value(const std::string& s, size_t& pos) {
-    skip_ws(s, pos);
-    if (pos >= s.size())
-        return {};
-    if (s[pos] == '"') {
-        ++pos;
-        return json_parse_string(s, pos);
+    // Older TitleFrom could split a multi-byte character at the title limit.
+    // Repair UTF-8 in memory; a structurally incomplete document still fails.
+    in.clear();
+    in.seekg(0);
+    const std::string bytes(std::istreambuf_iterator<char>(in), {});
+    std::string_view remaining(bytes);
+    std::string repaired;
+    while (!remaining.empty()) {
+        const auto step = sse_utf8_step(remaining, true);
+        if (step.replace)
+            repaired += "\xef\xbf\xbd";
+        else
+            repaired.append(remaining.substr(0, step.take));
+        remaining.remove_prefix(step.take);
     }
-    // number or boolean/null — read until delimiter
-    size_t start = pos;
-    while (pos < s.size() && s[pos] != ',' && s[pos] != '}' && s[pos] != ']' && s[pos] != '\n')
-        ++pos;
-    std::string val = s.substr(start, pos - start);
-    // trim trailing whitespace
-    while (!val.empty() && (val.back() == ' ' || val.back() == '\t' || val.back() == '\r'))
-        val.pop_back();
-    return val;
+    return nlohmann::json::parse(repaired, nullptr, false);
 }
-
-// ---------------------------------------------------------------------------
-// ChatHistory implementation
-// ---------------------------------------------------------------------------
+} // namespace
 
 ChatHistory::ChatHistory(const std::string& chats_dir) : m_dir(chats_dir) {}
 
@@ -108,7 +73,10 @@ std::string ChatHistory::TitleFrom(const std::string& text) {
         ++end;
     std::string title = text.substr(pos, end - pos);
     if (title.size() > 60) {
-        title.resize(57);
+        size_t cut = 57;
+        while (cut && (static_cast<unsigned char>(title[cut]) & 0xc0) == 0x80)
+            --cut;
+        title.resize(cut);
         title += "...";
     }
     return title.empty() ? "Conversation" : title;
@@ -118,86 +86,81 @@ std::filesystem::path ChatHistory::ConvPath(const std::string& id) const {
     return (std::filesystem::u8path(m_dir) / std::filesystem::u8path(id + ".json"));
 }
 
-void ChatHistory::ReadIndex() {
-    m_index.clear();
-    auto idx_path = ConvPath("index");
-    std::ifstream input(idx_path, std::ios::binary);
-    if (!input)
-        return;
-    const std::string json((std::istreambuf_iterator<char>(input)), {});
-
-    // Parse array of objects
-    size_t pos = 0;
-    seek_char(json, pos, '[');
-    ++pos;
-    while (pos < json.size()) {
-        skip_ws(json, pos);
-        if (pos < json.size() && json[pos] == ']')
-            break;
-        if (pos < json.size() && json[pos] != '{') {
-            ++pos;
-            continue;
-        }
-        ++pos; // skip '{'
-        ConversationMeta meta;
-        // parse up to 4 keys per object
-        for (int k = 0; k < 8 && pos < json.size(); ++k) {
-            skip_ws(json, pos);
-            if (pos < json.size() && json[pos] == '}') {
-                ++pos;
-                break;
-            }
-            if (pos < json.size() && json[pos] == ',') {
-                ++pos;
-                continue;
-            }
-            std::string key = json_read_key(json, pos);
-            if (!seek_char(json, pos, ':'))
-                break;
-            ++pos;
-            std::string val = json_read_value(json, pos);
-            if (key == "id")
-                meta.id = val;
-            else if (key == "title")
-                meta.title = val;
-            else if (key == "last_modified")
-                meta.last_modified = std::stoll(val.empty() ? "0" : val);
-            else if (key == "n_messages")
-                meta.n_messages = std::stoi(val.empty() ? "0" : val);
-        }
-        if (!meta.id.empty())
-            m_index.push_back(std::move(meta));
+bool ChatHistory::ReadIndex() {
+    const auto path = ConvPath("index");
+    std::error_code ec;
+    if (!std::filesystem::exists(path, ec)) {
+        if (ec)
+            return false;
+        m_index.clear();
+        return true;
     }
-    // Sort most-recent first
-    std::sort(m_index.begin(), m_index.end(),
-              [](const ConversationMeta& a, const ConversationMeta& b) {
-                  return a.last_modified > b.last_modified;
-              });
+    if (!std::filesystem::is_regular_file(path, ec))
+        return false;
+    std::ifstream in(path, std::ios::binary);
+    if (!in)
+        return false;
+    try {
+        const auto json = read_chat_json(in);
+        if (!json.is_array() || in.bad())
+            return false;
+        std::vector<ConversationMeta> index;
+        for (const auto& item : json) {
+            ConversationMeta meta;
+            meta.id = item.at("id").get<std::string>();
+            if (meta.id.empty())
+                return false;
+            meta.title = item.value("title", std::string{});
+            meta.last_modified = item.value("last_modified", int64_t{0});
+            meta.n_messages = item.value("n_messages", 0);
+            index.push_back(std::move(meta));
+        }
+        std::sort(index.begin(), index.end(),
+                  [](const auto& a, const auto& b) { return a.last_modified > b.last_modified; });
+        m_index = std::move(index);
+        return true;
+    } catch (const nlohmann::json::exception&) {
+        return false;
+    }
 }
 
-void ChatHistory::LoadIndex() {
-    ReadIndex();
+bool ChatHistory::LoadIndex() {
+    m_index_ready = false;
+    if (!ReadIndex())
+        return false;
     std::error_code ec;
     std::vector<std::filesystem::path> pending;
+    std::vector<Conversation> recovered;
     std::filesystem::directory_iterator it(std::filesystem::u8path(m_dir), ec), end;
+    if (ec == std::errc::no_such_file_or_directory)
+        ec.clear();
     for (; !ec && it != end; it.increment(ec)) {
         const auto marker = it->path();
         const auto source = marker.parent_path() / marker.stem();
         if (marker.extension() != ".pending" || source.extension() != ".json")
             continue;
-        if (std::filesystem::is_regular_file(source, ec)) {
-            const auto id = source.stem().string();
-            UpdateMeta(Load(id));
-        } else if (ec && ec != std::errc::no_such_file_or_directory) {
-            return;
+        if (std::filesystem::exists(source, ec)) {
+            auto conv = Load(source.stem().string());
+            if (conv.id.empty())
+                return false;
+            recovered.push_back(std::move(conv));
+        } else if (ec) {
+            return false;
         }
-        ec.clear();
         pending.push_back(marker);
     }
-    if (!ec && !pending.empty() && SaveIndex()) {
+    if (ec)
+        return false;
+    for (const auto& conv : recovered)
+        UpdateMeta(conv);
+    if (!pending.empty()) {
+        if (!SaveIndex())
+            return false;
         for (const auto& marker : pending)
             std::filesystem::remove(marker, ec);
     }
+    m_index_ready = true;
+    return true;
 }
 
 bool ChatHistory::SaveIndex() {
@@ -219,6 +182,8 @@ bool ChatHistory::SaveIndex() {
 }
 
 void ChatHistory::Delete(const std::string& id) {
+    if (!m_index_ready && !LoadIndex())
+        return;
     // Remove JSON file
     auto path = ConvPath(id);
     std::error_code ec;
@@ -231,6 +196,8 @@ void ChatHistory::Delete(const std::string& id) {
 }
 
 void ChatHistory::Clear() {
+    if (!m_index_ready && !LoadIndex())
+        return;
     // Delete all conversation JSON files
     for (const auto& meta : m_index) {
         auto path = ConvPath(meta.id);
@@ -242,6 +209,8 @@ void ChatHistory::Clear() {
 }
 
 bool ChatHistory::Save(const Conversation& conv) {
+    if (!m_index_ready && !LoadIndex())
+        return false;
     // Ensure directory exists
     std::error_code ec;
     std::filesystem::create_directories(std::filesystem::u8path(m_dir), ec);
@@ -277,8 +246,10 @@ bool ChatHistory::Save(const Conversation& conv) {
         return false;
 
     UpdateMeta(conv);
-    if (!SaveIndex())
+    if (!SaveIndex()) {
+        m_index_ready = false;
         return false;
+    }
     std::filesystem::remove(pending, ec);
     return true;
 }
@@ -305,100 +276,35 @@ void ChatHistory::UpdateMeta(const Conversation& conv) {
 }
 
 Conversation ChatHistory::Load(const std::string& id) const {
-    Conversation conv;
-    conv.id = id;
-    auto path = ConvPath(id);
-    std::ifstream input(path, std::ios::binary);
-    if (!input)
-        return conv;
-    const std::string json((std::istreambuf_iterator<char>(input)), {});
-
-    // Parse top-level fields
-    size_t pos = 0;
-    seek_char(json, pos, '{');
-    ++pos;
-    // Find "messages" array start
-    size_t msgs_pos = json.find("\"messages\"");
-    if (msgs_pos == std::string::npos)
-        return conv;
-
-    // Parse id and title first
-    {
-        size_t p2 = 0;
-        while (p2 < msgs_pos) {
-            skip_ws(json, p2);
-            if (p2 >= msgs_pos)
-                break;
-            if (json[p2] == ',') {
-                ++p2;
-                continue;
-            }
-            if (json[p2] != '"') {
-                ++p2;
-                continue;
-            }
-            std::string key = json_read_key(json, p2);
-            if (!seek_char(json, p2, ':'))
-                break;
-            ++p2;
-            std::string val = json_read_value(json, p2);
-            if (key == "id")
-                conv.id = val;
-            if (key == "title")
-                conv.title = val;
+    const auto path = ConvPath(id);
+    std::error_code ec;
+    if (!std::filesystem::is_regular_file(path, ec))
+        return {};
+    std::ifstream in(path, std::ios::binary);
+    if (!in)
+        return {};
+    try {
+        const auto json = read_chat_json(in);
+        if (in.bad() || !json.is_object() || !json.contains("messages") ||
+            !json.at("messages").is_array() || json.value("id", std::string{}) != id)
+            return {};
+        Conversation conv{id, json.value("title", std::string{}), {}};
+        for (const auto& item : json.at("messages")) {
+            ChatMessage msg;
+            const auto role = item.value("role", std::string{"user"});
+            msg.role = role == "system" ? MessageRole::System
+                       : role == "user" ? MessageRole::User
+                                        : MessageRole::Assistant;
+            msg.content = item.value("content", std::string{});
+            msg.ts_unix = item.value("ts", int64_t{0});
+            msg.partial = item.value("partial", false);
+            msg.feedback_label = item.value("feedback_label", std::string{});
+            conv.messages.push_back(std::move(msg));
         }
+        return conv;
+    } catch (const nlohmann::json::exception&) {
+        return {};
     }
-
-    // Parse messages array
-    pos = msgs_pos + 10; // skip "messages"
-    if (!seek_char(json, pos, '['))
-        return conv;
-    ++pos;
-    while (pos < json.size()) {
-        skip_ws(json, pos);
-        if (pos < json.size() && json[pos] == ']')
-            break;
-        if (pos < json.size() && json[pos] != '{') {
-            ++pos;
-            continue;
-        }
-        ++pos;
-        ChatMessage msg;
-        for (int k = 0; k < 10 && pos < json.size(); ++k) {
-            skip_ws(json, pos);
-            if (pos < json.size() && json[pos] == '}') {
-                ++pos;
-                break;
-            }
-            if (pos < json.size() && json[pos] == ',') {
-                ++pos;
-                continue;
-            }
-            std::string key = json_read_key(json, pos);
-            if (!seek_char(json, pos, ':'))
-                break;
-            ++pos;
-            std::string val = json_read_value(json, pos);
-            if (key == "role") {
-                if (val == "system")
-                    msg.role = MessageRole::System;
-                else if (val == "user")
-                    msg.role = MessageRole::User;
-                else
-                    msg.role = MessageRole::Assistant;
-            } else if (key == "content") {
-                msg.content = val;
-            } else if (key == "ts") {
-                msg.ts_unix = val.empty() ? 0 : std::stoll(val);
-            } else if (key == "partial") {
-                msg.partial = (val == "true");
-            } else if (key == "feedback_label") {
-                msg.feedback_label = val;
-            }
-        }
-        conv.messages.push_back(std::move(msg));
-    }
-    return conv;
 }
 
 } // namespace xllama::ui
