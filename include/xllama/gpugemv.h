@@ -287,6 +287,9 @@ GpugemvResult measure_gpugemv(int n = kGpugemvDefaultN, int k = kGpugemvDefaultK
 void measure_gpugemv_each(int n, int k, int iterations, GpugemvKernel kernel,
                           std::vector<GpugemvResult>* out);
 
+// CLI summary across one measurement campaign. Retains failed measurements.
+GpugemvResult gpugemv_median_summary(const std::vector<GpugemvResult>& rows);
+
 const char* gpugemv_csv_header();
 // kernel,n,k,iterations,run_index,packed_mb,packed_gbs,packed_gbs_cpu,packed_gbs_h61,
 // max_abs_err,checksum_ok,d3d12_ran,gpu_timestamp,wave_ops,checksum,expected,host,date,error

@@ -5,7 +5,9 @@
 
 #if defined(_WIN32)
 
+    #include <chrono>
     #include <cstdio>
+    #include <thread>
 
     #include "xllama/d3d12_dyn.h"
 
@@ -158,16 +160,20 @@ bool QueueFence::signal_and_wait(ID3D12CommandQueue* queue, bool spin) {
     const UINT64 v = ++value_;
     if (FAILED(queue->Signal(fence_.Get(), v)))
         return false;
-    if (spin) {
-        while (fence_->GetCompletedValue() < v)
-            YieldProcessor();
-        return true;
-    }
-    if (fence_->GetCompletedValue() < v) {
-        fence_->SetEventOnCompletion(v, event_.h);
-        WaitForSingleObject(event_.h, INFINITE);
-    }
-    return true;
+    return wait_accepted_fence(
+        v, spin, [&] { return fence_->GetCompletedValue(); },
+        [&] { return SUCCEEDED(fence_->SetEventOnCompletion(v, event_.h)); },
+        [&] {
+            // Recheck the counter even if a notification is delayed or stale.
+            const DWORD status = WaitForSingleObject(event_.h, 100);
+            return status == WAIT_OBJECT_0 || status == WAIT_TIMEOUT;
+        },
+        [&] {
+            if (spin)
+                YieldProcessor();
+            else
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        });
 }
 
 } // namespace d3d12c
