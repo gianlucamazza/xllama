@@ -12,7 +12,6 @@
 #include "chat-history.h"
 #include "xllama/atomic_file.h"
 #include "xllama/json_utils.h"
-#include "xllama/platform.h"
 #include "xllama/sse.h"
 
 #include <algorithm>
@@ -24,7 +23,7 @@
 namespace xllama::ui {
 
 namespace {
-nlohmann::json read_chat_json(std::ifstream& in) {
+nlohmann::json read_index_json(std::ifstream& in) {
     auto json = nlohmann::json::parse(in, nullptr, false);
     if (!json.is_discarded() || in.bad())
         return json;
@@ -101,7 +100,7 @@ bool ChatHistory::ReadIndex() {
     if (!in)
         return false;
     try {
-        const auto json = read_chat_json(in);
+        const auto json = read_index_json(in);
         if (!json.is_array() || in.bad())
             return false;
         std::vector<ConversationMeta> index;
@@ -275,34 +274,76 @@ void ChatHistory::UpdateMeta(const Conversation& conv) {
               });
 }
 
+// Older saves could split a UTF-8 character before the title's ellipsis. Only
+// retry the exact header emitted by that writer; message bytes remain untouched.
+static nlohmann::json parse_chat(const std::string& id, std::ifstream& input) {
+    using Json = nlohmann::json;
+    auto root = Json::parse(input, nullptr, false);
+    if (!root.is_discarded() || input.bad())
+        return root;
+    input.clear();
+    input.seekg(0);
+    char header[512]; // GUID, an escaped 60-byte title and the messages key
+    if (!input.getline(header, sizeof(header)))
+        return root;
+    std::string line(header);
+    if (!line.empty() && line.back() == '\r')
+        line.pop_back(); // historical Windows text-mode saves used CRLF
+    const std::string prefix = "{\"id\":\"" + json_escape(id) + "\",\"title\":\"";
+    size_t end = prefix.size();
+    std::string title;
+    if (line.compare(0, end, prefix) != 0 || !json_read_string(line, end, title) ||
+        line.substr(end) != ",\"messages\":[" || title.size() != 60 || title.substr(57) != "...")
+        return root;
+    const std::string escaped = Json(title).dump(-1, ' ', false, Json::error_handler_t::ignore);
+    if (escaped == "\"" + json_escape(title) + "\"")
+        return root;
+    line.replace(prefix.size() - 1, end - prefix.size() + 1, escaped);
+    line += '\n';
+    line.append(std::istreambuf_iterator<char>(input), {});
+    return Json::parse(line, nullptr, false);
+}
+
 Conversation ChatHistory::Load(const std::string& id) const {
     const auto path = ConvPath(id);
     std::error_code ec;
     if (!std::filesystem::is_regular_file(path, ec))
         return {};
-    std::ifstream in(path, std::ios::binary);
-    if (!in)
+    std::ifstream input(path, std::ios::binary);
+    if (!input || id.empty())
         return {};
     try {
-        const auto json = read_chat_json(in);
-        if (in.bad() || !json.is_object() || !json.contains("messages") ||
-            !json.at("messages").is_array() || json.value("id", std::string{}) != id)
+        auto root = parse_chat(id, input);
+        if (input.bad() || !root.is_object() || root.at("id") != id ||
+            !root.at("messages").is_array())
             return {};
-        Conversation conv{id, json.value("title", std::string{}), {}};
-        for (const auto& item : json.at("messages")) {
+        Conversation conv{id, root.value("title", std::string{}), {}};
+        auto& messages = root.at("messages");
+        conv.messages.reserve(messages.size());
+        for (auto& item : messages) {
             ChatMessage msg;
-            const auto role = item.value("role", std::string{"user"});
-            msg.role = role == "system" ? MessageRole::System
-                       : role == "user" ? MessageRole::User
-                                        : MessageRole::Assistant;
-            msg.content = item.value("content", std::string{});
-            msg.ts_unix = item.value("ts", int64_t{0});
+            const auto& role = item.at("role");
+            if (role == "system")
+                msg.role = MessageRole::System;
+            else if (role == "assistant")
+                msg.role = MessageRole::Assistant;
+            else if (role != "user")
+                return {};
+            msg.content = std::move(item.at("content").get_ref<std::string&>());
+            if (const auto ts = item.find("ts"); ts != item.end()) {
+                if (!ts->is_number_integer() ||
+                    (ts->is_number_unsigned() && ts->get<uint64_t>() > INT64_MAX))
+                    return {};
+                msg.ts_unix = ts->get<int64_t>();
+            }
             msg.partial = item.value("partial", false);
             msg.feedback_label = item.value("feedback_label", std::string{});
             conv.messages.push_back(std::move(msg));
         }
         return conv;
     } catch (const nlohmann::json::exception&) {
+        return {};
+    } catch (const std::ios_base::failure&) {
         return {};
     }
 }

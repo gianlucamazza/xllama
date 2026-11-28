@@ -238,3 +238,73 @@ TEST_CASE("ChatHistory reads titles truncated in older UTF-8 indexes") {
     CHECK(history.TitleFrom(std::string(56, 'x') + "\xc3\xa9" + "long") ==
           std::string(56, 'x') + "...");
 }
+
+TEST_CASE("ChatHistory rejects incomplete saves without replacing their committed index entries") {
+    ChatDirectory temp;
+    xllama::ui::ChatHistory history(temp.path.string());
+    xllama::ui::Conversation chat{"interrupted", "saved title", {}};
+    chat.messages.push_back({xllama::ui::MessageRole::User, "saved turn", 10, false, {}});
+    REQUIRE(history.Save(chat));
+    const auto path = temp.path / "interrupted.json";
+    const auto marker = temp.path / "interrupted.json.pending";
+    std::ifstream input(path, std::ios::binary);
+    const std::string original((std::istreambuf_iterator<char>(input)), {});
+    input.close();
+    REQUIRE_FALSE(original.empty());
+    std::ofstream(marker).close();
+    REQUIRE(xllama::replace_file_bytes(path, original.substr(0, original.find("\"messages\""))));
+    CHECK(history.Load(chat.id).id.empty());
+    xllama::ui::ChatHistory reopened(temp.path.string());
+    reopened.LoadIndex();
+    REQUIRE(reopened.Index().size() == 1);
+    CHECK(reopened.Index().front().title == "saved title");
+    CHECK(reopened.Index().front().n_messages == 1);
+    CHECK(std::filesystem::exists(marker));
+    REQUIRE(xllama::replace_file_bytes(path, original));
+    reopened.LoadIndex();
+    CHECK_FALSE(std::filesystem::exists(marker));
+    CHECK(reopened.Load(chat.id).messages.size() == 1);
+    CHECK(reopened.Load("missing").id.empty());
+}
+
+TEST_CASE("ChatHistory preserves legacy messages, ignores extension fields and checks identity") {
+    ChatDirectory temp;
+    std::filesystem::create_directories(temp.path);
+    xllama::ui::ChatHistory history(temp.path.string());
+    const auto path = temp.path / "saved.json";
+    const std::string legacy =
+        R"({"messages":[{"role":"user","content":"a\u0020turn"}],"extra":{"revision":2},"title":"messages","id":"saved"})";
+    REQUIRE(xllama::replace_file_bytes(path, legacy));
+    const auto loaded = history.Load("saved");
+    REQUIRE(loaded.id == "saved");
+    CHECK(loaded.title == "messages");
+    REQUIRE(loaded.messages.size() == 1);
+    CHECK(loaded.messages.front().content == "a turn");
+    CHECK_FALSE(loaded.messages.front().partial);
+    CHECK(loaded.messages.front().feedback_label.empty());
+    REQUIRE(xllama::replace_file_bytes(path, R"({"id":"different","title":"a","messages":[]})"));
+    CHECK(history.Load("saved").id.empty());
+    REQUIRE(xllama::replace_file_bytes(path, R"({"id":"saved","title":"a","messages":[]})"));
+    CHECK(history.Load("saved").id == "saved");
+}
+
+TEST_CASE("ChatHistory reads titles that older releases cut inside a UTF-8 character") {
+    ChatDirectory temp;
+    xllama::ui::ChatHistory history(temp.path.string());
+    const std::string prefix(56, 'a');
+    const std::string text = prefix + "\xe2\x82\xac" + "padding";
+    xllama::ui::Conversation chat{"legacy", prefix + "\xe2" + "...", {}};
+    chat.messages.push_back({xllama::ui::MessageRole::User, text, 10, false, {}});
+    REQUIRE(history.Save(chat));
+    const auto path = temp.path / "legacy.json";
+    std::ifstream input(path, std::ios::binary);
+    std::string old((std::istreambuf_iterator<char>(input)), {});
+    input.close();
+    old.insert(old.find('\n'), "\r"); // the legacy Windows writer used text mode
+    REQUIRE(xllama::replace_file_bytes(path, old));
+    const auto loaded = history.Load(chat.id);
+    REQUIRE(loaded.messages.size() == 1);
+    CHECK(loaded.messages.front().content == text);
+    CHECK(loaded.title == prefix + "...");
+    CHECK(history.TitleFrom(text) == prefix + "...");
+}
