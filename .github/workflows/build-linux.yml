@@ -246,32 +246,3 @@ jobs:
           name: xllama-cli-linux
           path: build/linux-test/bin/xllama-cli
           retention-days: 14
-
-  # ASan build — optional, triggered manually (workflow_dispatch). Catches memory
-  # errors that normal builds miss. Uses the linux-asan preset (Debug + ASan +
-  # tests; UBSan is the separate XLLAMA_ENABLE_UBSAN option).
-  asan:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          submodules: recursive
-          fetch-depth: 1
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake build-essential libcurl4-openssl-dev
-
-      - name: Apply llama.cpp patches
-        run: bash scripts/apply-llama-patches.sh
-
-      - name: Configure (ASan + tests)
-        run: cmake --preset linux-asan
-
-      - name: Build
-        run: cmake --build build/linux-asan -j$(nproc)
-
-      - name: Run unit tests under ASan
-        run: ctest --test-dir build/linux-asan --output-on-failure

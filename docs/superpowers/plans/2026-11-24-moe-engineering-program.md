@@ -181,6 +181,8 @@ Do not conflate the Q3_K dense kernel with Q3_K expert execution. A new dense qu
 | M2.5 | Windows/UWP held-file identity, I/O lifecycle, quota and console activation | #481             | Exact package, explicit developer-only activation, normal completion, cancellation/drain, no hidden resident fallback                                                                                         |
 | M2.6 | Selected-expert streamed GPU qualification                                  | #481 / M1        | Only after CPU stage and resident operator correctness; real device/dispatch, full graph parity, fence-safe leases and matched CPU/hybrid experiments                                                         |
 
+On November 27 the contributor accepted the maintainer handoff for M2.1. The portable candidate follows the clean-room boundary and uses the upstream contract and harness as its specification. Its review and merge gate M2.2. Current component evidence and remaining gates live in the [readiness report](../../research/moe-upstream-readiness.md#maintainer-handoff-and-component-gates-2026-11-27).
+
 Maintain #479–#481's existing PR sequence. M2.4 is a separate evidence target: the current owner gate determines whether it blocks a given checkpoint's acceptance; never declare the 24B checkpoint numerically qualified from 8B results. No duplicate extraction while the contributor is preparing a candidate. If ownership is stalled, agree a maintainer handoff before starting an alternative implementation.
 
 ### M3 — Adaptive expert cache and I/O research (P2)
