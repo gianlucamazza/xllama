@@ -170,7 +170,7 @@ prompt extends the checkpoint's tokens and the attention cells up to it are
 still resident, the recurrent state is restored, the attention KV is truncated
 to the checkpoint and only the suffix prefills — including an exact
 regenerate, whose output matches a cold run. A checkpoint that does not apply
-is dropped and the full prompt prefills; a context shift drops it too.
+is dropped and the full prompt prefills.
 
 A continuation that would overflow `n_ctx` shifts the context (#169) when the
 cache supports it: the oldest tokens after `n_keep` are evicted up to a

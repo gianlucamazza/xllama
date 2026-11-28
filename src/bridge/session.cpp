@@ -739,7 +739,7 @@ class LlamaSession final : public Session {
         return true;
     }
 
-    InferenceResult generate(const GenerateParams& gp) override {
+    InferenceResult generate(const GenerateParams& gp) override try {
         InferenceResult res;
 
         if (!ensure_ctx(&res.error_msg))
@@ -991,9 +991,12 @@ class LlamaSession final : public Session {
                             log_output(sb);
                         }
                     } else if (m_shift_mode == ContextShiftMode::Rebuild) {
-                        llama_synchronize(ctx);
-                        m_kv_tokens.erase(m_kv_tokens.begin() + keep,
-                                          m_kv_tokens.begin() + keep + n_discard);
+                        const auto first = m_kv_tokens.begin();
+                        rebuild_tokens.reserve(m_kv_tokens.size() - n_discard + tokens.size());
+                        rebuild_tokens.insert(rebuild_tokens.end(), first, first + keep);
+                        rebuild_tokens.insert(rebuild_tokens.end(), first + keep + n_discard,
+                                              m_kv_tokens.end());
+                        rebuild_tokens.insert(rebuild_tokens.end(), tokens.begin(), tokens.end());
                         std::vector<size_t> ckpt_ns;
                         ckpt_ns.reserve(m_checkpoints.size());
                         for (const PrefixCheckpoint& c : m_checkpoints)
@@ -1001,6 +1004,7 @@ class LlamaSession final : public Session {
                         size_t resume_from = 0;
                         const std::optional<size_t> ckpt_idx =
                             shift_rebuild_checkpoint(ckpt_ns, static_cast<size_t>(keep));
+                        llama_synchronize(ctx);
                         if (ckpt_idx) {
                             const size_t ckpt_n = ckpt_ns[*ckpt_idx];
                             if (restore_prefix_snapshot(*ckpt_idx))
@@ -1010,8 +1014,7 @@ class LlamaSession final : public Session {
                             llama_memory_clear(mem, true);
                             drop_prefix_snapshot();
                         }
-                        rebuild_tokens = m_kv_tokens;
-                        rebuild_tokens.insert(rebuild_tokens.end(), tokens.begin(), tokens.end());
+                        m_kv_tokens.resize(resume_from);
                         kv_keep = resume_from;
                         kv_len = static_cast<int>(resume_from);
                         pf = rebuild_tokens.data() + resume_from;
@@ -1023,7 +1026,8 @@ class LlamaSession final : public Session {
                         snprintf(sb, sizeof(sb),
                                  "[xllama] session: context shift — evicted %d tokens past "
                                  "keep=%d, kv now %d of %d (rebuilt from %zu) (#169/#723)\n",
-                                 n_discard, keep, static_cast<int>(m_kv_tokens.size()), m_n_ctx,
+                                 n_discard, keep,
+                                 static_cast<int>(rebuild_tokens.size() - tokens.size()), m_n_ctx,
                                  resume_from);
                         log_output(sb);
                     }
@@ -1078,15 +1082,6 @@ class LlamaSession final : public Session {
         int n_prefilled = 0;
         bool captured_head = false;
 
-        auto invalidate_cache = [&] {
-            // llama_memory_clear does not drain queued backend work.
-            llama_synchronize(ctx);
-            m_sampler.reset();
-            m_kv_tokens.clear();
-            drop_prefix_snapshot();
-            llama_memory_clear(mem, true);
-            touch_kv();
-        };
         int prefill_rc = 0;
         auto prefill_failure = [&]() {
             fail_prefill(res, prefill_rc, wd);
@@ -1252,6 +1247,21 @@ class LlamaSession final : public Session {
         log_output(log_buf);
 
         return res;
+    } catch (const std::bad_alloc&) {
+        if (m_ctx)
+            invalidate_cache();
+        InferenceResult res;
+        res.error_msg = "out of memory";
+        return res;
+    }
+
+    void invalidate_cache() {
+        llama_synchronize(m_ctx.get());
+        m_sampler.reset();
+        m_kv_tokens.clear();
+        drop_prefix_snapshot();
+        llama_memory_clear(llama_get_memory(m_ctx.get()), true);
+        touch_kv();
     }
 
     int count_tokens(const std::string& prompt) override {
