@@ -53,7 +53,7 @@ class ChatHistory {
     // Save conversation to disk and update index.
     bool Save(const Conversation& conv);
 
-    // Load a specific conversation by id. Returns empty on failure.
+    // A read, format or identity failure returns an empty id. A valid chat may have no messages.
     Conversation Load(const std::string& id) const;
 
     // Sorted by last_modified descending (most recent first).
