@@ -373,6 +373,14 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                 if (decisions[i] != PinCheck::Refetch)
                     continue;
                 const auto& file = files[i];
+                // A killed earlier transfer may have left its staging file.
+                // The fetch below always starts from byte zero. Reclaim that
+                // space under the writer permit before measuring the volume.
+                std::error_code cleanup_ec;
+                if (!writer.discard_partial(file.filename, cleanup_ec))
+                    throw std::filesystem::filesystem_error(
+                        "Cannot reclaim download staging file",
+                        local_dir_fs / (file.filename + L".part"), cleanup_ec);
                 fetch.push_back({file.approx_bytes, local_file_size(local_dir_fs, file.filename),
                                  local_file_size(local_dir_fs, file.filename + L".previous")});
             }

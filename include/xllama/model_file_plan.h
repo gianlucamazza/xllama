@@ -340,18 +340,17 @@ struct DownloadSpaceFile {
 
 inline uint64_t download_peak_bytes(const std::vector<DownloadSpaceFile>& files) {
     const auto add = [](uint64_t a, uint64_t b) { return a > UINT64_MAX - b ? UINT64_MAX : a + b; };
-    uint64_t retained = 0;
-    uint64_t peak = 0;
-    for (const auto& file : files) {
-        const uint64_t staged = add(retained, file.incoming);
-        const uint64_t backup_growth = file.live > file.previous ? file.live - file.previous : 0;
-        peak = std::max(peak, add(staged, backup_growth));
-        // After the rename the old target is released. Credit only a backup
-        // actually overwritten, and never borrow space from a future file.
+    // Work backwards from the last promotion. A replaced backup can release
+    // more space than the current download takes, including for later files.
+    uint64_t required = 0;
+    for (auto it = files.rbegin(); it != files.rend(); ++it) {
+        const auto& file = *it;
         const uint64_t released = file.live ? file.previous : 0;
-        retained = staged > released ? staged - released : 0;
+        const uint64_t backup_growth = file.live > released ? file.live - released : 0;
+        const uint64_t after = required > released ? required - released : 0;
+        required = add(file.incoming, std::max(backup_growth, after));
     }
-    return peak;
+    return required;
 }
 
 struct DownloadSpaceCheck {

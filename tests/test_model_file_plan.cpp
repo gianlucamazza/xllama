@@ -366,6 +366,9 @@ TEST_CASE("download space includes simultaneous staging and rollback storage") {
     constexpr uint64_t mib = 1024ull * 1024;
     const auto first = download_peak_bytes({{96 * mib, 96 * mib, 0}});
     CHECK(first == 192 * mib);
+    CHECK_FALSE(
+        check_download_space(download_peak_bytes({{512 * mib, 512 * mib, 0}}), 650 * mib).ok);
+    CHECK(download_peak_bytes({{20, 15, 85}, {200, 0, 0}}) == 135);
     CHECK_FALSE(check_download_space(first, 170 * mib).ok);
     CHECK(download_peak_bytes({{96, 96, 96}, {10, 0, 0}}) == 96);
     CHECK(download_peak_bytes({{96, 96, 0}, {80, 70, 0}}) == 246);

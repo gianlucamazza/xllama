@@ -153,3 +153,21 @@ TEST_CASE("Model writer admits exactly one simultaneous contender") {
     CHECK(winners.load() == 1);
     CHECK(gate.try_acquire().owns_lock());
 }
+
+TEST_CASE("Download retry reclaims only its own unfinished transfer") {
+    ModelDir dir;
+    dir.put("model.gguf", "serving");
+    dir.put("model.gguf.previous", "rollback");
+    dir.put("model.gguf.part", "unfinished transfer");
+    xllama::ModelWriteGate gate;
+    xllama::ModelWriteOperation writer(gate, dir.path);
+    xllama::ModelWriteOperation competing(gate, dir.path);
+    std::error_code ec;
+    CHECK_FALSE(competing.discard_partial(L"model.gguf", ec));
+    CHECK(dir.read("model.gguf.part") == "unfinished transfer");
+    REQUIRE(writer.discard_partial(L"model.gguf", ec));
+    REQUIRE(writer.discard_partial(L"model.gguf", ec));
+    CHECK_FALSE(std::filesystem::exists(dir.path / "model.gguf.part"));
+    CHECK(dir.read("model.gguf") == "serving");
+    CHECK(dir.read("model.gguf.previous") == "rollback");
+}
