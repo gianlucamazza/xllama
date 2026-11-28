@@ -1018,7 +1018,7 @@ TEST_CASE("Session: repeated hybrid shifts match a cold continuation") {
     if (!model)
         return;
     const std::string end = "<|im_end|>";
-    const std::string prefix = "Remember the newest word." + end;
+    const std::string prefix = "<|im_start|>system\nRepeat the most recent color." + end;
     for (bool snapshots : {false, true}) {
         xllama::SessionParams sp;
         sp.model_path = model;
@@ -1031,7 +1031,7 @@ TEST_CASE("Session: repeated hybrid shifts match a cold continuation") {
         std::string last_turn;
         bool first = true;
         for (const std::string word : {" red", " blue", " green"}) {
-            std::string turn;
+            std::string turn = "\n<|im_start|>user\nSay the color:";
             while (warm->count_tokens(turn + end) < 80)
                 turn += word;
             last_turn = turn + end;
@@ -1044,7 +1044,7 @@ TEST_CASE("Session: repeated hybrid shifts match a cold continuation") {
             REQUIRE(warm->can_context_shift());
             first = false;
         }
-        const auto probe = greedy_turn(" What word?", true, false);
+        const auto probe = greedy_turn("\n<|im_start|>assistant\nThe color is", true, false);
         const auto shifted = warm->generate(probe);
         REQUIRE_MESSAGE(shifted.success, shifted.error_msg);
         REQUIRE(shifted.n_eval > 0);
