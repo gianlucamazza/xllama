@@ -349,6 +349,10 @@ inline uint64_t download_peak_bytes(const std::vector<DownloadSpaceFile>& files)
         const uint64_t backup_growth = file.live > released ? file.live - released : 0;
         const uint64_t after = required > released ? required - released : 0;
         required = add(file.incoming, std::max(backup_growth, after));
+        // A saturated suffix may exceed the representable limit. Earlier
+        // backup credits must not turn that unknown peak into an admission.
+        if (required == UINT64_MAX)
+            return required;
     }
     return required;
 }
@@ -366,10 +370,8 @@ inline DownloadSpaceCheck check_download_space(uint64_t need_bytes, uint64_t ava
     c.available_bytes = available_bytes;
     if (need_bytes == 0)
         return c;
-    const uint64_t with_margin = need_bytes > UINT64_MAX - kDownloadSpaceMarginBytes
-                                     ? UINT64_MAX
-                                     : need_bytes + kDownloadSpaceMarginBytes;
-    c.ok = available_bytes >= with_margin;
+    c.ok =
+        available_bytes >= need_bytes && available_bytes - need_bytes >= kDownloadSpaceMarginBytes;
     return c;
 }
 

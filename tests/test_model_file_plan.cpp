@@ -374,6 +374,7 @@ TEST_CASE("download space includes simultaneous staging and rollback storage") {
     CHECK(download_peak_bytes({{96, 96, 0}, {80, 70, 0}}) == 246);
     CHECK(download_peak_bytes({{20, 0, 40}, {90, 0, 0}}) == 110);
     CHECK(download_peak_bytes({{UINT64_MAX, 0, 0}, {1, 1, 0}}) == UINT64_MAX);
+    CHECK(download_peak_bytes({{1, 1, 100}, {UINT64_MAX, 0, 0}, {200, 0, 0}}) == UINT64_MAX);
     CHECK(download_peak_bytes({}) == 0);
 }
 
@@ -390,6 +391,7 @@ TEST_CASE("check_download_space requires the plan plus the margin") {
 
     // Overflow of need + margin must not wrap into a pass.
     CHECK_FALSE(check_download_space(UINT64_MAX - 1, UINT64_MAX - 2).ok);
+    CHECK_FALSE(check_download_space(UINT64_MAX, UINT64_MAX).ok);
 
     const DownloadSpaceCheck c = check_download_space(need, 100);
     CHECK(c.need_bytes == need);
