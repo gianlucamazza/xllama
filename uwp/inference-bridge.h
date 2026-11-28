@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <cstddef>
+
 #include "xllama/device_train.h"
 #include "xllama/inference.h"
 #include "xllama/inference_params.h"
@@ -85,7 +87,7 @@ void run_mic_probe();
 // Diffusion pipeline (SD-Turbo on plain ORT DirectML). Triggered by
 // LocalFolder\diffuse.flag (headless) or diffuse-inproc.flag (in-process
 // experiment) — see diffuse.cpp for the model contract.
-void run_diffuse();
+std::size_t run_diffuse();
 
 // Logit-parity dump: greedy 1-token forward pass on the ORT backend, writing the
 // last prefill-token logits to LocalState\logits.bin (+ .json sidecar, + a

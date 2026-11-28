@@ -2277,18 +2277,18 @@ std::string handle_images_locked(const std::string& body, const char*& status) {
             ::xllama::session_hub(), ::xllama::working_set_mb(), ::xllama::app_memory_limit_mb()))
         ::xllama::log_output(
             "[xllama] api: released the resident chat model to fit the image pipeline\n");
-    ::xllama::bridge::run_diffuse();
+    const auto png_size = ::xllama::bridge::run_diffuse();
 
     const std::string stage = ::xllama::read_local_text("diffuse-progress.txt");
-    if (stage != "done") {
+    if (!png_size) {
         status = "500 Internal Server Error";
         return error_json(std::string("image generation failed: stage=") + stage);
     }
     const std::string png_path = ::xllama::resolve_local_path("diffuse-out.png");
     const std::string png = read_file_bytes(png_path);
-    if (png.empty()) {
+    if (png.size() != png_size) {
         status = "500 Internal Server Error";
-        return error_json("diffuse-out.png missing after generation");
+        return error_json("diffuse-out.png incomplete after generation");
     }
 
     JsonObject item;

@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <mutex>
+#include <optional>
 #include <string_view>
 
 namespace xllama {
@@ -17,7 +18,8 @@ inline std::mutex& atomic_file_mutex() {
 }
 
 template <typename Writer>
-bool replace_file_checked(const std::filesystem::path& target, Writer write) {
+bool replace_file_checked(const std::filesystem::path& target, Writer write,
+                          std::optional<std::uintmax_t> expected_size = {}) {
     std::lock_guard<std::mutex> lock(atomic_file_mutex());
     auto staged = target;
     staged += ".tmp";
@@ -37,7 +39,8 @@ bool replace_file_checked(const std::filesystem::path& target, Writer write) {
         std::filesystem::remove(staged, ec);
         throw;
     }
-    if (std::fclose(file) == 0 && ok) {
+    if (std::fclose(file) == 0 && ok &&
+        (!expected_size || (std::filesystem::file_size(staged, ec) == *expected_size && !ec))) {
         std::filesystem::rename(staged, target, ec);
         if (!ec)
             return true;
