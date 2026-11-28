@@ -34,6 +34,12 @@ struct Conversation {
     std::vector<ChatMessage> messages;
 };
 
+struct ChatDeletion {
+    std::vector<std::string> removed_ids; // bodies confirmed absent
+    bool all_removed = false;
+    bool index_pending = false; // a journal will retry the index update
+};
+
 // ---------------------------------------------------------------------------
 // ChatHistory — persists conversations under LocalState/chats/
 // ---------------------------------------------------------------------------
@@ -62,10 +68,10 @@ class ChatHistory {
     }
 
     // Delete a single conversation (removes JSON file + updates index).
-    void Delete(const std::string& id);
+    ChatDeletion Delete(const std::string& id);
 
     // Delete all conversations (removes all JSON files + clears index).
-    void Clear();
+    ChatDeletion Clear();
 
     // Derive conversation id from title (for new convos: generate UUID).
 #ifdef XLLAMA_UWP
@@ -78,6 +84,8 @@ class ChatHistory {
   private:
     bool ReadIndex();
     void UpdateMeta(ConversationMeta meta);
+    ChatDeletion RemoveChats(std::vector<std::string> ids);
+    void RemoveMetadata(std::vector<std::string>& ids);
     bool SaveIndex();
     std::filesystem::path ConvPath(const std::string& id) const;
 

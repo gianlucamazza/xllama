@@ -411,7 +411,11 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
         auto cr = co_await confirm.ShowAsync();
         if (cr == winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary) {
             bool was_current = (id_to_delete == self->m_current.id);
-            self->m_history.Delete(id_to_delete);
+            const auto deletion = self->m_history.Delete(id_to_delete);
+            if (!deletion.all_removed) {
+                self->SetStatus(L"Could not delete conversation", StatusKind::Error);
+                co_return;
+            }
             kv_store().erase(id_to_delete); // #170b: no orphan snapshot
             if (was_current) {
                 // Drop the in-memory copy FIRST: NewChat starts by saving the
@@ -421,7 +425,9 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
                 self->m_current = xllama::ui::Conversation{};
                 self->NewChat();
             }
-            self->SetStatus(L"Conversation deleted");
+            self->SetStatus(deletion.index_pending
+                                ? L"Conversation deleted. History update pending."
+                                : L"Conversation deleted");
         }
         co_return;
     }
@@ -440,15 +446,29 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
         ApTrackDialog(confirm);
         auto cr = co_await confirm.ShowAsync();
         if (cr == winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary) {
-            self->m_history.Clear();
-            // #170b: snapshots are per-conversation caches — clearing the
-            // history must not leave their bytes on disk.
-            kv_store().prune(/*max_files=*/0, /*max_bytes=*/0);
-            // Same trap as the single delete: NewChat would save the current
-            // conversation back into the history we just cleared.
-            self->m_current = xllama::ui::Conversation{};
-            self->NewChat();
-            self->SetStatus(L"All conversations cleared");
+            const auto deletion = self->m_history.Clear();
+            if (deletion.all_removed) {
+                kv_store().prune(/*max_files=*/0, /*max_bytes=*/0);
+            } else {
+                for (const auto& id : deletion.removed_ids)
+                    kv_store().erase(id);
+            }
+            if (deletion.all_removed ||
+                std::find(deletion.removed_ids.begin(), deletion.removed_ids.end(),
+                          self->m_current.id) != deletion.removed_ids.end()) {
+                // NewChat saves the active conversation. Drop a confirmed deletion first.
+                self->m_current = xllama::ui::Conversation{};
+                self->NewChat();
+            }
+            if (!deletion.all_removed)
+                self->SetStatus(deletion.index_pending
+                                    ? L"Could not delete all conversations. History update pending."
+                                    : L"Could not delete all conversations",
+                                StatusKind::Error);
+            else
+                self->SetStatus(deletion.index_pending
+                                    ? L"Conversations cleared. History update pending."
+                                    : L"All conversations cleared");
         }
         co_return;
     }
