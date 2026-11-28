@@ -7,12 +7,14 @@
 // proposal render for the effective decision, against the real templates.
 #include "xllama/chat_prompt.h"
 #include "xllama/reasoning_control.h"
+#include "xllama/session.h"
 #include "xllama/thinking_split.h"
 #include "xllama/tool_request.h"
 #include "xllama/tool_template.h"
 
 #include <doctest/doctest.h>
 
+#include <cstdlib>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -53,6 +55,8 @@ TEST_CASE("reasoning control: which models a request can switch") {
     const Row rows[] = {
         // Hybrid templates with a thinking and a no-think path.
         {"qwen3-4b", false, true},
+        {"gemma4-e2b", false, true},
+        {"gemma-4-E2B-it-Q3_K_S.gguf", false, true},
         {"qwen3-1.7b", false, true},
         {"Qwen3-4B-Q4_K_M.gguf", false, true},
         {"qwen35-0.8b", false, true},
@@ -68,7 +72,7 @@ TEST_CASE("reasoning control: which models a request can switch") {
         {"lfm25-350m", false, false},
         {"qwen25-coder-1.5b", false, false},
         {"llama32-3b", false, false},
-        {"gemma4-e2b", false, false}, // its thought channel is not split in plain chat
+        {"gemma4-e4b", false, false}, // different checkpoint/template
         {"smollm2-360m-cpu-int4", false, false},
         {"embed-bge-m3", false, false},
     };
@@ -81,7 +85,8 @@ TEST_CASE("reasoning control: which models a request can switch") {
 
 TEST_CASE("reasoning control: decision per model family and request") {
     using S = ReasoningSwitch;
-    const char* controllable[] = {"qwen3-4b", "qwen35-0.8b", "minicpm5-1b", "smollm3-3b"};
+    const char* controllable[] = {"qwen3-4b", "qwen35-0.8b", "minicpm5-1b", "smollm3-3b",
+                                  "gemma4-e2b"};
     for (const char* id : controllable) {
         CAPTURE(id);
         CHECK_FALSE(decide_reasoning(id, ReasoningFields{}).thinking); // default: off
@@ -104,7 +109,7 @@ TEST_CASE("reasoning control: decision per model family and request") {
     }
 
     // No reasoning: off restates, on is refused.
-    for (const char* id : {"lfm25-350m", "gemma4-e2b", "qwen25-coder-1.5b"}) {
+    for (const char* id : {"lfm25-350m", "gemma3-270m", "qwen25-coder-1.5b"}) {
         CAPTURE(id);
         CHECK(decide_reasoning(id, effort(S::Off)).error.empty());
         ReasoningFields on;
@@ -238,7 +243,7 @@ TEST_CASE("reasoning control: plain chat renders the effective decision") {
     }
     SUBCASE("a template without a switch renders the same either way") {
         CHECK(plain_prompt("lfm25-350m", true) == plain_prompt("lfm25-350m", false));
-        CHECK(plain_prompt("gemma4-e2b", true) == plain_prompt("gemma4-e2b", false));
+        CHECK(plain_prompt("gemma3-270m", true) == plain_prompt("gemma3-270m", false));
     }
 }
 
@@ -293,4 +298,130 @@ TEST_CASE("reasoning control: a tool proposal renders the same decision as plain
     REQUIRE_FALSE(a1b.empty());
     CHECK_FALSE(ends_with(tool_prompt(a1b, decide_reasoning("lfm25-8b-a1b", {}).thinking),
                           "<think>\n\n</think>\n\n"));
+}
+
+TEST_CASE("reasoning control: Gemma 4 E2B thought channel is request-local") {
+    const auto on = chat_format_for("gemma4-e2b", true);
+    const auto off = chat_format_for("gemma4-e2b");
+    CHECK(on.render_system_prefix("sys") == "<|turn>system\n<|think|>\nsys<turn|>\n");
+    CHECK(off.render_system_prefix("sys") == "<|turn>system\nsys<turn|>\n");
+    CHECK(on.render_delta("next", true) == off.render_delta("next", true));
+    CHECK(on.reasoning_prefill().empty());
+    const std::string raw = "<|channel>thought\nplan<channel|>answer";
+    const auto buffered = on.split_output(raw);
+    CHECK(buffered.content == "answer");
+    CHECK(buffered.reasoning == "plan");
+    CHECK(on.split_output("<|channel>thought\npartial").content.empty());
+    CHECK(on.split_output("<think>literal</think>").content == "<think>literal</think>");
+    CHECK(chat_format_for("qwen3-4b", true).split_output(raw).content == raw);
+    for (size_t boundary = 0; boundary <= raw.size(); ++boundary) {
+        ThinkingStreamSplitter stream(on.reasoning_prefill(), on.thinking_markup);
+        const auto first = stream.push(std::string_view(raw).substr(0, boundary));
+        const auto second = stream.push(std::string_view(raw).substr(boundary));
+        const auto tail = stream.finish();
+        CHECK(first.content + second.content + tail.content == buffered.content);
+        CHECK(first.reasoning + second.reasoning + tail.reasoning == buffered.reasoning);
+    }
+    ReasoningTokenCounter counter(on.reasoning_prefill(), on.thinking_markup);
+    for (const auto* piece : {"<|channel>", "thought", "\n", "plan", "<channel|>", "answer"})
+        counter.push(piece);
+    CHECK(counter.count(true) == 5);
+    const auto assembled =
+        assemble_choice(raw, "answer", {}, false, true, "plan", on.thinking_markup);
+    CHECK(assembled.content == "answer");
+    CHECK(assembled.reasoning == "plan");
+    const auto continuation =
+        thinking_prefill_at_end("response<|channel>thought\n", on.thinking_markup);
+    REQUIRE_FALSE(continuation.empty());
+    const auto cut =
+        assemble_choice("partial", "", {}, true, true, "", on.thinking_markup, continuation);
+    CHECK(cut.content.empty());
+    CHECK(cut.reasoning == "partial");
+    ReasoningTokenCounter resumed(continuation, on.thinking_markup);
+    resumed.push("partial");
+    CHECK(resumed.count(true) == 1);
+}
+
+TEST_CASE("reasoning control: Gemma 4 E2B catalogue template renders plain and tool requests") {
+    const char* path = std::getenv("XLLAMA_TEST_GEMMA4_GGUF");
+    if (!path || !*path)
+        return;
+    const std::string jinja = gguf_chat_template(path);
+    REQUIRE_FALSE(jinja.empty());
+    std::vector<ChatMessage> messages(4);
+    messages[0].role = ChatRole::System;
+    messages[0].content = "sys";
+    messages[1].role = ChatRole::User;
+    messages[1].content = "hi";
+    messages[2].role = ChatRole::Assistant;
+    messages[2].content = "hello";
+    messages[3].role = ChatRole::User;
+    messages[3].content = "ping please";
+    ToolSpec ping;
+    ping.name = "ping";
+    ping.parameters_json = R"({"type":"object","properties":{}})";
+    for (const bool on : {false, true}) {
+        const auto decision =
+            decide_reasoning("gemma4-e2b", effort(on ? ReasoningSwitch::On : ReasoningSwitch::Off));
+        REQUIRE(decision.error.empty());
+        const auto plain = render_tool_prompt(nullptr, decision.thinking, jinja, messages, {},
+                                              ToolChoice::Auto, "");
+        REQUIRE_MESSAGE(plain.ok, plain.error);
+        CHECK(plain.prompt == plain_prompt("gemma4-e2b", on));
+        const auto tools = render_tool_prompt(nullptr, decision.thinking, jinja, messages, {ping},
+                                              ToolChoice::Auto, "");
+        REQUIRE_MESSAGE(tools.ok, tools.error);
+        CHECK((tools.prompt.find("<|think|>") != std::string::npos) == on);
+    }
+}
+
+TEST_CASE("reasoning control: Gemma 4 E2B GGUF generates both request modes") {
+    const char* path = std::getenv("XLLAMA_TEST_GEMMA4_GGUF");
+    if (!path || !*path)
+        return;
+    SessionParams settings;
+    settings.model_path = path;
+    settings.backend = Backend::LlamaCpp;
+    settings.n_ctx = 512;
+    settings.n_threads = 4;
+    std::string error;
+    auto session = Session::create(settings, &error);
+    REQUIRE_MESSAGE(session != nullptr, error);
+    for (const bool on : {false, true}) {
+        CAPTURE(on);
+        const auto fmt = chat_format_for("gemma4-e2b", on);
+        GenerateParams gp;
+        gp.prompt =
+            fmt.render_prompt("You are a helpful AI assistant.", {},
+                              "A bat and a ball cost one dollar ten cents together. The bat costs "
+                              "one dollar more than the ball. How many cents does the ball cost?");
+        gp.n_predict = 48;
+        gp.temperature = 0;
+        gp.reset_kv = true;
+        gp.stop_sequences = fmt.stop_sequences;
+        ThinkingStreamSplitter stream(fmt.reasoning_prefill(), fmt.thinking_markup);
+        ReasoningTokenCounter tokens(fmt.reasoning_prefill(), fmt.thinking_markup);
+        ThinkingSplit emitted;
+        gp.on_token = [&](std::string_view piece) {
+            tokens.push(piece);
+            const auto part = stream.push(piece);
+            emitted.reasoning += part.reasoning;
+            emitted.content += part.content;
+        };
+        const auto generated = session->generate(gp);
+        REQUIRE_MESSAGE(generated.success, generated.error_msg);
+        const auto tail = stream.finish();
+        emitted.reasoning += tail.reasoning;
+        emitted.content += tail.content;
+        const auto final = fmt.split_output(generated.output_text);
+        if (!on)
+            CHECK_FALSE(final.content.empty());
+        if (final.content.empty())
+            CHECK(generated.hit_token_limit(gp.n_predict));
+        CHECK(fmt.postprocess_output(emitted.content) == final.content);
+        CHECK(emitted.content.find("<|channel>") == std::string::npos);
+        CHECK(final.reasoning.empty() == !on);
+        CHECK(emitted.reasoning.empty() == !on);
+        CHECK((tokens.count(fmt.strip_thinking_content) > 0) == on);
+    }
 }

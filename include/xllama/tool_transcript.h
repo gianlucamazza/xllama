@@ -6,6 +6,8 @@
 // template bridge is the only place that touches llama.cpp.
 #pragma once
 
+#include "xllama/thinking_split.h"
+
 #include <string>
 #include <vector>
 
@@ -93,6 +95,8 @@ struct ChoiceAssembly {
 ChoiceAssembly assemble_choice(const std::string& raw_text, const std::string& parsed_text,
                                const std::vector<IncomingCall>& calls, bool hit_cap,
                                bool strip_thinking = false,
-                               const std::string& parsed_reasoning = {});
+                               const std::string& parsed_reasoning = {},
+                               ThinkingMarkup markup = ThinkingMarkup::ThinkTags,
+                               std::string_view prefill = {});
 
 } // namespace xllama

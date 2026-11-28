@@ -39,6 +39,9 @@ bool model_is_gemma(const std::string& model_id);
 // <start_of_turn> / <end_of_turn> with <|turn> / <turn|> and has a system turn.
 bool model_is_gemma4(const std::string& model_id);
 
+// The catalogue E2B instruction checkpoint with the qualified thought-channel template.
+bool model_is_gemma4_e2b_it(const std::string& model_id);
+
 // True for Llama / Llama-3.x catalogue ids or filenames (substring "llama",
 // case-insensitive). Used to select the Llama-3 instruct header template.
 bool model_is_llama(const std::string& model_id);
@@ -166,6 +169,7 @@ struct ChatFormat {
     // (the format renders the thinking path). Empty-think stripping for a
     // no-think prefill always runs.
     bool strip_thinking_content = false;
+    ThinkingMarkup thinking_markup = ThinkingMarkup::ThinkTags;
 
     // The generation prefill opens the reasoning block (gen_suffix ends with
     // "<think>\n": the Qwen3.5 and MiniCPM5 templates with thinking on), so

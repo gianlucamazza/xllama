@@ -20,9 +20,10 @@ namespace xllama {
 // that does not reason by default (model_is_thinking false) whose template
 // has a thinking path and a no-think path that chat_format_for renders —
 // Qwen3 and Qwen3.5 hybrids (not Qwen3 Coder or Instruct ids, which have no
-// thinking path), MiniCPM5 and SmolLM3. False for a thinking-only model
+// thinking path), MiniCPM5, SmolLM3 and the catalogue Gemma 4 E2B IT checkpoint.
+// False for a thinking-only model
 // (LFM2.5 Thinking, lfm25-8b-a1b: no off switch), for a model without
-// reasoning, and for Gemma 4 (plain chat does not split its thought channel).
+// reasoning, and for unqualified Gemma checkpoints.
 // /v1/models reports it as capabilities.reasoning_control.
 bool model_supports_reasoning_control(const std::string& model_id);
 

@@ -9,6 +9,15 @@ namespace xllama {
 
 namespace {
 
+struct Delimiters {
+    std::string_view open, close;
+};
+Delimiters delimiters(ThinkingMarkup markup) {
+    if (markup == ThinkingMarkup::GemmaChannel)
+        return {"<|channel>thought\n", "<channel|>"};
+    return {kThinkOpenTag, kThinkCloseTag};
+}
+
 std::string trimmed(std::string_view s) {
     size_t b = 0, e = s.size();
     while (b < e && std::isspace(static_cast<unsigned char>(s[b])))
@@ -38,52 +47,62 @@ size_t partial_tag_suffix(std::string_view text, std::string_view tag) {
 
 } // namespace
 
-std::vector<TextSpan> thinking_spans(std::string_view text) {
+std::string_view thinking_prefill_at_end(std::string_view prompt, ThinkingMarkup markup) {
+    const auto open = delimiters(markup).open;
+    if (markup == ThinkingMarkup::ThinkTags && !prompt.empty() && prompt.back() == '\n')
+        prompt.remove_suffix(1);
+    if (prompt.size() >= open.size() && prompt.substr(prompt.size() - open.size()) == open)
+        return open;
+    return {};
+}
+
+std::vector<TextSpan> thinking_spans(std::string_view text, ThinkingMarkup markup) {
+    const auto tags = delimiters(markup);
     std::vector<TextSpan> spans;
     size_t pos = 0;
     // Starts inside the reasoning: a closer before any opener.
-    const size_t first_close = text.find(kThinkCloseTag);
-    const size_t first_open = text.find(kThinkOpenTag);
-    if (first_close != std::string_view::npos &&
+    const size_t first_close = text.find(tags.close);
+    const size_t first_open = text.find(tags.open);
+    if (markup == ThinkingMarkup::ThinkTags && first_close != std::string_view::npos &&
         (first_open == std::string_view::npos || first_open > first_close)) {
-        pos = first_close + kThinkCloseTag.size();
+        pos = first_close + tags.close.size();
         spans.push_back({0, pos});
     }
     for (;;) {
-        const size_t o = text.find(kThinkOpenTag, pos);
+        const size_t o = text.find(tags.open, pos);
         if (o == std::string_view::npos)
             break;
-        const size_t c = text.find(kThinkCloseTag, o + kThinkOpenTag.size());
+        const size_t c = text.find(tags.close, o + tags.open.size());
         if (c == std::string_view::npos) {
             spans.push_back({o, text.size()}); // cut off mid-thought
             break;
         }
-        pos = c + kThinkCloseTag.size();
+        pos = c + tags.close.size();
         spans.push_back({o, pos});
     }
     return spans;
 }
 
-ThinkingSplit split_thinking(std::string_view text) {
+ThinkingSplit split_thinking(std::string_view text, ThinkingMarkup markup) {
+    const auto tags = delimiters(markup);
     ThinkingSplit out;
     std::string content;
     size_t pos = 0;
-    for (const TextSpan& span : thinking_spans(text)) {
+    for (const TextSpan& span : thinking_spans(text, markup)) {
         content.append(text.substr(pos, span.begin - pos));
         std::string_view block = text.substr(span.begin, span.end - span.begin);
-        if (block.substr(0, kThinkOpenTag.size()) == kThinkOpenTag)
-            block.remove_prefix(kThinkOpenTag.size());
-        if (block.size() >= kThinkCloseTag.size() &&
-            block.substr(block.size() - kThinkCloseTag.size()) == kThinkCloseTag)
-            block.remove_suffix(kThinkCloseTag.size());
+        if (block.substr(0, tags.open.size()) == tags.open)
+            block.remove_prefix(tags.open.size());
+        if (block.size() >= tags.close.size() &&
+            block.substr(block.size() - tags.close.size()) == tags.close)
+            block.remove_suffix(tags.close.size());
         append_block(out.reasoning, block);
         pos = span.end;
     }
     content.append(text.substr(pos));
     // Stray closers left in the content are tags, not boundaries.
-    for (size_t c = content.find(kThinkCloseTag); c != std::string::npos;
-         c = content.find(kThinkCloseTag))
-        content.erase(c, kThinkCloseTag.size());
+    for (size_t c = content.find(tags.close); c != std::string::npos; c = content.find(tags.close))
+        content.erase(c, tags.close.size());
     out.content = trimmed(content);
     return out;
 }
@@ -96,7 +115,7 @@ void ReasoningTokenCounter::push(std::string_view piece) {
 int ReasoningTokenCounter::count(bool think_blocks, std::string_view parsed_reasoning) const {
     std::vector<TextSpan> spans;
     if (think_blocks)
-        spans = thinking_spans(m_text);
+        spans = thinking_spans(m_text, m_markup);
     if (!parsed_reasoning.empty()) {
         const size_t at = m_text.find(parsed_reasoning);
         if (at != std::string::npos) {
@@ -106,7 +125,7 @@ int ReasoningTokenCounter::count(bool think_blocks, std::string_view parsed_reas
         }
     }
     int n = 0;
-    size_t begin = 0;
+    size_t begin = m_prefill_bytes;
     size_t s = 0;
     for (const size_t end : m_ends) {
         // Spans sorted by begin; skip those that end at or before this token.
@@ -142,16 +161,17 @@ void ThinkingStreamSplitter::emit(std::string_view text, ThinkingSplit& out) {
 }
 
 ThinkingSplit ThinkingStreamSplitter::push(std::string_view piece) {
+    const auto tags = delimiters(m_markup);
     ThinkingSplit out;
     m_held.append(piece);
     for (;;) {
-        const std::string_view tag = m_in_reasoning ? kThinkCloseTag : kThinkOpenTag;
+        const std::string_view tag = m_in_reasoning ? tags.close : tags.open;
         const size_t at = m_held.find(tag);
         // Outside a block a stray closer is dropped, as split_thinking does.
-        const size_t stray = m_in_reasoning ? std::string::npos : m_held.find(kThinkCloseTag);
+        const size_t stray = m_in_reasoning ? std::string::npos : m_held.find(tags.close);
         if (stray != std::string::npos && (at == std::string::npos || stray < at)) {
             emit(std::string_view(m_held).substr(0, stray), out);
-            m_held.erase(0, stray + kThinkCloseTag.size());
+            m_held.erase(0, stray + tags.close.size());
             continue;
         }
         if (at == std::string::npos)
@@ -162,9 +182,9 @@ ThinkingSplit ThinkingStreamSplitter::push(std::string_view piece) {
     }
     // Hold a suffix that could still become a tag (the open or, outside a
     // block, a stray close tag).
-    size_t hold = partial_tag_suffix(m_held, m_in_reasoning ? kThinkCloseTag : kThinkOpenTag);
+    size_t hold = partial_tag_suffix(m_held, m_in_reasoning ? tags.close : tags.open);
     if (!m_in_reasoning)
-        hold = std::max(hold, partial_tag_suffix(m_held, kThinkCloseTag));
+        hold = std::max(hold, partial_tag_suffix(m_held, tags.close));
     emit(std::string_view(m_held).substr(0, m_held.size() - hold), out);
     m_held.erase(0, m_held.size() - hold);
     return out;
