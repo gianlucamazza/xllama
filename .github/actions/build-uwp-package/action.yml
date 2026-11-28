@@ -136,11 +136,21 @@ runs:
         }
         ./scripts/build-uwp.ps1 @buildArgs
 
+    - name: Inventory the signed Developer Mode MSIX
+      if: inputs.variant == 'unified' && inputs.store_sku == 'false'
+      shell: pwsh
+      run: |
+        $packages = @(Get-ChildItem uwp/AppPackages -Filter *.msix -File -Recurse)
+        if ($packages.Count -ne 1) { throw "Expected exactly one signed unified MSIX." }
+        $env:SOURCE_DATE_EPOCH = git show -s --format=%ct HEAD
+        python scripts/msix_sbom.py ($packages[0].FullName) --build-inputs .
+
     - uses: actions/upload-artifact@v7
       with:
         name: ${{ inputs.artifact }}
         path: |
           uwp/AppPackages/**/*.msix
+          uwp/AppPackages/**/*.msix.spdx.json
           uwp/AppPackages/**/*.appx
           uwp/xllama-test.cer
         retention-days: 14
