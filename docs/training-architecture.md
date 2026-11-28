@@ -361,6 +361,11 @@ harness path.
    `LocalState\models\personalized\model.gguf`, a LocalState `manifest.json`
    override registers catalogue id **`personalized`**, and Settings selects it.
 
+Publication preserves unrelated LocalState catalogue overrides. It stages the merged weights,
+manifest and completion marker under the model writer permit. Startup rolls an interrupted
+promotion back before constructing the GUI or LAN controller. A failed publication leaves
+training and publication as distinct outcomes in the UI.
+
 ### Code map
 
 | Piece                                               | Location                                                                 |

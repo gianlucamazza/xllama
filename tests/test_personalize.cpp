@@ -6,6 +6,7 @@
 
 #include <doctest/doctest.h>
 
+#include <chrono>
 #include <cstdio>
 #include <fstream>
 #include <string>
@@ -153,4 +154,51 @@ TEST_CASE("personalized manifest preserves other overrides and refuses invalid l
     CHECK(std::string(std::istreambuf_iterator<char>(invalid), {}) == "{bad");
     invalid.close();
     std::filesystem::remove(path);
+}
+
+TEST_CASE("personalized model publication restores all three files after interruption") {
+    namespace fs = std::filesystem;
+    const auto root = fs::temp_directory_path() /
+                      ("xllama-publish-" +
+                       std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    fs::create_directories(root);
+    const auto merged = root / "merged.gguf";
+    const auto manifest = root / "manifest.json";
+    const auto dir = root / "models" / "personalized";
+    const auto model = dir / "model.gguf";
+    const auto marker = dir / ".complete";
+    const auto read = [](const fs::path& path) {
+        std::ifstream in(path, std::ios::binary);
+        return std::string(std::istreambuf_iterator<char>(in), {});
+    };
+    std::ofstream(manifest) << R"({"models":[{"name":"custom"}]})";
+    std::ofstream(merged) << "trained generation";
+    std::string error;
+    REQUIRE(publish_personalized_model(root, merged, &error));
+    const auto previous_manifest = read(manifest);
+    CHECK(previous_manifest.find("custom") != previous_manifest.npos);
+    REQUIRE(read(model) == "trained generation");
+    REQUIRE(read(marker) == "ok");
+
+    const auto journal = dir / ".publish-pending";
+    fs::create_directory(journal);
+    fs::rename(model, journal / "old-model");
+    fs::copy_file(manifest, journal / "old-manifest");
+    fs::copy_file(marker, journal / "old-marker");
+    std::ofstream(model) << "interrupted generation";
+    std::ofstream(manifest) << "interrupted manifest";
+    fs::remove(marker);
+    REQUIRE(recover_personalized_publication(root, &error));
+    CHECK(read(model) == "trained generation");
+    CHECK(read(manifest) == previous_manifest);
+    CHECK(read(marker) == "ok");
+    REQUIRE(recover_personalized_publication(root, &error));
+
+    std::ofstream(manifest) << "invalid existing override";
+    std::ofstream(merged) << "next generation";
+    CHECK_FALSE(publish_personalized_model(root, merged, &error));
+    CHECK(read(model) == "trained generation");
+    CHECK(read(manifest) == "invalid existing override");
+    CHECK(read(marker) == "ok");
+    fs::remove_all(root);
 }

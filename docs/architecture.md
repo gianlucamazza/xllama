@@ -1149,7 +1149,7 @@ flags are supported:
 `ChatHistory` (`uwp/chat-history.h`) persists conversations as JSON files under
 `LocalState\chats\<id>.json` (`id`, `title`, `messages[]` with `role`, `content`,
 `ts_unix`, `partial`, `feedback_label`). An `index.json` (sorted by
-`last_modified` desc) drives the History dialog. `TitleFrom()` takes the first
+`last_modified` desc) drives the History dialog. A save stages and checks the conversation before replacing it, then stages and replaces the index. A per-chat `.pending` file lets the next index load reconcile a save interrupted between the replacements. `TitleFrom()` takes the first
 non-empty line of the first user message (truncated at 60 chars). IDs use
 `CoCreateGuid`.
 

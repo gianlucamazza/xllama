@@ -45,65 +45,16 @@ std::string MainPageController::ResolvePersonalizeBase() const {
 
 bool MainPageController::PublishPersonalizedModel(const std::string& merged_gguf_path,
                                                   std::string* err) {
-    if (merged_gguf_path.empty()) {
-        if (err)
-            *err = "empty merged.gguf path";
-        return false;
-    }
-    const std::wstring src = ::xllama::utf8_to_wstring(merged_gguf_path);
-    if (GetFileAttributesW(src.c_str()) == INVALID_FILE_ATTRIBUTES) {
-        if (err)
-            *err = "merged.gguf not found: " + merged_gguf_path;
-        return false;
-    }
-
-    // LocalState\models\personalized\model.gguf + .complete
-    CreateDirectoryW(local_wpath(L"models").c_str(), nullptr);
-    const std::wstring dest_dir = local_wpath(L"models\\personalized");
-    CreateDirectoryW(dest_dir.c_str(), nullptr);
-    const std::wstring dest = dest_dir + L"\\model.gguf";
-    ModelWriteOperation writer(ModelDownloader::WriterGate(), dest_dir);
-    if (!writer.owns_lock()) {
+    auto permit = ModelDownloader::WriterGate().try_acquire();
+    if (!permit.owns_lock()) {
         if (err)
             *err = "Another model write is in progress";
         return false;
     }
-    const auto stage = dest + L".part";
-    std::error_code ec;
-    if (!std::filesystem::copy_file(src, stage, std::filesystem::copy_options::overwrite_existing,
-                                    ec)) {
-        if (err)
-            *err = "Could not stage the personalized model: " + ec.message();
-        std::filesystem::remove(stage, ec);
+    const auto root = winrt::Windows::Storage::ApplicationData::Current().LocalFolder().Path();
+    if (!publish_personalized_model(std::filesystem::path(root.c_str()),
+                                    std::filesystem::u8path(merged_gguf_path), err))
         return false;
-    }
-    const auto size = std::filesystem::file_size(stage, ec);
-    if (ec || !size) {
-        if (err)
-            *err = "Staged personalized model is empty or unreadable";
-        std::filesystem::remove(stage, ec);
-        return false;
-    }
-    if (!writer.begin(ec)) {
-        if (err)
-            *err = "Could not prepare the personalized model: " + ec.message();
-        std::filesystem::remove(stage, ec);
-        return false;
-    }
-    std::filesystem::rename(stage, dest, ec);
-    if (ec) {
-        if (err)
-            *err = "Could not replace the personalized model: " + ec.message();
-        std::filesystem::remove(stage, ec);
-        return false;
-    }
-    if (!publish_personalized_manifest(local_wpath(L"manifest.json"), size, err))
-        return false;
-    if (!writer.complete({L"model.gguf"}, ec)) {
-        if (err)
-            *err = "Could not complete personalized model publication: " + ec.message();
-        return false;
-    }
     InvalidateManifestCache(); // catalogue changed — StartInference reads the cache
     return true;
 }
