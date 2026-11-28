@@ -327,6 +327,22 @@ class AmendmentTests(Base):
                  "min_positions": 60, "bootstrap": 200, "seed": 1, **bad}
             self.assertEqual(self.run_cmp(*base, self.decl2(distribution=d)).returncode, 2, bad)
 
+    def test_distribution_requires_exact_float32_dump_length(self):
+        console = self.arm("console", 0.0)
+        host = self.arm("host", 0.05)
+        gpu = self.arm("gpu", 0.0)
+        args = ("distribution", "--cpu-console", console, "--cpu-host", host,
+                "--gpu", gpu, "--declaration", self.decl2())
+        self.assertEqual(self.run_cmp(*args).returncode, 0)
+        path = gpu / "p3.bin.positions.bin"
+        valid = path.read_bytes()
+        for delta in (-4, -3, -2, -1, 1, 2, 3, 4):
+            with self.subTest(byte_delta=delta):
+                path.write_bytes(valid[:delta] if delta < 0 else valid + bytes(delta))
+                result = self.run_cmp(*args)
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIn("size does not match", result.stdout)
+
     def test_an_undefined_ratio_is_written_as_standard_json(self):
         self.arm("console", 0.0)
         self.arm("host", 0.0)  # identical to the console arm: the floor is zero

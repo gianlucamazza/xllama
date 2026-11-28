@@ -80,6 +80,7 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import re
 import sys
 from pathlib import Path
@@ -521,12 +522,16 @@ def load_positions(directory: Path, pid: str, sha: str):
     if positions[0] < 0 or any(b <= a for a, b in zip(positions, positions[1:])):
         raise Invalid(f"{base}.json: positions must be distinct and increasing")
     path = Path(str(base) + ".bin")
+    count = len(positions) * vocab
     try:
-        data = np.fromfile(path, dtype=np.float32)
+        with path.open("rb") as dump:
+            if os.fstat(dump.fileno()).st_size != count * np.dtype(np.float32).itemsize:
+                raise Invalid(f"{path}: size does not match {len(positions)} x {vocab} float32")
+            data = np.fromfile(dump, dtype=np.float32, count=count)
+            if data.size != count or dump.read(1):
+                raise Invalid(f"{path}: size changed while reading the dump")
     except OSError as e:
-        raise Invalid(f"missing dump {path}: {e}") from None
-    if data.size != vocab * len(positions):
-        raise Invalid(f"{path}: size does not match {len(positions)} x {vocab}")
+        raise Invalid(f"unable to read dump {path}: {e}") from None
     if not np.all(np.isfinite(data)):
         raise Invalid(f"non-finite logits: {path}")
     return data.reshape(len(positions), vocab), positions
