@@ -77,6 +77,20 @@ class ModelWriteOperation {
         m_permit.release();
     }
 
+    // A retry replaces the staging file instead of resuming its contents.
+    bool discard_partial(const std::wstring& filename, std::error_code& ec) {
+        if (!owns_lock()) {
+            ec = std::make_error_code(std::errc::device_or_resource_busy);
+            return false;
+        }
+        const auto part = m_root / (filename + L".part");
+        if (std::filesystem::is_regular_file(part, ec))
+            std::filesystem::remove(part, ec);
+        if (ec == std::errc::no_such_file_or_directory)
+            ec.clear();
+        return !ec;
+    }
+
     bool begin(std::error_code& ec) {
         if (!owns_lock()) {
             ec = std::make_error_code(std::errc::device_or_resource_busy);
@@ -86,6 +100,15 @@ class ModelWriteOperation {
         if (ec)
             return false;
         std::filesystem::remove(m_root / ".complete", ec);
+        return !ec;
+    }
+
+    bool begin_usb_import(std::error_code& ec) {
+        if (!begin(ec))
+            return false;
+        // Even an uncatalogued/manual layout can look ready after copying only
+        // its config. Persist the exclusion across process restarts.
+        std::filesystem::create_directory(m_root / kUsbImportPending, ec);
         return !ec;
     }
 
@@ -120,8 +143,8 @@ class ModelWriteOperation {
             ec = std::make_error_code(std::errc::io_error);
             return false;
         }
-        ec.clear();
-        return true;
+        std::filesystem::remove(m_root / kUsbImportPending, ec);
+        return !ec;
     }
 
   private:

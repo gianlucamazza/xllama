@@ -132,6 +132,7 @@ TEST_CASE("USB inventory identifies the missing catalogue path before publicatio
 }
 
 TEST_CASE("uncatalogued ORT USB imports require a graph beside the config") {
+    CHECK(xllama::missing_usb_model_file({L"decoder.ONNX"}, {}) == L"genai_config.json");
     CHECK_FALSE(xllama::missing_usb_model_file({L"genai_config.json"}, {}).empty());
     CHECK(xllama::missing_usb_model_file({L"genai_config.json", L"decoder.ONNX"}, {}).empty());
 }

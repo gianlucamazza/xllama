@@ -44,6 +44,8 @@ static constexpr wchar_t kCompleteMarker[] = L".complete";
 
 bool ModelDownloader::IsComplete(std::wstring const& local_dir) {
     std::filesystem::path p(local_dir);
+    if (usb_import_pending(p))
+        return false;
     p /= kCompleteMarker;
     return std::filesystem::exists(p);
 }
@@ -373,6 +375,14 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                 if (decisions[i] != PinCheck::Refetch)
                     continue;
                 const auto& file = files[i];
+                // A killed earlier transfer may have left its staging file.
+                // The fetch below always starts from byte zero. Reclaim that
+                // space under the writer permit before measuring the volume.
+                std::error_code cleanup_ec;
+                if (!writer.discard_partial(file.filename, cleanup_ec))
+                    throw std::filesystem::filesystem_error(
+                        "Cannot reclaim download staging file",
+                        local_dir_fs / (file.filename + L".part"), cleanup_ec);
                 fetch.push_back({file.approx_bytes, local_file_size(local_dir_fs, file.filename),
                                  local_file_size(local_dir_fs, file.filename + L".previous")});
             }
@@ -932,6 +942,8 @@ bool IsModelProvisioned(std::wstring const& model_name,
     // The .complete marker is a fast-path ONLY in loose mode: in expected mode a
     // stale-quant dir can still carry a valid old marker — exactly what defeats
     // auto-upgrade — so the expected-file scan is authoritative there.
+    if (usb_import_pending(local_dir))
+        return false;
     if (expected_files.empty() && ModelDownloader::IsComplete(local_dir))
         return true;
     if (dir_provisioned(std::filesystem::path(local_dir), expected_files))

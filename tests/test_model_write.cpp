@@ -153,3 +153,41 @@ TEST_CASE("Model writer admits exactly one simultaneous contender") {
     CHECK(winners.load() == 1);
     CHECK(gate.try_acquire().owns_lock());
 }
+
+TEST_CASE("Download retry reclaims only its own unfinished transfer") {
+    ModelDir dir;
+    dir.put("model.gguf", "serving");
+    dir.put("model.gguf.previous", "rollback");
+    dir.put("model.gguf.part", "unfinished transfer");
+    xllama::ModelWriteGate gate;
+    xllama::ModelWriteOperation writer(gate, dir.path);
+    xllama::ModelWriteOperation competing(gate, dir.path);
+    std::error_code ec;
+    CHECK_FALSE(competing.discard_partial(L"model.gguf", ec));
+    CHECK(dir.read("model.gguf.part") == "unfinished transfer");
+    REQUIRE(writer.discard_partial(L"model.gguf", ec));
+    REQUIRE(writer.discard_partial(L"model.gguf", ec));
+    CHECK_FALSE(std::filesystem::exists(dir.path / "model.gguf.part"));
+    CHECK(dir.read("model.gguf") == "serving");
+    CHECK(dir.read("model.gguf.previous") == "rollback");
+}
+
+TEST_CASE("Interrupted USB copy stays unavailable after restart until successfully completed") {
+    ModelDir dir;
+    xllama::ModelWriteGate gate;
+    std::error_code ec;
+    {
+        xllama::ModelWriteOperation writer(gate, dir.path);
+        REQUIRE(writer.begin_usb_import(ec));
+        dir.put("genai_config.json", "{}");
+    }
+    CHECK(xllama::usb_import_pending(dir.path));
+    CHECK_FALSE(xllama::model_dir_files_ready({"genai_config.json", xllama::kUsbImportPending}));
+    CHECK_FALSE(std::filesystem::exists(dir.path / ".complete"));
+    xllama::ModelWriteOperation retry(gate, dir.path);
+    REQUIRE(retry.begin_usb_import(ec));
+    dir.put("model.onnx", "weights");
+    REQUIRE(retry.complete({L"genai_config.json", L"model.onnx"}, ec));
+    CHECK_FALSE(xllama::usb_import_pending(dir.path));
+    CHECK(dir.read(".complete") == "ok");
+}

@@ -18,6 +18,8 @@
 // ManifestEntry.files[].filename into `expected`.
 #pragma once
 
+#include <algorithm>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -64,12 +66,15 @@ inline bool dir_satisfies_expected_files(const std::vector<std::wstring>& presen
     return !expected.empty() && missing_expected_file(present, expected).empty();
 }
 
-// An operator-provided ORT model may have no catalogue inventory. The USB probe
-// found genai_config.json; require an actual graph among the files being imported.
+// Even without catalogue pins, verify the ORT config and graph in the inventory
+// that will be copied. The drive may have changed since discovery.
 inline std::wstring missing_usb_model_file(const std::vector<std::wstring>& present,
                                            const std::vector<std::wstring>& expected) {
-    if (!expected.empty())
-        return missing_expected_file(present, expected);
+    const auto missing = missing_expected_file(present, expected);
+    if (!missing.empty())
+        return missing;
+    if (!missing_expected_file(present, {L"genai_config.json"}).empty())
+        return L"genai_config.json";
     for (const auto& file : present) {
         const auto name = normalize_model_path(file);
         if (name.size() > 5 && name.compare(name.size() - 5, 5, L".onnx") == 0)
@@ -78,12 +83,21 @@ inline std::wstring missing_usb_model_file(const std::vector<std::wstring>& pres
     return L"an ONNX graph (*.onnx)";
 }
 
+inline constexpr char kUsbImportPending[] = ".usb-import-pending";
+
+inline bool usb_import_pending(const std::filesystem::path& dir) {
+    std::error_code ec;
+    return std::filesystem::exists(dir / kUsbImportPending, ec);
+}
+
 // True iff a model directory's file listing makes it SERVABLE by Session:
 // a base GGUF (any *.gguf that is not a bare runtime-LoRA "adapter.gguf"),
 // or an ORT GenAI layout (genai_config.json / model.onnx). `files` are
 // directory-relative names; comparison is case-insensitive. Used by the LAN
 // API's /v1/models discovery — pure, host doctest-testable.
 inline bool model_dir_files_ready(const std::vector<std::string>& files) {
+    if (std::find(files.begin(), files.end(), kUsbImportPending) != files.end())
+        return false;
     auto lower = [](std::string s) {
         for (auto& c : s)
             if (c >= 'A' && c <= 'Z')

@@ -1744,7 +1744,8 @@ std::vector<std::string> servable_model_ids() {
     }
     std::sort(ids.begin(), ids.end());
     const std::string current = current_model_id();
-    if (!current.empty() && std::find(ids.begin(), ids.end(), current) == ids.end())
+    if (!current.empty() && !::xllama::usb_import_pending(root / current) &&
+        std::find(ids.begin(), ids.end(), current) == ids.end())
         ids.push_back(current);
     return ids;
 }
@@ -2809,6 +2810,9 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 }
             }
             const auto audit_end = std::chrono::steady_clock::now();
+            // A new admission can replace the activity ticket. Finish accounting
+            // before releasing ownership, then deliver the request-owned body.
+            record_outcome(ticket, status, json);
             lk.unlock();
             compute_permit.reset();
             // Test-package barrier. An independent caller uses exactly the GUI admission
@@ -2829,9 +2833,6 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 });
                 probe.join();
             }
-            // Record before writing: a client that disconnects makes
-            // write_response throw, and the request was still served.
-            record_outcome(ticket, status, json);
             // A streamed reply is already on the socket; an empty body means the
             // stream (or its error event) was the response.
             if (stream && json.empty())
