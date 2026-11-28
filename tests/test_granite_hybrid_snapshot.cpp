@@ -422,10 +422,6 @@ TEST_CASE("Session: granitehybrid cold continuation on identical surviving token
     const auto cold = measure(false);
     const auto prefix_difference = first_id_difference(warm.prefix, cold.prefix);
     REQUIRE_MESSAGE(prefix_difference.empty(), "surviving token IDs: " << prefix_difference);
-    // The shift keeps the evicted history in the Mamba2 state (the documented
-    // approximation in Session::generate), so the warm continuation is not
-    // required to equal the cold one. The gates above are the mechanism; the
-    // continuation comparison is the measurement, reported for the caller.
     const auto terminal_difference = first_id_difference(warm.terminal, cold.terminal);
     const bool match = terminal_difference.empty() && warm.text == cold.text &&
                        warm.stop == cold.stop && warm.generated_count == cold.generated_count;
@@ -433,4 +429,5 @@ TEST_CASE("Session: granitehybrid cold continuation on identical surviving token
     MESSAGE("continuation=" << verdict << " surviving_ids=" << warm.prefix.size() << " warm_tokens="
                             << warm.generated_count << " cold_tokens=" << cold.generated_count
                             << " warm_text='" << warm.text << "' cold_text='" << cold.text << "'");
+    REQUIRE_MESSAGE(match, verdict);
 }

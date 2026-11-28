@@ -146,9 +146,8 @@ def run(binary, model, report):
     verdicts = [text for text in messages if text.startswith("continuation=")]
     if len(verdicts) != 1:
         raise SystemExit("Granite comparison reported no continuation verdict")
-    # The mechanism gates passed. The continuation verdict is the measurement:
-    # a hybrid shift keeps the evicted history in the Mamba2 state, so a
-    # divergence from the cold arm is a finding, not a broken probe.
+    if not verdicts[0].startswith("continuation=MATCH "):
+        raise SystemExit(verdicts[0])
     print(f"PASS {CASE} ({assertions.get('successes')} assertions)")
     print(verdicts[0], flush=True)
 
