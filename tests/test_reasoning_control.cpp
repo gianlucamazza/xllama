@@ -327,7 +327,7 @@ TEST_CASE("reasoning control: Gemma 4 E2B thought channel is request-local") {
         counter.push(piece);
     CHECK(counter.count(true) == 5);
     const auto assembled =
-        assemble_choice(raw, "answer", {}, false, true, "plan", on.thinking_markup);
+        assemble_choice(raw, "answer", {}, false, true, "plan", on.thinking_markup, {});
     CHECK(assembled.content == "answer");
     CHECK(assembled.reasoning == "plan");
     const auto continuation =
@@ -340,6 +340,72 @@ TEST_CASE("reasoning control: Gemma 4 E2B thought channel is request-local") {
     ReasoningTokenCounter resumed(continuation, on.thinking_markup);
     resumed.push("partial");
     CHECK(resumed.count(true) == 1);
+}
+
+TEST_CASE("reasoning control: Gemma 4 E2B streaming preserves distinct thought blocks") {
+    const auto fmt = chat_format_for("gemma4-e2b", true);
+    const std::string reply = "lead<|channel>thought\n \tone \n line \t<channel|>mid"
+                              "<|channel>thought\n  <channel|>"
+                              "<|channel>thought\n \ttwo \n<channel|>end";
+    const auto batch = fmt.split_output(reply);
+    CHECK(batch.content == "leadmidend");
+    CHECK(batch.reasoning == "one \n line\n\ntwo");
+    for (size_t width = 1; width <= reply.size(); ++width) {
+        CAPTURE(width);
+        ThinkingStreamSplitter stream({}, fmt.thinking_markup);
+        ThinkingSplit received;
+        for (size_t at = 0; at < reply.size(); at += width) {
+            const auto piece = stream.push(std::string_view(reply).substr(at, width));
+            received.content += piece.content;
+            received.reasoning += piece.reasoning;
+        }
+        const auto tail = stream.finish();
+        CHECK(received.content + tail.content == batch.content);
+        CHECK(received.reasoning + tail.reasoning == batch.reasoning);
+    }
+}
+
+TEST_CASE("reasoning control: Gemma 4 E2B truncated thought headers are counted as framing") {
+    const auto fmt = chat_format_for("gemma4-e2b", true);
+    const std::string header = "<|channel>thought\n";
+    const size_t control_size = std::string_view("<|channel>").size();
+    for (size_t bytes = 1; bytes <= header.size(); ++bytes) {
+        CAPTURE(bytes);
+        const std::string input = "answer" + header.substr(0, bytes);
+        // Before the full reserved control token, these bytes are also ordinary text.
+        const std::string expected = bytes < control_size ? input : "answer";
+        const auto split = fmt.split_output(input);
+        CHECK(split.content == expected);
+        CHECK(split.reasoning.empty());
+        ReasoningTokenCounter counter({}, fmt.thinking_markup);
+        counter.push("answer");
+        for (size_t i = 0; i < bytes; ++i)
+            counter.push(std::string_view(header).substr(i, 1));
+        CHECK(counter.count(true) == (bytes < control_size ? 0 : static_cast<int>(bytes)));
+        for (size_t cut = 0; cut <= input.size(); ++cut) {
+            ThinkingStreamSplitter stream({}, fmt.thinking_markup);
+            const auto first = stream.push(std::string_view(input).substr(0, cut));
+            const auto rest = stream.push(std::string_view(input).substr(cut));
+            const auto end = stream.finish();
+            CHECK(first.content + rest.content + end.content == expected);
+            CHECK(first.reasoning + rest.reasoning + end.reasoning == "");
+        }
+        const auto tool = assemble_choice(input, "", {}, true, true, "", fmt.thinking_markup, {});
+        CHECK(tool.content == expected);
+        CHECK(tool.reasoning.empty());
+        CHECK(tool.finish_reason == "length");
+    }
+    for (const auto* ordinary :
+         {"2 < 3", "<|channel>final", "<|channel>thoughtful", "<|channel>thought!"}) {
+        const auto split = fmt.split_output(ordinary);
+        CHECK(split.content == ordinary);
+        ThinkingStreamSplitter stream({}, fmt.thinking_markup);
+        CHECK(stream.push(ordinary).content == ordinary);
+        CHECK(stream.finish().content.empty());
+        ReasoningTokenCounter counter({}, fmt.thinking_markup);
+        counter.push(ordinary);
+        CHECK(counter.count(true) == 0);
+    }
 }
 
 TEST_CASE("reasoning control: Gemma 4 E2B catalogue template renders plain and tool requests") {
@@ -387,7 +453,13 @@ TEST_CASE("reasoning control: Gemma 4 E2B GGUF generates both request modes") {
     std::string error;
     auto session = Session::create(settings, &error);
     REQUIRE_MESSAGE(session != nullptr, error);
-    for (const bool on : {false, true}) {
+    struct Request {
+        bool on;
+        int limit;
+    };
+    for (const auto [on, limit] : {Request{false, 48}, Request{true, 1}, Request{true, 2},
+                                   Request{true, 3}, Request{true, 48}}) {
+        CAPTURE(limit);
         CAPTURE(on);
         const auto fmt = chat_format_for("gemma4-e2b", on);
         GenerateParams gp;
@@ -395,7 +467,7 @@ TEST_CASE("reasoning control: Gemma 4 E2B GGUF generates both request modes") {
             fmt.render_prompt("You are a helpful AI assistant.", {},
                               "A bat and a ball cost one dollar ten cents together. The bat costs "
                               "one dollar more than the ball. How many cents does the ball cost?");
-        gp.n_predict = 48;
+        gp.n_predict = limit;
         gp.temperature = 0;
         gp.reset_kv = true;
         gp.stop_sequences = fmt.stop_sequences;
@@ -420,8 +492,12 @@ TEST_CASE("reasoning control: Gemma 4 E2B GGUF generates both request modes") {
             CHECK(generated.hit_token_limit(gp.n_predict));
         CHECK(fmt.postprocess_output(emitted.content) == final.content);
         CHECK(emitted.content.find("<|channel>") == std::string::npos);
-        CHECK(final.reasoning.empty() == !on);
-        CHECK(emitted.reasoning.empty() == !on);
+        if (on && limit <= 3) {
+            CHECK(final.content.empty());
+            CHECK(tokens.count(true) == limit);
+        }
+        CHECK(final.reasoning.empty() == (!on || limit <= 3));
+        CHECK(emitted.reasoning.empty() == (!on || limit <= 3));
         CHECK((tokens.count(fmt.strip_thinking_content) > 0) == on);
     }
 }

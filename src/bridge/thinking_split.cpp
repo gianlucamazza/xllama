@@ -12,28 +12,34 @@ namespace {
 struct Delimiters {
     std::string_view open, close;
 };
+constexpr std::string_view kGemmaChannel = "<|channel>";
+constexpr std::string_view kGemmaThought = "<|channel>thought\n";
+
 Delimiters delimiters(ThinkingMarkup markup) {
     if (markup == ThinkingMarkup::GemmaChannel)
-        return {"<|channel>thought\n", "<channel|>"};
+        return {kGemmaThought, "<channel|>"};
     return {kThinkOpenTag, kThinkCloseTag};
 }
 
-std::string trimmed(std::string_view s) {
-    size_t b = 0, e = s.size();
-    while (b < e && std::isspace(static_cast<unsigned char>(s[b])))
-        ++b;
-    while (e > b && std::isspace(static_cast<unsigned char>(s[e - 1])))
-        --e;
-    return std::string(s.substr(b, e - b));
+std::string_view trim_start(std::string_view s) {
+    while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front())))
+        s.remove_prefix(1);
+    return s;
+}
+
+std::string_view trim_end(std::string_view s) {
+    while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back())))
+        s.remove_suffix(1);
+    return s;
 }
 
 void append_block(std::string& reasoning, std::string_view block) {
-    const std::string t = trimmed(block);
-    if (t.empty())
+    const auto trimmed = trim_end(trim_start(block));
+    if (trimmed.empty())
         return;
     if (!reasoning.empty())
         reasoning += "\n\n";
-    reasoning += t;
+    reasoning.append(trimmed);
 }
 
 // Length of the longest suffix of |text| that is a proper prefix of |tag|.
@@ -45,6 +51,15 @@ size_t partial_tag_suffix(std::string_view text, std::string_view tag) {
     return 0;
 }
 
+// A token cap can land after the reserved channel token and before the newline.
+// Shorter prefixes such as "<" still have an ordinary textual interpretation.
+size_t truncated_channel_header(std::string_view text, ThinkingMarkup markup) {
+    if (markup != ThinkingMarkup::GemmaChannel)
+        return 0;
+    const size_t suffix = partial_tag_suffix(text, kGemmaThought);
+    return suffix >= kGemmaChannel.size() ? suffix : 0;
+}
+
 } // namespace
 
 std::string_view thinking_prefill_at_end(std::string_view prompt, ThinkingMarkup markup) {
@@ -54,6 +69,10 @@ std::string_view thinking_prefill_at_end(std::string_view prompt, ThinkingMarkup
     if (prompt.size() >= open.size() && prompt.substr(prompt.size() - open.size()) == open)
         return open;
     return {};
+}
+
+std::vector<TextSpan> thinking_spans(std::string_view text) {
+    return thinking_spans(text, ThinkingMarkup::ThinkTags);
 }
 
 std::vector<TextSpan> thinking_spans(std::string_view text, ThinkingMarkup markup) {
@@ -70,8 +89,12 @@ std::vector<TextSpan> thinking_spans(std::string_view text, ThinkingMarkup marku
     }
     for (;;) {
         const size_t o = text.find(tags.open, pos);
-        if (o == std::string_view::npos)
+        if (o == std::string_view::npos) {
+            const size_t suffix = truncated_channel_header(text.substr(pos), markup);
+            if (suffix)
+                spans.push_back({text.size() - suffix, text.size()});
             break;
+        }
         const size_t c = text.find(tags.close, o + tags.open.size());
         if (c == std::string_view::npos) {
             spans.push_back({o, text.size()}); // cut off mid-thought
@@ -83,6 +106,10 @@ std::vector<TextSpan> thinking_spans(std::string_view text, ThinkingMarkup marku
     return spans;
 }
 
+ThinkingSplit split_thinking(std::string_view text) {
+    return split_thinking(text, ThinkingMarkup::ThinkTags);
+}
+
 ThinkingSplit split_thinking(std::string_view text, ThinkingMarkup markup) {
     const auto tags = delimiters(markup);
     ThinkingSplit out;
@@ -91,8 +118,9 @@ ThinkingSplit split_thinking(std::string_view text, ThinkingMarkup markup) {
     for (const TextSpan& span : thinking_spans(text, markup)) {
         content.append(text.substr(pos, span.begin - pos));
         std::string_view block = text.substr(span.begin, span.end - span.begin);
-        if (block.substr(0, tags.open.size()) == tags.open)
-            block.remove_prefix(tags.open.size());
+        const size_t prefix = std::min(block.size(), tags.open.size());
+        if (block.substr(0, prefix) == tags.open.substr(0, prefix))
+            block.remove_prefix(prefix);
         if (block.size() >= tags.close.size() &&
             block.substr(block.size() - tags.close.size()) == tags.close)
             block.remove_suffix(tags.close.size());
@@ -103,7 +131,7 @@ ThinkingSplit split_thinking(std::string_view text, ThinkingMarkup markup) {
     // Stray closers left in the content are tags, not boundaries.
     for (size_t c = content.find(tags.close); c != std::string::npos; c = content.find(tags.close))
         content.erase(c, tags.close.size());
-    out.content = trimmed(content);
+    out.content = trim_end(trim_start(content));
     return out;
 }
 
@@ -145,14 +173,29 @@ void ThinkingStreamSplitter::emit(std::string_view text, ThinkingSplit& out) {
     if (text.empty())
         return;
     if (m_in_reasoning) {
-        out.reasoning.append(text);
+        if (m_markup != ThinkingMarkup::GemmaChannel) {
+            out.reasoning.append(text);
+            return;
+        }
+        if (m_gemma_position != BlockPosition::Inside) {
+            text = trim_start(text);
+            if (text.empty())
+                return;
+            if (m_gemma_position == BlockPosition::Between)
+                out.reasoning += "\n\n";
+            m_gemma_position = BlockPosition::Inside;
+        }
+        const auto body = trim_end(text);
+        if (!body.empty()) {
+            out.reasoning.append(m_reasoning_whitespace);
+            m_reasoning_whitespace.clear();
+            out.reasoning.append(body);
+        }
+        m_reasoning_whitespace.append(text.substr(body.size()));
         return;
     }
     if (!m_content_started) {
-        size_t b = 0;
-        while (b < text.size() && std::isspace(static_cast<unsigned char>(text[b])))
-            ++b;
-        text.remove_prefix(b);
+        text = trim_start(text);
         if (text.empty())
             return;
         m_content_started = true;
@@ -178,6 +221,10 @@ ThinkingSplit ThinkingStreamSplitter::push(std::string_view piece) {
             break;
         emit(std::string_view(m_held).substr(0, at), out);
         m_held.erase(0, at + tag.size());
+        if (m_in_reasoning && m_gemma_position == BlockPosition::Inside) {
+            m_reasoning_whitespace.clear();
+            m_gemma_position = BlockPosition::Between;
+        }
         m_in_reasoning = !m_in_reasoning;
     }
     // Hold a suffix that could still become a tag (the open or, outside a
@@ -192,8 +239,10 @@ ThinkingSplit ThinkingStreamSplitter::push(std::string_view piece) {
 
 ThinkingSplit ThinkingStreamSplitter::finish() {
     ThinkingSplit out;
-    emit(m_held, out);
+    if (m_in_reasoning || !truncated_channel_header(m_held, m_markup))
+        emit(m_held, out);
     m_held.clear();
+    m_reasoning_whitespace.clear();
     return out;
 }
 

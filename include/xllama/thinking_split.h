@@ -37,8 +37,8 @@ struct ThinkingSplit {
 //   from the opener on.
 // - A stray closer after the balanced pass is dropped.
 // Content is trimmed at both ends, reasoning too.
-ThinkingSplit split_thinking(std::string_view text,
-                             ThinkingMarkup markup = ThinkingMarkup::ThinkTags);
+ThinkingSplit split_thinking(std::string_view text);
+ThinkingSplit split_thinking(std::string_view text, ThinkingMarkup markup);
 
 // A byte range [begin, end) of a text.
 struct TextSpan {
@@ -48,8 +48,8 @@ struct TextSpan {
 
 // Where split_thinking finds the reasoning: one span per block, tags included,
 // in order and disjoint. split_thinking is built on it.
-std::vector<TextSpan> thinking_spans(std::string_view text,
-                                     ThinkingMarkup markup = ThinkingMarkup::ThinkTags);
+std::vector<TextSpan> thinking_spans(std::string_view text);
+std::vector<TextSpan> thinking_spans(std::string_view text, ThinkingMarkup markup);
 
 // Counts the generated tokens spent on reasoning, for
 // usage.completion_tokens_details.reasoning_tokens (#585). push() takes each
@@ -88,7 +88,8 @@ class ThinkingStreamSplitter {
         push(prefill);
     }
     ThinkingSplit push(std::string_view piece);
-    // Flush what was held: a partial tag at the end is ordinary text.
+    // Flush ordinary trailing text. An unfinished Gemma thought header starting
+    // with the complete reserved control token is framing.
     ThinkingSplit finish();
 
   private:
@@ -98,6 +99,11 @@ class ThinkingStreamSplitter {
     std::string m_held;
     bool m_in_reasoning = false;
     bool m_content_started = false; // leading whitespace of the reply is dropped
+    // Join nonempty Gemma blocks the same way as split_thinking. Whitespace
+    // after the last reasoning byte may still belong inside this block.
+    enum class BlockPosition { First, Inside, Between };
+    BlockPosition m_gemma_position = BlockPosition::First;
+    std::string m_reasoning_whitespace;
 };
 
 } // namespace xllama

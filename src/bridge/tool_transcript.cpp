@@ -99,6 +99,13 @@ AdmitResult admit_transcript(const std::vector<ChatMessage>& messages,
 
 ChoiceAssembly assemble_choice(const std::string& raw_text, const std::string& parsed_text,
                                const std::vector<IncomingCall>& calls, bool hit_cap,
+                               bool strip_thinking, const std::string& parsed_reasoning) {
+    return assemble_choice(raw_text, parsed_text, calls, hit_cap, strip_thinking, parsed_reasoning,
+                           ThinkingMarkup::ThinkTags, {});
+}
+
+ChoiceAssembly assemble_choice(const std::string& raw_text, const std::string& parsed_text,
+                               const std::vector<IncomingCall>& calls, bool hit_cap,
                                bool strip_thinking, const std::string& parsed_reasoning,
                                ThinkingMarkup markup, std::string_view prefill) {
     ChoiceAssembly out;

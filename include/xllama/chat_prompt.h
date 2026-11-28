@@ -169,13 +169,13 @@ struct ChatFormat {
     // (the format renders the thinking path). Empty-think stripping for a
     // no-think prefill always runs.
     bool strip_thinking_content = false;
-    ThinkingMarkup thinking_markup = ThinkingMarkup::ThinkTags;
 
     // The generation prefill opens the reasoning block (gen_suffix ends with
     // "<think>\n": the Qwen3.5 and MiniCPM5 templates with thinking on), so
     // the reply starts inside it. split_output, ThinkingStreamSplitter and
     // ReasoningTokenCounter read the reply after reasoning_prefill().
     bool reasoning_opened = false;
+    ThinkingMarkup thinking_markup = ThinkingMarkup::ThinkTags;
     std::string_view reasoning_prefill() const {
         return reasoning_opened ? kThinkOpenTag : std::string_view{};
     }
@@ -209,7 +209,7 @@ struct ChatFormat {
 
 // Select the chat format for a catalogue id / filename (as model_is_qwen does
 // today). |thinking| picks the template's thinking or no-think path where it
-// has both (Qwen3 / Qwen3.5, MiniCPM5, SmolLM3); any other template only
+// has both (Qwen3 / Qwen3.5, MiniCPM5, SmolLM3, catalogue Gemma 4 E2B IT); any other template only
 // splits <think> blocks off the reply with it. Callers take it from
 // decide_reasoning (reasoning_control.h). The one-argument form is the
 // model's own behaviour, model_is_thinking(model_id).

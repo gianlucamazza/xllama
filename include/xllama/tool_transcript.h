@@ -95,8 +95,10 @@ struct ChoiceAssembly {
 ChoiceAssembly assemble_choice(const std::string& raw_text, const std::string& parsed_text,
                                const std::vector<IncomingCall>& calls, bool hit_cap,
                                bool strip_thinking = false,
-                               const std::string& parsed_reasoning = {},
-                               ThinkingMarkup markup = ThinkingMarkup::ThinkTags,
-                               std::string_view prefill = {});
+                               const std::string& parsed_reasoning = {});
+ChoiceAssembly assemble_choice(const std::string& raw_text, const std::string& parsed_text,
+                               const std::vector<IncomingCall>& calls, bool hit_cap,
+                               bool strip_thinking, const std::string& parsed_reasoning,
+                               ThinkingMarkup markup, std::string_view prefill);
 
 } // namespace xllama
