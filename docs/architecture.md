@@ -77,7 +77,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `inference_progress.h`             | Prefill-done + decode-progress logs and the stall watchdog (`XLLAMA_INFER_STALL_TIMEOUT_S`, default 180 s)                                                                                            |
 | `http_framing.h`                   | `parse_http_head` — exact LAN API request framing and deadlines (ADR 0006)                                                                                                                            |
 | `prompt_budget.h`                  | `fit_prompt` for plain chat, `fit_tool_transcript` for a tool proposal — both exact, both on the resident tokenizer                                                                                   |
-| `context_shift.h`                  | #169 context-shift admission predicate (`llama_memory_can_shift` plus the SWA guard)                                                                                                                  |
+| `context_shift.h`                  | #169 / #723 context-shift admission, in-place vs hybrid/recurrent rebuild mode, and turn-aligned eviction                                                                                             |
 | `memory_admission.h`               | Pre-load GGUF memory admission: weights, KV and compute buffers from llama.cpp's dry run against the app limit and GPU budget                                                                         |
 | `tool_budget.h`                    | Tool-proposal overflow 400 with the baseline and tool token contribution, plus a field when one component exceeds the budget                                                                          |
 | `autopilot.h`                      | `AutopilotAction`, `validate_autopilot_script` — console gate contract (WinRT-free)                                                                                                                   |
@@ -299,7 +299,12 @@ prefill captures them in two kinds (#601):
   upstream persists checkpoints the same way, llama.cpp #26004), so after a load a
   turn that diverges inside the tail, such as an edited reply, restores the head
   instead of prefilling the whole history. A missing or malformed trailer only
-  means no checkpoint. The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
+  means no checkpoint. Restore releases the serialized sequence buffer before reading
+  the optional checkpoint and transfers that allocation to the session. If the
+  sequence buffer cannot fit, the current KV stays intact. If only the
+  optional checkpoint cannot fit, a later branch can prefill from the beginning.
+  [Host allocation counts](../bench/results/2026-11-27-hybrid-kv-restore-host.json) cover the restore staging buffers.
+  The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
 
 - **Fingerprinted** (model, n_ctx, KV quant, LoRA) — stale snapshots are
   harmless by construction (they fall back to a normal prefill).
@@ -637,12 +642,18 @@ weights, context (the real per-layer KV and recurrent state, so `n_ctx` and a
 hybrid's layout count) and compute buffers per buffer type. CPU buffer types
 count as host memory. The D3D12 backend reports an integrated GPU (it requires a
 cache-coherent UMA adapter), so its buffers count as host memory too, and also
-against the GPU budget. The sum plus
+against the GPU budget. Byte counts accumulate by category, then round up to
+MiB. An unrepresentable estimate refuses the load. The sum plus
 the working set and `kSessionMemoryMarginMb` must fit `app_memory_limit_mb()`;
 otherwise `Session::create` fails with an `insufficient memory: …` message
 (weights / context / compute / limit) instead of failing inside an allocation.
 The API answers that refusal with `400`. An embedding context, which batches the
-whole input, is admitted again for its own context and compute buffers. Every
+whole input, is admitted again for its own context and compute buffers. Already
+resident weights are present in the measured usage on both UMA budgets. If a
+quantized KV context fails, the session checks the default-KV configuration
+against the current budgets before allocating it. If an alternate context cannot
+be sized, a known budget or a context beyond the unmeasured cap requires a
+refusal. The session can retry after memory becomes available. Every
 load logs the estimate beside the `ws after model load / after context` lines,
 which is the console calibration of the margin. Not `common/fit.h`: it drops
 non-host CPU buffers (CPU_REPACK) and swaps the process-wide llama logger.
@@ -1048,23 +1059,26 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_tensor_capture.cpp`          | `tensor_capture.h`                                                                                                                                    |
 | `test_manifest_merge.cpp`          | `manifest_merge.h`, `withdrawn_models.h`                                                                                                              |
 | `test_membw.cpp`                   | `membw.h`                                                                                                                                             |
+| `test_context_admission.cpp`       | Public GGUF session, failed quantized context, default-KV admission under pressure and retry after relief (pinned CPU fixture)                        |
 | `test_memory_admission.cpp`        | `memory_admission.h` (host limit, GPU budget, refusal prefix); `Session::estimate_memory` opt-in in `test_session.cpp`                                |
 | `test_model_provision.cpp`         | `model_provision.h`                                                                                                                                   |
 | `test_model_file_plan.cpp`         | `model_file_plan.h`                                                                                                                                   |
 | `test_moe_expert_cache.cpp`        | Expert slice admission, eviction, lease lifetime, Reader failures, cancellation and counters                                                          |
+| `test_moe_resident_operator.cpp`   | Resident CPU `MUL_MAT_ID` against scalar dot products for F32, Q4_K and Q6_K with per-token and per-slot activations                                  |
 | `test_moe_streaming.cpp`           | `moe_streaming.h`                                                                                                                                     |
 | `test_model_write.cpp`             | `model_write.h`                                                                                                                                       |
 | `test_path.cpp`                    | `path_utils.h`                                                                                                                                        |
 | `test_personalize.cpp`             | `personalize.h`                                                                                                                                       |
 | `test_preference_capture.cpp`      | `preference_capture.h`                                                                                                                                |
 | `test_prefix_snapshot.cpp`         | `prefix_snapshot.h` — extension keeps; slack restore; regenerate restores; attention prefix required; longest shared checkpoint; grid and byte budget |
-| `test_context_shift.cpp`           | `context_shift.h` — #169 shift admission (`memory_can_shift`, SWA guard); turn-aligned discard                                                        |
+| `test_context_shift.cpp`           | `context_shift.h` — #169 / #723 shift admission, mode selection (`InPlace` / `Rebuild`), checkpoint selection, turn-aligned discard                   |
 | `test_granite_hybrid_snapshot.cpp` | #512 restore on Granite-4.0-H-Tiny (opt-in `XLLAMA_GRANITE_H_TINY`; skips in CI)                                                                      |
 | `test_prompt_budget.cpp`           | `prompt_budget.h`                                                                                                                                     |
 | `test_ramceil.cpp`                 | `ramceil.h`                                                                                                                                           |
 | `test_routing_policy.cpp`          | `routing_policy.h`                                                                                                                                    |
 | `test_model_sampling.cpp`          | `model_sampling.h` (layer order, catalogue `sampling` parse, bundled manifest)                                                                        |
 | `test_sampling.cpp`                | `sampling.h` (CLI/Session parity opt-in)                                                                                                              |
+| `test_state_restore_memory.cpp`    | Public hybrid KV restore with a tiny LFM2, serialized buffer lifetimes, allocation failure, retry and greedy parity                                   |
 | `test_sdk_consumer.cpp`            | Linux CMake consumer compile, link and upstream header visibility                                                                                     |
 | `test_session.cpp`                 | `session.h`, `session_hub.h`                                                                                                                          |
 | `test_session_spec.cpp`            | `session_spec.h`, hub reuse rule                                                                                                                      |
