@@ -5,6 +5,7 @@
 
 #if defined(_WIN32)
 
+    #include <algorithm>
     #include <chrono>
     #include <cstdio>
     #include <thread>
@@ -156,16 +157,16 @@ bool QueueFence::init(ID3D12Device* device, std::string* err) {
     return true;
 }
 
-bool QueueFence::signal_and_wait(ID3D12CommandQueue* queue, bool spin) {
-    const UINT64 v = ++value_;
-    if (FAILED(queue->Signal(fence_.Get(), v)))
-        return false;
-    return wait_accepted_fence(
-        v, spin, [&] { return fence_->GetCompletedValue(); },
-        [&] { return SUCCEEDED(fence_->SetEventOnCompletion(v, event_.h)); },
+namespace {
+
+template <typename Expired, typename WaitMs>
+FenceResult wait_native(ID3D12Fence* fence, HANDLE event, UINT64 target, bool spin, Expired expired,
+                        WaitMs wait_ms) {
+    return wait_accepted_fence_until(
+        target, spin, [&] { return fence->GetCompletedValue(); },
+        [&] { return SUCCEEDED(fence->SetEventOnCompletion(target, event)); },
         [&] {
-            // Recheck the counter even if a notification is delayed or stale.
-            const DWORD status = WaitForSingleObject(event_.h, 100);
+            const DWORD status = WaitForSingleObject(event, wait_ms());
             return status == WAIT_OBJECT_0 || status == WAIT_TIMEOUT;
         },
         [&] {
@@ -173,7 +174,96 @@ bool QueueFence::signal_and_wait(ID3D12CommandQueue* queue, bool spin) {
                 YieldProcessor();
             else
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        },
+        expired);
+}
+
+} // namespace
+
+bool QueueFence::signal_and_wait(ID3D12CommandQueue* queue, bool spin) {
+    const UINT64 v = ++value_;
+    if (FAILED(queue->Signal(fence_.Get(), v)))
+        return false;
+    return wait_native(
+               fence_.Get(), event_.h, v, spin, [] { return false; }, [] { return 100u; }) ==
+           FenceResult::complete;
+}
+
+FenceResult QueueFence::retire_probe(ID3D12CommandQueue* queue, ProbeMarker& marker, bool wait) {
+    using namespace std::chrono;
+    return marker.retire(
+        [&](UINT64 target) { return SUCCEEDED(queue->Signal(fence_.Get(), target)); },
+        [&] { return fence_->GetCompletedValue(); },
+        [&](UINT64 target) {
+            if (!wait)
+                return fence_result(target, fence_->GetCompletedValue());
+            const auto deadline = steady_clock::now() + seconds(5);
+            return wait_native(
+                fence_.Get(), event_.h, target, false,
+                [&] { return steady_clock::now() >= deadline; },
+                [&] {
+                    const auto left = ceil<milliseconds>(deadline - steady_clock::now()).count();
+                    return static_cast<DWORD>(std::clamp<long long>(left, 0, 100));
+                });
         });
+}
+
+bool ProbeCommands::reset_list(ID3D12PipelineState* pipeline, std::string& error) {
+    if (pending()) {
+        error = "probe allocator is still in use";
+        return false;
+    }
+    HRESULT hr = alloc->Reset();
+    if (FAILED(hr)) {
+        error = hr_message("Reset allocator", hr);
+        return false;
+    }
+    hr = cl->Reset(alloc.Get(), pipeline);
+    if (FAILED(hr))
+        error = hr_message("Reset command list", hr);
+    return SUCCEEDED(hr);
+}
+
+bool ProbeCommands::close_list(std::string& error) {
+    const HRESULT hr = cl->Close();
+    if (FAILED(hr))
+        error = hr_message("Close command list", hr);
+    return SUCCEEDED(hr);
+}
+
+bool ProbeCommands::execute(std::string& error) {
+    if (marker_.submit([&] {
+            ID3D12CommandList* lists[] = {cl.Get()};
+            queue->ExecuteCommandLists(1, lists);
+        })) {
+        switch (fence_.retire_probe(queue.Get(), marker_, true)) {
+        case FenceResult::complete:
+            return true;
+        case FenceResult::removed:
+            error = "D3D12 device removed";
+            return false;
+        case FenceResult::signal_rejected:
+            error = "queue rejected probe fence signal";
+            return false;
+        case FenceResult::pending:
+            break;
+        }
+    }
+    error = "probe fence completion pending";
+    return false;
+}
+
+bool ProbeCommands::try_retire() {
+    if (pending())
+        fence_.retire_probe(queue.Get(), marker_, false);
+    return !pending();
+}
+
+ProbeSlot<ProbeCommands>& probe_slot() {
+    // Static destruction is not a GPU completion boundary. A live queue
+    // whose marker still cannot be established stays owned until process exit.
+    static auto* const slot = new ProbeSlot<ProbeCommands>;
+    return *slot;
 }
 
 } // namespace d3d12c

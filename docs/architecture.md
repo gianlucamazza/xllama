@@ -709,6 +709,8 @@ serialization) are host-testable on Linux; the D3D12/Windows path returns
 `d3d12_ran=false` on non-Windows. Results are CSV-serialised with self-contained
 schemas (not the model-bench schema) and written to `bench/results/`.
 
+The GPU STREAM and GEMV probes share one in-flight campaign slot. A campaign owns its command allocator, list, pipeline, descriptors, queries and GPU buffers. If the queue rejects its fence signal or an accepted marker is still pending after five seconds, the probe returns a failed measurement and keeps that owner. A later STREAM or GEMV request checks the same fence before allocating a campaign. It retries a rejected marker once on its original queue and releases the old resources after confirmed completion or device removal. An idle process can retain one unresolved campaign until exit. The GGML backend and GPU step probe have separate ownership paths tracked in [#714](https://github.com/gianlucamazza/xllama/issues/714).
+
 The **kill gates** are predeclared in the headers (not in docs) so that scripts
 and code stay in sync: `gpubw.h:kGpubwKillReadGbs` (100 GB/s),
 `gpugemv.h:kGpugemvKillPackedGbs` (8 GB/s = K1 kill, 40 GB/s = K2 gate),
