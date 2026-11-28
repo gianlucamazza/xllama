@@ -176,11 +176,13 @@ def shrink_shape(base, suffix, shape, n_expert, n_ff_exp, n_shared, experts, ff_
         out[-1] = experts
     elif base == "exp_probs_b":
         out[0] = experts
-    elif base.endswith("_shexp") and n_shared and n_ff_exp > 0:
-        # Shared experts sized n_ff_exp * n_shared (afmoe) shrink with the experts.
-        for i, d in enumerate(out):
-            if d == n_ff_exp * n_shared:
-                out[i] = ff_exp * n_shared
+    elif n_shared and suffix == "weight" and base in (
+        "ffn_gate_shexp", "ffn_up_shexp", "ffn_down_shexp"
+    ):
+        width_axis = 0 if base == "ffn_down_shexp" else 1
+        if len(out) != 2 or out[width_axis] != n_ff_exp * n_shared:
+            raise ValueError(f"{base}: expected a matrix with shared FFN width {n_ff_exp * n_shared}")
+        out[width_axis] = ff_exp * n_shared
     return out
 
 
@@ -205,12 +207,16 @@ def build_plan(arch, kvs, tensors, experts, used, ff_exp, moe_layers):
     n_layer = int(kv[arch_key(arch, "block_count")])
     n_expert = int(kv[arch_key(arch, "expert_count")])
     ff = kv.get(arch_key(arch, "expert_feed_forward_length"))
-    n_ff_exp = int(max(ff) if isinstance(ff, list) else ff) if ff is not None else -1
+    # Both pin loaders with derived shared weights call n_ff_exp() (layer zero).
+    n_ff_exp = int(ff[0] if isinstance(ff, list) else ff) if ff is not None else -1
     if experts > n_expert:
         raise ValueError(f"--experts {experts} exceeds template n_expert {n_expert}")
-    n_shared = int(kv.get(arch_key(arch, "expert_shared_count"), 0) or 0)
-    if kv.get(arch_key(arch, "expert_shared_feed_forward_length")) is not None:
-        n_shared = 0  # the shared width has its own key; keep it as is
+    n_shared = 0
+    explicit_shared_width = kv.get(arch_key(arch, "expert_shared_feed_forward_length"))
+    # AFMoE derives its shared width. BailingMoE2 does so only without a positive
+    # override. ERNIE uses the dedicated total width independently of routed experts.
+    if arch == "afmoe" or (arch == "bailingmoe2" and not explicit_shared_width):
+        n_shared = int(kv.get(arch_key(arch, "expert_shared_count"), 0) or 0)
     kept = plan_layers([n for n, _ in tensors], n_layer, moe_layers)
     # A scalar sliding window without a per-layer pattern means llama.cpp applies
     # its default period (4 for smallthinker): keep one full period of layers.

@@ -133,6 +133,48 @@ class MakeMoeFixtureTest(unittest.TestCase):
         d = mmf.shrink_shape("ffn_down_shexp", "weight", [2048, 1024], 128, 1024, 0, 8, 256)
         self.assertEqual(d, [2048, 1024])  # own width key: untouched
 
+    def test_shared_width_collision_preserves_embedding_and_other_roles(self):
+        for base, suffix, shape, expected in (
+            ("ffn_gate_shexp", "weight", [1024, 1024], [1024, 256]),
+            ("ffn_up_shexp", "weight", [1024, 1024], [1024, 256]),
+            ("ffn_down_shexp", "weight", [1024, 1024], [256, 1024]),
+            ("ffn_gate_inp_shexp", "weight", [1024, 1], [1024, 1]),
+            ("ffn_down_shexp", "bias", [1024], [1024]),
+        ):
+            with self.subTest(base=base, suffix=suffix):
+                self.assertEqual(mmf.shrink_shape(base, suffix, shape, 16, 512, 2, 8, 128), expected)
+
+    def test_shared_width_follows_the_architecture_loader(self):
+        for arch, explicit_width, expected_width in (
+            ("afmoe", None, 256),
+            ("afmoe", 512, 256),  # the pin derives this width even when an extra key is present
+            ("bailingmoe2", None, 256),
+            ("bailingmoe2", 0, 256),
+            ("bailingmoe2", 512, 1024),  # explicit per shared expert
+            ("ernie4_5-moe", 1024, 1024),  # explicit total
+        ):
+            with self.subTest(arch=arch, explicit_width=explicit_width):
+                values = {
+                    "block_count": 2, "embedding_length": 1024, "expert_count": 16,
+                    "expert_feed_forward_length": [512, 768], "expert_shared_count": 2,
+                }
+                if explicit_width is not None:
+                    values["expert_shared_feed_forward_length"] = explicit_width
+                kvs = [(f"{arch}.{key}", val, None, None) for key, val in values.items()]
+                tensors = [(f"blk.{layer}.{role}.weight", shape)
+                           for layer in range(2)
+                           for role, shape in (("ffn_gate_inp", [1024, 16]),
+                                               ("ffn_up_shexp", [1024, 1024]),
+                                               ("ffn_down_shexp", [1024, 1024]))]
+                _, plan, _ = mmf.build_plan(arch, kvs, tensors, 8, 2, 128, 1)
+                self.assertEqual(dict(plan)["blk.0.ffn_up_shexp.weight"], [1024, expected_width])
+                self.assertEqual(dict(plan)["blk.0.ffn_down_shexp.weight"], [expected_width, 1024])
+
+    def test_inconsistent_derived_shared_weight_is_refused(self):
+        for shape in ([1024], [1024, 768]):
+            with self.subTest(shape=shape), self.assertRaisesRegex(ValueError, "ffn_up_shexp"):
+                mmf.shrink_shape("ffn_up_shexp", "weight", shape, 16, 512, 2, 8, 128)
+
     def test_unknown_arch_refused(self):
         llama = self.dir / "llama.gguf"
         write_template(llama, arch="llama")
