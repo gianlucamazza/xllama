@@ -72,8 +72,9 @@ BIAS_ADD_CONTROL_GATES = {
     if name != "peak"
 }
 VERDICT_PAIRS = 20
-PHASE_SUBMISSIONS = re.compile(
-    r"(?m)^\[xllama\] d3d12-phase phase=(prefill|decode) calls=\d+ submissions=(\d+)\b"
+PHASE_WORK = re.compile(
+    r"(?m)^\[xllama\] d3d12-phase phase=(prefill|decode) calls=(\d+) "
+    r"submissions=(\d+) dispatches=(\d+)\b"
 )
 
 BIAS_ADD_MODELS = {
@@ -158,10 +159,15 @@ def ok_pairs(cell: Path, expected_count=None):
 
 def submission_counts(path: Path):
     # One warm-up and one measured run, each with both phases in order.
-    phases = PHASE_SUBMISSIONS.findall(path.read_text(errors="replace"))
-    if [phase for phase, _ in phases] != ["prefill", "decode", "prefill", "decode"]:
+    phases = PHASE_WORK.findall(path.read_text(errors="replace"))
+    if [row[0] for row in phases] != ["prefill", "decode", "prefill", "decode"]:
         raise Invalid(f"expected warm-up and measured D3D12 phase counters in {path.name}")
-    return {phase: int(count) for phase, count in phases[2:]}
+    counts = {}
+    for phase, calls, submissions, dispatches in phases[2:]:
+        if min(int(calls), int(submissions), int(dispatches)) == 0:
+            raise Invalid(f"no measured D3D12 work for {phase} in {path.name}")
+        counts[phase] = int(submissions)
+    return counts
 
 
 def submissions_agree(check, a, b):

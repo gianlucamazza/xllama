@@ -409,6 +409,10 @@ exactly 20 measured CSV rows per arm, the campaign model, hardware tag and
 fixed run settings. Each ratio requires a positive observation in both arms.
 The peak-memory delta also requires two positive readings because the probe
 returns zero when the operating system cannot read the working set.
+The bias ADD control and ROPE profiles also require positive measured D3D12
+calls, submissions and dispatches for prefill and decode in both arms. A
+fallback with zero GPU work cannot establish submission equivalence or a
+reduction.
 Select the gates for each cell from the
 [frozen manifest](../docs/research/evidence/2026-11-16-c4-performance/manifest.json).
 The CI test replays all six cells against the recorded intervals and verdicts.

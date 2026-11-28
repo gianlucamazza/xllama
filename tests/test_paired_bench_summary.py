@@ -3,6 +3,7 @@
 """Preregistered paired-campaign verdict: margins, interval rule, fail-closed inputs."""
 import csv
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -335,6 +336,26 @@ class PairedSummaryTests(unittest.TestCase):
         self.write_rope_logs(cell, b_prefill=13)  # more prefill submissions than A
         r, _ = self.run_cell(cell, profile="rope")
         self.assertEqual(r.returncode, 1, r.stderr or r.stdout)
+
+    def test_gpu_profiles_require_work_in_each_measured_phase(self):
+        control = bias_rows(20, 100, 50, 1000, 800, 1, control=True)
+        cell = write_cell(self.root / "control", control, control)
+        self.write_rope_logs(cell, a_decode=0, b_decode=0, a_prefill=0, b_prefill=0)
+        result, summary = self.run_cell(cell, profile="bias-add-control")
+        self.assertEqual(result.returncode, 2, result.stdout)
+        self.assertIsNone(summary)
+
+        cell, _, _ = self.rope_cell()
+        log = cell / "pair8-B-app.log"
+        original = log.read_text().splitlines(keepends=True)
+        for phase, counter in ((2, "calls"), (2, "submissions"), (3, "dispatches")):
+            with self.subTest(phase=phase, counter=counter):
+                lines = original.copy()
+                lines[phase] = re.sub(rf"\b{counter}=\d+", f"{counter}=0", lines[phase])
+                log.write_text("".join(lines))
+                result, summary = self.run_cell(cell, profile="rope")
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIsNone(summary)
 
     def test_rope_profile_rejects_an_incomplete_or_mixed_campaign(self):
         a = bias_rows(19, 100, 50, 1000, 800, 1)
