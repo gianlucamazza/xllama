@@ -34,7 +34,8 @@ GOOD = [sse({"choices": [{"delta": {"role": "assistant"}}]}), sse(delta("Hel")),
 
 
 class FakeServer:
-    def __init__(self, status=200, events=GOOD, split=False, terminator=b"0\r\n\r\n"):
+    def __init__(self, status=200, events=GOOD, split=False, terminator=b"0\r\n\r\n",
+                 response_headers=None, keep_open=False):
         self.sock = socket.socket()
         self.sock.bind(("127.0.0.1", 0))
         self.sock.listen(8)
@@ -42,6 +43,8 @@ class FakeServer:
         self.statuses = itertools.cycle([status] if isinstance(status, int) else status)
         self.events, self.split = events, split
         self.terminator = terminator
+        self.response_headers = response_headers
+        self.keep_open = keep_open
         self.thread = threading.Thread(target=self.serve, daemon=True)
         self.thread.start()
 
@@ -65,6 +68,17 @@ class FakeServer:
                 if status != 200:
                     payload = b'{"error":{"message":"busy"}}'
                     conn.sendall(f"HTTP/1.1 {status} Busy\r\nContent-Length: {len(payload)}\r\n\r\n".encode() + payload)
+                    continue
+                if self.response_headers is not None:
+                    conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n"
+                                 + self.response_headers + b"\r\n")
+                    for event in self.events:
+                        conn.sendall(event)
+                    if self.keep_open:
+                        # A length-delimited client can finish without server EOF.
+                        conn.settimeout(2)
+                        with suppress(TimeoutError):
+                            conn.recv(1)
                     continue
                 conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n")
                 for ev in self.events:
@@ -182,6 +196,41 @@ class MeasureApiTtfbTests(unittest.TestCase):
                 self.assertIn(error, rec["attempts"][0]["error"])
                 self.assertEqual(rec["error_rate"], 1)
                 self.assertIsNone(rec["median_ms"]["done_ms"])
+
+    def test_fixed_length_responses_finish_at_the_declared_boundary(self):
+        size = len(b"".join(GOOD))
+        for fields in (f"Content-Length: {size}\r\n", f"Content-Length: {size}, {size}\r\n",
+                       f"Content-Length: {size}\r\nContent-Length: {size}\r\n"):
+            with self.subTest(fields=fields):
+                port = self.serve(response_headers=fields.encode(), keep_open=True)
+                r, rec = self.run_probe(port, "--timeout", "0.5", repeats=1)
+                self.assertEqual(r.returncode, 0, r.stdout)
+                self.assertEqual(rec["attempts"][0]["text_chars"], 5)
+
+    def test_fixed_length_requires_complete_http_body_and_sse_terminal_within_it(self):
+        size = len(b"".join(GOOD))
+        for length in (size + 1, size - len(GOOD[-1]), 0):
+            with self.subTest(length=length):
+                port = self.serve(response_headers=f"Content-Length: {length}\r\n".encode())
+                r, rec = self.run_probe(port, repeats=1)
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertEqual(rec["error_rate"], 1)
+                self.assertEqual(rec["latency_distribution"]["completed_requests"], 0)
+                self.assertIsNone(rec["median_ms"]["done_ms"])
+
+    def test_close_delimited_response_without_length_still_completes(self):
+        r, rec = self.run_probe(self.serve(response_headers=b""), repeats=1)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertEqual(rec["complete"], 1)
+
+    def test_ambiguous_or_invalid_response_length_is_a_retained_failure(self):
+        for fields in (b"Content-Length: 1\r\nContent-Length: 2\r\n",
+                       b"Content-Length: +20\r\n",
+                       b"Transfer-Encoding: chunked\r\nContent-Length: 300\r\n"):
+            with self.subTest(fields=fields):
+                r, rec = self.run_probe(self.serve(response_headers=fields), repeats=1)
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn("Content-Length", rec["attempts"][0]["error"])
 
     def test_no_content_delta_fails(self):
         r, data = self.run_probe(self.serve(events=[GOOD[0], GOOD[-1]]), repeats=1)

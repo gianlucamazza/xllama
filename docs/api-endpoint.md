@@ -1082,7 +1082,10 @@ records the connection, the complete response header, the first body byte, the
 first non-empty content delta and `[DONE]`, all measured from the start of the
 request. It writes `xllama-api-ttfb/1` JSON. Failed attempts are kept with
 their error: timeouts, non-200 status, stream error records, malformed SSE, no
-content, missing or repeated `[DONE]`, or an interrupted chunked response. These times include the network, HTTP handling
+content, missing or repeated `[DONE]`, or incomplete HTTP framing. A fixed-length
+response ends after the declared number of body bytes. A complete chunked
+response includes the final chunk and trailers. The probe waits for connection
+close only when the response has neither framing header. These times include the network, HTTP handling
 and any model load. They are not the in-app `ttft_ms` and not a throughput
 result. The hardware label is a declaration made by the operator.
 

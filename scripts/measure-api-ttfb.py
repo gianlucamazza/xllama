@@ -27,6 +27,8 @@
 #      2 = invalid arguments.
 
 import argparse
+import http.client
+import io
 import json
 import math
 import socket
@@ -61,6 +63,28 @@ def ms_since(t0: float) -> float:
     return round((time.perf_counter() - t0) * 1000.0, 3)
 
 
+def response_framing(header_block):
+    """Return (chunked, content length); a missing length uses connection close."""
+    headers = http.client.parse_headers(io.BytesIO(header_block))
+    encodings = headers.get_all("Transfer-Encoding", [])
+    lengths = headers.get_all("Content-Length", [])
+    if encodings:
+        if lengths:
+            raise ValueError("response has both Transfer-Encoding and Content-Length")
+        if ",".join(encodings).strip().lower() != "chunked":
+            raise ValueError("unsupported response Transfer-Encoding")
+        return True, None
+    if not lengths:
+        return False, None
+    values = [value.strip() for line in lengths for value in line.split(",")]
+    if any(not value.isascii() or not value.isdecimal() for value in values):
+        raise ValueError("invalid response Content-Length")
+    sizes = {int(value) for value in values}
+    if len(sizes) != 1:
+        raise ValueError("conflicting response Content-Length values")
+    return False, sizes.pop()
+
+
 def one_attempt(host, port, model, prompt, max_tokens, timeout):
     body = json.dumps({
         "model": model, "stream": True, "max_tokens": max_tokens,
@@ -92,14 +116,12 @@ def one_attempt(host, port, model, prompt, max_tokens, timeout):
         if len(parts) < 2 or not parts[1].isdigit():
             raise ValueError(f"malformed status line: {status_line!r}")
         rec["status"] = int(parts[1])
-        headers = {k.strip().lower(): v.strip() for k, _, v in
-                   (line.decode("latin-1").partition(":") for line in head.split(b"\r\n")[1:])}
-        chunked = "chunked" in headers.get("transfer-encoding", "").lower()
         if rec["status"] != 200:
             raise ValueError(f"HTTP {rec['status']}")
+        chunked, remaining = response_framing(head.partition(b"\r\n")[2] + b"\r\n\r\n")
 
         raw = rest
-        if raw:
+        if raw and remaining != 0:
             rec["first_byte_ms"] = ms_since(t0)
         decoded, text_chars = b"", 0
         previous_cr = False
@@ -134,6 +156,10 @@ def one_attempt(host, port, model, prompt, max_tokens, timeout):
         while True:
             if chunked:
                 payload, pending, finished = dechunk(pending)
+            elif remaining is not None:
+                payload, pending = pending[:remaining], b""
+                remaining -= len(payload)
+                finished = remaining == 0
             else:
                 payload, pending = pending, b""
             if payload:
@@ -180,6 +206,8 @@ def one_attempt(host, port, model, prompt, max_tokens, timeout):
             if not data:
                 if chunked:
                     raise ValueError("chunked response closed before terminal chunk completed")
+                if remaining is not None:
+                    raise ValueError("response closed before Content-Length bytes received")
                 break
             if rec["first_byte_ms"] is None:
                 rec["first_byte_ms"] = ms_since(t0)
@@ -189,7 +217,7 @@ def one_attempt(host, port, model, prompt, max_tokens, timeout):
             raise ValueError("stream ended without data: [DONE]")
         if rec["first_content_ms"] is None:
             raise ValueError("no content delta before [DONE]")
-    except (OSError, ValueError, json.JSONDecodeError, UnicodeDecodeError) as e:
+    except (OSError, ValueError, http.client.HTTPException) as e:
         rec["error"] = f"{type(e).__name__}: {e}"
     finally:
         if sock is not None:
