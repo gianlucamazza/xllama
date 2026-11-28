@@ -77,7 +77,7 @@ def measure(text, plan):
         evicted, keep, surviving, context, restored = map(int, shift.groups())
         prefill = int(generates[0][2])
         new = prefill - (surviving - restored)
-        if not (evicted > 0 and 0 <= restored <= keep <= surviving <= context and
+        if not (evicted > 0 and 0 <= restored <= keep <= surviving and evicted + surviving <= context and
                 new > 0 and surviving + new <= context):
             raise ValueError(f"inconsistent token accounting at turn {turn}")
         rows.append({"turn": turn, "evicted_tokens": evicted, "pinned_tokens": keep,

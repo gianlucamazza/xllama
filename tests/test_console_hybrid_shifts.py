@@ -51,6 +51,7 @@ class RepeatedShifts(unittest.TestCase):
 
     def test_missing_duplicate_unordered_or_inconsistent_observations_fail(self):
         for lines in ([SHIFT], [SHIFT, GEN, GEN], [GEN, SHIFT], [SHIFT, SHIFT, GEN],
+                      [SHIFT.replace("evicted 498", "evicted 2048"), GEN],
                       [SHIFT.replace("from 13", "from 99"), GEN], [SHIFT, GEN.replace("1077", "2")]):
             with self.subTest(lines=lines), self.assertRaises(ValueError):
                 driver.measure("\n".join((send(1, lines), send(2, [GEN]), send(3, [GEN]))), PLAN)
