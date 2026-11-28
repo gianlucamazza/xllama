@@ -1,0 +1,71 @@
+{
+  "evidence": "Measured",
+  "scope": "DC-0, pre-existing upstream host CTest; Linux CPU loopback",
+  "observed_utc_date": "2026-11-27",
+  "xllama_commit": "62a577e00859ec381463707f3baf1430edda5ddc",
+  "llama_cpp_commit": "d81235049384534c167caea52b85a694f6103d14",
+  "patch_check": "6 patch(es) applied at d812350",
+  "patch_sha256": {
+    "0001-uwp-appcontainer-guards.patch": "1041743635f5d67e8c64591727b627095532c62d832646ca49468cadd9ff8ccb",
+    "0003-kv-cache-k-shift-unallocated-input.patch": "4380ae6a9bd6d7725b2da857351401a0e39c535920e77b9aef88726772d938b4",
+    "0004-recurrent-state-fill-zero.patch": "64e6783c45e7225f99021a4ec9765a8d95d2dd389bb0d44d0c77b0452829cf5d",
+    "0005-required-tool-call-no-content-prefix.patch": "c2d6d21481e4690e840904249f42a368e2f6141257546ba961aca193aacd7643",
+    "0006-peg-escape-control-chars-in-tool-args.patch": "ee9ac8c19e7fe55f9f89a7dcbf608bc98e70a8e922e7f48fc1dc5b29480323c3",
+    "0007-lfm2-undeclared-tool-calls-in-auto.patch": "dad9e6027cbc15d656e0b0b44306ae7bf942fea65971c5ff4189e400bc0364f7"
+  },
+  "prepared_diff_sha256": "9ffc805e03eb7858b2988c51e44ae2730f2a59e7704bd84e4a8c5462e99c3b49",
+  "runtime": {
+    "host": "Linux 6.18.57 x86_64",
+    "compiler": "GNU C/C++ 14.2.0 (Debian 14.2.0-19)",
+    "cmake_ctest": "3.31.10",
+    "generator": "Unix Makefiles",
+    "target": "CPU, built-in GGML backends, static Release, plain TCP"
+  },
+  "reproduction_note": "From the xllama repository root on a disposable host. Commands normalize the observed build path to build/rpc-research and assume cmake and ctest 3.31.10 on PATH.",
+  "commands": [
+    "git ls-tree HEAD llama.cpp",
+    "scripts/apply-llama-patches.sh",
+    "scripts/apply-llama-patches.sh --check",
+    "sha256sum patches/0*-*.patch",
+    "git -C llama.cpp diff --binary --full-index --no-ext-diff HEAD | sha256sum",
+    "scripts/check-uwp-sources.sh",
+    "cmake -S llama.cpp -B build/rpc-research -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF -DGGML_RPC=ON -DGGML_RPC_RDMA=OFF -DGGML_BACKEND_DL=OFF -DLLAMA_BUILD_COMMON=ON -DLLAMA_BUILD_TESTS=ON -DLLAMA_BUILD_TOOLS=ON -DLLAMA_BUILD_SERVER=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_OPENSSL=OFF",
+    "cmake --build build/rpc-research --target ggml-rpc-server test-rpc-multi-server --parallel 3",
+    "ctest --test-dir build/rpc-research -R '^test-rpc-multi-server$' --timeout 60 --output-on-failure --no-tests=error"
+  ],
+  "test": "test-rpc-multi-server",
+  "participants": {
+    "hosts": 1,
+    "worker_processes": 2,
+    "test_client_processes": 1,
+    "model_files_loaded": 0
+  },
+  "network": {
+    "address": "127.0.0.1",
+    "backend": "CPU",
+    "transport": "IPv4 TCP",
+    "binding_verification": "Inspected the pinned tests/test-rpc-multi-server.sh before execution. Both worker invocations set --host 127.0.0.1 and --device CPU, the client receives matching loopback endpoints, and the transport binds that IPv4 address. No separate packet capture."
+  },
+  "result": {
+    "passed": 1,
+    "failed": 0,
+    "ctest_exit": 0,
+    "test_seconds": 0.07,
+    "total_wall_seconds": 0.07,
+    "observed": "Paired CPU backend initialization, remote allocation and graph submission/synchronization, memory query and distinct packed/strided tensor allocation sizes completed. The script checked the second worker log and ran its cleanup for both worker PIDs."
+  },
+  "uwp_source_inventory": {
+    "ggml-uwp.vcxproj": 215,
+    "llama-common-uwp.vcxproj": 43,
+    "evidence": "Source inventory only"
+  },
+  "binary_sha256_for_this_build": {
+    "ggml-rpc-server": "f221711e96da9a3d87a596f7cda99bd0f3960daea1b67530304d2a5f93057cfc",
+    "test-rpc-multi-server": "8f92ffbbe091c8c79d1b155ef16b9157234db6cc1afd5599122f2ccabbc90468"
+  },
+  "scope_limits": [
+    "No Xbox, Windows, ARM64, D3D12, GGUF inference or token parity.",
+    "No physical LAN, throughput, energy, security robustness, failure-recovery or deployment benchmark.",
+    "CTest wall time describes the fixture, not model inference or network RTT."
+  ]
+}
