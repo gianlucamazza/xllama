@@ -4,18 +4,19 @@ Discovery date: 2026-11-09. Audited main:
 `20e79727c3074507f51717596abb699ed184c655`; llama.cpp:
 `d81235049384534c167caea52b85a694f6103d14`.
 
-**Program status: in progress.** This is a source/evidence audit, not a fresh
-console performance baseline. No Xbox credentials/device or Windows SDK are
-configured in this execution. The previous execution records the Series S back
-in retail mode. Do not deploy, switch modes or reuse old timing rows as current
-measurements. Series X acceptance remains [#374](https://github.com/gianlucamazza/xllama/issues/374).
+**Program status: in progress.** The November 9 discovery ran without a
+console and cited an earlier retail-mode report. The November 27 assessment
+below reconciles later package receipts. The independent Series X campaign
+completed [#374](https://github.com/gianlucamazza/xllama/issues/374);
+the matched project-device and routing gates remain open under
+[#422](https://github.com/gianlucamazza/xllama/issues/422).
 
-## Discovery inventory
+## Discovery inventory (2026-11-09)
 
 The checkout includes all default-branch source, tests, CI, raw evidence and the
 pinned submodule. Remote branches at discovery: main, the C4 prefill experiment,
 FloppyLM training and the decision-model spike. The latter two are unrelated to
-this GPU program and were not integrated. Current open work is #313, #374,
+this GPU program and were not integrated. At discovery, open work included #313, #374,
 #395, upstream overlays #84/#85/#86 and architecture watch #273 (MoE).
 [#274](https://github.com/gianlucamazza/xllama/issues/274) BitNet and
 [#275](https://github.com/gianlucamazza/xllama/issues/275) SSM/RWKV + mm
@@ -36,8 +37,8 @@ tracked backlog stages, not a claim that GitHub milestones were created.
 
 All current main Linux/UWP/CodeQL runs observed at discovery completed
 successfully. Shipping workflow requires Linux, both UWP variants and C++
-CodeQL on an up-to-date PR head; optional jobs are not substitutes. Stable
-release remains v1.6.0.0; the reviewed 1.7 candidate and its receipts are owned
+CodeQL on an up-to-date PR head; optional jobs are not substitutes. At discovery the stable
+release was v1.6.0.0; the reviewed 1.7 candidate and its receipts are owned
 by [release notes](../releases/v1.7.0.md). No release is created by this program.
 Existing fork analysis is in [community-forks](../community-forks.md) and the
 [previous execution ledger](../audit/excellence/execution-2026-11-07.md).
@@ -57,10 +58,13 @@ The complete model-by-model status remains in [model-matrix](../model-matrix.md)
 | ONNX ORT DirectML                                                 | Verified eligible DML asset/provider; independent of GGUF layer offload                                     | Actual EP placement requires an ORT profile; fused nodes can conceal internals                             | DML text route does not support continuous KV reuse; no claim that every node or sampling stage is GPU-resident            |
 
 The custom backend is deliberately hybrid, not a complete GPU transformer.
-Q8_0 weight kernels, GPU RoPE/attention/KV and a general GPU GEMM are not
-implemented by main's custom backend. The requested Q8_0 _weight_ kernel must
+Plain F32 RoPE and a narrow F32 bias ADD can dispatch only with their separate
+LocalState opt-ins, successful PSO creation and eligible operands. See the
+[operator contracts and matched gates](../gguf-gpu-decode.md#bias-add-on-the-gpu-opt-in-experimental).
+Q8_0 weight kernels, GPU attention/KV and a general GPU GEMM remain outside
+the custom backend. The requested Q8_0 _weight_ kernel must
 not be confused with its existing q8 _activation_ path. Prefill reuses the
-single-column kernel across columns; C4 is only on the draft branch.
+single-column kernel across columns. C4 was tested on the closed #414 branch.
 Weights are uploaded through staging; CPU-cached coherent-UMA buffers share
 activations/results, so not every CPU/GPU boundary is a discrete device copy.
 Submissions still wait for completion; shared-input q/k/v and gate/up reuse
@@ -73,21 +77,52 @@ active KV state across backends or change shipping defaults from projections.
 
 ## Platform evidence boundary
 
-Use [UWP constraints](../uwp-constraints.md), especially §7, as the resource and
-compatibility authority. `d3d12_compute.cpp` uses the system D3D12 device path;
-`ggml_d3d12.cpp` requires cache-coherent UMA and creates the embedded pipeline
-states. HLSL/DXIL sources and generated blobs are versioned separately. Existing
-PSO creation/console receipts show the tested package's capabilities, not every
-RDNA 2 feature exposed in UWP or a Series X guarantee.
+Assessment on 2026-11-27 at `62a577e00859ec381463707f3baf1430edda5ddc`.
+The [Series S](https://www.xbox.com/en-US/consoles/xbox-series-s) and
+[Series X](https://www.xbox.com/en-US/consoles/xbox-series-x) product specifications
+describe the silicon. [Microsoft's UWP allocation table](https://learn.microsoft.com/en-us/previous-versions/windows/uwp/xbox-apps/system-resource-allocation)
+distinguishes foreground App and Game designations and debugging. Record actual
+process resources at measurement time. [UWP constraints](../uwp-constraints.md)
+owns measured budgets and API restrictions.
 
-Microsoft documents UWP Xbox resource allocation separately from desktop D3D12:
-[resource allocation](https://learn.microsoft.com/en-us/windows/uwp/xbox-apps/system-resource-allocation).
-Wave intrinsics require feature checks according to the
-[Shader Model 6 documentation](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/hlsl-shader-model-6-0-features-for-direct3d-12).
-Check shader model, WaveOps/lane bounds and relevant packed-integer/16-bit
-capabilities on the actual adapter before adding feature-dependent paths.
-Do not infer wave width, accessible compute units or memory budget from the
-console's retail hardware name. A desktop or GDK capability is not a UWP receipt.
+| Capability                                       | Xbox Series S silicon                             | Xbox Series X silicon                               | API / UWP path                                                                                                                                                                                                                                                                                                                                                                                                                         | Evidence and Windows x64 control                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------ | ------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CPU / SIMD / caches                              | Eight Zen 2 cores                                 | Eight Zen 2 cores                                   | UWP build uses `/arch:AVX2`; the available CPU set and designation constrain usable workers.                                                                                                                                                                                                                                                                                                                                           | [Series S CPU/thread evidence](../uwp-constraints.md#6-limited-thread-count) and [external X receipt](../../bench/results/2026-11-16-series-x-422/README.md). On PC record CPU, CPUID/OS-enabled vector state, cache topology and effective threads. No per-console cache-residency or VNNI result in those receipts.                                                                                                   |
+| Compute and shaders                              | RDNA 2, 20 CUs, 4 TFLOPS nominal                  | RDNA 2, 52 CUs, 12 TFLOPS nominal                   | Series UWP lists D3D12 feature level 11_0. The system device, individual shader-model/features and actual PSO creation determine which shaders execute.                                                                                                                                                                                                                                                                                | [Series S package selftest](../../bench/results/2026-11-27-v1110-series-s-release/receipts/d3d12-selftest-ee6a718-off.csv) and [external X grid](../../bench/results/2026-11-16-series-x-422/README.md) cover their own arms. On PC log adapter LUID, driver, OS, features and physical hardware vs software adapter.                                                                                                   |
+| Waves / instruction selection                    | RDNA 2 SIMD                                       | RDNA 2 SIMD                                         | `gpugemv.cpp` queries [OPTIONS1](https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ns-d3d12-d3d12_feature_data_d3d12_options1) for WaveOps and min/max lanes. An intrinsic-dependent variant needs an eligible lane range and a scalar or groupshared control.                                                                                                                                                                 | The [Series S wave32 and dot4 probe](../../bench/results/phase15-gpugemv-h63.csv) explicitly records `wave_ops=0`. The wave32 kernel uses groupshared reduction. Capture the capability report and a dispatch on each device before selecting a native wave path.                                                                                                                                                       |
+| FP32, FP16, INT8, packed 4-bit                   | GPU arithmetic and GDDR6                          | GPU arithmetic and GDDR6                            | FP32 output, unpacking FP16 scales and packed INT8 dot arithmetic have distinct requirements. `gpugemv` checks SM 6.4 for [packed dot4](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/hlsl-shader-model-6-4-features-for-direct3d-12). For native-half candidates query [OPTIONS4.Native16BitShaderOpsSupported](https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ns-d3d12-d3d12_feature_data_d3d12_options4). | The S dot4 rows have GPU execution, timestamps and a passing numerical check. Quantized weights in the D3D12 selftest and FP16 DirectML graph execution cover the named paths. Native opcode throughput, INT4 arithmetic and arbitrary DML operators need their own evidence on S/X/PC.                                                                                                                                 |
+| Memory segments, GPU caches and shared resources | 10 GB GDDR6, 8 GB at 224 GB/s and 2 GB at 56 GB/s | 16 GB GDDR6, 10 GB at 560 GB/s and 6 GB at 336 GB/s | `MemoryManager` reports process limits and usage; `QueryVideoMemoryInfo(LOCAL)` reports adapter budget and current usage. The backend requires [CacheCoherentUMA](https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ns-d3d12-d3d12_feature_data_architecture1). Shared mapped activations still require ordering. Weights use bounded upload/readback staging.                                                                 | [S UMA and heap probe](../../bench/results/phase15-gpustep-d1.csv), [process and GPU memory pair](evidence/2026-11-18-d3d12-layer-overhead/README.md). X has an external process-limit receipt. PC can be discrete or UMA; a discrete adapter fails this custom backend's eligibility. Segment placement, cache sizes/hit rates and sustained model bandwidth cannot be recovered from retail bandwidth or working set. |
+| SSD / app-visible I/O                            | Custom NVMe, up to 2.4 GB/s raw                   | Custom NVMe, up to 2.4 GB/s raw                     | AppContainer GGUF uses buffered Win32 loading. `diskbw` can read aligned blocks unbuffered. The [DirectStorage Windows SDK](https://github.com/microsoft/DirectStorage) is a separate desktop experiment pending supported package APIs and on-device completion.                                                                                                                                                                      | [S sequential and random reads](../../bench/results/diskbw.csv) specify block size, workers and buffering. [CPU expert-streaming receipts](evidence/2026-11-16-moe-24b-console/README.md) count logical bytes. Collect comparable X/PC storage traces with volumes, queue depth and cache state. Physical bytes and random 4 KiB IOPS are unavailable from those runs.                                                  |
+| DirectML, timing and profiling                   | Integrated GPU                                    | Integrated GPU                                      | ORT profiles identify assigned EP/fused node; GPU timestamps on the D3D12 queue need valid pairs and its frequency. PIX/ETW require an accessible capture target and appropriate tooling.                                                                                                                                                                                                                                              | [Series S DirectML attribution](../uwp-constraints.md#11-gpu-truth--ep-attribution-without-pix) and [dispatch calibration](evidence/2026-11-16-d3d12-dispatch-timing/README.md). On capable Windows hardware capture queue/CPU timelines with PIX/ETW and compare uninstrumented runs. Desktop captures and Windows builds leave console validation open.                                                               |
+
+### Reproduce the hardware and bottleneck assessment
+
+1. Record the package hash, source, DLLs, model and prompt digests, shader build, OS, hardware receipt, device/driver, App/Game and foreground state. Collect App runs from the UI after the CPU cap settles (at least 20 seconds after launch per [#422](https://github.com/gianlucamazza/xllama/issues/422)). Use the [device runbook](../console-validation-runbook.md) for Series X.
+2. Run `bench-d3d12-selftest.sh` at defaults, then gate an individual optional operator separately. For each eligible model run `bench-xbox-ort.sh` with fixed prompt/decode/context and CPU vs requested offload. Bind the observed GPU dispatch or ORT provider to the same run. Check output with [ADR 0010](../adr/0010-logit-parity-reference-spread.md) before comparing speed.
+3. Separate model load, tokenization, prefill, decode, sampling and stream delivery. Use the layer sidecar for dispatches and `measure-api-ttfb.py` for first visible content over LAN. Treat an uninstrumented interval as unknown. Perform wall-time trials with diagnostic knobs off and a paired on/off calibration for each timing capture.
+4. For a representative matmul shape, compute expected operations (two per multiply-add) and declared bytes of weights, activations and output. Use their ratio in FLOP/byte with sustained bandwidth and arithmetic throughput measured on the same path. At one column, weights amortize over one token; extra prefill columns can increase reuse. Absolute DRAM traffic, cache hits, utilization, clock rate and energy require corresponding counters. Use model-level throughput/latency and a CPU or paired knob control to test any roofline hypothesis.
+
+A November 27 host replay of the [six historical C4 cells](evidence/2026-11-16-c4-performance/README.md) reproduced every archived per-gate median, 95% bootstrap interval and verdict from the checked-in A/B rows and ledgers. All three LFM cells failed and all three Coder cells passed, with 20 pairs per cell. To repeat, use each `id` and its ordered `gates` in [the frozen manifest](evidence/2026-11-16-c4-performance/manifest.json).
+
+```sh
+# Example failing cell. Exit 1 is the recorded performance verdict.
+python3 scripts/paired-bench-summary.py \
+  bench/results/2026-11-16-c4-paired/cells/lfm25-1.2b-instruct/long-1k \
+  --gates prefill,decode,ttft,peak
+# Default-profile integrity of the previously measured v1.11.0 Series S package.
+python3 scripts/verify-d3d12-selftest.py \
+  bench/results/2026-11-27-v1110-series-s-release/receipts/d3d12-selftest-ee6a718-off.csv
+```
+
+The latter replay verified 24 distinct GPU selftests. Both checks reuse historical console records. Fresh runs still require the matching package and device.
+
+### GPU opportunities and decisions
+
+| Candidate                                                                               | Implemented baseline / cost to isolate                                                                                                                                                                             | Decision and acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Command lists, allocators, PSOs, descriptors                                            | A process-wide queue, allocator, list, root descriptors and per-type/width PSOs are already reused. Submission waits protect reuse; opt-in per-dispatch timing adds UAV barriers.                                  | Profile the number of dependency-driven splits and fence cost per token in #421. Require completion proof for every in-flight allocator/buffer before proposing asynchronous reuse. Persistent disk PSO caching needs measured cold PSO cost.                                                                                                                                                                                                                         |
+| GPU-resident intermediates, fusion, tiled prefill, wave and thread-group specialization | Supported operand shapes gate placement, shared q8 inputs avoid repeated quantization, and thread widths already vary. Bias ADD and RoPE have independent opt-ins. Q4_0 C4 was correct but lost end-to-end on LFM. | Retain defaults; benchmark hypotheses per model/quant/phase. The [community review](../audit/excellence/standards-2026-11-27/forks-and-gpu.md) credits Chorss and Christopher Bearman. [#589](https://github.com/gianlucamazza/xllama/issues/589) owns FA/small-op/quantizer assessment, [#590](https://github.com/gianlucamazza/xllama/issues/590) owns remaining RoPE/timing deltas. Compare upstream support and array alias/barrier requirements before any port. |
+| Attention, sampling, KV and expert placement                                            | GGUF shipping attention/KV/sampler remain on CPU; DirectML owns its ONNX graph. Moving one op may add synchronization or a full logits copy.                                                                       | Quantify round trips, bytes, memory and end-to-end token latency. Use matched EOS/seed and teacher-forced logits where applicable. Keep streamed experts on #479 → #480 → #481; GPU expert kernels need their own dispatch, parity and resource receipts.                                                                                                                                                                                                             |
 
 ## Profiling coverage and bottlenecks
 
@@ -197,7 +232,7 @@ remain frozen for that experiment only.
 | Stage         | Work / owner lane                            | Acceptance                                                                          | Status / dependency                                                                             |
 | ------------- | -------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | M0, week 1    | Source/evidence audit, principal/runtime     | This baseline, route/coverage map and triage reviewed                               | Audit produced; no fresh console baseline                                                       |
-| M1, weeks 1–2 | Integrity and profiling, QA/performance      | Fail-closed CLI/trace tests; complete attributable current-device capture           | #420/#421; tools integrated; first console phase capture 2026-11-15, calibration pending        |
+| M1, weeks 1–2 | Integrity and profiling, QA/performance      | Fail-closed CLI/trace tests; complete attributable current-device capture           | #420/#421; tools integrated; Series S calibration and layer sidecar delivered                   |
 | M2, weeks 2–3 | Coder control RCA, numerical/GPU             | First causal divergence isolated and frozen parity passes                           | #420 closed; control traced to layer 0, ADR 0010 amended, both gate models PASS (2026-11-15/16) |
 | M3, weeks 3–5 | Measured kernel/overhead work, HLSL          | Independent reversible PRs, numerical and resource gates, paired gains              | #313 closed, #414 closed unmerged: C4 correct, paired campaign FAIL on LFM2.5-1.2B (2026-11-16) |
 | M4, weeks 4–6 | Deterministic routing, runtime/platform      | Measured envelope, logged reasons, fallback/override and repeatable tests           | #422; existing defaults preserved pending data                                                  |
@@ -221,10 +256,9 @@ did LFM2.5-1.2B and the four-column kernel. The preregistered #313
 performance campaign then
 [failed](evidence/2026-11-16-c4-performance/README.md): 1.5 times faster
 prefill on Coder-3B and 15 % slower on LFM2.5-1.2B, so the kernel is not
-promoted; #313 is closed as completed and #414 closed without merge. The
-remaining action on #421 after per-dispatch timing and per-layer log lines
-is CSV or sidecar integration, which would carry the per-kind and per-layer
-times on a bench row. Layer lines separate GPU timestamps from `wait_ms`
+promoted; #313 is closed as completed and #414 closed without merge. The #493 parser emits a layer CSV sidecar. #421 still tracks
+the externally reported Series X submission cost and the conditional Q4_0
+shader follow-up. A KV sidecar is a separate proposal. Layer lines separate GPU timestamps from `wait_ms`
 (`exec_wait_ms − submission GPU time, divided by n`). That remainder can
 come out slightly negative because the CPU and GPU clocks are different
 domains. A K-quant-only variant would need a new issue
