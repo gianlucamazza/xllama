@@ -258,19 +258,19 @@
     "model": "LFM2.5-230M",
     "quant": "QAD Q4_0",
     "be": "llama",
-    "prefill": 623.69,
-    "decode": 127.12,
+    "prefill": 626.09,
+    "decode": 126.87,
     "ram": 237,
-    "src": "2026-11-15-remeasure-1563/lfm25-230m-qad-q40-cpu-t6-eog"
+    "src": "2026-11-27-v1110-remeasure/lfm25-230m-qad-q40-cpu-t6-eog"
   },
   {
     "model": "LFM2.5-350M",
     "quant": "QAD Q4_0",
     "be": "llama",
-    "prefill": 371.42,
-    "decode": 97.9,
+    "prefill": 371.58,
+    "decode": 97.32,
     "ram": 311,
-    "src": "2026-11-15-remeasure-1563/lfm25-350m-qad-q40-cpu-t6-eog"
+    "src": "2026-11-27-v1110-remeasure/lfm25-350m-qad-q40-cpu-t6-eog"
   },
   {
     "model": "Gemma-3-270M",
@@ -333,19 +333,19 @@
     "model": "LFM2.5-1.2B",
     "quant": "QAD Q4_0",
     "be": "llama",
-    "prefill": 109.66,
-    "decode": 40.02,
-    "ram": 783,
-    "src": "2026-09-30-catalogue-gates"
+    "prefill": 109.28,
+    "decode": 39.73,
+    "ram": 786,
+    "src": "2026-11-27-v1110-remeasure/lfm25-1.2b-qad-q40-cpu-t6-eog"
   },
   {
     "model": "LFM2.5-1.2B",
     "quant": "QAD Q4_0",
     "be": "llama",
-    "prefill": 257.44,
-    "decode": 74.84,
-    "ram": 860,
-    "src": "2026-10-02-fa-gguf-gpu"
+    "prefill": 256.47,
+    "decode": 74.03,
+    "ram": 861,
+    "src": "2026-11-27-v1110-remeasure/lfm25-1.2b-qad-q40-d3d12-g99-eog"
   },
   {
     "model": "LFM2.5-1.2B-Thinking",
@@ -361,10 +361,10 @@
     "model": "Qwen2.5-Coder-1.5B",
     "quant": "Q4_K_M",
     "be": "llama",
-    "prefill": 96.61,
-    "decode": 26.12,
-    "ram": 1179,
-    "src": "phase14-console",
+    "prefill": 104.36,
+    "decode": 26.15,
+    "ram": 1176,
+    "src": "2026-11-27-v1110-remeasure/qwen25-coder-1.5b-q4km-cpu-t6-ctx4096-eog",
     "tag": "coding \u00b7 n_ctx 4096"
   },
   {
@@ -400,10 +400,10 @@
     "model": "LFM2-2.6B",
     "quant": "Q4_K_M",
     "be": "llama",
-    "prefill": 54.93,
-    "decode": 17.85,
-    "ram": 1623,
-    "src": "2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun"
+    "prefill": 57.76,
+    "decode": 18.09,
+    "ram": 1629,
+    "src": "2026-11-27-v1110-remeasure/lfm2-2.6b-q4km-cpu-t6-eog"
   },
   {
     "model": "Qwen2.5-Coder-3B (benchmark; model under a non-commercial research licence)",
@@ -541,7 +541,7 @@
   }
 ];
   const MAX_KV_REUSE = 20.02;
-  const LATEST_RUN = "2026-11-15";
+  const LATEST_RUN = "2026-11-27";
   // END GENERATED BENCHMARK DATA
   const METRICS = {
     decode:  { label: "Decode", unit: "tok/s", cap: "Generation throughput — the rate a user feels. Higher is better.", better: "high" },

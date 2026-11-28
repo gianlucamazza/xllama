@@ -2,7 +2,13 @@
 
 This directory supports maintainer review of the existing contributor code. It does not enable MoE streaming in xLlama. The [readiness report](../../docs/research/moe-upstream-readiness.md) maps the source, completed checks and remaining gates; [#482](https://github.com/gianlucamazza/xllama/pull/482) contains the proposed integration sequence.
 
-## Independent cache check
+## Upstream portable candidate
+
+Run the registered `test_moe_expert_cache.cpp` cases through the Linux test preset. These exercise the upstream implementation directly. They do not require fork source or a model.
+
+## Historical independent cache check
+
+The following records the November 16 procedure and its limitations. The November 24 program requires clean-room development. Use the registered upstream tests for the current candidate.
 
 `cache-contract.cpp` exercises the contributor's real cache header with a deterministic in-memory Reader. It checks payloads and actual read offsets, including pinned leases, short/throwing/over-reported reads, LRU eviction, budgets and mixed quant layouts. It is a standalone review harness, not a shipping test or a model-math test.
 
@@ -145,4 +151,8 @@ pair. A zero reference has NMSE zero for an identical row. For any nonzero
 candidate against a zero reference, the report uses JSON `null` for NMSE and
 marks the pair `FAIL`. Exit 0 means the requested check passed, 1 means
 numerical divergence, and 2 means invalid input or provenance. Keep the report
-with the candidate receipt and raw captures.
+with the candidate receipt and raw captures. After shared metadata and receipt
+validation, row preflight records every missing or invalid row or sidecar in
+`row_errors` with its arm, case, step and cause. Any row error withholds all
+numerical comparisons. Numerical divergence with valid inputs still reports
+every pair, including every failed row.
