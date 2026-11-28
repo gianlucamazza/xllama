@@ -632,9 +632,11 @@ validates these fields before compute admission, and a bad value is `400`:
 `options.num_ctx` ([Reduced context](#reduced-context-optionsnum_ctx)), and
 `tools`, `functions` and `tool_choice` (below). The native Ollama routes refuse
 any field or option they cannot apply
-([Native Ollama](#native-ollama-generation-apichat-apigenerate)). Other unknown
-fields on `/v1/chat/completions`, such as `n`, `logprobs` and the penalty
-fields, are ignored ([#665](https://github.com/gianlucamazza/xllama/issues/665)).
+([Native Ollama](#native-ollama-generation-apichat-apigenerate)). On `/v1/chat/completions` the server accepts one choice (`n: 1`), `logprobs: false`,
+`top_logprobs: 0`, `presence_penalty: 0` and `frequency_penalty: 0`.
+Clients may omit these fields or send `null`. Other values and wrong JSON types
+return HTTP 400 before admission or streaming, with `unsupported_openai_generation_field`
+in `error.code` and the field name in `error.param`.
 
 Plain chat (no tool schema, `tools: []`, or `tool_choice` `"none"`) keeps
 `ChatFormat::render_prompt` (`include/xllama/chat_prompt.h`). Roles are system,
@@ -883,7 +885,7 @@ For a live response-format check, keep the app in the foreground, install
 `openai==3.60.0` in a host Python environment and run
 `python scripts/validate-api-response-format.py http://<console-ip>:11434/v1 lfm25-350m`.
 The SDK checks successful default and explicit-text chat and inspects the HTTP
-400 code and parameter for malformed and unsupported formats with streaming requested.
+400 code and parameter for malformed formats and unsupported generation fields, including streaming requests.
 
 ### Embeddings (`/api/embed`, `/api/embeddings`, `/v1/embeddings`)
 

@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- OpenAI chat rejects unsupported choice counts, log probabilities and presence/frequency penalties before compute admission. The HTTP 400 response names the field (#665).
+
 ## [1.11.0]
 
 User-facing notes: [docs/releases/v1.11.0.md](docs/releases/v1.11.0.md).

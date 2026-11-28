@@ -65,3 +65,30 @@ TEST_CASE("api_response_format_supported: text, absent or null only") {
     f.kind = Kind::Other; // "text" as a bare string, a number, an array
     CHECK_FALSE(xllama::api_response_format_supported(f));
 }
+
+TEST_CASE("OpenAI generation fields preserve typed defaults and name unsupported requests") {
+    using Value = xllama::ApiGenerationValue;
+    const auto check = [](const char* key, Value value) {
+        const char* error =
+            xllama::unsupported_openai_generation_field([&](const char* name) -> Value {
+                return std::string(name) == key ? value : Value{nullptr};
+            });
+        return std::string(error ? error : "");
+    };
+    CHECK(check("n", 1.0).empty());
+    CHECK(check("n", 2.0) == "n");
+    CHECK(check("n", true) == "n");
+    CHECK(check("logprobs", false).empty());
+    CHECK(check("logprobs", true) == "logprobs");
+    CHECK(check("logprobs", 0.0) == "logprobs");
+    for (const char* key : {"top_logprobs", "presence_penalty", "frequency_penalty"}) {
+        CHECK(check(key, -0.0).empty());
+        CHECK(check(key, 0.5) == key);
+        CHECK(check(key, false) == key);
+    }
+    for (const char* key :
+         {"n", "logprobs", "top_logprobs", "presence_penalty", "frequency_penalty"}) {
+        CHECK(check(key, nullptr).empty());
+        CHECK(check(key, std::monostate{}) == key);
+    }
+}
