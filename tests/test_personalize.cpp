@@ -6,6 +6,7 @@
 
 #include <doctest/doctest.h>
 
+#include <chrono>
 #include <cstdio>
 #include <fstream>
 #include <string>
@@ -129,4 +130,84 @@ TEST_CASE("format_train_progress_json: stable keys") {
     CHECK(j.find("\"epoch\":2") != std::string::npos);
     CHECK(j.find("\"epochs\":8") != std::string::npos);
     CHECK(j.find("\"loss\":1.500000") != std::string::npos);
+}
+
+TEST_CASE("personalized manifest preserves other overrides and refuses invalid local state") {
+    const auto path =
+        std::filesystem::temp_directory_path() / "xllama-personalized-manifest-test.json";
+    const std::string old = R"({"channel":"lab","models":[{"name":"a","unknown":1},{"name":"b"}]})";
+    std::ofstream(path) << old;
+    std::string err;
+    REQUIRE(publish_personalized_manifest(path, 1024, &err));
+    REQUIRE(publish_personalized_manifest(path, 2048, &err));
+    std::ifstream file(path);
+    const std::string saved((std::istreambuf_iterator<char>(file)), {});
+    file.close();
+    CHECK(saved.find("\"channel\": \"lab\"") != saved.npos);
+    CHECK(saved.find("\"unknown\": 1") != saved.npos);
+    CHECK(saved.find("\"name\": \"b\"") != saved.npos);
+    CHECK(saved.find("1024") == saved.npos);
+    CHECK(saved.find("2048") != saved.npos);
+    std::ofstream(path) << "{bad";
+    CHECK_FALSE(publish_personalized_manifest(path, 12, &err));
+    std::ifstream invalid(path);
+    CHECK(std::string(std::istreambuf_iterator<char>(invalid), {}) == "{bad");
+    invalid.close();
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("personalized model publication restores all three files after interruption") {
+    namespace fs = std::filesystem;
+    const auto root = fs::temp_directory_path() /
+                      ("xllama-publish-" +
+                       std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    fs::create_directories(root);
+    const auto merged = root / "merged.gguf";
+    const auto manifest = root / "manifest.json";
+    const auto dir = root / "models" / "personalized";
+    const auto model = dir / "model.gguf";
+    const auto marker = dir / ".complete";
+    const auto read = [](const fs::path& path) {
+        std::ifstream in(path, std::ios::binary);
+        return std::string(std::istreambuf_iterator<char>(in), {});
+    };
+    std::ofstream(manifest) << R"({"models":[{"name":"custom"}]})";
+    std::ofstream(merged) << "trained generation";
+    std::string error;
+    REQUIRE(publish_personalized_model(root, merged, &error));
+    const auto previous_manifest = read(manifest);
+    CHECK(previous_manifest.find("custom") != previous_manifest.npos);
+    REQUIRE(read(model) == "trained generation");
+    REQUIRE(read(marker) == "ok");
+
+    for (const auto* abandoned : {".publish-stage", ".publish-done"}) {
+        fs::create_directory(dir / abandoned);
+        std::ofstream(dir / abandoned / "weights") << "disposable model bytes";
+        REQUIRE(recover_personalized_publication(root, &error));
+        CHECK_FALSE(fs::exists(dir / abandoned));
+        CHECK(read(model) == "trained generation");
+        CHECK(read(manifest) == previous_manifest);
+        CHECK(read(marker) == "ok");
+    }
+    const auto journal = dir / ".publish-pending";
+    fs::create_directory(journal);
+    fs::rename(model, journal / "old-model");
+    fs::copy_file(manifest, journal / "old-manifest");
+    fs::copy_file(marker, journal / "old-marker");
+    std::ofstream(model) << "interrupted generation";
+    std::ofstream(manifest) << "interrupted manifest";
+    fs::remove(marker);
+    REQUIRE(recover_personalized_publication(root, &error));
+    CHECK(read(model) == "trained generation");
+    CHECK(read(manifest) == previous_manifest);
+    CHECK(read(marker) == "ok");
+    REQUIRE(recover_personalized_publication(root, &error));
+
+    std::ofstream(manifest) << "invalid existing override";
+    std::ofstream(merged) << "next generation";
+    CHECK_FALSE(publish_personalized_model(root, merged, &error));
+    CHECK(read(model) == "trained generation");
+    CHECK(read(manifest) == "invalid existing override");
+    CHECK(read(marker) == "ok");
+    fs::remove_all(root);
 }

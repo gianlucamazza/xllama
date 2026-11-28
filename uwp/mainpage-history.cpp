@@ -115,7 +115,8 @@ bool MainPageController::SubmitFeedback(size_t assistant_index, const std::strin
         return fail("could not append training/samples.jsonl");
 
     assistant.feedback_label = label;
-    SaveCurrentConversation();
+    if (!SaveCurrentConversation())
+        return fail("rating recorded but chat history could not be saved");
     log_output("[xllama] feedback label=" + label + " appended preference sample\n");
     return true;
 }
@@ -156,24 +157,28 @@ winrt::fire_and_forget MainPageController::ShowCorrectionDialog(size_t assistant
     }
 }
 
-void MainPageController::SaveCurrentConversation(bool partial) {
+bool MainPageController::SaveCurrentConversation(bool partial) {
     if (m_current.id.empty())
-        return;
+        return true;
     // Mark last assistant message as partial if needed
     if (partial && !m_current.messages.empty() &&
         m_current.messages.back().role == xllama::ui::MessageRole::Assistant) {
         m_current.messages.back().partial = true;
     }
-    m_history.Save(m_current);
+    if (m_history.Save(m_current))
+        return true;
+    SetStatus(L"Could not save chat history", StatusKind::Error);
+    return false;
 }
 
 void MainPageController::NewChat() {
     if (m_is_running.load())
-        return;                // don't allow while running
-    SaveCurrentConversation(); // save current (no-op if empty)
-    SaveKvSnapshotAsync();     // #170b: before m_kv_valid/m_active_model are cleared
-    m_kv_valid = false;        // new conversation → discard reused KV
-    m_active_model.clear();    // re-decide EP routing for the new conversation
+        return; // don't allow while running
+    if (!SaveCurrentConversation())
+        return;
+    SaveKvSnapshotAsync();  // #170b: before m_kv_valid/m_active_model are cleared
+    m_kv_valid = false;     // new conversation → discard reused KV
+    m_active_model.clear(); // re-decide EP routing for the new conversation
     m_current = xllama::ui::Conversation{};
     m_current.id = xllama::ui::ChatHistory::NewId();
     m_outputBody.Blocks().Clear();
@@ -248,14 +253,17 @@ void MainPageController::FinalizeStreamedTurn(const std::string& output_text) {
 }
 
 void MainPageController::LoadConversation(const std::string& id) {
-    SaveCurrentConversation();
+    if (!SaveCurrentConversation())
+        return;
+    auto loaded = m_history.Load(id);
+    if (loaded.id.empty()) {
+        SetStatus(L"Could not read the selected conversation", StatusKind::Error);
+        return;
+    }
     SaveKvSnapshotAsync();  // #170b: before m_kv_valid/m_active_model are cleared
     m_kv_valid = false;     // switching conversations → the reused KV no longer applies
     m_active_model.clear(); // re-decide EP routing for the loaded conversation
-    m_current = m_history.Load(id);
-    if (m_current.id.empty()) {
-        m_current.id = id;
-    }
+    m_current = std::move(loaded);
     RenderConversation();
     SetStatus(L"Conversation loaded");
 }
@@ -293,8 +301,12 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
     if (m_is_running.load())
         co_return;
 
-    m_history.LoadIndex(); // refresh index before showing
-    const auto& index = m_history.Index();
+    if (!m_history.LoadIndex()) {
+        SetStatus(L"Could not read conversation history", StatusKind::Error);
+        co_return;
+    }
+    // Keep the displayed rows stable while the dialog is open and when a save reorders them.
+    const auto index = m_history.Index();
 
     winrt::Windows::UI::Xaml::Controls::ContentDialog dlg;
     dlg.Title(winrt::box_value(L"Conversation History"));
