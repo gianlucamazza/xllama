@@ -1744,7 +1744,8 @@ std::vector<std::string> servable_model_ids() {
     }
     std::sort(ids.begin(), ids.end());
     const std::string current = current_model_id();
-    if (!current.empty() && std::find(ids.begin(), ids.end(), current) == ids.end())
+    if (!current.empty() && !::xllama::usb_import_pending(root / current) &&
+        std::find(ids.begin(), ids.end(), current) == ids.end())
         ids.push_back(current);
     return ids;
 }

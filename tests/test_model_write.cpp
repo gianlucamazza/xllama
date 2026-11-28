@@ -171,3 +171,23 @@ TEST_CASE("Download retry reclaims only its own unfinished transfer") {
     CHECK(dir.read("model.gguf") == "serving");
     CHECK(dir.read("model.gguf.previous") == "rollback");
 }
+
+TEST_CASE("Interrupted USB copy stays unavailable after restart until successfully completed") {
+    ModelDir dir;
+    xllama::ModelWriteGate gate;
+    std::error_code ec;
+    {
+        xllama::ModelWriteOperation writer(gate, dir.path);
+        REQUIRE(writer.begin_usb_import(ec));
+        dir.put("genai_config.json", "{}");
+    }
+    CHECK(xllama::usb_import_pending(dir.path));
+    CHECK_FALSE(xllama::model_dir_files_ready({"genai_config.json", xllama::kUsbImportPending}));
+    CHECK_FALSE(std::filesystem::exists(dir.path / ".complete"));
+    xllama::ModelWriteOperation retry(gate, dir.path);
+    REQUIRE(retry.begin_usb_import(ec));
+    dir.put("model.onnx", "weights");
+    REQUIRE(retry.complete({L"genai_config.json", L"model.onnx"}, ec));
+    CHECK_FALSE(xllama::usb_import_pending(dir.path));
+    CHECK(dir.read(".complete") == "ok");
+}

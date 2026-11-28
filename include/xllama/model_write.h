@@ -103,6 +103,15 @@ class ModelWriteOperation {
         return !ec;
     }
 
+    bool begin_usb_import(std::error_code& ec) {
+        if (!begin(ec))
+            return false;
+        // Even an uncatalogued/manual layout can look ready after copying only
+        // its config. Persist the exclusion across process restarts.
+        std::filesystem::create_directory(m_root / kUsbImportPending, ec);
+        return !ec;
+    }
+
     // Call only after every expected file has been verified/promoted. An empty
     // list is useful for rollback/USB: publish the marker without pruning.
     bool complete(const std::vector<std::wstring>& expected_files, std::error_code& ec) {
@@ -134,8 +143,8 @@ class ModelWriteOperation {
             ec = std::make_error_code(std::errc::io_error);
             return false;
         }
-        ec.clear();
-        return true;
+        std::filesystem::remove(m_root / kUsbImportPending, ec);
+        return !ec;
     }
 
   private:
