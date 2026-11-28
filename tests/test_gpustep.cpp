@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "../src/bridge/d3d12_compute.h"
 #include "xllama/gpustep.h"
 
 #include <cmath>
@@ -131,7 +132,9 @@ GpustepRow row(const char* kind, const std::string& variant, const char* process
     r.kind = kind;
     r.variant = variant;
     r.process = process;
+    r.iterations = 5;
     r.median = median;
+    r.p90 = median;
     r.ok = ok;
     r.d3d12_ran = true;
     return r;
@@ -221,4 +224,58 @@ TEST_CASE("gpustep: measure on non-D3D12 host reports unavailable") {
     CHECK_FALSE(rows[0].error.empty());
     CHECK(gpustep_evaluate(rows).ladder == GpustepLadder::NotAVerdict);
 #endif
+}
+
+TEST_CASE("gpustep: only the observed D3D12 fence counter completes a submitted marker") {
+    constexpr std::uint64_t removed = (std::numeric_limits<std::uint64_t>::max)();
+    for (const bool spin : {false, true}) {
+        for (const bool arm_ok : {false, true}) {
+            for (const bool wait_ok : {false, true}) {
+                for (const std::uint64_t end : {std::uint64_t{6}, removed}) {
+                    const std::uint64_t counter[] = {2, 3, end};
+                    int reads = 0, arms = 0, waits = 0, polls = 0;
+                    auto read = [&] {
+                        REQUIRE(reads < 3);
+                        return counter[reads++];
+                    };
+                    auto arm = [&] {
+                        ++arms;
+                        return arm_ok;
+                    };
+                    auto wait = [&] {
+                        ++waits;
+                        return wait_ok;
+                    };
+                    CHECK(d3d12c::wait_accepted_fence(5, spin, read, arm, wait, [&] { ++polls; }) ==
+                          (end != removed));
+                    CHECK(reads == 3);
+                    CHECK(arms == (spin ? 0 : 1));
+                    CHECK(waits == ((spin || !arm_ok) ? 0 : (wait_ok ? 2 : 1)));
+                    CHECK(polls == ((!spin && arm_ok && wait_ok) ? 0 : 2));
+                }
+            }
+        }
+    }
+    auto unexpected = []() {
+        FAIL("already terminal fence must not wait");
+        return false;
+    };
+    CHECK_FALSE(d3d12c::wait_accepted_fence(
+        2, false, [&] { return removed; }, unexpected, unexpected, unexpected));
+    CHECK(d3d12c::wait_accepted_fence(
+        2, false, [] { return 2u; }, unexpected, unexpected, unexpected));
+}
+
+TEST_CASE("gpustep: a heap without sound timestamp samples cannot qualify a campaign") {
+    const auto valid = full_run(60.0, 30.0, 20.0, true);
+    for (const double missing : {0.0, (std::numeric_limits<double>::quiet_NaN)()}) {
+        auto rows = valid;
+        rows[0].median = missing;
+        CHECK_FALSE(gpustep_evaluate(rows).g1_headless);
+        CHECK(gpustep_evaluate(rows).ladder == GpustepLadder::NotAVerdict);
+    }
+    auto rows = valid;
+    rows[0].iterations = 0;
+    CHECK_FALSE(gpustep_evaluate(rows).g1_headless);
+    CHECK(gpustep_evaluate(rows).ladder == GpustepLadder::NotAVerdict);
 }

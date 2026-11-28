@@ -254,7 +254,8 @@ const char* gpustep_ladder_name(GpustepLadder l) {
 namespace {
 
 bool row_good(const GpustepRow& r) {
-    return r.ok && r.d3d12_ran && r.error.empty();
+    return r.ok && r.d3d12_ran && r.error.empty() && r.iterations > 0 && std::isfinite(r.median) &&
+           r.median > 0.0 && std::isfinite(r.p90) && r.p90 >= r.median;
 }
 
 bool ends_with(const std::string& s, const char* suffix) {
@@ -696,26 +697,35 @@ void section_heap(Ctx& c, std::vector<GpustepRow>* out) {
         const int iters = 5;
         for (int it = 0; ran && it < iters; ++it) {
             ran = run_list(c, cl.Get(), false);
+            if (!ran)
+                break;
             const auto* ts = static_cast<const std::uint64_t*>(map_all(ts_rb.Get()));
             if (ts && ts[1] > ts[0])
                 gbs.push_back(
                     static_cast<double>(w_bytes) / 1e9 /
                     (static_cast<double>(ts[1] - ts[0]) / static_cast<double>(c.ts_freq)));
-            ts_rb->Unmap(0, nullptr);
+            if (ts)
+                ts_rb->Unmap(0, nullptr);
         }
-        r.iterations = iters;
+        r.iterations = static_cast<int>(gbs.size());
         r.d3d12_ran = ran;
-        median_p90(gbs, &r.median, &r.p90);
-        const float* gy = static_cast<const float*>(map_all(y_rb.Get()));
-        if (gy) {
-            r.ok = ran && gpugemv_max_abs_err(host_y.data(), gy, static_cast<std::size_t>(n)) <=
-                              kGpugemvMaxAbsErrTol;
-            y_rb->Unmap(0, nullptr);
-        }
-        if (!ran)
+        if (!ran) {
             r.error = "execute/fence failed";
-        else if (!r.ok)
-            r.error = "GEMV residual mismatch";
+        } else if (r.iterations != iters) {
+            r.error = "missing or invalid heap timestamp samples";
+        } else {
+            median_p90(gbs, &r.median, &r.p90);
+            const auto* gy = static_cast<const float*>(map_all(y_rb.Get()));
+            if (gy) {
+                r.ok = gpugemv_max_abs_err(host_y.data(), gy, static_cast<std::size_t>(n)) <=
+                       kGpugemvMaxAbsErrTol;
+                y_rb->Unmap(0, nullptr);
+                if (!r.ok)
+                    r.error = "GEMV residual mismatch";
+            } else {
+                r.error = "Map heap readback failed";
+            }
+        }
         out->push_back(std::move(r));
     }
 }
@@ -809,13 +819,16 @@ void section_rt(Ctx& c, std::vector<GpustepRow>* out) {
             const auto t0 = Clock::now();
             std::memcpy(x_ptr, host_x.data(), static_cast<std::size_t>(x_bytes));
             ran = run_list(c, cl.Get(), v.spin);
+            if (!ran)
+                break;
             std::memcpy(got.data(), y_ptr, static_cast<std::size_t>(y_bytes));
             if (it >= warm)
                 us.push_back(elapsed_us(t0));
         }
-        r.iterations = iters;
+        r.iterations = static_cast<int>(us.size());
         r.d3d12_ran = ran;
-        median_p90(us, &r.median, &r.p90);
+        if (ran)
+            median_p90(us, &r.median, &r.p90);
         r.ok = ran && gpugemv_max_abs_err(host_y.data(), got.data(), static_cast<std::size_t>(n)) <=
                           kGpugemvMaxAbsErrTol;
         if (!ran)
@@ -982,14 +995,17 @@ void section_step(Ctx& c, GpustepModelId id, std::vector<GpustepRow>* out) {
             for (std::size_t si = 0; ran && si < lists.size(); ++si) {
                 std::memcpy(x_ptr, host_x.data(), static_cast<std::size_t>(split_x[si]));
                 ran = run_list(c, lists[si].Get(), true);
+                if (!ran)
+                    break;
                 std::memcpy(host_y.data(), y_ptr, static_cast<std::size_t>(split_y[si]));
             }
-            if (it >= warm)
+            if (ran && it >= warm)
                 ms.push_back(elapsed_us(t0) / 1000.0);
         }
-        r.iterations = iters;
+        r.iterations = static_cast<int>(ms.size());
         r.d3d12_ran = ran;
-        median_p90(ms, &r.median, &r.p90);
+        if (ran)
+            median_p90(ms, &r.median, &r.p90);
         r.ok = ran && std::isfinite(host_y[0]);
         if (!r.ok)
             r.error = ran ? "non-finite output" : "execute/fence failed";
@@ -1005,12 +1021,13 @@ void section_step(Ctx& c, GpustepModelId id, std::vector<GpustepRow>* out) {
             const auto t0 = Clock::now();
             c.queue->ExecuteCommandLists(static_cast<UINT>(raw.size()), raw.data());
             ran = c.fence.signal_and_wait(c.queue.Get(), true);
-            if (it >= warm)
+            if (ran && it >= warm)
                 ms.push_back(elapsed_us(t0) / 1000.0);
         }
-        r.iterations = iters;
+        r.iterations = static_cast<int>(ms.size());
         r.d3d12_ran = ran;
-        median_p90(ms, &r.median, &r.p90);
+        if (ran)
+            median_p90(ms, &r.median, &r.p90);
         r.ok = ran;
         if (!ran)
             r.error = "execute/fence failed";

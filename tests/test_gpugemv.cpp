@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -355,5 +356,52 @@ TEST_CASE("gpugemv: measure on non-D3D12 host reports unavailable") {
         CHECK_FALSE(gpugemv_passes_g1(out[0]));
         CHECK(out[0].expected_y_checksum != 0u);
 #endif
+    }
+}
+
+TEST_CASE("gpugemv: an incomplete or numerically failed campaign cannot pass on its median") {
+    GpugemvResult first;
+    first.iterations = 3;
+    first.run_index = 1;
+    first.d3d12_ran = true;
+    first.checksum_ok = true;
+    first.packed_gbs = 42;
+    GpugemvResult interrupted;
+    interrupted.iterations = 3;
+    interrupted.error_msg = "queue fence failed or device removed";
+    const auto failed = gpugemv_median_summary({first, interrupted});
+    CHECK(failed.run_index == 0);
+    CHECK(failed.iterations == 1);
+    CHECK(failed.error_msg == interrupted.error_msg);
+    CHECK_FALSE(gpugemv_passes_g1(failed));
+    CHECK_FALSE(gpugemv_passes_g1(gpugemv_median_summary({first})));
+
+    auto second = first;
+    second.run_index = 2;
+    second.packed_gbs = 18;
+    auto third = first;
+    third.run_index = 3;
+    third.packed_gbs = 27;
+    const auto good = gpugemv_median_summary({first, second, third});
+    CHECK(good.iterations == 3);
+    CHECK(good.run_index == 0);
+    CHECK(good.packed_gbs == 27);
+    CHECK(gpugemv_passes_g1(good));
+
+    second.checksum_ok = false;
+    second.error_msg = "GEMV residual or checksum mismatch";
+    const auto bad_math = gpugemv_median_summary({first, second, third});
+    CHECK_FALSE(gpugemv_passes_g1(bad_math));
+    CHECK(bad_math.error_msg == second.error_msg);
+    CHECK(bad_math.iterations == 3);
+}
+
+TEST_CASE("gpugemv: non-finite readback fails the residual check") {
+    const float ref[] = {0, 1};
+    for (const float bad :
+         {(std::numeric_limits<float>::quiet_NaN)(), (std::numeric_limits<float>::infinity)()}) {
+        const float measured[] = {bad, 1};
+        CHECK(std::isinf(gpugemv_max_abs_err(ref, measured, 2)));
+        CHECK(std::isinf(gpugemv_max_abs_err(measured, measured, 2)));
     }
 }

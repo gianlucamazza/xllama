@@ -23,6 +23,7 @@
     #include <dxgi1_4.h>
     #include <wrl/client.h>
 
+    #include "d3d12_compute.h"
     #include "gpubw_stream_dxil.h"
     #include "xllama/d3d12_dyn.h"
 
@@ -443,30 +444,15 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
     uav.Buffer.StructureByteStride = sizeof(std::uint32_t);
     device->CreateUnorderedAccessView(output_default.Get(), nullptr, &uav, cpu_uav);
 
-    ComPtr<ID3D12Fence> fence;
-    hr = device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
-    if (FAILED(hr)) {
-        throw_if_failed(hr, "CreateFence", r);
+    d3d12c::QueueFence fence;
+    if (!fence.init(device.Get(), &r.error_msg)) {
         return r;
     }
-    HANDLE fence_event = CreateEventW(nullptr, FALSE, FALSE, nullptr);
-    if (!fence_event) {
-        r.error_msg = "CreateEventW failed";
-        return r;
-    }
-    UINT64 fence_value = 0;
-
-    auto wait_gpu = [&]() -> bool {
-        const UINT64 v = ++fence_value;
-        if (FAILED(queue->Signal(fence.Get(), v))) {
-            r.error_msg = "Signal failed";
-            return false;
-        }
-        if (fence->GetCompletedValue() < v) {
-            fence->SetEventOnCompletion(v, fence_event);
-            WaitForSingleObject(fence_event, INFINITE);
-        }
-        return true;
+    auto wait_gpu = [&]() {
+        if (fence.signal_and_wait(queue.Get(), false))
+            return true;
+        r.error_msg = "queue fence failed or device removed";
+        return false;
     };
 
     // Upload input once.
@@ -485,7 +471,6 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
         ID3D12CommandList* lists[] = {cl.Get()};
         queue->ExecuteCommandLists(1, lists);
         if (!wait_gpu()) {
-            CloseHandle(fence_event);
             return r;
         }
     }
@@ -522,7 +507,6 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
         ID3D12CommandList* lists[] = {cl.Get()};
         queue->ExecuteCommandLists(1, lists);
         if (!wait_gpu()) {
-            CloseHandle(fence_event);
             return r;
         }
         const double sec =
@@ -539,7 +523,6 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
             hr = output_readback->Map(0, &range, &mapped);
             if (FAILED(hr)) {
                 throw_if_failed(hr, "Map readback", r);
-                CloseHandle(fence_event);
                 return r;
             }
             const auto* partials = static_cast<const std::uint32_t*>(mapped);
@@ -551,8 +534,6 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
         }
         any_ok = true;
     }
-
-    CloseHandle(fence_event);
 
     r.d3d12_ran = any_ok;
     r.read_gbs = best_gbs;

@@ -318,8 +318,12 @@ float gpugemv_max_abs_err(const float* a, const float* b, std::size_t n) {
     float m = 0.f;
     if (!a || !b)
         return std::numeric_limits<float>::infinity();
-    for (std::size_t i = 0; i < n; ++i)
-        m = std::max(m, std::fabs(a[i] - b[i]));
+    for (std::size_t i = 0; i < n; ++i) {
+        const float residual = std::fabs(a[i] - b[i]);
+        if (!std::isfinite(residual))
+            return std::numeric_limits<float>::infinity();
+        m = std::max(m, residual);
+    }
     return m;
 }
 
@@ -354,14 +358,21 @@ std::string format_gpugemv_row(const GpugemvResult& r, const char* host_label) {
     return std::string(buf);
 }
 
-namespace {
-
 GpugemvResult gpugemv_median_summary(const std::vector<GpugemvResult>& rows) {
     if (rows.empty())
         return {};
-    if (rows.size() == 1) {
-        GpugemvResult r = rows[0];
+    const auto failed =
+        std::find_if(rows.begin(), rows.end(), [](const auto& r) { return !gpugemv_passes_g1(r); });
+    if (failed != rows.end() || rows.size() != static_cast<std::size_t>(rows[0].iterations)) {
+        GpugemvResult r = failed != rows.end() ? *failed : rows.front();
         r.run_index = 0;
+        r.iterations = static_cast<int>(
+            std::count_if(rows.begin(), rows.end(), [](const auto& row) { return row.d3d12_ran; }));
+        if (failed == rows.end()) {
+            r.checksum_ok = false;
+            r.packed_gbs = r.packed_gbs_cpu = r.packed_gbs_h61 = 0.0;
+            r.error_msg = "incomplete GEMV campaign";
+        }
         return r;
     }
     std::vector<std::size_t> idx(rows.size());
@@ -375,6 +386,8 @@ GpugemvResult gpugemv_median_summary(const std::vector<GpugemvResult>& rows) {
     r.iterations = rows[0].iterations;
     return r;
 }
+
+namespace {
 
 // Activation the kernel actually multiplies: fp32 x, or q8-roundtripped x for
 // dot4 (qx/dx filled for the upload). Expected y is cpu_ref against it.
@@ -794,31 +807,16 @@ void measure_gpugemv_each(int n, int k, int iterations, GpugemvKernel kernel,
     uav.Buffer.StructureByteStride = sizeof(float);
     device->CreateUnorderedAccessView(y_default.Get(), nullptr, &uav, cpu_y);
 
-    ComPtr<ID3D12Fence> fence;
-    hr = device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
-    if (FAILED(hr)) {
-        throw_if_failed(hr, "CreateFence", seed);
+    d3d12c::QueueFence fence;
+    if (!fence.init(device.Get(), &seed.error_msg)) {
         out->push_back(std::move(seed));
         return;
     }
-    d3d12c::FenceEvent fence_event;
-    fence_event.h = CreateEventW(nullptr, FALSE, FALSE, nullptr);
-    if (!fence_event.h) {
-        push_err("CreateEventW failed");
-        return;
-    }
-    UINT64 fence_value = 0;
-    auto wait_gpu = [&]() -> bool {
-        const UINT64 v = ++fence_value;
-        if (FAILED(queue->Signal(fence.Get(), v))) {
-            seed.error_msg = "Signal failed";
-            return false;
-        }
-        if (fence->GetCompletedValue() < v) {
-            fence->SetEventOnCompletion(v, fence_event.h);
-            WaitForSingleObject(fence_event.h, INFINITE);
-        }
-        return true;
+    auto wait_gpu = [&]() {
+        if (fence.signal_and_wait(queue.Get(), false))
+            return true;
+        seed.error_msg = "queue fence failed or device removed";
+        return false;
     };
 
     {

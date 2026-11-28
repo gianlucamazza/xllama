@@ -7,6 +7,37 @@
 // (docs/uwp-constraints.md §7).
 #pragma once
 
+#include <cstdint>
+#include <limits>
+
+namespace xllama::d3d12c {
+
+// The queue has accepted this marker. An event is a wakeup hint. Only the
+// fence counter establishes completion; UINT64_MAX denotes device removal.
+template <typename Read, typename Arm, typename Wait, typename Poll>
+bool wait_accepted_fence(std::uint64_t target, bool spin, Read read, Arm arm, Wait wait,
+                         Poll poll) {
+    bool try_event = !spin;
+    bool armed = false;
+    for (;;) {
+        const auto completed = read();
+        if (completed == (std::numeric_limits<std::uint64_t>::max)())
+            return false;
+        if (completed >= target)
+            return true;
+        if (try_event) {
+            if (!armed)
+                armed = arm();
+            if (armed && wait())
+                continue;
+            try_event = false;
+        }
+        poll();
+    }
+}
+
+} // namespace xllama::d3d12c
+
 #if defined(_WIN32)
 
     #ifndef NOMINMAX
