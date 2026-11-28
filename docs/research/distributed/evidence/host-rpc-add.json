@@ -1,0 +1,114 @@
+{
+  "observed_utc_date": "2026-11-28",
+  "status": "MEASURED",
+  "scope": "Linux x86-64 CPU on one host, two trusted IPv4 loopback workers, two F32 ADD graphs, no checkpoint",
+  "xllama_base": "e2abab1f4510ca8cc96fa47f378bc00f7b4bc7e8",
+  "host": "Linux 6.18.57 x86_64",
+  "toolchain": {
+    "g++": "14.2.0 (Debian 14.2.0-19)",
+    "cmake_ctest": "3.31.10",
+    "generator": "Ninja 1.13.2.git.kitware.jobserver-pipe-1",
+    "build_type": "Release",
+    "configuration": "built-in GGML CPU and RPC, static libraries, no native tuning or RDMA"
+  },
+  "fixture": {
+    "path": "rpc-add.cpp",
+    "sha256": "126a7739dee36d991ef42a01d2314c3f09a3f9dcdbcf495adf7af3c70cda1ec3",
+    "arithmetic_reference": [
+      5,
+      0,
+      0,
+      25
+    ],
+    "buffer_accounting": "GGML tensor allocation size for each stage; excludes allocator overhead, process resident memory and TCP framing",
+    "worker_lifecycle": "Each remote run starts two fresh CPU workers with the matching upstream test shell, model cache disabled, both bound to 127.0.0.1. The shell terminates its children on exit. Each arithmetic run has a new client process and a 30 s supervisor timeout."
+  },
+  "lanes": [
+    {
+      "source": "d81235049384534c167caea52b85a694f6103d14",
+      "tag": "v0.6.0",
+      "source_variant": "six xLlama patches",
+      "source_diff_sha256": "9ffc805e03eb7858b2988c51e44ae2730f2a59e7704bd84e4a8c5462e99c3b49",
+      "rpc_protocol": "7.0.0",
+      "binaries_sha256": {
+        "ggml-rpc-server": "fbc91eb79b74ca56ffd84b6a248d890a33826977d7a77815b991e43b1912f96a",
+        "rpc-add": "91777d47425c6d656a240ae9eb4f6bb83c2fe5204923e86e03b2bec2dbedefc5",
+        "test-rpc-multi-server": "76189051a4db0228418c97e6c5ef7552b85af43c5e6a3e3eacecfc8a9dab81d9"
+      },
+      "harness_sha256": "368d030bed28a6c4fc3235539d849eb0f35a0a57f3d64e003071404d6c12f12a",
+      "runs": [
+        {
+          "case": "local_before",
+          "exit_code": 0,
+          "stdout": "A=CPU buffer_bytes=96 B=CPU buffer_bytes=96 copy_bytes=16 result=[5,0,0,25]"
+        },
+        {
+          "case": "loopback",
+          "exit_code": 0,
+          "stdout": "A=RPC0[127.0.0.1:40020] buffer_bytes=96 B=RPC0[127.0.0.1:40021] buffer_bytes=96 copy_bytes=16 result=[5,0,0,25]"
+        },
+        {
+          "case": "local_after",
+          "exit_code": 0,
+          "stdout": "A=CPU buffer_bytes=96 B=CPU buffer_bytes=96 copy_bytes=16 result=[5,0,0,25]"
+        },
+        {
+          "case": "fresh_loopback_workers",
+          "exit_code": 0,
+          "stdout": "A=RPC0[127.0.0.1:40043] buffer_bytes=96 B=RPC0[127.0.0.1:40044] buffer_bytes=96 copy_bytes=16 result=[5,0,0,25]"
+        }
+      ],
+      "upstream_ctest": {
+        "name": "test-rpc-multi-server",
+        "exit_code": 0,
+        "result": "100% tests passed, 0 tests failed out of 1"
+      }
+    },
+    {
+      "source": "171527522610996f5f0acf12334e185156ca8f44",
+      "tag": "v1.1.0",
+      "source_variant": "pristine upstream tag",
+      "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "rpc_protocol": "10.0.2",
+      "binaries_sha256": {
+        "ggml-rpc-server": "6ceb0ba59c4bcd2b47717003111524e189ed2db757fe363d8d1d92cc9dab41df",
+        "rpc-add": "a025af1aeb5384309930cab99cbc6e4f6d8c9db34dd541f566b1490d0f6afff2",
+        "test-rpc-multi-server": "066470c7ff5715d6d258ca02656e3a2302a6e292c472ed51817fcd49b4ba3512"
+      },
+      "harness_sha256": "368d030bed28a6c4fc3235539d849eb0f35a0a57f3d64e003071404d6c12f12a",
+      "runs": [
+        {
+          "case": "local_before",
+          "exit_code": 0,
+          "stdout": "A=CPU buffer_bytes=96 B=CPU buffer_bytes=96 copy_bytes=16 result=[5,0,0,25]"
+        },
+        {
+          "case": "loopback",
+          "exit_code": 0,
+          "stdout": "A=RPC0[127.0.0.1:40089] buffer_bytes=96 B=RPC0[127.0.0.1:40090] buffer_bytes=96 copy_bytes=16 result=[5,0,0,25]"
+        },
+        {
+          "case": "local_after",
+          "exit_code": 0,
+          "stdout": "A=CPU buffer_bytes=96 B=CPU buffer_bytes=96 copy_bytes=16 result=[5,0,0,25]"
+        },
+        {
+          "case": "fresh_loopback_workers",
+          "exit_code": 0,
+          "stdout": "A=RPC0[127.0.0.1:40110] buffer_bytes=96 B=RPC0[127.0.0.1:40111] buffer_bytes=96 copy_bytes=16 result=[5,0,0,25]"
+        }
+      ],
+      "upstream_ctest": {
+        "name": "test-rpc-multi-server",
+        "exit_code": 0,
+        "result": "100% tests passed, 0 tests failed out of 1"
+      }
+    }
+  ],
+  "not_run": [
+    "mid-request worker loss or cancellation",
+    "weight upload caching, actual wire-byte counters and peak per-process memory",
+    "GGUF layer placement, KV ownership, checkpoint logits and throughput",
+    "Windows, UWP, Series S, Series X, physical LAN and energy measurements"
+  ]
+}
