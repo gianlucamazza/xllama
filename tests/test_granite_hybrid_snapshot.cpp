@@ -6,13 +6,21 @@
 // a reason when XLLAMA_GRANITE_H_TINY is unset. Host receipt:
 // bench/results/2026-11-24-granite40-h-tiny/
 
+#include "llama.h"
 #include "xllama/chat_prompt.h"
 #include "xllama/prefix_snapshot.h"
 #include "xllama/session.h"
 
+#include <algorithm>
+#include <cstdint>
 #include <cstdlib>
 #include <doctest/doctest.h>
+#include <filesystem>
+#include <fstream>
+#include <random>
+#include <sstream>
 #include <string>
+#include <vector>
 
 using namespace xllama;
 
@@ -289,4 +297,137 @@ TEST_CASE("Session: granitehybrid evicted-turn recall after a context shift (opt
                           out.find("papaya") != std::string::npos;
     const std::string verdict = recalled ? "YES" : "no";
     MESSAGE("granitehybrid evicted-turn recall: " << verdict << " — reply '" << out << "'");
+}
+
+// Compare the token prefix actually retained by Session, including BOS and all
+// template delimiters. Its snapshot starts with a text header and then the
+// int32 token IDs. The opaque llama.cpp state bytes that follow are irrelevant.
+static std::vector<int32_t> saved_token_ids(Session& session, const std::filesystem::path& path) {
+    std::string error;
+    REQUIRE_MESSAGE(session.save_state(path.string(), &error), error);
+    std::ifstream in(path, std::ios::binary);
+    std::string line, magic;
+    REQUIRE(std::getline(in, line));
+    std::istringstream header(line);
+    size_t bytes = 0, count = 0;
+    REQUIRE(static_cast<bool>(header >> magic >> bytes >> count));
+    REQUIRE(magic == "xllama-kv");
+    REQUIRE(count > 0);
+    REQUIRE(count <= static_cast<size_t>(session.context_length()));
+    std::vector<int32_t> ids(count);
+    REQUIRE(in.read(reinterpret_cast<char*>(ids.data()), count * sizeof(int32_t)));
+    return ids;
+}
+
+// Keep the first differing IDs in the CI receipt even when a sequence ends early.
+static std::string first_id_difference(const std::vector<int32_t>& warm,
+                                       const std::vector<int32_t>& cold) {
+    const auto [w, c] = std::mismatch(warm.begin(), warm.end(), cold.begin(), cold.end());
+    if (w == warm.end() && c == cold.end())
+        return {};
+    std::ostringstream message;
+    message << "index=" << (w - warm.begin())
+            << " warm=" << (w == warm.end() ? "<end>" : std::to_string(*w))
+            << " cold=" << (c == cold.end() ? "<end>" : std::to_string(*c));
+    return message.str();
+}
+
+TEST_CASE("Session: granitehybrid cold continuation on identical surviving tokens" *
+          doctest::skip(!granite_h_tiny_path())) {
+    const char* model = granite_h_tiny_path();
+    REQUIRE_MESSAGE((model && *model), "Set XLLAMA_GRANITE_H_TINY to the GGUF path");
+    const ChatFormat fmt = chat_format_for("granite-4.0-h-tiny");
+    REQUIRE(fmt.kind == ChatFormatKind::Granite);
+    SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 128;
+    sp.n_threads = 4;
+    sp.n_gpu_layers = 0;
+    const std::string sys = "You are terse.";
+    const std::string retained = "Remember this word: LEMON.";
+    const std::string question = fmt.render_delta("Repeat the surviving word. One word.", false);
+    const auto dir = std::filesystem::temp_directory_path() /
+                     ("xllama-granite-shift-" + std::to_string(std::random_device{}()));
+    REQUIRE(std::filesystem::create_directory(dir));
+    struct Cleanup {
+        std::filesystem::path dir;
+        ~Cleanup() {
+            std::error_code ec;
+            std::filesystem::remove_all(dir, ec);
+        }
+    } cleanup{dir};
+    const auto snapshot = dir / "session.kv";
+    struct Arm {
+        std::vector<int32_t> prefix, terminal;
+        std::string text;
+        DecodeTermination stop;
+        int generated_count;
+    };
+    auto measure = [&](bool shift) {
+        std::string error;
+        auto session = Session::create(sp, &error);
+        REQUIRE_MESSAGE(session, error);
+        const auto* resident = static_cast<const llama_model*>(session->resident_llama_model());
+        REQUIRE(resident != nullptr);
+        char architecture[64]{};
+        REQUIRE(llama_model_meta_val_str(resident, "general.architecture", architecture,
+                                         sizeof(architecture)) > 0);
+        REQUIRE(std::string(architecture) == "granitehybrid");
+        const int keep = session->count_tokens(fmt.render_system_prefix(sys));
+        GenerateParams prefill = greedy(fmt.render_prompt(sys, {}, retained) + question, fmt, 0);
+        int seed_count = 0;
+        if (shift) {
+            // Put most of the old conversation in one assistant reply. The
+            // turn-aligned eviction must drop this pair and keep the new turn.
+            ChatTurn old{"What was the old word?", "PAPAYA"};
+            std::string seed = fmt.render_prompt(sys, {old}, retained);
+            for (int i = 0; i < sp.n_ctx && session->count_tokens(seed) < sp.n_ctx - 6; ++i) {
+                old.assistant += " papaya";
+                seed = fmt.render_prompt(sys, {old}, retained);
+            }
+            REQUIRE(session->count_tokens(seed) >= sp.n_ctx - 6);
+            REQUIRE(session->count_tokens(seed) < sp.n_ctx);
+            const auto start = session->generate(greedy(seed, fmt, 0));
+            REQUIRE_MESSAGE(start.success, start.error_msg);
+            REQUIRE(session->can_context_shift());
+            seed_count = start.n_p_eval;
+            prefill.prompt = question;
+            prefill.reuse_kv = true;
+            prefill.expected_kv_epoch = session->kv_epoch();
+        }
+        prefill.n_keep = keep;
+        prefill.turn_close = fmt.turn_close;
+        const auto filled = session->generate(prefill);
+        REQUIRE_MESSAGE(filled.success, filled.error_msg);
+        if (shift) {
+            REQUIRE(seed_count + filled.n_prompt + 1 > session->context_length());
+        }
+        Arm arm;
+        arm.prefix = saved_token_ids(*session, snapshot);
+        auto probe = greedy("The word is", fmt, 8);
+        probe.reuse_kv = true;
+        probe.expected_kv_epoch = session->kv_epoch();
+        // No turn_close: any further overflow on this common suffix fails.
+        const auto generated = session->generate(probe);
+        REQUIRE_MESSAGE(generated.success, generated.error_msg);
+        REQUIRE(generated.n_eval > 0);
+        arm.terminal = saved_token_ids(*session, snapshot);
+        REQUIRE(arm.terminal.size() > arm.prefix.size() + generated.n_p_eval);
+        arm.text = generated.output_text;
+        arm.stop = generated.termination;
+        arm.generated_count = generated.n_eval;
+        return arm;
+    };
+    const auto warm = measure(true);
+    const auto cold = measure(false);
+    const auto prefix_difference = first_id_difference(warm.prefix, cold.prefix);
+    REQUIRE_MESSAGE(prefix_difference.empty(), "surviving token IDs: " << prefix_difference);
+    const auto terminal_difference = first_id_difference(warm.terminal, cold.terminal);
+    const bool match = terminal_difference.empty() && warm.text == cold.text &&
+                       warm.stop == cold.stop && warm.generated_count == cold.generated_count;
+    const std::string verdict = match ? "MATCH" : "DIVERGED at " + terminal_difference;
+    MESSAGE("continuation=" << verdict << " surviving_ids=" << warm.prefix.size() << " warm_tokens="
+                            << warm.generated_count << " cold_tokens=" << cold.generated_count
+                            << " warm_text='" << warm.text << "' cold_text='" << cold.text << "'");
+    REQUIRE_MESSAGE(match, verdict);
 }
