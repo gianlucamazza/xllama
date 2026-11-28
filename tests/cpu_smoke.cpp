@@ -1,9 +1,11 @@
 // Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 #include "../src/bridge/decode_loop.h"
+#include "xllama/inference.h"
 #include "xllama/llama_raii.h"
 #include "xllama/session.h"
 
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -89,10 +91,40 @@ static json turns(const char* path) {
     return result;
 }
 
+// The status callbacks bracket a superset of the model-open interval. This
+// bound follows event order and does not depend on host or storage speed.
+static void check_model_load_timing(const char* path) {
+    using Clock = std::chrono::steady_clock;
+    Clock::time_point start{}, loaded{};
+    xllama::InferenceParams p;
+    p.model_path = path;
+    p.prompt = "abcd";
+    p.n_ctx = 128;
+    p.n_threads = 1;
+    p.n_predict = 2;
+    p.greedy = true;
+    p.on_status = [&](const std::string& status) {
+        if (status == "loading model")
+            start = Clock::now();
+        else if (status == "decoding")
+            loaded = Clock::now();
+    };
+    const auto result = xllama::run_inference(p);
+    if (!result.success)
+        throw std::runtime_error("load timing inference failed: " + result.error_msg);
+    const double bracket_ms = std::chrono::duration<double, std::milli>(loaded - start).count();
+    if (start == Clock::time_point{} || loaded <= start ||
+        !(result.t_load_ms > 0 && result.t_load_ms <= bracket_ms))
+        throw std::runtime_error(
+            "GGUF load_ms outside model-open status interval: " + std::to_string(result.t_load_ms) +
+            " vs " + std::to_string(bracket_ms) + " ms");
+}
+
 int main(int argc, char** argv) {
     if (argc != 3)
         return 2;
     try {
+        check_model_load_timing(argv[1]);
         auto result = capture(argv[1]);
         result["turns"] = turns(argv[1]);
         std::ofstream stream(argv[2]);
