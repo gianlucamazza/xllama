@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- GGUF session admission now includes CPU-mapped D3D12 compute buffers in the GPU memory estimate. Loads and new contexts that exceed the local GPU budget are refused before allocation.
+
 ## [1.11.0]
 
 User-facing notes: [docs/releases/v1.11.0.md](docs/releases/v1.11.0.md).

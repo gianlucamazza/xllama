@@ -10,6 +10,7 @@
 #include "gguf.h"
 #include "llama.h"
 #include "xllama/ggml_d3d12.h"
+#include "xllama/memory_admission.h"
 #include "xllama/platform.h"
 #include "xllama/speculative.h"
 
@@ -20,6 +21,16 @@
 #include <string>
 
 namespace xllama {
+
+// D3D12_Host is CPU-accessible and backed by a committed L0 resource. On the
+// integrated GPU it shares the local GPU budget with D3D12_Weights.
+inline void add_gguf_buffer_memory(SessionMemoryEstimate& estimate, enum ggml_backend_dev_type type,
+                                   bool host_accessible, std::size_t model, std::size_t context,
+                                   std::size_t compute) {
+    const bool device_only = type == GGML_BACKEND_DEVICE_TYPE_GPU && !host_accessible;
+    estimate.add_buffer(model, context, compute, /*on_host=*/!device_only,
+                        /*on_device=*/device_only || type == GGML_BACKEND_DEVICE_TYPE_IGPU);
+}
 
 // llama/ggml log lines worth keeping in xllama.log on every GGUF load, CPU or
 // d3d12: placement and buffer sizes, graph splits, how flash attention's auto

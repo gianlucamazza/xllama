@@ -640,10 +640,13 @@ parameters once (`make_context_params`, shared with `ensure_ctx`) and runs
 llama.cpp's no_alloc dry run on them. `llama_get_memory_breakdown` then gives
 weights, context (the real per-layer KV and recurrent state, so `n_ctx` and a
 hybrid's layout count) and compute buffers per buffer type. CPU buffer types
-count as host memory. The D3D12 backend reports an integrated GPU (it requires a
-cache-coherent UMA adapter), so its buffers count as host memory too, and also
-against the GPU budget. Byte counts accumulate by category, then round up to
-MiB. An unrepresentable estimate refuses the load. The sum plus
+count as host memory. The D3D12 backend uses a cache-coherent integrated GPU.
+Both `D3D12_Weights` and the CPU-mapped `D3D12_Host` compute buffers count
+against the app limit and the GPU budget. On UMA, L0 is the DXGI local
+memory segment. [D3D12 memory pools](https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ne-d3d12-d3d12_memory_pool)
+
+Byte counts accumulate by category, then round up to MiB. An unrepresentable
+estimate refuses the load. The sum plus
 the working set and `kSessionMemoryMarginMb` must fit `app_memory_limit_mb()`;
 otherwise `Session::create` fails with an `insufficient memory: …` message
 (weights / context / compute / limit) instead of failing inside an allocation.
