@@ -989,6 +989,22 @@ lines, and a CPU arm of the working set, are in
 LFM2.5-350M loses more. The host working set rises when layers move to the
 GPU.
 
+Run the parser from the repository root to replay the Series S capture.
+
+```bash
+python3 scripts/parse_d3d12_layer_log.py --phase-summary \
+  docs/research/evidence/2026-11-18-d3d12-layer/log-excerpt.txt
+```
+
+Each JSON observation identifies its source line. Repeated runs stay in log order.
+`execute_through_fence_ms` already includes GPU execution. `fence_residual_ms`
+subtracts `submission_gpu_ms` from that host interval at the precision of the log.
+It requires complete submission timestamps and preserves the sign of the difference.
+The optional `dispatch_profile` reports GPU time only for its `timed` dispatches
+and counts the missing ones. An absent dispatch summary or unavailable timestamp
+appears as `null`. Use bench prefill and decode timings for the whole inference
+phases and a client clock for end-to-end request latency.
+
 Format example, not a measurement:
 
 ```

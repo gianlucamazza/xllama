@@ -158,5 +158,96 @@ class D3d12LayerLogTests(unittest.TestCase):
             self.assertEqual(path.read_text(encoding="utf-8"), log)
 
 
+class D3d12PhaseSummaryTests(unittest.TestCase):
+    PHASE = ("[xllama] d3d12-phase phase=decode calls=2 submissions=2 dispatches=3 "
+             "wall_ms=9.000 quant_ms=1.000 record_ms=1.000 exec_wait_ms=6.000 "
+             "gpu_ms=4.500 ts_valid=2 ts_missing=0")
+    DISPATCH = "[xllama] d3d12-dispatch phase=decode summary kinds=1 timed=3 missing=0 gpu_ms=4.000"
+
+    def test_signed_residual_uses_submission_gpu_and_preserves_repeated_phases(self):
+        second = self.PHASE.replace("exec_wait_ms=6.000", "exec_wait_ms=4.499")
+        report = parser.phase_summary([self.PHASE, "[resources] sample", self.DISPATCH,
+                                       "[xllama] done: bench", second])
+        self.assertEqual(report["scope"], "D3D12 backend graph_compute calls")
+        first, second = report["phases"]
+        self.assertEqual([first["log_line"], second["log_line"]], [1, 5])
+        self.assertEqual(first["fence_residual_ms"], 1.5)
+        self.assertEqual(first["dispatch_profile"]["timed_dispatch_gpu_ms"], 4.0)
+        self.assertEqual(second["fence_residual_ms"], -0.001)
+        self.assertIsNone(second["dispatch_profile"])
+
+    def test_partial_timestamps_keep_only_independently_observed_intervals(self):
+        phase = self.PHASE.replace("4.500 ts_valid=2 ts_missing=0",
+                                   "unavailable ts_valid=1 ts_missing=1")
+        dispatch = self.DISPATCH.replace("timed=3 missing=0", "timed=2 missing=1")
+        record, = parser.phase_summary([phase, dispatch])["phases"]
+        self.assertIsNone(record["submission_gpu_ms"])
+        self.assertIsNone(record["fence_residual_ms"])
+        self.assertEqual(record["execute_through_fence_ms"], 6.0)
+        self.assertEqual(record["dispatch_profile"],
+                         {"kinds": 1, "timed": 2, "missing": 1, "timed_dispatch_gpu_ms": 4.0})
+
+    def test_all_dispatch_timestamps_missing_still_has_submission_residual(self):
+        dispatch = self.DISPATCH.replace("kinds=1 timed=3 missing=0 gpu_ms=4.000",
+                                         "kinds=0 timed=0 missing=3 gpu_ms=missing")
+        record, = parser.phase_summary([self.PHASE, dispatch])["phases"]
+        self.assertEqual(record["fence_residual_ms"], 1.5)
+        self.assertIsNone(record["dispatch_profile"]["timed_dispatch_gpu_ms"])
+
+    def test_zero_duration_and_no_submissions(self):
+        phase = self.PHASE.replace("exec_wait_ms=6.000 gpu_ms=4.500",
+                                   "exec_wait_ms=0.000 gpu_ms=0.000")
+        record, = parser.phase_summary([phase, self.DISPATCH.replace("4.000", "0.000")])["phases"]
+        self.assertEqual(record["fence_residual_ms"], 0.0)
+        self.assertEqual(record["dispatch_profile"]["timed_dispatch_gpu_ms"], 0.0)
+        empty = ("[xllama] d3d12-phase phase=decode calls=0 submissions=0 dispatches=0 "
+                 "wall_ms=0.000 quant_ms=0.000 record_ms=0.000 exec_wait_ms=0.000 "
+                 "gpu_ms=unavailable ts_valid=0 ts_missing=0")
+        record, = parser.phase_summary([empty])["phases"]
+        self.assertIsNone(record["fence_residual_ms"])
+        self.assertIsNone(record["dispatch_profile"])
+
+    def test_invalid_phase_records_cannot_produce_a_residual(self):
+        for change in (("ts_valid=2", "ts_valid=1"), ("submissions=2", "submissions=-1"),
+                       ("ts_valid=2 ts_missing=0", "ts_valid=1 ts_missing=1"),
+                       ("quant_ms=1.000", "quant_ms=nan"), ("record_ms=1.000", "record_ms=inf"),
+                       ("wall_ms=9.000", "wall_ms=-1"), ("exec_wait_ms=6.000", ""),
+                       ("gpu_ms=4.500", "gpu_ms=4.500 gpu_ms=4.500")):
+            with self.subTest(change=change), self.assertRaisesRegex(ValueError, "line 2"):
+                parser.phase_summary(["noise", self.PHASE.replace(*change)])
+
+    def test_inconsistent_or_unmatched_dispatch_summary_is_rejected(self):
+        for lines in ([self.DISPATCH], [self.PHASE, self.DISPATCH.replace("decode", "prefill")],
+                      [self.PHASE, self.DISPATCH, self.DISPATCH],
+                      [self.PHASE, "[xllama] done: bench", self.DISPATCH],
+                      [self.PHASE, self.DISPATCH.replace("timed=3", "timed=2")],
+                      [self.PHASE, self.DISPATCH.replace("kinds=1", "kinds=4")],
+                      [self.PHASE, self.DISPATCH.replace("4.000", "missing")]):
+            with self.subTest(lines=lines), self.assertRaises(ValueError):
+                parser.phase_summary(lines)
+
+    def test_cli_cpu_log_without_phase_counters(self):
+        proc = subprocess.run([sys.executable, str(SCRIPT), "--phase-summary"],
+                              input="[xllama] bench-result.csv written\n",
+                              text=True, capture_output=True)
+        self.assertEqual(proc.returncode, 1)
+        self.assertEqual(proc.stdout, "")
+        self.assertIn("no d3d12-phase records", proc.stderr)
+
+    def test_cli_archived_series_s_capture(self):
+        log = ROOT / "docs/research/evidence/2026-11-18-d3d12-layer/log-excerpt.txt"
+        proc = subprocess.run([sys.executable, str(SCRIPT), "--phase-summary", str(log)],
+                              text=True, capture_output=True, check=True)
+        prefill, decode = json.loads(proc.stdout)["phases"]
+        self.assertEqual(prefill["phase"], "prefill")
+        self.assertEqual(prefill["fence_residual_ms"], 4.056)
+        self.assertEqual(decode["phase"], "decode")
+        self.assertEqual(decode["submissions"], 1152)
+        self.assertEqual(decode["dispatch_profile"],
+                         {"kinds": 4, "timed": 1504, "missing": 0, "timed_dispatch_gpu_ms": 35.087})
+        self.assertEqual(decode["submission_gpu_ms"], 38.288)
+        self.assertEqual(decode["fence_residual_ms"], 55.518)
+
+
 if __name__ == "__main__":
     unittest.main()
