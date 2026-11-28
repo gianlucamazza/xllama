@@ -54,6 +54,10 @@ The registered one-slot test repeats [Vetax's paused-worker check](https://githu
 
 Total model parameters describe checkpoint scale. Routed parameters selected per token describe compute. Resident weights include shared and non-routed tensors. The measured working set also includes cached experts, KV/recurrent state, scratch, I/O and runtime allocations. PR 1 bounds only its own requested storage.
 
+### Host CPU buffer mapping
+
+The pinned [GGML CPU mapper](https://github.com/ggml-org/llama.cpp/blob/d81235049384534c167caea52b85a694f6103d14/ggml/src/ggml-backend.cpp#L2670) requires a 32-byte-aligned base for each mapped slice. `MoeExpertCache` queries the CPU buffer type for that alignment, reserves the leading padding and aligned slot strides in `required_bytes`, and keeps the original allocation alive through the last lease. The Linux regression holds two slots with a 33-byte capacity, wraps both payloads with `ggml_backend_cpu_buffer_from_ptr` and checks their lengths and addresses. At `e2abab1` one address was 16 bytes off alignment. Run `build/linux-test/tests/xllama-tests --test-case='moe_expert_cache:*'` and `build/linux-test/tests/test-admission-allocation` to check the mapping and allocation-refusal paths. The model loader and native `MUL_MAT_ID` still require provider dispatch and worker-drain verification under [#480](https://github.com/gianlucamazza/xllama/issues/480).
+
 ## Source-to-review map
 
 All contributor references below refer to `vetax-by/xllama` at `61bf63ad541510a03a36993e60ec204f98bc0b3e`, not a moving branch. Its preparation base is xLlama `4db51522c850e62d0bb24234dfeb48e55f4017d7`; the reviewed upstream base is `87d5a4635abca01a3b484e1488a2a9d043de9be2`. Both pin llama.cpp `d81235049384534c167caea52b85a694f6103d14`.
