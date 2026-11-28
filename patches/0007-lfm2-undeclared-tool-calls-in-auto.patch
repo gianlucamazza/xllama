@@ -8,9 +8,8 @@ REQUIRED, and xllama's named tool_choice that maps to it with the named
 schema alone, keeps a grammar of declared names only, so a required or
 named request still returns a call to a tool it offered (OpenAI semantics,
 docs/api-endpoint.md). Upstream enables it for every choice. The
-python_style_tool_calls hunk is re-applied by hand: the pin names its rules
-"tool-" + name, upstream "tool-" + index. Drop at the #522 pin bump, after
-checking upstream's REQUIRED behaviour (xllama #610).
+candidate already uses upstream's indexed rule names. Retain xllama's
+REQUIRED behavior on future upgrades (xllama #610).
 
 diff --git a/common/chat-peg-parser.cpp b/common/chat-peg-parser.cpp
 --- a/common/chat-peg-parser.cpp
@@ -26,7 +25,7 @@ diff --git a/common/chat-peg-parser.cpp b/common/chat-peg-parser.cpp
          return eps();
      }
 @@ -616,6 +617,18 @@ common_peg_parser common_chat_peg_builder::python_style_tool_calls(
-         tool_choices |= rule("tool-" + name, tool_parser);
+         tool_choices |= rule("tool-" + std::to_string(i), tool_parser);
      }
  
 +    // last, so declared tools win when parsing

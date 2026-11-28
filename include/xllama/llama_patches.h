@@ -11,9 +11,8 @@
 
 namespace xllama {
 
-inline constexpr std::array<const char*, 6> kLlamaPatches = {{
+inline constexpr std::array<const char*, 5> kLlamaPatches = {{
     "0001-uwp-appcontainer-guards",
-    "0003-kv-cache-k-shift-unallocated-input",
     "0004-recurrent-state-fill-zero",
     "0005-required-tool-call-no-content-prefix",
     "0006-peg-escape-control-chars-in-tool-args",

@@ -181,6 +181,7 @@
     <ClCompile Include="..\llama.cpp\src\llama-memory-hybrid-idx.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-memory-recurrent.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-mmap.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-moe-cache.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-model.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-model-loader.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-model-saver.cpp" />

@@ -1,8 +1,8 @@
 diff --git a/common/common.cpp b/common/common.cpp
-index c301c22..bb38763 100644
+index 221f089..70ba73a 100644
 --- a/common/common.cpp
 +++ b/common/common.cpp
-@@ -53,6 +53,16 @@
+@@ -54,6 +54,16 @@
  #include <unistd.h>
  #endif
  
@@ -19,7 +19,7 @@ index c301c22..bb38763 100644
  #if !defined(_WIN32)
  #include <sys/types.h>
  #include <pwd.h>
-@@ -428,7 +438,8 @@ std::string common_params_get_system_info(const common_params & params) {
+@@ -429,7 +439,8 @@ std::string common_params_get_system_info(const common_params & params) {
      if (params.cpuparams_batch.n_threads != -1) {
          os << " (n_threads_batch = " << params.cpuparams_batch.n_threads << ")";
      }
@@ -64,10 +64,10 @@ index a65cf00..82ae1a2 100644
      return "";
  }
 diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
-index 7c274c0..bc92ab2 100644
+index 53d39d2..f48344d 100644
 --- a/ggml/src/ggml-cpu/ggml-cpu.c
 +++ b/ggml/src/ggml-cpu/ggml-cpu.c
-@@ -2553,9 +2553,18 @@ static bool ggml_thread_apply_affinity(bool * mask) {
+@@ -2563,9 +2563,18 @@ static bool ggml_thread_apply_affinity(bool * mask) {
  
      DWORD_PTR m = (DWORD_PTR)bitmask;
  
@@ -86,7 +86,7 @@ index 7c274c0..bc92ab2 100644
  }
  
  static bool ggml_thread_apply_priority(int32_t prio) {
-@@ -2575,7 +2584,7 @@ static bool ggml_thread_apply_priority(int32_t prio) {
+@@ -2585,7 +2594,7 @@ static bool ggml_thread_apply_priority(int32_t prio) {
          // Newer Windows 11 versions aggressively park (offline) CPU cores and often place
          // all our threads onto the first 4 cores which results in terrible performance with
          // n_threads > 4
@@ -109,7 +109,7 @@ index 81ff5d7..992437f 100644
          if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
                          TEXT("HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0"),
 diff --git a/src/llama-mmap.cpp b/src/llama-mmap.cpp
-index 045489d..b1ca81a 100644
+index 4d1cd31..03859b3 100644
 --- a/src/llama-mmap.cpp
 +++ b/src/llama-mmap.cpp
 @@ -37,6 +37,16 @@
@@ -168,8 +168,8 @@ index 045489d..b1ca81a 100644
  #endif
  
  void llama_prefetch(llama_memory_ranges mr) {
--#if defined(__linux__) || (defined(_WIN32) && _WIN32_WINNT >= 0x602)
-+#if defined(__linux__) || (defined(_WIN32) && _WIN32_WINNT >= 0x602 && !defined(LLAMA_WIN32_APP_PARTITION))
+-#if defined(__linux__) || defined(__APPLE__) || (defined(_WIN32) && _WIN32_WINNT >= 0x602)
++#if defined(__linux__) || defined(__APPLE__) || (defined(_WIN32) && _WIN32_WINNT >= 0x602 && !defined(LLAMA_WIN32_APP_PARTITION))
      if (mr.empty()) {
          return;
      }
