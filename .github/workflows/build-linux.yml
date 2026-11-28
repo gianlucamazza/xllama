@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      granite_full_checkpoint:
+        type: boolean
+        default: false
+        description: Download and qualify the pinned Granite-4.0-H-Tiny Q3_K_S on CPU
 
 # Feature branches build once via pull_request (not also via push); superseded
 # runs on the same branch cancel so only the latest commit is tested.
@@ -238,6 +243,26 @@ jobs:
 
       - name: Smoke test
         run: ./build/linux-test/bin/xllama-cli --help
+
+      - name: Compare Granite context shift against a cold session (offline fixture)
+        run: python3 scripts/check-granite-shift.py --fixture
+
+      - name: Compare the official Granite Q3_K_S checkpoint on CPU (opt-in)
+        if: >-
+          (github.event_name == 'workflow_dispatch' && inputs.granite_full_checkpoint) ||
+          (github.event_name == 'pull_request' &&
+           github.event.pull_request.head.repo.full_name == github.repository &&
+           contains(github.event.pull_request.labels.*.name, 'granite-full-checkpoint'))
+        timeout-minutes: 35
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "runner_os=$RUNNER_OS runner_arch=$RUNNER_ARCH run_id=$GITHUB_RUN_ID attempt=$GITHUB_RUN_ATTEMPT pr_head=$PR_HEAD_SHA"
+          git show -s --format='tested_commit=%H'
+          git submodule status -- llama.cpp
+          df -B1 --output=target,avail "$RUNNER_TEMP"
+          awk '/^MemTotal:|^MemAvailable:/ {print $1, $2, $3}' /proc/meminfo
+          python3 scripts/check-granite-shift.py --download-checkpoint
 
       - name: Verify UWP gate
         run: |
