@@ -1,0 +1,26 @@
+name: D3D12 bias shader parity
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/d3d12-bias-parity.yml"
+      - "src/bridge/ggml_d3d12.cpp"
+      - "src/bridge/d3d12_compute.*"
+      - "include/xllama/d3d12_dyn.h"
+      - "shaders/ggml_d3d12_add_bias_f32.hlsl"
+      - "shaders/generated/ggml_d3d12_add_bias_f32_dxil.h"
+      - "tests/windows/d3d12-bias/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - run: cmake -S tests/windows/d3d12-bias -B build/bias -A x64
+      - run: cmake --build build/bias --config Release
+      - run: ctest --test-dir build/bias -C Release --verbose --no-tests=error
