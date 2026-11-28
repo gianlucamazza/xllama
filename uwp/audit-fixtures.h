@@ -10,6 +10,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <share.h>
+#include <winrt/Windows.Storage.FileProperties.h>
 
 namespace audit_fixtures {
 using namespace winrt::Windows::Storage;
