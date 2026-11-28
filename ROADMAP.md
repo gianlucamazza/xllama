@@ -17,6 +17,8 @@ a gamepad UI and an opt-in LAN integration surface. The
 
 ## Current follow-up priorities
 
+The [28 November engineering checkpoint](docs/audit/excellence/consolidation-2026-11-28/README.md) ties package identity, reliability work, dependency qualification and research gates to their issues and candidate PRs.
+
 1. **Engineering consolidation.** 1.11 shipped. Finish the reproducibility,
    runtime and client validation work in
    [#395](https://github.com/gianlucamazza/xllama/issues/395). The versioned
