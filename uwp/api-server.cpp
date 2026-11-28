@@ -2769,9 +2769,6 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 write_response(socket, ::xllama::kApiBusyStatus, failure_json("busy"));
                 return;
             }
-            // Keep the lease for the whole reply, including every SSE event.
-            // Dropped on return, throw, or client-disconnect abort.
-            (void)compute_permit;
             std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
             if (!lk.owns_lock()) {
                 activity().busy();
@@ -2794,21 +2791,25 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             // wrong-typed fields; guarantee the client always gets a response
             // rather than a silently dropped socket.
             auto ticket = activity().begin(native_generate ? "generate" : "chat");
-            const KeepAliveAtEnd keep_alive{response}; // runs before lk and the permit go
             const char* status = "200 OK";
             std::string json;
-            try {
-                json = handle_chat_locked(root, body, status, ticket, socket, stream, response,
-                                          native ? &*native : nullptr, reasoning.thinking);
-                // Native Ollama errors are {"error":"<text>"}.
-                if (native && status[0] != '2' && !json.empty())
-                    json = ollama_error_json(error_text(json));
-            } catch (...) {
-                const ::xllama::ApiFailureReply failure =
-                    reply_for_current_exception("chat", "malformed request body", "internal error");
-                status = failure.status;
-                json = failure_json(failure.message);
+            {
+                const KeepAliveAtEnd keep_alive{response};
+                try {
+                    json = handle_chat_locked(root, body, status, ticket, socket, stream, response,
+                                              native ? &*native : nullptr, reasoning.thinking);
+                    // Native Ollama errors are {"error":"<text>"}.
+                    if (native && status[0] != '2' && !json.empty())
+                        json = ollama_error_json(error_text(json));
+                } catch (...) {
+                    const ::xllama::ApiFailureReply failure = reply_for_current_exception(
+                        "chat", "malformed request body", "internal error");
+                    status = failure.status;
+                    json = failure_json(failure.message);
+                }
             }
+            lk.unlock();
+            compute_permit.reset();
             // Record before writing: a client that disconnects makes
             // write_response throw, and the request was still served.
             record_outcome(ticket, status, json);
