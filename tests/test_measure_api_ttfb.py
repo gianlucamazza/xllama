@@ -1,6 +1,7 @@
 # Copyright (c) 2024 Gianluca Mazza
 # SPDX-License-Identifier: MIT
 """Exercise the client-side API timing probe against a local fake server."""
+import itertools
 import json
 import socket
 import subprocess
@@ -8,6 +9,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from contextlib import suppress
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,12 +34,17 @@ GOOD = [sse({"choices": [{"delta": {"role": "assistant"}}]}), sse(delta("Hel")),
 
 
 class FakeServer:
-    def __init__(self, status=200, events=GOOD, split=False):
+    def __init__(self, status=200, events=GOOD, split=False, terminator=b"0\r\n\r\n",
+                 response_headers=None, keep_open=False):
         self.sock = socket.socket()
         self.sock.bind(("127.0.0.1", 0))
         self.sock.listen(8)
         self.port = self.sock.getsockname()[1]
-        self.status, self.events, self.split = status, events, split
+        self.statuses = itertools.cycle([status] if isinstance(status, int) else status)
+        self.events, self.split = events, split
+        self.terminator = terminator
+        self.response_headers = response_headers
+        self.keep_open = keep_open
         self.thread = threading.Thread(target=self.serve, daemon=True)
         self.thread.start()
 
@@ -47,7 +54,8 @@ class FakeServer:
                 conn, _ = self.sock.accept()
             except OSError:
                 return
-            with conn:
+            # A probe that rejects a malformed event may close before [DONE].
+            with conn, suppress(BrokenPipeError, ConnectionResetError):
                 buf = b""
                 while b"\r\n\r\n" not in buf:
                     buf += conn.recv(65536)
@@ -56,9 +64,21 @@ class FakeServer:
                 while len(body) < length:
                     body += conn.recv(65536)
                 json.loads(body)  # the probe must send a valid request body
-                if self.status != 200:
+                status = next(self.statuses)
+                if status != 200:
                     payload = b'{"error":{"message":"busy"}}'
-                    conn.sendall(f"HTTP/1.1 {self.status} Busy\r\nContent-Length: {len(payload)}\r\n\r\n".encode() + payload)
+                    conn.sendall(f"HTTP/1.1 {status} Busy\r\nContent-Length: {len(payload)}\r\n\r\n".encode() + payload)
+                    continue
+                if self.response_headers is not None:
+                    conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n"
+                                 + self.response_headers + b"\r\n")
+                    for event in self.events:
+                        conn.sendall(event)
+                    if self.keep_open:
+                        # A length-delimited client can finish without server EOF.
+                        conn.settimeout(2)
+                        with suppress(TimeoutError):
+                            conn.recv(1)
                     continue
                 conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n")
                 for ev in self.events:
@@ -68,7 +88,7 @@ class FakeServer:
                             conn.sendall(data[i:i + 3])
                     else:
                         conn.sendall(data)
-                conn.sendall(b"0\r\n\r\n")
+                conn.sendall(self.terminator)
 
     def close(self):
         self.sock.close()
@@ -112,11 +132,105 @@ class MeasureApiTtfbTests(unittest.TestCase):
         self.assertEqual(data["failed"], 2)
         self.assertIn("HTTP 503", data["attempts"][0]["error"])
         self.assertIsNone(data["median_ms"]["done_ms"])
+        self.assertEqual(data["error_rate"], 1)
+        self.assertEqual(data["latency_distribution"]["completed_requests"], 0)
+        for estimates in data["latency_distribution"]["percentiles_ms"].values():
+            self.assertEqual(estimates, dict.fromkeys(("p50", "p95", "p99")))
+
+    def test_request_quantiles_include_only_completions_and_failures_count_towards_error_rate(self):
+        r, rec = self.run_probe(self.serve(status=[200, 503, 200, 200, 200, 503]), repeats=6)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertEqual([a["status"] for a in rec["attempts"]], [200, 503, 200, 200, 200, 503])
+        self.assertEqual(rec["error_rate"], 2 / 6)
+        dist = rec["latency_distribution"]
+        self.assertEqual(dist["completed_requests"], 4)
+        self.assertEqual(dist["method"], "linear (R-7)")
+        self.assertEqual(set(dist["percentiles_ms"]), set(rec["median_ms"]))
+        for field, quantiles in dist["percentiles_ms"].items():
+            values = sorted(a[field] for a in rec["attempts"] if a["error"] is None)
+            self.assertEqual(quantiles["p50"], round((values[1] + values[2]) / 2, 3))
+            self.assertEqual(quantiles["p50"], rec["median_ms"][field])
+            # For four observations R-7 uses zero-based ranks 2.85 and 2.97.
+            self.assertAlmostEqual(quantiles["p95"], values[2] * 0.15 + values[3] * 0.85, delta=0.000501)
+            self.assertAlmostEqual(quantiles["p99"], values[2] * 0.03 + values[3] * 0.97, delta=0.000501)
+
+    def test_single_complete_request_has_one_empirical_observation(self):
+        r, rec = self.run_probe(self.serve(), repeats=1)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(rec["error_rate"], 0)
+        self.assertEqual(rec["latency_distribution"]["completed_requests"], 1)
+        for field, quantiles in rec["latency_distribution"]["percentiles_ms"].items():
+            self.assertEqual(quantiles, dict.fromkeys(("p50", "p95", "p99"), rec["attempts"][0][field]))
 
     def test_missing_done_fails(self):
         r, data = self.run_probe(self.serve(events=GOOD[:-1]), repeats=1)
         self.assertEqual(r.returncode, 1)
         self.assertIn("[DONE]", data["attempts"][0]["error"])
+
+    def test_sse_line_endings_across_http_chunks(self):
+        for ending in (b"\r\n", b"\r"):
+            with self.subTest(ending=ending):
+                payload = b"".join(GOOD).replace(b"\n", ending)
+                # Each byte is its own HTTP chunk (including the two bytes of CRLF).
+                port = self.serve(events=[bytes([b]) for b in payload], split=True,
+                                  terminator=b"0\r\nX-Probe: ok\r\n\r\n")
+                r, rec = self.run_probe(port, repeats=1)
+                self.assertEqual(r.returncode, 0, r.stdout)
+                self.assertEqual(rec["attempts"][0]["content_chunks"], 2)
+
+    def test_multiline_sse_data_is_one_content_event(self):
+        event = b'data: {"choices":\ndata: [{"delta": {"content": "hey"}}]}\n\n'
+        r, rec = self.run_probe(self.serve(events=[event, GOOD[-1]], split=True), repeats=1)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertEqual(rec["attempts"][0]["content_chunks"], 1)
+        self.assertEqual(rec["attempts"][0]["text_chars"], 3)
+
+    def test_duplicate_done_and_incomplete_http_termination_are_retained_failures(self):
+        for events, terminator, error in ((GOOD + [GOOD[-1]], b"0\r\n\r\n", "data after"),
+                                          (GOOD, b"", "terminal chunk"),
+                                          (GOOD, b"0\r\n", "terminal chunk")):
+            with self.subTest(terminator=terminator):
+                port = self.serve(events=events, terminator=terminator, split=True)
+                r, rec = self.run_probe(port, repeats=1)
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn(error, rec["attempts"][0]["error"])
+                self.assertEqual(rec["error_rate"], 1)
+                self.assertIsNone(rec["median_ms"]["done_ms"])
+
+    def test_fixed_length_responses_finish_at_the_declared_boundary(self):
+        size = len(b"".join(GOOD))
+        for fields in (f"Content-Length: {size}\r\n", f"Content-Length: {size}, {size}\r\n",
+                       f"Content-Length: {size}\r\nContent-Length: {size}\r\n"):
+            with self.subTest(fields=fields):
+                port = self.serve(response_headers=fields.encode(), keep_open=True)
+                r, rec = self.run_probe(port, "--timeout", "0.5", repeats=1)
+                self.assertEqual(r.returncode, 0, r.stdout)
+                self.assertEqual(rec["attempts"][0]["text_chars"], 5)
+
+    def test_fixed_length_requires_complete_http_body_and_sse_terminal_within_it(self):
+        size = len(b"".join(GOOD))
+        for length in (size + 1, size - len(GOOD[-1]), 0):
+            with self.subTest(length=length):
+                port = self.serve(response_headers=f"Content-Length: {length}\r\n".encode())
+                r, rec = self.run_probe(port, repeats=1)
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertEqual(rec["error_rate"], 1)
+                self.assertEqual(rec["latency_distribution"]["completed_requests"], 0)
+                self.assertIsNone(rec["median_ms"]["done_ms"])
+
+    def test_close_delimited_response_without_length_still_completes(self):
+        r, rec = self.run_probe(self.serve(response_headers=b""), repeats=1)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertEqual(rec["complete"], 1)
+
+    def test_ambiguous_or_invalid_response_length_is_a_retained_failure(self):
+        for fields in (b"Content-Length: 1\r\nContent-Length: 2\r\n",
+                       b"Content-Length: +20\r\n",
+                       b"Transfer-Encoding: chunked\r\nContent-Length: 300\r\n"):
+            with self.subTest(fields=fields):
+                r, rec = self.run_probe(self.serve(response_headers=fields), repeats=1)
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn("Content-Length", rec["attempts"][0]["error"])
 
     def test_no_content_delta_fails(self):
         r, data = self.run_probe(self.serve(events=[GOOD[0], GOOD[-1]]), repeats=1)
@@ -131,6 +245,15 @@ class MeasureApiTtfbTests(unittest.TestCase):
         r, data = self.run_probe(self.serve(events=[sse(b"{not json"), GOOD[-1]]), repeats=1)
         self.assertEqual(r.returncode, 1)
         self.assertIsNotNone(data["attempts"][0]["error"])
+
+    def test_invalid_event_shapes_remain_in_the_error_rate_denominator(self):
+        for event in (b"null", {"choices": {}}, {"choices": [0]},
+                      {"choices": [{"delta": 2}]}, {"choices": [{"delta": {"content": [1]}}]}):
+            with self.subTest(event=event):
+                r, data = self.run_probe(self.serve(events=[sse(event), GOOD[-1]]), repeats=1)
+                self.assertEqual(r.returncode, 1, r.stderr)
+                self.assertEqual(data["error_rate"], 1)
+                self.assertEqual(data["latency_distribution"]["completed_requests"], 0)
 
     def test_unreachable_endpoint_is_retained(self):
         s = socket.socket()
