@@ -106,7 +106,7 @@ std::unique_lock<std::mutex> acquire_hub_or_busy() {
 // Acquire the process-wide compute lease before touching the SessionHub. The
 // startup pre-load is the only admitted job that API clients wait behind;
 // every other occupied slot keeps the existing bounded busy response. The
-// returned handle must stay alive for the whole reply, including SSE tokens.
+// returned handle covers generation, including its SSE token writes.
 ::xllama::ComputeJobAdmission::Handle acquire_compute_job_or_busy() {
     return ::xllama::try_acquire_compute_job_while_preloading(::xllama::session_hub().preloading);
 }
@@ -347,7 +347,7 @@ using ::xllama::ChatWire;
 using ChatClock = std::chrono::steady_clock;
 
 // Per-request reply state: the native wire's timings, and what the request's
-// keep_alive does to the session once the reply is written.
+// keep_alive does to the session when generation finishes.
 struct ChatResponse {
     ChatWire wire = ChatWire::OpenAI;
     ChatClock::time_point started = ChatClock::now();
@@ -2769,49 +2769,47 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 write_response(socket, ::xllama::kApiBusyStatus, failure_json("busy"));
                 return;
             }
-            // Keep the lease for the whole reply, including every SSE event.
-            // Dropped on return, throw, or client-disconnect abort.
-            (void)compute_permit;
             std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
-            if (!lk.owns_lock()) {
+            // A callback from an older listener must not recreate the Session.
+            const auto admission = ::xllama::check_api_chat_admission(lk, compute_permit, [&] {
+                std::lock_guard<std::mutex> state_lock(g_state_mtx);
+                return g_status.state == ServerState::Running && generation == g_generation;
+            });
+            if (admission == ::xllama::ApiChatAdmission::HubBusy) {
                 activity().busy();
-                write_response(socket, "503 Service Unavailable", failure_json("busy"));
+                write_response(socket, ::xllama::kApiBusyStatus, failure_json("busy"));
                 return;
             }
-            // stop/rebind may have happened after this callback was queued. Do
-            // not let an old listener recreate the lazily-owned Session.
-            bool active_generation = false;
-            {
-                std::lock_guard<std::mutex> state_lock(g_state_mtx);
-                active_generation =
-                    g_status.state == ServerState::Running && generation == g_generation;
-            }
-            if (!active_generation) {
-                write_response(socket, "503 Service Unavailable", failure_json("server stopped"));
+            if (admission == ::xllama::ApiChatAdmission::ServerStopped) {
+                write_response(socket, ::xllama::kApiBusyStatus, failure_json("server stopped"));
                 return;
             }
             // handle_chat_locked touches WinRT JSON accessors that throw on
             // wrong-typed fields; guarantee the client always gets a response
             // rather than a silently dropped socket.
             auto ticket = activity().begin(native_generate ? "generate" : "chat");
-            const KeepAliveAtEnd keep_alive{response}; // runs before lk and the permit go
             const char* status = "200 OK";
             std::string json;
-            try {
-                json = handle_chat_locked(root, body, status, ticket, socket, stream, response,
-                                          native ? &*native : nullptr, reasoning.thinking);
-                // Native Ollama errors are {"error":"<text>"}.
-                if (native && status[0] != '2' && !json.empty())
-                    json = ollama_error_json(error_text(json));
-            } catch (...) {
-                const ::xllama::ApiFailureReply failure =
-                    reply_for_current_exception("chat", "malformed request body", "internal error");
-                status = failure.status;
-                json = failure_json(failure.message);
+            {
+                const KeepAliveAtEnd keep_alive{response};
+                try {
+                    json = handle_chat_locked(root, body, status, ticket, socket, stream, response,
+                                              native ? &*native : nullptr, reasoning.thinking);
+                    // Native Ollama errors are {"error":"<text>"}.
+                    if (native && status[0] != '2' && !json.empty())
+                        json = ollama_error_json(error_text(json));
+                } catch (...) {
+                    const ::xllama::ApiFailureReply failure = reply_for_current_exception(
+                        "chat", "malformed request body", "internal error");
+                    status = failure.status;
+                    json = failure_json(failure.message);
+                }
             }
-            // Record before writing: a client that disconnects makes
-            // write_response throw, and the request was still served.
+            // A new admission can replace the activity ticket. Finish accounting
+            // before releasing ownership, then deliver the request-owned body.
             record_outcome(ticket, status, json);
+            lk.unlock();
+            compute_permit.reset();
             // A streamed reply is already on the socket; an empty body means the
             // stream (or its error event) was the response.
             if (stream && json.empty())
