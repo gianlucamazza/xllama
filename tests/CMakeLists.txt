@@ -21,6 +21,7 @@ add_executable(xllama-tests
     test_bench.cpp
     test_session.cpp
     test_kv_store.cpp
+    ../uwp/chat-history.cpp
     test_chat_history.cpp
     test_diffusion.cpp
     test_stability_attribution.cpp

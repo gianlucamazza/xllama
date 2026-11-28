@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 #include "xllama/personalize.h"
+#include "xllama/atomic_file.h"
 #include "xllama/json_utils.h"
 #include "xllama/training.h"
+#include <nlohmann/json.hpp>
 
 #include <cctype>
 #include <cstdio>
@@ -152,6 +154,48 @@ std::string format_personalize_job_json(const TrainingJob& job) {
     }
     os << "\n}\n";
     return os.str();
+}
+
+bool publish_personalized_manifest(const std::filesystem::path& path, uint64_t model_bytes,
+                                   std::string* err) {
+    using Json = nlohmann::ordered_json;
+    std::error_code ec;
+    Json root = Json::object();
+    if (std::filesystem::exists(path, ec)) {
+        std::ifstream input(path, std::ios::binary);
+        if (!input) {
+            set_err(err, "Could not open the local manifest");
+            return false;
+        }
+        root = Json::parse(input, nullptr, false);
+        if (input.bad() || !root.is_object() || !root.contains("models") ||
+            !root["models"].is_array()) {
+            set_err(err, "Could not read the existing local manifest");
+            return false;
+        }
+    } else if (ec) {
+        set_err(err, "Could not inspect the local manifest: " + ec.message());
+        return false;
+    } else {
+        root["models"] = Json::array();
+    }
+    auto& models = root["models"];
+    auto entry = Json::parse(personalized_manifest_override_json(kPersonalizedModelId,
+                                                                 kPersonalizedDisplay, model_bytes))
+                     .at("models")
+                     .at(0);
+    for (auto it = models.begin(); it != models.end();) {
+        if (it->is_object() && it->contains("name") && it->at("name") == kPersonalizedModelId)
+            it = models.erase(it);
+        else
+            ++it;
+    }
+    models.push_back(std::move(entry));
+    if (!replace_file_bytes(path, root.dump(2))) {
+        set_err(err, "Could not replace the local manifest");
+        return false;
+    }
+    return true;
 }
 
 std::string personalized_manifest_override_json(const std::string& model_id,

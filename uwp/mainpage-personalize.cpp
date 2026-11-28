@@ -5,6 +5,7 @@
 // includes and helpers are in mainpage-internal.h.
 
 #include "mainpage-internal.h"
+#include "xllama/model_write.h"
 
 #ifdef XLLAMA_UWP
 
@@ -61,35 +62,48 @@ bool MainPageController::PublishPersonalizedModel(const std::string& merged_gguf
     const std::wstring dest_dir = local_wpath(L"models\\personalized");
     CreateDirectoryW(dest_dir.c_str(), nullptr);
     const std::wstring dest = dest_dir + L"\\model.gguf";
-    if (!CopyFileW(src.c_str(), dest.c_str(), FALSE)) {
+    ModelWriteOperation writer(ModelDownloader::WriterGate(), dest_dir);
+    if (!writer.owns_lock()) {
         if (err)
-            *err = "CopyFile failed for personalized model.gguf";
+            *err = "Another model write is in progress";
         return false;
     }
-    // Touch .complete so IsModelProvisioned accepts the dir.
-    FILE* done = _wfopen((dest_dir + L"\\.complete").c_str(), L"w");
-    if (done) {
-        fputs("ok\n", done);
-        fclose(done);
+    const auto stage = dest + L".part";
+    std::error_code ec;
+    if (!std::filesystem::copy_file(src, stage, std::filesystem::copy_options::overwrite_existing,
+                                    ec)) {
+        if (err)
+            *err = "Could not stage the personalized model: " + ec.message();
+        std::filesystem::remove(stage, ec);
+        return false;
     }
-
-    uint64_t approx = 0;
-    WIN32_FILE_ATTRIBUTE_DATA fad{};
-    if (GetFileAttributesExW(dest.c_str(), GetFileExInfoStandard, &fad)) {
-        approx = (static_cast<uint64_t>(fad.nFileSizeHigh) << 32) | fad.nFileSizeLow;
+    const auto size = std::filesystem::file_size(stage, ec);
+    if (ec || !size) {
+        if (err)
+            *err = "Staged personalized model is empty or unreadable";
+        std::filesystem::remove(stage, ec);
+        return false;
     }
-    const std::string override_json = ::xllama::personalized_manifest_override_json(
-        ::xllama::kPersonalizedModelId, ::xllama::kPersonalizedDisplay, approx);
-
-    // Merge onto any existing LocalState manifest.json override (per-entry).
-    // LoadModelManifest already merges LocalState on top of bundled; we only
-    // rewrite LocalState so a single-entry personalized override does not
-    // shadow the catalogue when no other override existed — write a document
-    // that contains just the personalized entry; LoadModelManifest merges it.
-    // If an override already exists, re-read its models array is complex without
-    // a full JSON rewriter; the per-entry merge means a same-name replace is
-    // enough, and a one-entry override still keeps all bundled models.
-    ::xllama::write_local_text("manifest.json", override_json);
+    if (!writer.begin(ec)) {
+        if (err)
+            *err = "Could not prepare the personalized model: " + ec.message();
+        std::filesystem::remove(stage, ec);
+        return false;
+    }
+    std::filesystem::rename(stage, dest, ec);
+    if (ec) {
+        if (err)
+            *err = "Could not replace the personalized model: " + ec.message();
+        std::filesystem::remove(stage, ec);
+        return false;
+    }
+    if (!publish_personalized_manifest(local_wpath(L"manifest.json"), size, err))
+        return false;
+    if (!writer.complete({L"model.gguf"}, ec)) {
+        if (err)
+            *err = "Could not complete personalized model publication: " + ec.message();
+        return false;
+    }
     InvalidateManifestCache(); // catalogue changed — StartInference reads the cache
     return true;
 }

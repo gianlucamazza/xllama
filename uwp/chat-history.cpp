@@ -5,20 +5,21 @@
 
 // clang-format off
 #include "pch.h"
-// clang-format on
-
-    #include "chat-history.h"
-    #include "xllama/json_utils.h"
-    #include "xllama/platform.h"
-    #include "xllama/utf8_utils.h"
-
-    #include <algorithm>
-    #include <cstdio>
-    #include <ctime>
-    #include <sstream>
-
-    // Windows headers for UUID generation
+    // clang-format on
     #include <objbase.h>
+#endif
+
+#include "chat-history.h"
+#include "xllama/atomic_file.h"
+#include "xllama/json_utils.h"
+#include "xllama/platform.h"
+#include "xllama/utf8_utils.h"
+
+#include <algorithm>
+#include <cstdio>
+#include <ctime>
+#include <fstream>
+#include <sstream>
 
 namespace xllama::ui {
 
@@ -84,6 +85,7 @@ static std::string json_read_value(const std::string& s, size_t& pos) {
 
 ChatHistory::ChatHistory(const std::string& chats_dir) : m_dir(chats_dir) {}
 
+#ifdef XLLAMA_UWP
 std::string ChatHistory::NewId() {
     GUID g{};
     CoCreateGuid(&g);
@@ -93,6 +95,8 @@ std::string ChatHistory::NewId() {
              g.Data4[2], g.Data4[3], g.Data4[4], g.Data4[5], g.Data4[6], g.Data4[7]);
     return buf;
 }
+
+#endif
 
 std::string ChatHistory::TitleFrom(const std::string& text) {
     // First non-empty line, truncated at 60 chars
@@ -110,21 +114,17 @@ std::string ChatHistory::TitleFrom(const std::string& text) {
     return title.empty() ? "Conversation" : title;
 }
 
-std::string ChatHistory::ConvPath(const std::string& id) const {
-    return m_dir + "\\" + id + ".json";
+std::filesystem::path ChatHistory::ConvPath(const std::string& id) const {
+    return (std::filesystem::u8path(m_dir) / std::filesystem::u8path(id + ".json"));
 }
 
-void ChatHistory::LoadIndex() {
+void ChatHistory::ReadIndex() {
     m_index.clear();
-    std::string idx_path = m_dir + "\\index.json";
-    FILE* f = fopen(idx_path.c_str(), "r");
-    if (!f)
+    auto idx_path = ConvPath("index");
+    std::ifstream input(idx_path, std::ios::binary);
+    if (!input)
         return;
-    std::string json;
-    char buf[4096];
-    while (size_t n = fread(buf, 1, sizeof(buf), f))
-        json.append(buf, n);
-    fclose(f);
+    const std::string json((std::istreambuf_iterator<char>(input)), {});
 
     // Parse array of objects
     size_t pos = 0;
@@ -175,28 +175,54 @@ void ChatHistory::LoadIndex() {
               });
 }
 
-void ChatHistory::SaveIndex() {
-    std::string idx_path = m_dir + "\\index.json";
-    FILE* f = fopen(idx_path.c_str(), "w");
-    if (!f)
-        return;
-    fputs("[\n", f);
-    for (size_t i = 0; i < m_index.size(); ++i) {
-        const auto& m = m_index[i];
-        fprintf(f,
+void ChatHistory::LoadIndex() {
+    ReadIndex();
+    std::error_code ec;
+    std::vector<std::filesystem::path> pending;
+    std::filesystem::directory_iterator it(std::filesystem::u8path(m_dir), ec), end;
+    for (; !ec && it != end; it.increment(ec)) {
+        const auto marker = it->path();
+        const auto source = marker.parent_path() / marker.stem();
+        if (marker.extension() != ".pending" || source.extension() != ".json")
+            continue;
+        if (std::filesystem::is_regular_file(source, ec)) {
+            const auto id = source.stem().string();
+            UpdateMeta(Load(id));
+        } else if (ec && ec != std::errc::no_such_file_or_directory) {
+            return;
+        }
+        ec.clear();
+        pending.push_back(marker);
+    }
+    if (!ec && !pending.empty() && SaveIndex()) {
+        for (const auto& marker : pending)
+            std::filesystem::remove(marker, ec);
+    }
+}
+
+bool ChatHistory::SaveIndex() {
+    auto idx_path = ConvPath("index");
+    return replace_file_checked(idx_path, [&](FILE* f) {
+        fputs("[\n", f);
+        for (size_t i = 0; i < m_index.size(); ++i) {
+            const auto& m = m_index[i];
+            fprintf(
+                f,
                 "  {\"id\":\"%s\",\"title\":\"%s\",\"last_modified\":%lld,\"n_messages\":%d}%s\n",
                 xllama::json_escape(m.id).c_str(), xllama::json_escape(m.title).c_str(),
                 static_cast<long long>(m.last_modified), m.n_messages,
                 (i + 1 < m_index.size()) ? "," : "");
-    }
-    fputs("]\n", f);
-    fclose(f);
+        }
+        fputs("]\n", f);
+        return !ferror(f);
+    });
 }
 
 void ChatHistory::Delete(const std::string& id) {
     // Remove JSON file
-    std::string path = ConvPath(id);
-    ::remove(path.c_str());
+    auto path = ConvPath(id);
+    std::error_code ec;
+    std::filesystem::remove(path, ec);
     // Remove from index
     m_index.erase(std::remove_if(m_index.begin(), m_index.end(),
                                  [&](const ConversationMeta& m) { return m.id == id; }),
@@ -207,46 +233,57 @@ void ChatHistory::Delete(const std::string& id) {
 void ChatHistory::Clear() {
     // Delete all conversation JSON files
     for (const auto& meta : m_index) {
-        std::string path = ConvPath(meta.id);
-        ::remove(path.c_str());
+        auto path = ConvPath(meta.id);
+        std::error_code ec;
+        std::filesystem::remove(path, ec);
     }
     m_index.clear();
     SaveIndex();
 }
 
-void ChatHistory::Save(const Conversation& conv) {
+bool ChatHistory::Save(const Conversation& conv) {
     // Ensure directory exists
-    std::wstring wdir = ::xllama::utf8_to_wstring(m_dir);
-    CreateDirectoryW(wdir.c_str(), nullptr); // no-op if exists
+    std::error_code ec;
+    std::filesystem::create_directories(std::filesystem::u8path(m_dir), ec);
+    if (ec)
+        return false;
 
-    std::string path = ConvPath(conv.id);
-    FILE* f = fopen(path.c_str(), "w");
-    if (!f) {
-        log_output("[xllama][chat] failed to save conversation " + conv.id + "\n");
-        return;
-    }
-    fputs("{\"id\":\"", f);
-    fputs(xllama::json_escape(conv.id).c_str(), f);
-    fputs("\",\"title\":\"", f);
-    fputs(xllama::json_escape(conv.title).c_str(), f);
-    fputs("\",\"messages\":[\n", f);
-    for (size_t i = 0; i < conv.messages.size(); ++i) {
-        const auto& msg = conv.messages[i];
-        const char* role_str = (msg.role == MessageRole::System) ? "system"
-                               : (msg.role == MessageRole::User) ? "user"
-                                                                 : "assistant";
-        fprintf(f,
-                "  {\"role\":\"%s\",\"content\":\"%s\",\"ts\":%lld,\"partial\":%s,"
-                "\"feedback_label\":\"%s\"}%s\n",
-                role_str, xllama::json_escape(msg.content).c_str(),
-                static_cast<long long>(msg.ts_unix), msg.partial ? "true" : "false",
-                xllama::json_escape(msg.feedback_label).c_str(),
-                (i + 1 < conv.messages.size()) ? "," : "");
-    }
-    fputs("]}\n", f);
-    fclose(f);
+    auto path = ConvPath(conv.id);
+    const auto pending = std::filesystem::path(path).concat(".pending");
+    if (!replace_file_bytes(pending, ""))
+        return false;
+    if (!replace_file_checked(path, [&](FILE* f) {
+            fputs("{\"id\":\"", f);
+            fputs(xllama::json_escape(conv.id).c_str(), f);
+            fputs("\",\"title\":\"", f);
+            fputs(xllama::json_escape(conv.title).c_str(), f);
+            fputs("\",\"messages\":[\n", f);
+            for (size_t i = 0; i < conv.messages.size(); ++i) {
+                const auto& msg = conv.messages[i];
+                const char* role_str = (msg.role == MessageRole::System) ? "system"
+                                       : (msg.role == MessageRole::User) ? "user"
+                                                                         : "assistant";
+                fprintf(f,
+                        "  {\"role\":\"%s\",\"content\":\"%s\",\"ts\":%lld,\"partial\":%s,"
+                        "\"feedback_label\":\"%s\"}%s\n",
+                        role_str, xllama::json_escape(msg.content).c_str(),
+                        static_cast<long long>(msg.ts_unix), msg.partial ? "true" : "false",
+                        xllama::json_escape(msg.feedback_label).c_str(),
+                        (i + 1 < conv.messages.size()) ? "," : "");
+            }
+            fputs("]}\n", f);
+            return !ferror(f);
+        }))
+        return false;
 
-    // Update index
+    UpdateMeta(conv);
+    if (!SaveIndex())
+        return false;
+    std::filesystem::remove(pending, ec);
+    return true;
+}
+
+void ChatHistory::UpdateMeta(const Conversation& conv) {
     int64_t now_ts = static_cast<int64_t>(std::time(nullptr));
     auto it = std::find_if(m_index.begin(), m_index.end(),
                            [&](const ConversationMeta& m) { return m.id == conv.id; });
@@ -265,21 +302,16 @@ void ChatHistory::Save(const Conversation& conv) {
               [](const ConversationMeta& a, const ConversationMeta& b) {
                   return a.last_modified > b.last_modified;
               });
-    SaveIndex();
 }
 
 Conversation ChatHistory::Load(const std::string& id) const {
     Conversation conv;
     conv.id = id;
-    std::string path = ConvPath(id);
-    FILE* f = fopen(path.c_str(), "r");
-    if (!f)
+    auto path = ConvPath(id);
+    std::ifstream input(path, std::ios::binary);
+    if (!input)
         return conv;
-    std::string json;
-    char buf[4096];
-    while (size_t n = fread(buf, 1, sizeof(buf), f))
-        json.append(buf, n);
-    fclose(f);
+    const std::string json((std::istreambuf_iterator<char>(input)), {});
 
     // Parse top-level fields
     size_t pos = 0;
@@ -370,5 +402,3 @@ Conversation ChatHistory::Load(const std::string& id) const {
 }
 
 } // namespace xllama::ui
-
-#endif // XLLAMA_UWP

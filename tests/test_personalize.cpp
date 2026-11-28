@@ -130,3 +130,27 @@ TEST_CASE("format_train_progress_json: stable keys") {
     CHECK(j.find("\"epochs\":8") != std::string::npos);
     CHECK(j.find("\"loss\":1.500000") != std::string::npos);
 }
+
+TEST_CASE("personalized manifest preserves other overrides and refuses invalid local state") {
+    const auto path =
+        std::filesystem::temp_directory_path() / "xllama-personalized-manifest-test.json";
+    const std::string old = R"({"channel":"lab","models":[{"name":"a","unknown":1},{"name":"b"}]})";
+    std::ofstream(path) << old;
+    std::string err;
+    REQUIRE(publish_personalized_manifest(path, 1024, &err));
+    REQUIRE(publish_personalized_manifest(path, 2048, &err));
+    std::ifstream file(path);
+    const std::string saved((std::istreambuf_iterator<char>(file)), {});
+    file.close();
+    CHECK(saved.find("\"channel\": \"lab\"") != saved.npos);
+    CHECK(saved.find("\"unknown\": 1") != saved.npos);
+    CHECK(saved.find("\"name\": \"b\"") != saved.npos);
+    CHECK(saved.find("1024") == saved.npos);
+    CHECK(saved.find("2048") != saved.npos);
+    std::ofstream(path) << "{bad";
+    CHECK_FALSE(publish_personalized_manifest(path, 12, &err));
+    std::ifstream invalid(path);
+    CHECK(std::string(std::istreambuf_iterator<char>(invalid), {}) == "{bad");
+    invalid.close();
+    std::filesystem::remove(path);
+}

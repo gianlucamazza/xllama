@@ -8,6 +8,7 @@
 #include "xllama/training_params.h"
 
 #include <cstdint>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -55,6 +56,10 @@ std::string format_personalize_job_json(const TrainingJob& job);
 // approx_bytes may be 0.
 std::string personalized_manifest_override_json(const std::string& model_id,
                                                 const std::string& display, uint64_t approx_bytes);
+
+// Atomically upsert the personalized entry while preserving other local overrides.
+bool publish_personalized_manifest(const std::filesystem::path& path, uint64_t model_bytes,
+                                   std::string* err);
 
 // Count non-dislike preference lines in a samples.jsonl file (0 if missing/unreadable).
 // Dislike rows are skipped by the engine; they do not count toward preflight.
