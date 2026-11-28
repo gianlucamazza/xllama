@@ -692,12 +692,45 @@ def main() -> int:
         # (build 1.7.0.1533 remeasure, 3 recorded runs).
         # 2026-11-15: LFM 101.6 -> 97.9 (build 1.7.0.1563 remeasure with a
         # fixed 512-token decode, 3 recorded runs).
-        for num in ("97.9", "40.0", "17.9", "74.8", "41.2", "21.0", "34.3", "231.3"):
+        # 2026-11-27: LFM 97.9 -> 97.3, 1.2B 40.0 -> 39.7 and LFM2-2.6B 17.9 ->
+        # 18.1 (v1.11.0.2203 release-package remeasure, fixed-length decode,
+        # 3 recorded runs; 2026-11-27-v1110-remeasure).
+        for num in ("97.3", "39.7", "18.1", "74.8", "41.2", "21.0", "34.3", "231.3"):
             if num not in block:
                 err(f"generated table missing {num}")
             if num not in rec and num not in ("231.3",):
                 err(f"recommended-config missing headline {num}")
         good("decode headlines code-doc aligned")
+
+        # The README "Models and performance" table restates headline rows from
+        # the generated summary. Each README row must equal the generated row for
+        # the same model and backend (decode tok/s and peak RAM), so the README
+        # is a checked copy rather than a second home for the numbers.
+        gen: dict[tuple[str, str], tuple[str, str]] = {}
+        for line in block.splitlines():
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if len(cells) < 9 or cells[0] in ("Model", "---"):
+                continue
+            kind = "d3d12" if "d3d12" in cells[3] else "CPU"
+            gen.setdefault((cells[0], kind), (cells[5].strip("*"), cells[7]))
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        sec = re.search(r"## Models and performance.*?\n(\|.*?)\n\n", readme, re.S)
+        if not sec:
+            err("README Models and performance table not found")
+        else:
+            bad = 0
+            for line in sec.group(1).splitlines()[2:]:
+                cells = [c.strip() for c in line.strip().strip("|").split("|")]
+                if len(cells) != 4:
+                    continue
+                name, dec, backend, peak = cells
+                kind = "d3d12" if "d3d12" in backend else "CPU"
+                want = gen.get((name, kind))
+                if want != (dec, peak):
+                    bad += 1
+                    err(f"README table row {name} ({kind}) {dec}/{peak} != summary {want}")
+            if not bad:
+                good("README model table matches the generated summary")
 
     # --- model-matrix numbers vs the CSV they claim to come from ---
     # docs/benchmarks.md is the numbers SSOT and model-matrix.md is the status
