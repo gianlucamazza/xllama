@@ -1,6 +1,6 @@
 # llama.cpp v0.8.0 pin qualification
 
-**Pin decision — HOLD.** The paired Linux CPU comparison fails on the catalogue Qwen3.5-0.8B. The identical checkpoint and prompt produce the same greedy text while their full-vocabulary distributions cross the frozen thresholds. Independent reference logits must resolve which revision gives the intended result. Other open product gates include package-level integration, catalogue quality and Series S acceptance. [Pin tracker](https://github.com/gianlucamazza/xllama/issues/522) · [Merge gates](../../../docs/superpowers/plans/2026-11-24-moe-engineering-program.md#pin-bump-522--after-m0-before-any-m1-gpu-work).
+**Pin decision — HOLD.** The paired Linux CPU comparison fails on the catalogue Qwen3.5-0.8B. The identical checkpoint and prompt produce the same greedy text while their full-vocabulary distributions cross the frozen thresholds. Reciprocal experiments isolate the difference to upstream's more accurate CPU softplus. Full-model reference distributions, paired quality and the original cross-pin threshold still require a review. Other open product gates include package-level integration, catalogue quality and Series S acceptance. [Pin tracker](https://github.com/gianlucamazza/xllama/issues/522) · [Merge gates](../../../docs/superpowers/plans/2026-11-24-moe-engineering-program.md#pin-bump-522--after-m0-before-any-m1-gpu-work).
 
 ## Versions and API surface
 
@@ -76,7 +76,30 @@ c++ -std=c++17 -O1 -Iinclude \
 /tmp/embedding-probe "$EMBEDDING" 'What is the capital of Italy?' "$OUT.f32"
 ```
 
-Each pin produced byte-identical Qwen3.5 output rows on its own fresh-process repeat. Position 0 is byte-identical across pins. Four of the following six rows breach the thresholds, with worst absolute error 0.604359 and worst NMSE 0.00144747. Every top-1 ID matches. Microbatch 1 still gives worst NMSE 0.00135344. `GGML_CPU_DISABLE_FUSION=1` leaves each pin's default-batch bytes unchanged. A separate layer-output capture agrees on layer 0, differs by NMSE less than 3e-13 through layer 3, then reaches 2.29e-5 at layer 4 and 1.22e-4 at layer 5. The last-layer capture has different shapes, so the all-node capture comparison rejects that pair. The recurrent attention output at layer 4 differs by NMSE 1.87e-9, rising to 7.24e-6 in its output projection and 1.32e-4 in the feed-forward output. A float64 reference checked 39 quantized weight multiplications per pin through layer 4 using each arm's own quantized operand. Worst NMSE was 5.59e-13 (declared limit 1e-6). This bounds arithmetic error in those projections. The intended recurrent activations and end-to-end reference logits remain open. For each pin, use `--capture-tensors "$CAPTURE" --capture-spec 'l_out-4;matmul_inputs=l_out-4;mode=full;max_mb=128'` with the same prompt, then run `scripts/check-matmul-reference.py "$MODEL" "$BASE_CAPTURE" "$CANDIDATE_CAPTURE" --nmse-limit 1e-6`.
+Each pin produced byte-identical Qwen3.5 output rows on its own fresh-process repeat. Position 0 is byte-identical across pins. Four of the following six rows breach the thresholds, with worst absolute error 0.604359 and worst NMSE 0.00144747. Every top-1 ID matches. Microbatch 1 still gives worst NMSE 0.00135344. `GGML_CPU_DISABLE_FUSION=1` leaves each pin's default-batch bytes unchanged. A separate layer-output capture agrees on layer 0, differs by NMSE less than 3e-13 through layer 3, then reaches 2.29e-5 at layer 4 and 1.22e-4 at layer 5. The last-layer capture has different shapes, so the all-node capture comparison rejects that pair. The recurrent attention output at layer 4 differs by NMSE 1.87e-9, rising to 7.24e-6 in its output projection and 1.32e-4 in the feed-forward output. A float64 reference checked 39 quantized weight multiplications per pin through layer 4 using each arm's own quantized operand. Worst NMSE was 5.59e-13 (declared limit 1e-6). This bounds arithmetic error in those projections. Full-model reference logits remain open. For each pin, use `--capture-tensors "$CAPTURE" --capture-spec 'l_out-4;matmul_inputs=l_out-4;mode=full;max_mb=128'` with the same prompt, then run `scripts/check-matmul-reference.py "$MODEL" "$BASE_CAPTURE" "$CANDIDATE_CAPTURE" --nmse-limit 1e-6`.
+
+### Qwen3.5 root cause
+
+The first observed difference at layer 1 is the gate's softplus. Its input projection and the checkpoint bias match across pins. Upstream replaced `logf(1.0f + expf(x))` with `log1pf(expf(x))` in the scalar CPU kernel. Both retain the same `x > 20` cutoff. [Upstream change #31086](https://github.com/ggml-org/llama.cpp/commit/74bca3950054eed1795f525cb9cf06bfe796492d) · [Upstream review](https://github.com/ggml-org/llama.cpp/pull/31086).
+
+| Isolated CPU library experiment              | Positions × vocabulary | Observed full-logit result                                                                                             |
+| -------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Baseline, candidate softplus expression only | 7 × 248,320            | Byte-identical to the **stock candidate**, SHA-256 `e7f3fe9d9259fe7959cd82f181d86d37a84339d2d56261965a8430f6783d17f9`. |
+| Candidate, baseline softplus expression only | 7 × 248,320            | Byte-identical to the **stock baseline**, SHA-256 `8510ac5a295f8340b73eb1b313a2d5d789c337480a4d44a7da40923b63b009c8`.  |
+
+Each experiment rebuilt `ggml/src/ggml-cpu/unary-ops.cpp` in an isolated build using the original pin's compile flags. The rest of each CPU library and application came from its corresponding stock arm. To reproduce, substitute just the return expression in `op_softplus` in each disposable source checkout, rebuild `xllama-cli` and repeat the same `--dump-logits-stride 1` invocation. The reciprocal substitutions account for all 1,738,240 logits in this prompt comparison.
+
+For the 112 observed softplus inputs (7 tokens × 16 heads), add the GGUF's layer-1 `ssm_dt.bias` to the identical projections in float32, then independently evaluate `ln(1 + exp(x))` at 65 decimal digits. The baseline gives 64 correctly rounded float32 results and reaches **13,274 ULP** at worst. The candidate gives 102 correctly rounded results and stays within **1 ULP** throughout. This establishes a local accuracy improvement on the tested inputs. The original full-model gate still records **FAILED**. A checkpoint-level teacher-forced reference and a representative paired quality suite are the next acceptance gates.
+
+Capture `alpha-1` and `a_softplus-1` in each unmodified CLI by appending `--capture-tensors "$CAPTURE" --capture-spec 'alpha-1,a_softplus-1;mode=full;max_mb=4'` to the same prompt run, omitting `--dump-logits-stride`. Run the [decimal reference](softplus-reference.py) from the repository root. With no arguments it replays the 112 captured inputs, 16 bias values and both outputs directly from `catalogue.json` using Python and NumPy. With the following arguments it reads the original GGUF and the fresh captures.
+
+```sh
+PYTHONPATH=llama.cpp/gguf-py python3 \
+  bench/results/2026-11-28-llama-v080-candidate/softplus-reference.py \
+  "$MODEL" "$BASE_CAPTURE" "$CANDIDATE_CAPTURE"
+```
+
+### Build and runtime checks
 
 Both UWP package configurations built on GitHub Actions. The Linux build, sanitizers and CodeQL runs also passed on the tested candidate commit. Package installation, inference and suspend/resume on a physical console remain open. [UWP builds](https://github.com/gianlucamazza/xllama/actions/runs/46140767881) · [Linux build](https://github.com/gianlucamazza/xllama/actions/runs/46140767930) · [Sanitizers](https://github.com/gianlucamazza/xllama/actions/runs/46140767955) · [CodeQL](https://github.com/gianlucamazza/xllama/actions/runs/46140767963).
 

@@ -189,13 +189,14 @@ jobs:
           "$minimum" --list-presets=all
           "$minimum" --preset linux-test -B "$RUNNER_TEMP/build-min-test"
           "$minimum" --preset linux-debug
-          "$minimum" --build --preset linux-debug
+          # Bound the number of concurrent compiler processes on the hosted runner.
+          "$minimum" --build --preset linux-debug --parallel 2
 
       - name: Configure (with tests)
         run: cmake --preset linux-test
 
       - name: Build
-        run: cmake --build build/linux-test -j$(nproc)
+        run: cmake --build build/linux-test --parallel 2
 
       - name: Hybrid GGUF snapshot memory and recovery
         run: python3 scripts/test-kv-restore-memory.py --build-dir build/linux-test
