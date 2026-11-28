@@ -732,8 +732,39 @@ TEST_CASE("d3d12: dispatch profile groups by kind and reports untimed dispatches
     D3d12DispatchProfile only_missing;
     only_missing.note_missing();
     CHECK_FALSE(only_missing.empty());
-    CHECK(format_d3d12_dispatch_profile("decode", only_missing).find("missing=1") !=
-          std::string::npos);
+    CHECK(format_d3d12_dispatch_profile("decode", only_missing)
+              .find("timed=0 missing=1 gpu_ms=missing") != std::string::npos);
+}
+
+TEST_CASE("d3d12: a requested dispatch profile accounts for unavailable query resources") {
+    const std::uint64_t ticks[]{10, 14, 14};
+    auto collect = [&](bool requested, bool recorded, bool mapped, std::uint64_t frequency,
+                       int expected_maps) {
+        int maps = 0;
+        std::vector<std::optional<double>> times;
+        const bool unmap = d3d12_read_dispatch_times(
+            requested, recorded, 2, frequency,
+            [&]() -> const std::uint64_t* {
+                ++maps;
+                return mapped ? ticks : nullptr;
+            },
+            [&](std::size_t i, const std::optional<double>& ms) {
+                CHECK(i == times.size());
+                times.push_back(ms);
+            });
+        CHECK(maps == expected_maps);
+        CHECK(unmap == (requested && recorded && mapped));
+        return times;
+    };
+    CHECK(collect(false, false, false, 1000, 0).empty()); // profiling off
+    const std::vector<std::optional<double>> missing(2);
+    CHECK(collect(true, false, false, 1000, 0) == missing); // query allocation failure
+    CHECK(collect(true, true, false, 1000, 1) == missing);  // readback Map failure
+    CHECK(collect(true, false, false, 0, 0) == missing);    // no timestamp support
+    const auto times = collect(true, true, true, 1000, 1);
+    REQUIRE(times.size() == 2);
+    CHECK(times[0] == std::optional<double>(4.0));
+    CHECK_FALSE(times[1].has_value()); // non-increasing GPU clock
 }
 
 TEST_CASE("ggml_d3d12: ROPE rules") {

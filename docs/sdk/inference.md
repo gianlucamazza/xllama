@@ -46,7 +46,7 @@ Result of an inference call.
 | Field              | Type        | Description                                 |
 | ------------------ | ----------- | ------------------------------------------- |
 | `success`          | bool        | Whether generation succeeded                |
-| `t_load_ms`        | double      | Model load time (ms)                        |
+| `t_load_ms`        | double      | Model-open call wall time (ms)              |
 | `t_p_eval_ms`      | double      | Prefill time (ms)                           |
 | `t_eval_ms`        | double      | Decode time (ms)                            |
 | `t_first_token_ms` | double      | Time to first generated token (ms)          |

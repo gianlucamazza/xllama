@@ -63,6 +63,8 @@ def main():
         subprocess.run([args.build_dir / "tests/xllama-cpu-smoke", args.model, result], check=True)
         judge(json.loads(result.read_bytes()), json.loads(data))
     print("PASS native CPU prefill, four incremental decode rows and three session turns")
+    subprocess.run([args.build_dir / "tests/test-context-admission", args.model], check=True)
+    print("PASS refused default-KV fallback under pressure and recovered after budget relief")
 
 
 if __name__ == "__main__":

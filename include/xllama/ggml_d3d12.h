@@ -323,7 +323,7 @@ struct D3d12DispatchRow {
 class D3d12DispatchProfile {
   public:
     void add(const D3d12DispatchKind& kind, double gpu_ms, double weight_bytes, std::int64_t ncols);
-    // A dispatch whose timestamp pair was not increasing: its time is unknown.
+    // A dispatch with an unavailable or non-increasing timestamp pair.
     void note_missing() {
         ++missing_;
     }
@@ -405,6 +405,24 @@ class D3d12LayerProfile {
 // and wait_ms print as "missing" when that bucket has no valid timestamps —
 // never 0. Empty when the profile is empty (knob off or nothing ran).
 std::string format_d3d12_layer_profile(const char* phase, const D3d12LayerProfile& p);
+
+// Deliver a timing (or a missing value) for every completed dispatch in an
+// opted-in submission. Allocation failure skips map; Map failure returns null.
+template <typename Map, typename Record>
+bool d3d12_read_dispatch_times(bool requested, bool queries_recorded, std::size_t count,
+                               std::uint64_t frequency, Map map, Record record) {
+    if (!requested || count == 0)
+        return false;
+    const std::uint64_t* ticks = queries_recorded ? map() : nullptr;
+    for (std::size_t i = 0; i < count; ++i) {
+        std::optional<double> ms;
+        if (ticks && frequency && ticks[i + 1] > ticks[i])
+            ms = 1000.0 * static_cast<double>(ticks[i + 1] - ticks[i]) /
+                 static_cast<double>(frequency);
+        record(i, ms);
+    }
+    return ticks != nullptr; // caller must unmap the successful readback
+}
 
 struct D3d12PhaseStats {
     std::uint64_t calls = 0;       // graph_compute calls that ran at least one op

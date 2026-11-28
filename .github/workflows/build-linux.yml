@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      granite_full_checkpoint:
+        type: boolean
+        default: false
+        description: Download and qualify the pinned Granite-4.0-H-Tiny Q3_K_S on CPU
 
 # Feature branches build once via pull_request (not also via push); superseded
 # runs on the same branch cancel so only the latest commit is tested.
@@ -89,6 +94,9 @@ jobs:
         run: |
           python3 -m pip install 'numpy==2.3.5' 'pyyaml==6.0.2'
           python3 -m unittest tests/test_cpu_smoke.py tests/test_compare_logits.py tests/test_verify_moe_parity.py tests/test_compare_tensors.py tests/test_control_parity.py tests/test_check_matmul_reference.py tests/test_paired_bench_summary.py tests/test_make_moe_fixture.py tests/test_adr0010_maincoder_declaration.py
+
+      - name: Replay the recorded MoE cache profiles
+        run: python3 -m unittest tests/test_replay_moe_cache.py
 
       - name: Test ORT profile integrity
         run: python3 -m unittest tests/test_ort_profile.py
@@ -194,6 +202,9 @@ jobs:
       - name: Build
         run: cmake --build build/linux-test -j$(nproc)
 
+      - name: Hybrid GGUF snapshot memory and recovery
+        run: python3 scripts/test-kv-restore-memory.py --build-dir build/linux-test
+
       # check-coherence.py runs before the build so docs-only PRs fail fast, and
       # correctly *warns* when xllama-cli is missing. That meant train-job JSON
       # validation never ran on CI (#222). Keep the early SSOT audit; gate jobs
@@ -232,6 +243,26 @@ jobs:
 
       - name: Smoke test
         run: ./build/linux-test/bin/xllama-cli --help
+
+      - name: Compare Granite context shift against a cold session (offline fixture)
+        run: python3 scripts/check-granite-shift.py --fixture
+
+      - name: Compare the official Granite Q3_K_S checkpoint on CPU (opt-in)
+        if: >-
+          (github.event_name == 'workflow_dispatch' && inputs.granite_full_checkpoint) ||
+          (github.event_name == 'pull_request' &&
+           github.event.pull_request.head.repo.full_name == github.repository &&
+           contains(github.event.pull_request.labels.*.name, 'granite-full-checkpoint'))
+        timeout-minutes: 35
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "runner_os=$RUNNER_OS runner_arch=$RUNNER_ARCH run_id=$GITHUB_RUN_ID attempt=$GITHUB_RUN_ATTEMPT pr_head=$PR_HEAD_SHA"
+          git show -s --format='tested_commit=%H'
+          git submodule status -- llama.cpp
+          df -B1 --output=target,avail "$RUNNER_TEMP"
+          awk '/^MemTotal:|^MemAvailable:/ {print $1, $2, $3}' /proc/meminfo
+          python3 scripts/check-granite-shift.py --download-checkpoint
 
       - name: Verify UWP gate
         run: |

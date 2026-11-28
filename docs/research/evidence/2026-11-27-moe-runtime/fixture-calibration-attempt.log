@@ -1,0 +1,38 @@
+[xllama] Session: n_ctx 2048 capped at the model's trained context 128
+[llama] load: SPM vocabulary, but newline token not found: unordered_map::at! Using special_pad_id instead.[llama] load_tensors:          CPU model buffer size =     0.00 MiB
+[llama] llama_context: n_ctx_seq (256) > n_ctx_train (128) -- possible training context overflow
+[llama] llama_context:        CPU  output buffer size =     0.00 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     0.00 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =     0.18 MiB
+[xllama] Session: n_ctx 2048 capped at the model's trained context 128
+[llama] load: SPM vocabulary, but newline token not found: unordered_map::at! Using special_pad_id instead.[llama] load_tensors:          CPU model buffer size =     0.00 MiB
+[llama] llama_context: n_ctx_seq (256) > n_ctx_train (128) -- possible training context overflow
+[llama] llama_context:        CPU  output buffer size =     0.00 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     0.00 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =     0.18 MiB
+[xllama] Session: memory estimate n_ctx=128 (n_ctx_train 128) host 3 MB (weights 1, context 1, compute 1), device 0 MB, 31 MB in use
+[llama] load: SPM vocabulary, but newline token not found: unordered_map::at! Using special_pad_id instead.[llama] load_tensors:   CPU_Mapped model buffer size =     0.04 MiB
+[xllama] ws after model load: 31 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[llama] llama_context: n_ctx_seq (256) > n_ctx_train (128) -- possible training context overflow
+[llama] llama_context:        CPU  output buffer size =     0.00 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     0.03 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =     0.18 MiB
+[xllama] ws after context: 32 MB
+[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0) prefix_snapshot=0
+[llama] ~llama_context:        CPU compute buffer size is   0.1768 MiB, matches expectation of   0.1768 MiB
+[doctest] doctest version is "2.4.11"
+[doctest] run with "--help" for options
+===============================================================================
+tests/test_session.cpp:1034:
+TEST CASE:  Session::estimate_memory covers the real load (opt-in: XLLAMA_TEST_MODEL)
+
+tests/test_session.cpp:1050: FATAL ERROR: REQUIRE( s->generate(greedy_turn("<|im_start|>user\nHi.<|im_end|>\n<|im_start|>assistant\n", false, false)) .success ) THREW exception: "unordered_map::at"
+
+===============================================================================
+[doctest] test cases: 1 | 0 passed | 1 failed | 649 skipped
+[doctest] assertions: 5 | 4 passed | 1 failed |
+[doctest] Status: FAILURE!

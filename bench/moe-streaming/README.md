@@ -53,6 +53,19 @@ Expected: eight groups pass and exit status is zero. Leak checking was disabled 
 
 The recorded sensitivity control removed only the extracted header's short-read refusal and rebuilt the harness. It exited 1 at `short_read: expected refusal`, proving that the short-read check rejects that deliberate defect. The contributor checkout was not modified.
 
+## Replay the recorded fixed-slot cache
+
+The two [24B console profiles](../../docs/research/evidence/2026-11-16-moe-24b-console/README.md) contain independently captured requests from the same workload. To replay them from an empty LRU cache on a host:
+
+```bash
+python3 scripts/replay-moe-cache.py docs/research/evidence/2026-11-16-moe-24b-console
+python3 -m unittest tests/test_replay_moe_cache.py
+```
+
+The reader supports the contributor's `UA50TRC1` binary format at the project's [archived package source](https://github.com/gianlucamazza/xllama/blob/75fe271ecb695e05288292aa6f2ee056b5beae56/patches/0005-ua50-cache-ab-llama.patch). Use the version-controlled `result.json` as the trusted receipt. Exit 0 requires matching output and trace SHA-256 digests, checkpoint identity, complete frames and identical ordered slice requests and lengths across profiles. The script compares reconstructed requests, hits, evictions and logical Reader bytes with the binary footer and the output counters. Exit 2 rejects incomplete or inconsistent inputs, including the [partial 8B captures](../../docs/research/evidence/2026-11-16-moe-8b-console/README.md).
+
+The replay counts demand requests for each recorded slot capacity. Add `--reader-timing` to attribute the original synchronous Reader measurements to the prompt and the remainder of the same generation. It checks the one-worker CPU mode, bound token IDs, non-overlapping native frames, cumulative Reader/acquire times, footer and common workload. The [archived timing breakdown](../../docs/research/evidence/2026-11-16-moe-24b-console/README.md#where-the-single-cpu-worker-spent-time) uses application clocks. Lease intervals, physical I/O, performance on held-out routes and timings of a new runtime require additional measurement.
+
 ## Prepared numerical campaign
 
 [The 24B declaration](parity-preparation.json) binds four prompt files, the checkpoint identity and a strict same-source/same-kernel comparison diagnostic. It is explicitly **not executable yet**: rendered token IDs, resident-derived continuation IDs, a prepared build receipt and an upstream candidate identity are absent. Nulls are missing prerequisites, not wildcard bindings. There are no model results.

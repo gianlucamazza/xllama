@@ -5,15 +5,12 @@
 // recurrent state) + compute buffers, against the app's memory limit and,
 // for layers on the D3D12 device, the GPU budget.
 //
-// The figures come from llama.cpp's own dry run (common_get_device_memory_data
-// in common/fit.h: the model and a context are created with no_alloc, so the
-// real per-layer KV of a hybrid and the real compute buffer are counted, not a
-// weights-times-factor estimate). n_ctx used to be bounded by a constant only
-// and the one estimate (weights x 1.12) gated embeddings alone; an n_ctx or a
-// model too large for the console then failed inside an allocation.
+// The dry run reads llama_get_memory_breakdown from a no_alloc model and
+// context. It supplies the actual per-layer KV, recurrent and compute sizes.
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <string>
 
 namespace xllama {
@@ -28,9 +25,28 @@ struct SessionMemory {
     std::size_t host_compute_mb = 0; // compute buffers in system memory
     std::size_t device_mb = 0;       // buffers on GPU devices (D3D12)
 
-    std::size_t host_mb() const {
-        return host_model_mb + host_context_mb + host_compute_mb;
-    }
+    std::size_t host_mb() const;
+};
+
+// Aggregates the pin's buffer-type breakdown in bytes before rounding each
+// charge up to MiB. A UMA allocation contributes to each applicable quota.
+class SessionMemoryEstimate {
+  public:
+    explicit SessionMemoryEstimate(bool weights_resident) : m_weights_resident(weights_resident) {}
+
+    void add_buffer(std::size_t model, std::size_t context, std::size_t compute, bool on_host,
+                    bool on_device);
+    SessionMemory charges() const;
+
+  private:
+    struct ByteCount {
+        std::optional<std::size_t> bytes = 0;
+        void add(std::size_t size);
+        std::size_t mib() const;
+    };
+
+    bool m_weights_resident;
+    ByteCount m_host_model, m_host_context, m_host_compute, m_device;
 };
 
 struct MemoryVerdict {
@@ -57,8 +73,8 @@ inline bool is_memory_refusal(const std::string& error) {
 inline constexpr std::size_t kSessionMemoryMarginMb = 192;
 
 // |host_in_use_mb| is the process working set before the load (the previous
-// session already released). An unknown limit (0) admits; so does an unknown
-// GPU budget for the device part.
+// session already released). A zero quota omits that quota check. An
+// unrepresentable size always refuses the request.
 MemoryVerdict admit_session_memory(const SessionMemory& need, int n_ctx, std::size_t host_in_use_mb,
                                    std::size_t app_limit_mb, std::size_t gpu_in_use_mb,
                                    std::size_t gpu_budget_mb);
