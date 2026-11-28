@@ -7,6 +7,12 @@
 #include <doctest/doctest.h>
 #include <filesystem>
 #include <fstream>
+#ifdef __linux__
+    #include <csignal>
+    #include <sys/resource.h>
+    #include <sys/wait.h>
+    #include <unistd.h>
+#endif
 
 TEST_CASE("ChatHistory::TitleFrom — basic") {
     CHECK(xllama::ui::ChatHistory::TitleFrom("Hello world") == "Hello world");
@@ -156,4 +162,79 @@ TEST_CASE("aborted staged write preserves the entire prior chat") {
     const auto recovered = history.Load(chat.id);
     REQUIRE(recovered.messages.size() == 1);
     CHECK(recovered.messages.front().content == "existing message");
+}
+
+#ifdef __linux__
+TEST_CASE("ChatHistory keeps the committed conversation after a partial write") {
+    ChatDirectory temp;
+    xllama::ui::ChatHistory history(temp.path.string());
+    xllama::ui::Conversation chat{"limited", "saved", {}};
+    xllama::ui::ChatMessage msg;
+    msg.role = xllama::ui::MessageRole::Assistant;
+    msg.content = "original reply";
+    chat.messages.push_back(msg);
+    REQUIRE(history.Save(chat));
+
+    const auto child = fork();
+    REQUIRE(child >= 0);
+    if (child == 0) {
+        const struct rlimit limit = {600, 600};
+        if (signal(SIGXFSZ, SIG_IGN) == SIG_ERR || setrlimit(RLIMIT_FSIZE, &limit) != 0)
+            _exit(2);
+        chat.title = "interrupted";
+        chat.messages.front().content.assign(65536, 'x');
+        _exit(history.Save(chat) ? 1 : 0);
+    }
+    int status = 0;
+    REQUIRE(waitpid(child, &status, 0) == child);
+    REQUIRE(WIFEXITED(status));
+    REQUIRE(WEXITSTATUS(status) == 0);
+    xllama::ui::ChatHistory reopened(temp.path.string());
+    reopened.LoadIndex();
+    REQUIRE(reopened.Index().size() == 1);
+    CHECK(reopened.Index().front().title == "saved");
+    const auto loaded = reopened.Load(chat.id);
+    REQUIRE(loaded.messages.size() == 1);
+    CHECK(loaded.messages.front().content == "original reply");
+}
+#endif
+
+TEST_CASE("ChatHistory retries reconciliation without replacing an unreadable index or chat") {
+    ChatDirectory temp;
+    xllama::ui::ChatHistory history(temp.path.string());
+    REQUIRE(history.Save({"first", "keep", {}}));
+    REQUIRE(history.Save({"second", "pending", {}}));
+    const auto pending = temp.path / "second.json.pending";
+    std::ofstream(pending).close();
+    const auto index = temp.path / "index.json";
+    const auto chat = temp.path / "second.json";
+    for (const auto& input : {index, chat}) {
+        auto backup = input;
+        backup += ".backup";
+        std::filesystem::rename(input, backup);
+        std::ofstream(input) << "{truncated";
+        xllama::ui::ChatHistory reopened(temp.path.string());
+        CHECK_FALSE(reopened.LoadIndex());
+        CHECK_FALSE(reopened.Save({"third", "wait", {}}));
+        CHECK(std::filesystem::exists(pending));
+        CHECK_FALSE(std::filesystem::exists(temp.path / "third.json"));
+        std::filesystem::remove(input);
+        std::filesystem::rename(backup, input);
+    }
+    REQUIRE(history.LoadIndex());
+    CHECK(history.Index().size() == 2);
+    CHECK_FALSE(std::filesystem::exists(pending));
+}
+
+TEST_CASE("ChatHistory reads titles truncated in older UTF-8 indexes") {
+    ChatDirectory temp;
+    std::filesystem::create_directories(temp.path);
+    std::ofstream(temp.path / "index.json")
+        << "[{\"id\":\"a\",\"title\":\"" << std::string(56, 'x') << char(0xc3) << "...\"}]";
+    xllama::ui::ChatHistory history(temp.path.string());
+    REQUIRE(history.LoadIndex());
+    REQUIRE(history.Index().size() == 1);
+    CHECK(history.Index().front().title == std::string(56, 'x') + "\xef\xbf\xbd...");
+    CHECK(history.TitleFrom(std::string(56, 'x') + "\xc3\xa9" + "long") ==
+          std::string(56, 'x') + "...");
 }

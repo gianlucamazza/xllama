@@ -205,7 +205,6 @@ namespace fs = std::filesystem;
 // A restart then sees either a complete rollback journal or a committed generation.
 void finish_publication(const fs::path& dir) {
     const auto done = dir / ".publish-done";
-    fs::remove_all(done);
     fs::rename(dir / ".publish-pending", done);
     std::error_code ignored;
     fs::remove_all(done, ignored);
@@ -236,6 +235,9 @@ bool recover_personalized_publication(const fs::path& local, std::string* err) {
     const auto dir = local / "models" / kPersonalizedModelId;
     const auto pending = dir / ".publish-pending";
     try {
+        // These two directories contain no rollback state needed by the live generation.
+        fs::remove_all(dir / ".publish-stage");
+        fs::remove_all(dir / ".publish-done");
         if (!fs::exists(pending))
             return true;
         restore_publication_file(pending, "old-model", dir / "model.gguf");
@@ -259,7 +261,6 @@ bool publish_personalized_model(const fs::path& local, const fs::path& merged, s
     if (!recover_personalized_publication(local, err))
         return false;
     try {
-        fs::remove_all(stage);
         fs::create_directories(stage);
         prepare_backup(stage, "old-model", model, false);
         prepare_backup(stage, "old-marker", marker, true);
