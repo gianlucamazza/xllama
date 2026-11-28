@@ -60,6 +60,28 @@ static json capture(const char* path) {
     return result;
 }
 
+// The fixture repeats n-grams and exercises both accepted and rejected drafts.
+// Extending the prompt buffer during decode must preserve prefill accounting.
+static void check_prompt_lookup(const char* path) {
+    xllama::InferenceParams p;
+    p.model_path = path;
+    p.prompt = "abcdabcdabcd";
+    p.n_ctx = 128;
+    p.n_threads = 1;
+    p.n_predict = 64;
+    p.greedy = true;
+    const auto plain = xllama::run_inference(p);
+    p.prompt_lookup = true;
+    const auto lookup = xllama::run_inference(p);
+    if (!plain.success || !lookup.success || plain.n_eval != p.n_predict ||
+        lookup.n_eval != plain.n_eval || lookup.output_text != plain.output_text ||
+        plain.n_p_eval != 13 || lookup.n_p_eval != plain.n_p_eval ||
+        lookup.n_prompt != plain.n_prompt || lookup.n_spec_accepted <= 0 ||
+        lookup.n_drafted <= lookup.n_spec_accepted)
+        throw std::runtime_error(
+            "prompt lookup changed generation, prompt counts or draft coverage");
+}
+
 static json turns(const char* path) {
     xllama::SessionParams sp;
     sp.model_path = path;
@@ -127,6 +149,7 @@ int main(int argc, char** argv) {
         check_model_load_timing(argv[1]);
         auto result = capture(argv[1]);
         result["turns"] = turns(argv[1]);
+        check_prompt_lookup(argv[1]);
         std::ofstream stream(argv[2]);
         stream.exceptions(std::ios::failbit | std::ios::badbit);
         stream << result.dump(2) << '\n';

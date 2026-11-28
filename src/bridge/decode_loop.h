@@ -314,7 +314,7 @@ inline int decode_one(llama_context* ctx, llama_token token) {
     return llama_decode(ctx, next);
 }
 
-// Multi-token verify batch: lead sample + draft, all positions request logits
+// Multi-token verify batch: the lead is already committed. All draft positions request logits
 // so the same sampler chain can sample at each batch index (#210 W2.2).
 // Positions are explicit from the current seq_pos_max so auto-tracking cannot
 // disagree with seq_rm on a partial accept.
@@ -345,19 +345,6 @@ inline bool trim_verify_tail(llama_memory_t mem, llama_pos pos_before, int n_kee
         return true;
     const llama_pos keep = pos_before + static_cast<llama_pos>(n_keep) + 1;
     return llama_memory_seq_rm(mem, 0, keep, -1);
-}
-
-// History for n-gram search = prefill/prior accepted tokens + the lead sample
-// not yet recorded.
-inline std::vector<int32_t> history_for_draft(const DecodeLoopParams& p, llama_token lead) {
-    std::vector<int32_t> h;
-    if (p.token_history) {
-        h.reserve(p.token_history->size() + 1);
-        for (llama_token t : *p.token_history)
-            h.push_back(static_cast<int32_t>(t));
-    }
-    h.push_back(static_cast<int32_t>(lead));
-    return h;
 }
 
 // Classic single-token step. Returns false to stop the outer loop.
@@ -442,22 +429,17 @@ inline DecodeLoopResult decode_loop(const DecodeLoopParams& p, std::string& outp
         if (interrupted())
             break;
 
-        // Lead is already in token_history via accept_token. Draft from that
-        // alone (no extra lead argument).
-        std::vector<int32_t> draft32;
-        if (p.token_history && static_cast<int>(p.token_history->size()) >= p.spec_n_gram) {
-            std::vector<int32_t> hist;
-            hist.reserve(p.token_history->size());
-            for (llama_token t : *p.token_history)
-                hist.push_back(static_cast<int32_t>(t));
-            const int room =
-                std::min(p.n_predict - out.n_generated, static_cast<int>(llama_n_batch(p.ctx)));
-            draft32 = prompt_lookup_draft(hist, p.spec_n_gram, std::min(p.spec_k, room));
-        }
-        if (draft32.empty())
-            continue; // decline: no n-gram evidence, no extra cost
+        // Read the accepted history in place. The small returned draft owns its
+        // tokens, so subsequent accepts may safely reallocate the history.
+        const int room =
+            std::min(p.n_predict - out.n_generated, static_cast<int>(llama_n_batch(p.ctx)));
+        const auto feed =
+            prompt_lookup_draft(*p.token_history, p.spec_n_gram, std::min(p.spec_k, room));
+        if (feed.empty())
+            continue;
 
-        out.n_drafted += static_cast<int>(draft32.size());
+        const int n_feed = static_cast<int>(feed.size());
+        out.n_drafted += n_feed;
 
         // Verify draft[0] against the logits we already have after the lead
         // (same sample classic would take next). If it disagrees, that sample
@@ -469,7 +451,7 @@ inline DecodeLoopResult decode_loop(const DecodeLoopParams& p, std::string& outp
                        " tokens (pre-draft)\n");
             break;
         }
-        if (first != static_cast<llama_token>(draft32[0])) {
+        if (first != feed.front()) {
             if (!detail::classic_step(p, first, output_text, out))
                 break;
             continue;
@@ -477,12 +459,6 @@ inline DecodeLoopResult decode_loop(const DecodeLoopParams& p, std::string& outp
 
         // first == draft[0]: at least one draft token is free. Batch-decode all
         // drafts; logits[i] predict the token after draft[i].
-        std::vector<llama_token> feed;
-        feed.reserve(draft32.size());
-        for (int32_t d : draft32)
-            feed.push_back(static_cast<llama_token>(d));
-        const int n_feed = static_cast<int>(feed.size());
-
         llama_memory_t mem = llama_get_memory(p.ctx);
         const llama_pos pos_before = llama_memory_seq_pos_max(mem, 0);
 

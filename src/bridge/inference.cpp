@@ -891,9 +891,6 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     add_sampler_stages(sampler.get(), params.sampling(), vocab);
 
     const auto t_gen0 = std::chrono::steady_clock::now();
-    // Seed for W2 prompt-lookup: prefill tokens only; the loop appends accepted
-    // generated tokens when on_accepted is null (CLI path).
-    std::vector<llama_token> gen_history = tokens;
     DecodeLoopParams dlp;
     dlp.ctx = ctx.get();
     dlp.sampler = sampler.get();
@@ -906,7 +903,8 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     dlp.decode_start = t_gen0;
     dlp.prompt_lookup = params.prompt_lookup;
     dlp.ignore_eog = params.ignore_eog;
-    dlp.token_history = params.prompt_lookup ? &gen_history : nullptr;
+    // Prefill has finished. Lookup can append directly to the prompt buffer.
+    dlp.token_history = params.prompt_lookup ? &tokens : nullptr;
     dlp.watchdog = &wd;
     wd.enter_decode(params.n_predict);
     const DecodeLoopResult dlr = decode_loop(dlp, res.output_text);
@@ -927,7 +925,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     res.t_p_eval_ms = prompt_ms;
     res.t_eval_ms = gen_ms;
     res.t_first_token_ms = dlr.first_token_ms > 0.0 ? prompt_ms + dlr.first_token_ms : 0.0;
-    res.n_p_eval = static_cast<int32_t>(tokens.size());
+    res.n_p_eval = n_prompt_tokens;
     res.n_prompt = res.n_p_eval;
     res.peak_ws_mb = peak_working_set_mb();
     finish_decode(dlr, res, wd);
