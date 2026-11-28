@@ -165,7 +165,8 @@ bool ChatHistory::LoadIndex() {
         if (marker.extension() != ".pending" || source.extension() != ".json")
             continue;
         if (std::filesystem::exists(source, ec)) {
-            const auto conv = Load(source.stem().u8string());
+            const auto name = source.stem().u8string();
+            const auto conv = Load(std::string(name.begin(), name.end()));
             if (conv.id.empty())
                 return false;
             recovered.push_back(metadata_for(conv));
