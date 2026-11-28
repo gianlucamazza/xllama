@@ -68,6 +68,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `model_write.h`                    | Shared atomic RAII writer permit; guarded marker publication and stale-base cleanup                                                                                                                   |
 | `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                                                                                                                                                |
 | `model_file_plan.h`                | Per-file catalogue pin check; `files[].role`; `weight_pins_verified`; `gpu_tree_ready_for_routing`                                                                                                    |
+| `moe_expert_cache.h`               | Portable Reader, byte budget, read-only leases. One coordinator thread acquires and releases; workers only read. Storage outlives the cache until the last lease is released.                         |
 | `moe_streaming.h`                  | Optional SSD expert streaming: routed tensor roles per architecture, checkpoint pins admitted only from the bundled catalogue (plan: `docs/superpowers/plans/2026-11-16-moe-streaming-all-models.md`) |
 | `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                                                                                                                                               |
 | `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                                                                                                                                                        |
@@ -1050,6 +1051,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_memory_admission.cpp`        | `memory_admission.h` (host limit, GPU budget, refusal prefix); `Session::estimate_memory` opt-in in `test_session.cpp`                                |
 | `test_model_provision.cpp`         | `model_provision.h`                                                                                                                                   |
 | `test_model_file_plan.cpp`         | `model_file_plan.h`                                                                                                                                   |
+| `test_moe_expert_cache.cpp`        | Expert slice admission, eviction, lease lifetime, Reader failures, cancellation and counters                                                          |
 | `test_moe_streaming.cpp`           | `moe_streaming.h`                                                                                                                                     |
 | `test_model_write.cpp`             | `model_write.h`                                                                                                                                       |
 | `test_path.cpp`                    | `path_utils.h`                                                                                                                                        |
@@ -1063,6 +1065,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_routing_policy.cpp`          | `routing_policy.h`                                                                                                                                    |
 | `test_model_sampling.cpp`          | `model_sampling.h` (layer order, catalogue `sampling` parse, bundled manifest)                                                                        |
 | `test_sampling.cpp`                | `sampling.h` (CLI/Session parity opt-in)                                                                                                              |
+| `test_sdk_consumer.cpp`            | Linux CMake consumer compile, link and upstream header visibility                                                                                     |
 | `test_session.cpp`                 | `session.h`, `session_hub.h`                                                                                                                          |
 | `test_session_spec.cpp`            | `session_spec.h`, hub reuse rule                                                                                                                      |
 | `test_speculative.cpp`             | `speculative.h`                                                                                                                                       |

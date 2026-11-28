@@ -110,7 +110,7 @@ owns sequence and gates. M0 is the approved execution slice. M2 remains the
 contributor-led track in [#479](https://github.com/gianlucamazza/xllama/issues/479)
 through [#481](https://github.com/gianlucamazza/xllama/issues/481). The
 [readiness report](docs/research/moe-upstream-readiness.md) holds the
-revision-specific evidence and prerequisites. [#668](https://github.com/gianlucamazza/xllama/pull/668) supplies the portable cache candidate for #479. Next comes native CPU numerical parity in
+revision-specific evidence and prerequisites. [#668](https://github.com/gianlucamazza/xllama/pull/668) merged the portable cache candidate for #479. Next comes native CPU numerical parity in
 [#480](https://github.com/gianlucamazza/xllama/issues/480). Upstream Xbox CPU
 and GPU acceptance remain separate stages in #481. Catalogue admission keeps
 its own gate in [#273](https://github.com/gianlucamazza/xllama/issues/273).
