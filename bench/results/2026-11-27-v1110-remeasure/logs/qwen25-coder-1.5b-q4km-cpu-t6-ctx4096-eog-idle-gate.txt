@@ -1,0 +1,1 @@
+ok cpu=1 gpu_max=0.0
