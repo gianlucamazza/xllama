@@ -919,7 +919,7 @@ class LlamaSession final : public Session {
         // The slice that is not yet resident: the divergent tail on a full
         // prompt, the whole delta on a continuation.
         llama_token* pf = tokens.data() + (full_prompt ? kv_keep : 0);
-        const int n_pf = static_cast<int>(tokens.size()) - (full_prompt ? (int)kv_keep : 0);
+        int n_pf = static_cast<int>(tokens.size()) - (full_prompt ? (int)kv_keep : 0);
         if (n_pf < 0) {
             res.error_msg = "nothing to prefill";
             log_output("[xllama] session generate: nothing to prefill\n");
