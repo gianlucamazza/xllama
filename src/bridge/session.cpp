@@ -631,13 +631,27 @@ class LlamaSession final : public Session {
           m_kv_q8(kv_q8), m_prompt_lookup(prompt_lookup), m_prefix_snapshots(prefix_snapshots),
           m_gpu_layers(gpu_layers), m_model_path(std::move(model_path)), m_mparams(mparams) {}
 
-    // Admission for a context other than the one the session was admitted
-    // with (an embedding context). The weights are already resident, so only
-    // the context and compute parts of the dry run are new.
-    ::xllama::MemoryVerdict admit_context(const llama_context_params& cparams) const {
-        const auto need = estimate_session_memory(m_model_path, m_mparams, cparams,
-                                                  /*weights_resident=*/true);
-        return admit_memory(need, static_cast<int>(cparams.n_ctx));
+    // Embedding and default-KV fallback can allocate a different context than
+    // the one admitted on load. Current process and GPU usage include weights.
+    bool admit_new_context(const llama_context_params& cparams, std::string* err) const {
+        const auto need =
+            estimate_session_memory(m_model_path, m_mparams, cparams, /*weights_resident=*/true);
+        MemoryVerdict v;
+        if (need) {
+            v = admit_memory(need, static_cast<int>(cparams.n_ctx));
+        } else if (app_memory_limit_mb() != 0 ||
+                   (m_gpu_layers > 0 && gpu_mem_info().budget_mb != 0) ||
+                   m_n_ctx > bound_unadmitted_n_ctx(m_n_ctx)) {
+            v.ok = false;
+            v.message = std::string(kMemoryRefusalPrefix) +
+                        "cannot size the replacement context at n_ctx " + std::to_string(m_n_ctx);
+        }
+        if (!v.ok) {
+            if (err)
+                *err = v.message;
+            log_output("[xllama] session: " + v.message + "\n");
+        }
+        return v.ok;
     }
 
     const void* resident_llama_model() const override {
@@ -654,18 +668,8 @@ class LlamaSession final : public Session {
             llama_context_params cparams =
                 make_context_params(m_n_ctx, m_n_threads, m_n_batch, m_n_ubatch, m_gpu_layers,
                                     m_kv_q8, m_prompt_lookup, for_embedding);
-            if (for_embedding && !m_model_path.empty()) {
-                // The session was admitted for chat; an embedding context batches
-                // the whole input in one ubatch, so its compute buffer is larger.
-                // Check that context before creating it (the weights are resident).
-                const ::xllama::MemoryVerdict v = admit_context(cparams);
-                if (!v.ok) {
-                    if (err)
-                        *err = v.message;
-                    log_output("[xllama] session: " + v.message + "\n");
-                    return false;
-                }
-            }
+            if (for_embedding && !admit_new_context(cparams, err))
+                return false;
             m_ctx.reset(llama_init_from_model(m_model.get(), cparams));
             if (!m_ctx && m_kv_q8) {
                 log_output("[xllama] session: q8_0 KV context failed — falling back "
@@ -673,8 +677,11 @@ class LlamaSession final : public Session {
                 cparams =
                     make_context_params(m_n_ctx, m_n_threads, m_n_batch, m_n_ubatch, m_gpu_layers,
                                         /*kv_q8=*/false, m_prompt_lookup, for_embedding);
-                m_kv_q8 = false;
+                if (!admit_new_context(cparams, err))
+                    return false;
                 m_ctx.reset(llama_init_from_model(m_model.get(), cparams));
+                if (m_ctx)
+                    m_kv_q8 = false;
             }
             m_cpu_pools.attach(m_gpu_layers, m_ctx.get(), m_n_threads, m_n_threads);
             log_gguf_ws("after context");
