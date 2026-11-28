@@ -138,7 +138,7 @@ std::string models_list_json(const std::vector<ModelInfo>& models, std::int64_t 
         out += ",\"capabilities\":{\"tools\":" + std::string(boolean(m.tools)) +
                ",\"reasoning\":" + boolean(m.reasoning) +
                ",\"reasoning_control\":" + boolean(m.reasoning_control) +
-               ",\"embedding\":" + boolean(m.embedding) +
+               ",\"reasoning_budget\":false,\"embedding\":" + boolean(m.embedding) +
                ",\"ollama_chat\":" + boolean(m.ollama_chat) + "}}";
     }
     out += "]}";

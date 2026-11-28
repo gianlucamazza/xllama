@@ -340,6 +340,20 @@ bool accepts_response_format(JsonObject const& root) {
     return ::xllama::api_response_format_supported(format);
 }
 
+::xllama::ApiGenerationValue generation_value(JsonObject const& root, const char* key) {
+    const auto name = winrt::to_hstring(key);
+    if (!root.HasKey(name))
+        return nullptr;
+    const auto value = root.GetNamedValue(name);
+    if (value.ValueType() == JsonValueType::Null)
+        return nullptr;
+    if (value.ValueType() == JsonValueType::Number)
+        return value.GetNumber();
+    if (value.ValueType() == JsonValueType::Boolean)
+        return value.GetBoolean();
+    return std::monostate{};
+}
+
 // The wire a chat reply is written in: OpenAI chat.completion(.chunk) over SSE,
 // or native Ollama /api/chat and /api/generate objects over NDJSON. The request
 // itself is the same canonical chat body for all three (api_ollama.h).
@@ -2733,6 +2747,16 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                                error_json("response_format must be an object with only type 'text'",
                                           "unsupported_response_format", "response_format"));
                 return;
+            }
+            if (!native) {
+                const char* field = ::xllama::unsupported_openai_generation_field(
+                    [&](const char* key) { return generation_value(root, key); });
+                if (field) {
+                    write_response(socket, "400 Bad Request",
+                                   error_json(std::string("unsupported value for ") + field,
+                                              "unsupported_openai_generation_field", field));
+                    return;
+                }
             }
             if (const std::string error = check_context_override(root); !error.empty()) {
                 write_response(socket, "400 Bad Request",

@@ -280,15 +280,15 @@ absent from a build without llama.cpp.
 Each `/v1/models` entry keeps OpenAI's `id`, `object`, `created` and `owned_by`
 and adds non-standard fields that clients may ignore:
 
-| Field          | Meaning                                                                                                                                                                 |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `active`       | `true` on the model the resident session holds (absent otherwise)                                                                                                       |
-| `display`      | Catalogue display name (absent for a model outside the catalogue)                                                                                                       |
-| `kind`         | `gguf`, `ort-genai` or `diffusion`                                                                                                                                      |
-| `role`         | Catalogue role: `""`, `coding` or `embedding`                                                                                                                           |
-| `n_ctx`        | Context the session uses: the resident session's for the active model, else what a session of that entry opens with (`catalogue_n_ctx`: 512 floor, ONNX capped at 8192) |
-| `capabilities` | `tools` (the GGUF chat template renders a tool schema, the same check a tool proposal makes), `reasoning`, `reasoning_control`, `embedding`, `ollama_chat` (see below)  |
-| `sampling`     | Chat models only: the `temperature`, `top_p`, `top_k` and `repetition_penalty` a request that sets none of them gets, and a `source` per field (`default` or `model`)   |
+| Field          | Meaning                                                                                                                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `active`       | `true` on the model the resident session holds (absent otherwise)                                                                                                                          |
+| `display`      | Catalogue display name (absent for a model outside the catalogue)                                                                                                                          |
+| `kind`         | `gguf`, `ort-genai` or `diffusion`                                                                                                                                                         |
+| `role`         | Catalogue role: `""`, `coding` or `embedding`                                                                                                                                              |
+| `n_ctx`        | Context the session uses: the resident session's for the active model, else what a session of that entry opens with (`catalogue_n_ctx`: 512 floor, ONNX capped at 8192)                    |
+| `capabilities` | `tools` (the GGUF chat template renders a tool schema, the same check a tool proposal makes), `reasoning`, `reasoning_control`, `reasoning_budget`, `embedding`, `ollama_chat` (see below) |
+| `sampling`     | Chat models only: the `temperature`, `top_p`, `top_k` and `repetition_penalty` a request that sets none of them gets, and a `source` per field (`default` or `model`)                      |
 
 `tools` is read from the GGUF header's chat template without loading weights,
 and cached per file, size and write time. `ollama_chat` is what the native
@@ -632,9 +632,17 @@ validates these fields before compute admission, and a bad value is `400`:
 `options.num_ctx` ([Reduced context](#reduced-context-optionsnum_ctx)), and
 `tools`, `functions` and `tool_choice` (below). The native Ollama routes refuse
 any field or option they cannot apply
-([Native Ollama](#native-ollama-generation-apichat-apigenerate)). Other unknown
-fields on `/v1/chat/completions`, such as `n`, `logprobs` and the penalty
-fields, are ignored ([#665](https://github.com/gianlucamazza/xllama/issues/665)).
+([Native Ollama](#native-ollama-generation-apichat-apigenerate)). On `/v1/chat/completions` the server accepts one choice (`n: 1`), `logprobs: false`,
+`top_logprobs: 0`, `presence_penalty: 0` and `frequency_penalty: 0`.
+Clients may omit these fields or send `null`. Other values and wrong JSON types
+return HTTP 400 before admission or streaming, with `unsupported_openai_generation_field`
+in `error.code` and the field name in `error.param`.
+The proposed `reasoning_budget_tokens` and `max_reasoning_tokens` aliases from
+[#680](https://github.com/gianlucamazza/xllama/issues/680) also return HTTP 400 for any
+non-null value on OpenAI chat and both Ollama text routes. Model discovery reports
+`capabilities.reasoning_budget: false`. `max_completion_tokens` still bounds
+the whole reply, including reasoning. Per-model `reasoning_control` describes
+the independently supported on/off switch.
 
 Plain chat (no tool schema, `tools: []`, or `tool_choice` `"none"`) keeps
 `ChatFormat::render_prompt` (`include/xllama/chat_prompt.h`). Roles are system,
@@ -883,7 +891,7 @@ For a live response-format check, keep the app in the foreground, install
 `openai==3.60.0` in a host Python environment and run
 `python scripts/validate-api-response-format.py http://<console-ip>:11434/v1 lfm25-350m`.
 The SDK checks successful default and explicit-text chat and inspects the HTTP
-400 code and parameter for malformed and unsupported formats with streaming requested.
+400 code and parameter for malformed formats and unsupported generation fields, including streaming requests.
 
 ### Embeddings (`/api/embed`, `/api/embeddings`, `/v1/embeddings`)
 

@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 #include <string>
+#include <variant>
 
 namespace xllama {
 
@@ -32,6 +33,35 @@ inline bool api_response_format_supported(const ApiResponseFormat& f) {
         return true;
     return f.kind == Kind::Object && f.members == 1 && f.type_is_string &&
            f.type == kTextResponseFormat;
+}
+
+// Values of OpenAI generation fields. Absent and JSON null both map to nullptr.
+// Strings, arrays and objects map to monostate so they cannot match a default.
+using ApiGenerationValue = std::variant<std::nullptr_t, bool, double, std::monostate>;
+
+// These proposed aliases have no budget sampler on either shipping backend (#680).
+inline constexpr const char* kReasoningBudgetFields[] = {"reasoning_budget_tokens",
+                                                         "max_reasoning_tokens"};
+
+template <typename Lookup> const char* unsupported_openai_generation_field(Lookup lookup) {
+    static constexpr struct {
+        const char* key;
+        ApiGenerationValue value;
+    } defaults[] = {{"n", 1.0},
+                    {"logprobs", false},
+                    {"top_logprobs", 0.0},
+                    {"presence_penalty", 0.0},
+                    {"frequency_penalty", 0.0}};
+    for (const auto& field : defaults) {
+        const ApiGenerationValue value = lookup(field.key);
+        if (!std::holds_alternative<std::nullptr_t>(value) && value != field.value)
+            return field.key;
+    }
+    for (const char* key : kReasoningBudgetFields) {
+        if (!std::holds_alternative<std::nullptr_t>(lookup(key)))
+            return key;
+    }
+    return nullptr;
 }
 
 // How a chat request names tools. The JSON parser fills this; the classifier

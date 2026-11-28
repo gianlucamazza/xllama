@@ -171,6 +171,7 @@ TEST_CASE("models_list_json is an OpenAI list with xllama's per-model fields") {
     CHECK(a["capabilities"]["tools"] == true);
     CHECK(a["capabilities"]["reasoning"] == false);
     CHECK(a["capabilities"]["reasoning_control"] == false);
+    CHECK_FALSE(a["capabilities"].value("reasoning_budget", true));
     CHECK(a["capabilities"]["ollama_chat"] == true);
     // The values a request that sets none of them gets, written as short decimals.
     const json& s = a["sampling"];
@@ -215,5 +216,7 @@ TEST_CASE("models_list_json reports capabilities.reasoning_control from the poli
     CHECK(caps(1)["reasoning_control"] == false);
     CHECK(caps(2)["reasoning"] == false);
     CHECK(caps(2)["reasoning_control"] == false);
-    CHECK(caps(0).size() == 5);
+    CHECK(caps(0).size() == 6);
+    for (size_t i = 0; i < models.size(); ++i)
+        CHECK_FALSE(caps(i).value("reasoning_budget", true));
 }
