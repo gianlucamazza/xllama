@@ -1148,9 +1148,9 @@ flags are supported:
 
 `ChatHistory` (`uwp/chat-history.h`) persists conversations as JSON files under
 `LocalState\chats\<id>.json` (`id`, `title`, `messages[]` with `role`, `content`,
-`ts_unix`, `partial`, `feedback_label`). An `index.json` (sorted by
-`last_modified` desc) drives the History dialog. A save stages and checks the conversation before replacing it, then stages and replaces the index. A per-chat `.pending` file lets the next index load reconcile a save interrupted between the replacements. `TitleFrom()` takes the first
-non-empty line of the first user message (truncated at 60 chars). IDs use
+`ts` (Unix seconds), `partial`, `feedback_label`). An `index.json` (sorted by
+`last_modified` desc) drives the History dialog. A save stages and checks the conversation before replacing it, then stages and replaces the index. A per-chat `.pending` file lets the next index load reconcile a save interrupted between the replacements. Recovery retains the marker and the previous index entry if the conversation cannot be decoded. Opening a missing or invalid chat leaves the active conversation and its KV state in place. `TitleFrom()` takes the first
+non-empty line of the first user message (at most 60 UTF-8 bytes, including the ellipsis). IDs use
 `CoCreateGuid`.
 
 `ManifestEntry` (`uwp/model-downloader.h`) schema:

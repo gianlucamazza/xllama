@@ -305,7 +305,8 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
         SetStatus(L"Could not read conversation history", StatusKind::Error);
         co_return;
     }
-    const auto& index = m_history.Index();
+    // Keep the displayed rows stable while the dialog is open and when a save reorders them.
+    const auto index = m_history.Index();
 
     winrt::Windows::UI::Xaml::Controls::ContentDialog dlg;
     dlg.Title(winrt::box_value(L"Conversation History"));
