@@ -4,7 +4,7 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-console.sh <routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|store|all>
+#   ./scripts/validate-console.sh <routing|settings|gguf|longchat|longchat-repeat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|store|all>
 #   XLLAMA_CHAT_JOURNAL=/path/to/chat-cleanup.pending ./scripts/validate-console.sh cleanup
 #
 # cleanup retries verified removal of chats listed in XLLAMA_CHAT_JOURNAL
@@ -546,8 +546,8 @@ model_provisioned() {
 # model_provisioned probes genai_config.json, which a GGUF entry does not have:
 # check the .gguf named in the bundled manifest instead.
 model_provisioned_gguf() {
-	local model="$1" file
-	file=$(
+	local model="$1" receipt="${2:-}" pin file expected url
+	pin=$(
 		python3 - "${REPO_ROOT}/uwp/models/manifest.json" "$model" <<'PY'
 import json, sys
 m = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -555,15 +555,24 @@ for e in m.get("models", []):
     if e.get("name") == sys.argv[2]:
         for f in e.get("files", []):
             if f.get("filename", "").lower().endswith(".gguf"):
-                print(f["filename"])
+                print(f["filename"], f.get("sha256", ""), sep="\t")
                 break
         break
 PY
 	)
+	IFS=$'\t' read -r file expected <<<"$pin"
 	[[ -n "$file" ]] || return 1
+	url="${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&filename=${file// /%20}&packagefullname=${PFN}&path=%5CLocalState%5Cmodels%5C${model//\\/%5C}"
+	if [[ -n "$receipt" ]]; then
+		local actual
+		[[ "$expected" =~ ^[0-9a-f]{64}$ ]] || return 1
+		actual=$(curl --fail "${CURL_AUTH[@]}" "$url" | sha256sum) || return 1
+		printf '%s  %s\n' "${actual%% *}" "$file" >"$receipt" || return 1
+		[[ "${actual%% *}" == "$expected" ]]
+		return
+	fi
 	local code
-	code=$(curl "${CURL_AUTH[@]}" -o /dev/null -w "%{http_code}" \
-		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&filename=${file// /%20}&packagefullname=${PFN}&path=%5CLocalState%5Cmodels%5C${model//\\/%5C}" 2>/dev/null || echo "000")
+	code=$(curl "${CURL_AUTH[@]}" -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
 	[[ "$code" == "200" ]]
 }
 
@@ -815,7 +824,8 @@ PY
 # --- #169 long-chat context shift ------------------------------------------
 
 validate_longchat() {
-	echo "=== #169 long-chat context shift ==="
+	local model="${1:-lfm25-350m}" campaign="${2:-}" timeout=900 auto_rc=0
+	echo "=== #169 long-chat context shift (${model}) ==="
 	# Inject a chat whose history exceeds kMaxPromptTokens (in ESTIMATED
 	# tokens; each single turn stays under budget or it would be dropped
 	# whole, #133), then run turns with KV reuse on the GGUF model. The #169
@@ -826,7 +836,7 @@ validate_longchat() {
 	local cid
 	cid=$(register_temp_chat "ap-169-longchat") || return 1
 	fetch_chat_index "${TMPDIR_LOCAL}/existing-index.json" || return 1
-	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling "$DEFAULT_N_CTX")" "$EST_CHARS_PER_TOK" <<'PY'
+	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling "$DEFAULT_N_CTX")" "$EST_CHARS_PER_TOK" <<'PY' || return 1
 import json, sys
 tmp, cid = sys.argv[1], sys.argv[2]
 budget, est_cpt = int(sys.argv[3]), float(sys.argv[4])
@@ -858,18 +868,17 @@ idx.insert(0, entry)
 open(f"{tmp}/index.json", "w").write(json.dumps(idx, ensure_ascii=False))
 print(f"  injected: {len(turns)} messages, est ~{est} tok (budget {budget})")
 PY
-	upload_file "${TMPDIR_LOCAL}/${cid}.json" "chats"
-	upload_file "${TMPDIR_LOCAL}/index.json" "chats"
+	upload_file "${TMPDIR_LOCAL}/${cid}.json" "chats" || return 1
+	upload_file "${TMPDIR_LOCAL}/index.json" "chats" || return 1
 
 	# Long user turns guarantee KV growth even when generation stops early at
 	# EOG (~85 real tokens of delta per send): the ~1800-token seed plus a few
 	# of these must overflow n_ctx 2048 and fire the shift.
 	local longq="Please compare the tide tables, the cargo manifests and the crane maintenance schedule across the items you are tracking, and explain in detail which of them would be affected if pier seven were closed for repairs during the spring inspection window, considering both the quarterly figures the committee reviewed and the harbour master's detailed report about scheduling conflicts."
-	local marker
-	marker=$(
-		run_autopilot 900 <<JSON
+	local marker plan="${TMPDIR_LOCAL}/longchat-input.json"
+	cat >"$plan" <<JSON || return 1
 {"total_timeout_s": 800, "actions": [
-  {"op": "set_model", "name": "lfm25-350m", "timeout_s": 300},
+  {"op": "set_model", "name": "${model}", "timeout_s": 300},
   {"op": "set_kv_reuse", "enabled": true},
   {"op": "set_sampling", "n_predict": 256, "temperature": 0.7},
   {"op": "load_chat", "id": "${cid}"},
@@ -882,10 +891,34 @@ PY
   {"op": "quit"}
 ]}
 JSON
-	) || true
+	if [[ -n "$campaign" ]]; then
+		cp "${TMPDIR_LOCAL}/${cid}.json" "$campaign/seed.json" || return 1
+		python3 "${SCRIPT_DIR}/console_hybrid_shifts.py" "$plan" >"$campaign/autopilot.json" || return 1
+		plan="$campaign/autopilot.json"
+		timeout=3700
+	fi
+	marker=$(run_autopilot "$timeout" <"$plan") || auto_rc=$?
 	echo "  autopilot: ${marker}"
-	local log verdict=0
+	local log verdict=$auto_rc
+	if [[ -n "$campaign" ]]; then
+		printf '%s\n' "$marker" >"$campaign/marker.txt" || return 1
+	fi
 	log=$(fetch_log) || return 1
+	if [[ -n "$campaign" ]]; then
+		cp "$log" "$campaign/run.log" || return 1
+		python3 "${SCRIPT_DIR}/console_hybrid_shifts.py" "$plan" --log "$log" >"$campaign/shifts.json" || verdict=1
+		curl --fail "${CURL_AUTH[@]}" "${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState&filename=settings.json" |
+			python3 -c 'import json, sys
+data, plan = json.load(sys.stdin), json.load(open(sys.argv[1], encoding="utf-8"))
+ops = {a["op"]: a for a in plan["actions"]}
+expected = {"model": ops["set_model"]["name"], "routing": ops["set_routing"]["routing"],
+            "kv_reuse": ops["set_kv_reuse"]["enabled"], "system_prompt": ops["set_system_prompt"]["text"]}
+sampling = {k: v for k, v in ops["set_sampling"].items() if k != "op"}
+if any(data.get(k) != v for k, v in expected.items()) or any(
+        data.get("sampling", {}).get(k) != v for k, v in sampling.items()):
+    raise SystemExit("persisted model or sampling settings differ from the campaign")
+print(json.dumps({**expected, "sampling": sampling}, indent=2))' "$plan" >"$campaign/settings.json" || verdict=1
+	fi
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot did not finish ok"
 		verdict=1
@@ -908,9 +941,32 @@ JSON
 	else
 		echo "  ok: no context-full error"
 	fi
-	remove_chat "${cid}"
+	remove_chat "${cid}" || verdict=1
 	[[ $verdict -eq 0 ]] && echo "#169 long-chat: PASS" || echo "#169 long-chat: FAIL"
 	return $verdict
+}
+
+# #725 is an opt-in measurement campaign. Preserve each arm's inputs and scoped log.
+validate_longchat_repeat() {
+	local out="${LONGCHAT_OUT}" model rc=0
+	printf '%s\n' "$PFN" >"$out/package.txt" || return 1
+	git -C "$REPO_ROOT" rev-parse HEAD >"$out/harness-commit.txt" || return 1
+	curl --fail "${CURL_AUTH[@]}" "${BASE_URL}/api/os/info" |
+		python3 -c 'import json, sys
+d = json.load(sys.stdin)
+if not d.get("Platform") or not d.get("OsVersion"):
+    raise SystemExit("missing device platform or OS version")
+print(json.dumps({k: d[k] for k in ("Platform", "OsVersion")}, indent=2))' >"$out/device.json" || return 1
+	for model in lfm25-350m lfm25-1.2b-instruct; do
+		mkdir "$out/$model" || return 1
+		if model_provisioned_gguf "$model" "$out/$model/checkpoint.sha256"; then
+			validate_longchat "$model" "$out/$model" || rc=1
+		else
+			echo "  FAIL: ${model} unavailable or checksum differs from catalogue" >&2
+			rc=1
+		fi
+	done
+	return "$rc"
 }
 
 # --- #170b KV snapshots across a conversation switch -----------------------
@@ -1778,16 +1834,22 @@ run_gate() {
 }
 
 usage() {
-	echo "Usage: $0 <routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|store|all|cleanup>" >&2
+	echo "Usage: $0 <routing|settings|gguf|longchat|longchat-repeat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|store|all|cleanup>" >&2
+	echo "  longchat-repeat <new-output-directory> — #725 measurement on both LFM models" >&2
 	echo "  cleanup — retry verified removal of chats listed in XLLAMA_CHAT_JOURNAL" >&2
 	echo "            (the retained chat-cleanup.pending from a failed gate)" >&2
 }
 
 CMD="${1:-}"
+if [[ "$CMD" == longchat-repeat ]]; then
+	[[ $# -eq 2 && -n "$2" ]] || { usage; exit 1; }
+	LONGCHAT_OUT="$2"
+	mkdir -- "$LONGCHAT_OUT" || exit 1
+fi
 # Before any gate touches the console (#645). The app state is read before
 # backup_user_settings stops the app. cleanup and usage touch neither.
 case "$CMD" in
-routing | settings | gguf | longchat | kvsnap | coderpaste | thinkcut | thinkdone | genroom | taesd | store | all)
+routing | settings | gguf | longchat | longchat-repeat | kvsnap | coderpaste | thinkcut | thinkdone | genroom | taesd | store | all)
 	record_app_state
 	backup_user_settings || exit 1
 	;;
@@ -1798,6 +1860,9 @@ routing) run_gate routing validate_routing ;;
 settings) run_gate settings validate_settings ;;
 gguf) run_gate gguf validate_gguf ;;
 longchat) run_gate longchat validate_longchat ;;
+longchat-repeat)
+	run_gate longchat-repeat validate_longchat_repeat
+	;;
 kvsnap) run_gate kvsnap validate_kvsnap ;;
 coderpaste) run_gate coderpaste validate_coderpaste ;;
 thinkcut) run_gate thinkcut validate_thinkcut ;;
