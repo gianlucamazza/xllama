@@ -38,6 +38,10 @@ def msix_identity(path: Path) -> tuple[str, str]:
             manifest = package.read("AppxManifest.xml")
     except (OSError, KeyError, zipfile.BadZipFile) as error:
         raise IdentityError(f"cannot read AppxManifest.xml from {path}: {error}") from error
+    return manifest_identity(manifest, path)
+
+
+def manifest_identity(manifest: bytes, path: Path) -> tuple[str, str]:
     try:
         identity = ET.fromstring(manifest).find(f"{FOUNDATION}Identity")
     except ET.ParseError as error:

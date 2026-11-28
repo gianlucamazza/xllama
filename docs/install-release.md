@@ -72,13 +72,14 @@ and download:
 - `Microsoft.VCLibs.x64.14.00.appx`
 - `SHA256SUMS`
 - `release-validation.json` (listed in `SHA256SUMS`, so the check below needs it)
+- `<package>.msix.spdx.json` when the release lists a package inventory in `SHA256SUMS`
 
 ### 4. Verify SHA-256
 
 This is the one step that uses a terminal.
 
-Each line of `SHA256SUMS` is `<hash>  <filename>`. Check all four
-downloaded files against it before installing; every line must print `OK`:
+Each line of `SHA256SUMS` is `<hash>  <filename>`. Check every listed
+file before installing. Each line must print `OK`.
 
 ```bash
 sha256sum -c SHA256SUMS
@@ -106,6 +107,37 @@ covers the unified MSIX, and only the exact bytes that main run uploaded: a
 package rebuilt or re-signed elsewhere does not verify. Each push to
 `main` has its own build and attestation run, so another push cannot
 supersede it.
+
+### Inspect the package inventory
+
+Unified Developer Mode builds that generate a package inventory include a
+`.msix.spdx.json` file beside the signed MSIX in the `xllama-appx` Actions
+artifact. When preparing a release from such a run, copy that file alongside
+the MSIX and include its SHA-256 in `SHA256SUMS`. The v1.11.0.0 release
+predates these inventories.
+
+For a build with an SPDX attestation, verify the downloaded MSIX with the
+same source SHA to retrieve the signed inventory.
+
+```bash
+gh attestation verify "$msix" --repo gianlucamazza/xllama \
+  --signer-workflow gianlucamazza/xllama/.github/workflows/build-uwp.yml \
+  --source-ref refs/heads/main --source-digest "$source_sha" --deny-self-hosted-runners \
+  --predicate-type https://spdx.dev/Document/v2.3 --format json \
+  --jq '.[0].verificationResult.statement.predicate'
+```
+
+The archive digest covers the final signed MSIX. Each file has its complete
+package-relative path and independent checksums. Versions and declared
+licenses for the two patched ORT DLLs and DirectML come from matching build
+inputs and packaged notices. Other DLLs and the executable are inventoried
+by their bytes. Static transitive dependencies and external Windows framework
+packages require separate evidence.
+
+To regenerate the build inventory, set `SOURCE_DATE_EPOCH` to the source
+commit's Unix timestamp and run `python scripts/msix_sbom.py "$msix"
+--build-inputs .` from that checkout with its pinned DirectML NuGet restored.
+Omit `--build-inputs` for a file inventory from the MSIX alone.
 
 ### 5. Install via Device Portal
 

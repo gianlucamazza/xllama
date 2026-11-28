@@ -109,6 +109,7 @@ jobs:
           name: xllama-appx
           path: unified
       - name: Check shipping MSIX
+        id: package
         shell: bash
         run: |
           shopt -s globstar nullglob
@@ -117,7 +118,24 @@ jobs:
             echo "::error::Expected exactly one MSIX in the unified build artifact."
             exit 1
           fi
+          echo "msix=${packages[0]}" >> "$GITHUB_OUTPUT"
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: "unified/**/*.msix"
+          create-storage-record: "false"
+      - name: Check inventory subject against the signed package
+        shell: bash
+        env:
+          MSIX: ${{ steps.package.outputs.msix }}
+        run: |
+          digest=$(sha256sum "$MSIX" | cut -d ' ' -f1)
+          jq -e --arg digest "$digest" '
+            [.packages[] | select(.SPDXID == "SPDXRef-MSIX") | .checksums[]
+              | select(.algorithm == "SHA256") | .checksumValue] == [$digest]
+          ' "${MSIX}.spdx.json"
+      - name: Attest the package inventory
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: "${{ steps.package.outputs.msix }}"
+          sbom-path: "${{ steps.package.outputs.msix }}.spdx.json"
           create-storage-record: "false"
