@@ -1011,6 +1011,58 @@ TEST_CASE("Session: probe for evicted-turn recall after a context shift (opt-in:
     MESSAGE("evicted-turn recall: " << verdict << " — reply '" << probe.output_text << "'");
 }
 
+// Each turn occupies more than half the context and has one eviction boundary.
+// The third turn therefore retains exactly the system prefix and that turn.
+TEST_CASE("Session: repeated hybrid shifts match a cold continuation") {
+    const char* model = std::getenv("XLLAMA_TEST_HYBRID_SHIFT_MODEL");
+    if (!model)
+        return;
+    const std::string end = "<|im_end|>";
+    const std::string prefix = "Remember the newest word." + end;
+    for (bool snapshots : {false, true}) {
+        xllama::SessionParams sp;
+        sp.model_path = model;
+        sp.n_ctx = 128;
+        sp.n_threads = 2;
+        sp.prefix_snapshots = snapshots;
+        std::string error;
+        auto warm = xllama::Session::create(sp, &error);
+        REQUIRE_MESSAGE(warm, error);
+        std::string last_turn;
+        bool first = true;
+        for (const std::string word : {" red", " blue", " green"}) {
+            std::string turn;
+            while (warm->count_tokens(turn + end) < 80)
+                turn += word;
+            last_turn = turn + end;
+            auto gp = greedy_turn(first ? prefix + last_turn : last_turn, true, first);
+            gp.n_keep = warm->count_tokens(prefix);
+            gp.turn_close = end;
+            gp.n_predict = 0;
+            const auto r = warm->generate(gp);
+            REQUIRE_MESSAGE(r.success, r.error_msg);
+            REQUIRE(warm->can_context_shift());
+            first = false;
+        }
+        const auto probe = greedy_turn(" What word?", true, false);
+        const auto shifted = warm->generate(probe);
+        REQUIRE_MESSAGE(shifted.success, shifted.error_msg);
+        REQUIRE(shifted.n_eval > 0);
+        warm.reset();
+
+        auto cold = xllama::Session::create(sp, &error);
+        REQUIRE_MESSAGE(cold, error);
+        auto replay = greedy_turn(prefix + last_turn, true, true);
+        replay.n_predict = 0;
+        REQUIRE(cold->generate(replay).success);
+        const auto fresh = cold->generate(probe);
+        REQUIRE_MESSAGE(fresh.success, fresh.error_msg);
+        CHECK(shifted.n_eval == fresh.n_eval);
+        CHECK(shifted.output_text == fresh.output_text);
+        CHECK(shifted.termination == fresh.termination);
+    }
+}
+
 // Private (anonymous) resident memory. The console reads weights into
 // allocated buffers (no mmap, docs/uwp-constraints.md §1), so this, not VmRSS
 // with the mapped GGUF pages, is the host figure that matches it.
