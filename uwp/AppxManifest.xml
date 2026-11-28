@@ -13,7 +13,7 @@
        -BuildRevision) so every build is uniquely, monotonically versioned and
        the console always accepts an in-place update. Local builds keep .0. -->
   <Identity
-    Name="GianlucaMazza.xllama"
+    Name="GianlucaMazza.xllamaAudit"
     Publisher="CN=xllama-dev"
     Version="1.11.0.0"
     ProcessorArchitecture="x64" />
@@ -48,7 +48,7 @@
          whose wWinMain calls CoreApplication::Run(winrt::make<App>()). -->
     <Application Id="xllama" Executable="xllama.exe" EntryPoint="xllama.App">
       <uap:VisualElements
-        DisplayName="xllama"
+        DisplayName="xllama audit fixtures"
         Description="Local LLM inference for Xbox Series S and Series X"
         BackgroundColor="#0E1116"
         Square150x150Logo="Assets\Square150x150Logo.png"

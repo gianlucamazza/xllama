@@ -496,9 +496,12 @@ struct HeadlessView
 };
     #endif // !XLLAMA_STORE_SKU
 
-// ---------------------------------------------------------------------------
-// Entry point — Application::Start replaces CoreApplication::Run
-// ---------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
+    // Entry point — Application::Start replaces CoreApplication::Run
+    // ---------------------------------------------------------------------------
+    // Validation branch only. This separately installed package owns its LocalState.
+    #include "audit-fixtures.h"
+
 int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     try {
         // WinRT apartment first (RoInitialize). C++/WinRT's init_apartment on
@@ -512,6 +515,18 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         // SKU — retail builds always take the interactive XAML path.
         // Consume the flag BEFORE the run:
         // a later start without the flag goes back to interactive.
+        for (auto mode : {L"audit-state.flag", L"audit-usb.flag", L"audit-clean.flag"}) {
+            auto flag = flag_path_if_present(mode);
+            if (!flag.empty()) {
+                _wremove(flag.c_str());
+                void (*entry)() = std::wstring(mode) == L"audit-state.flag" ? audit_fixtures::state
+                                  : std::wstring(mode) == L"audit-usb.flag" ? audit_fixtures::usb
+                                                                            : audit_fixtures::clean;
+                winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                    winrt::make<HeadlessView>(entry, "audit"));
+                return 0;
+            }
+        }
         std::wstring diffuse_flag = flag_path_if_present(L"diffuse.flag");
         if (!diffuse_flag.empty()) {
             _wremove(diffuse_flag.c_str());
