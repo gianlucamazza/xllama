@@ -226,6 +226,39 @@ std::size_t run_diffuse() {
     write_progress("start");
 
     try {
+        const auto output =
+            std::filesystem::path(utf8_to_wstring(resolve_local_path("diffuse-out.png")));
+        const auto publish_frame = [&](int width, int height, const std::vector<uint8_t>& rgb) {
+            const auto size = diffusion::publish_png_rgb(output, width, height, rgb);
+            if (!size)
+                throw std::runtime_error("Could not publish complete PNG");
+            return size;
+        };
+        // In the isolated test package a fixed RGB frame replaces model inference.
+        // It still uses the real PNG writer, job error handling and LAN route.
+        const std::string audit_mode = read_local_text("audit-png-mode.txt");
+        if (audit_mode == "success" || audit_mode == "failure") {
+            std::vector<uint8_t> rgb(32 * 32 * 3, audit_mode == "success" ? 128 : 32);
+            if (audit_mode == "failure") {
+                auto blocker = output;
+                blocker += ".tmp";
+                if (!std::filesystem::create_directory(blocker))
+                    throw std::runtime_error("Test staging path already exists");
+                struct RemoveTestDirectory {
+                    std::filesystem::path path;
+                    ~RemoveTestDirectory() {
+                        std::error_code ec;
+                        std::filesystem::remove(path, ec);
+                    }
+                } cleanup{blocker};
+                return publish_frame(32, 32, rgb); // throws on the refused write
+            }
+            const auto size = publish_frame(32, 32, rgb);
+            if (!write_local_text("diffuse-out.png.done", "done\n"))
+                throw std::runtime_error("Could not mark PNG complete");
+            write_progress("done");
+            return size;
+        }
         auto model = [&](const char* comp) {
             return resolve_local_path("models\\" + dir + "\\" + comp + "\\model.onnx");
         };
@@ -433,10 +466,7 @@ std::size_t run_diffuse() {
                 x = std::max(0.0f, std::min(1.0f, x));
                 rgb[(size_t)i * 3 + c] = (uint8_t)(x * 255.0f + 0.5f);
             }
-        const auto size = diffusion::publish_png_rgb(
-            utf8_to_wstring(resolve_local_path("diffuse-out.png")), kImageHW, kImageHW, rgb);
-        if (!size)
-            throw std::runtime_error("Could not publish complete PNG");
+        const auto size = publish_frame(kImageHW, kImageHW, rgb);
 
         const double total_ms = te_ms + unet_ms + vae_ms;
         const size_t process_peak_ws_mb = peak_working_set_mb();
