@@ -160,6 +160,8 @@ catalogue grows:
    With `hf_base_url` set, the app downloads `<hf_base_url>/<remote or filename>`
    for each file on selection. Without it, the entry expects the directory at
    `LocalState\models\<name>` (Device Portal upload) or USB `E:\xllama\models\<name>`.
+   A USB import checks the ORT config, graph and every declared relative filename before copying.
+   The app names a missing file and keeps interrupted imports unavailable until a completed retry.
    Optional fields: `kind` (`"ort-genai"` default; `"diffusion"` entries feed the
    Image dialog and are hidden from the chat picker); `n_ctx` (session context size,
    `0`/omit = shipping default 2048; coding models use `4096`); `role`

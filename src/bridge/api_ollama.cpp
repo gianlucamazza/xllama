@@ -3,6 +3,7 @@
 
 #include "xllama/api_ollama.h"
 
+#include "xllama/api_policy.h"
 #include "xllama/api_sampling.h"
 #include "xllama/reasoning_control.h"
 
@@ -258,6 +259,10 @@ OllamaRequest parse_ollama_request(std::string_view body, OllamaRoute route) {
     const auto requested = [&](const char* key, const Json& default_value) {
         return input.contains(key) && !input[key].is_null() && input[key] != default_value;
     };
+    for (const char* key : kReasoningBudgetFields) {
+        if (requested(key, nullptr))
+            return fail(std::string(key) + " is unsupported");
+    }
     for (const char* key : {"format", "suffix", "template"}) {
         if (requested(key, ""))
             return fail(std::string(key) + " is unsupported");

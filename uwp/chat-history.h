@@ -3,11 +3,14 @@
 
 #pragma once
 
-#ifdef XLLAMA_UWP
+#include <cstdint>
+#include <filesystem>
+#include <string>
+#include <vector>
 
-    #include <cstdint>
-    #include <string>
-    #include <vector>
+namespace xllama {
+struct KvStore;
+}
 
 namespace xllama::ui {
 
@@ -35,6 +38,15 @@ struct Conversation {
     std::vector<ChatMessage> messages;
 };
 
+struct ChatDeletion {
+    std::vector<std::string> removed_ids; // bodies confirmed absent
+    bool all_removed = false;
+    bool index_pending = false; // a journal will retry the index update
+
+    // Apply Clear to the active chat and its cached state. True means the UI needs a new chat.
+    bool ApplyClear(Conversation& active, const KvStore& snapshots) const;
+};
+
 // ---------------------------------------------------------------------------
 // ChatHistory — persists conversations under LocalState/chats/
 // ---------------------------------------------------------------------------
@@ -45,15 +57,16 @@ class ChatHistory {
     explicit ChatHistory(const std::string& chats_dir); // absolute path to LocalState/chats
     void SetDir(const std::string& chats_dir) {
         m_dir = chats_dir;
+        m_index_ready = false;
     }
 
-    // Load index from disk. Call once at startup (best-effort; empty on failure).
-    void LoadIndex();
+    // Load the index and reconcile pending saves. Failed reads leave the files available for retry.
+    bool LoadIndex();
 
     // Save conversation to disk and update index.
-    void Save(const Conversation& conv);
+    bool Save(const Conversation& conv);
 
-    // Load a specific conversation by id. Returns empty on failure.
+    // A read, format or identity failure returns an empty id. A valid chat may have no messages.
     Conversation Load(const std::string& id) const;
 
     // Sorted by last_modified descending (most recent first).
@@ -62,25 +75,30 @@ class ChatHistory {
     }
 
     // Delete a single conversation (removes JSON file + updates index).
-    void Delete(const std::string& id);
+    ChatDeletion Delete(const std::string& id);
 
     // Delete all conversations (removes all JSON files + clears index).
-    void Clear();
+    ChatDeletion Clear();
 
     // Derive conversation id from title (for new convos: generate UUID).
+#ifdef XLLAMA_UWP
     static std::string NewId();
+#endif
 
     // Build title from first user message (up to 60 chars, no newlines).
     static std::string TitleFrom(const std::string& text);
 
   private:
-    void SaveIndex();
-    std::string ConvPath(const std::string& id) const;
+    bool ReadIndex();
+    void UpdateMeta(ConversationMeta meta);
+    ChatDeletion RemoveChats(std::vector<std::string> ids);
+    void RemoveMetadata(std::vector<std::string>& ids);
+    bool SaveIndex();
+    std::filesystem::path ConvPath(const std::string& id) const;
 
+    bool m_index_ready = false;
     std::string m_dir;
     std::vector<ConversationMeta> m_index;
 };
 
 } // namespace xllama::ui
-
-#endif // XLLAMA_UWP

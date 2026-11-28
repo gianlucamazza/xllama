@@ -362,15 +362,20 @@ TEST_CASE("sidecar write: no prior marker hashes every file; wrong hash is not O
     CHECK_FALSE(gpu_ready_for_routing(expected_verified, true));
 }
 
-TEST_CASE("download_bytes_needed sums declared sizes and saturates") {
-    const Pins fetch = {make_file_pin(L"model.gguf", 2445652064ull, "", ""),
-                        make_file_pin(L"LICENSE", 1100, "", ""),
-                        make_file_pin(L"unsized.bin", 0, "", "")};
-    CHECK(download_bytes_needed(fetch) == 2445652064ull + 1100);
-    CHECK(download_bytes_needed({}) == 0);
-    const Pins huge = {make_file_pin(L"a", UINT64_MAX - 5, "", ""),
-                       make_file_pin(L"b", 10, "", "")};
-    CHECK(download_bytes_needed(huge) == UINT64_MAX);
+TEST_CASE("download space includes simultaneous staging and rollback storage") {
+    constexpr uint64_t mib = 1024ull * 1024;
+    const auto first = download_peak_bytes({{96 * mib, 96 * mib, 0}});
+    CHECK(first == 192 * mib);
+    CHECK_FALSE(
+        check_download_space(download_peak_bytes({{512 * mib, 512 * mib, 0}}), 650 * mib).ok);
+    CHECK(download_peak_bytes({{20, 15, 85}, {200, 0, 0}}) == 135);
+    CHECK_FALSE(check_download_space(first, 170 * mib).ok);
+    CHECK(download_peak_bytes({{96, 96, 96}, {10, 0, 0}}) == 96);
+    CHECK(download_peak_bytes({{96, 96, 0}, {80, 70, 0}}) == 246);
+    CHECK(download_peak_bytes({{20, 0, 40}, {90, 0, 0}}) == 110);
+    CHECK(download_peak_bytes({{UINT64_MAX, 0, 0}, {1, 1, 0}}) == UINT64_MAX);
+    CHECK(download_peak_bytes({{1, 1, 100}, {UINT64_MAX, 0, 0}, {200, 0, 0}}) == UINT64_MAX);
+    CHECK(download_peak_bytes({}) == 0);
 }
 
 TEST_CASE("check_download_space requires the plan plus the margin") {
@@ -386,6 +391,7 @@ TEST_CASE("check_download_space requires the plan plus the margin") {
 
     // Overflow of need + margin must not wrap into a pass.
     CHECK_FALSE(check_download_space(UINT64_MAX - 1, UINT64_MAX - 2).ok);
+    CHECK_FALSE(check_download_space(UINT64_MAX, UINT64_MAX).ok);
 
     const DownloadSpaceCheck c = check_download_space(need, 100);
     CHECK(c.need_bytes == need);

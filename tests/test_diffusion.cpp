@@ -11,6 +11,12 @@
 // Paths are injected by CMake (GOLDEN_JSON_PATH, CLIP_TOKENIZER_DIR).
 
 #include <doctest/doctest.h>
+#ifdef __linux__
+    #include <csignal>
+    #include <sys/resource.h>
+    #include <sys/wait.h>
+    #include <unistd.h>
+#endif
 
 #include <nlohmann/json.hpp>
 
@@ -290,3 +296,48 @@ TEST_CASE("diffusion residency: make_room releases through the hub and bumps its
     CHECK(hub.model.empty());
     CHECK(hub.generation == gen + 1);
 }
+
+TEST_CASE("a PNG staging failure preserves the last published image") {
+    const auto path = std::filesystem::temp_directory_path() / "xllama-audit-diffusion.png";
+    const std::vector<uint8_t> rgb{0, 64, 255};
+    const auto expected = xllama::diffusion::encode_png_rgb(1, 1, rgb);
+    REQUIRE(xllama::diffusion::publish_png_rgb(path, 1, 1, rgb) == expected.size());
+    auto stage = path;
+    stage += ".tmp";
+    std::filesystem::create_directory(stage);
+    CHECK(xllama::diffusion::publish_png_rgb(path, 1, 1, {255, 64, 0}) == 0);
+    std::ifstream input(path, std::ios::binary);
+    std::vector<uint8_t> saved(std::istreambuf_iterator<char>(input), {});
+    CHECK(saved == expected);
+    input.close();
+    std::filesystem::remove(stage);
+    std::filesystem::remove(path);
+}
+
+#ifdef __linux__
+TEST_CASE("a short PNG write cannot replace the previously committed image") {
+    const auto path = std::filesystem::temp_directory_path() /
+                      ("xllama-png-limit-" + std::to_string(getpid()) + ".png");
+    REQUIRE(xllama::diffusion::write_png_rgb(path.string(), 1, 1, {0, 1, 2}));
+    const auto original = xllama::diffusion::encode_png_rgb(1, 1, {0, 1, 2});
+    // Only the child inherits the fault. A buffered fwrite can report success
+    // until flush or close encounters the kernel's 600-byte limit.
+    const auto child = fork();
+    REQUIRE(child >= 0);
+    if (!child) {
+        struct rlimit limit = {600, 600};
+        if (signal(SIGXFSZ, SIG_IGN) == SIG_ERR || setrlimit(RLIMIT_FSIZE, &limit) != 0)
+            _exit(2);
+        const std::vector<uint8_t> rgb(32 * 32 * 3, 180);
+        _exit(xllama::diffusion::publish_png_rgb(path, 32, 32, rgb) == 0 ? 0 : 1);
+    }
+    int status = 0;
+    REQUIRE(waitpid(child, &status, 0) == child);
+    REQUIRE(WIFEXITED(status));
+    CHECK(WEXITSTATUS(status) == 0);
+    std::ifstream file(path, std::ios::binary);
+    CHECK(std::vector<uint8_t>(std::istreambuf_iterator<char>(file), {}) == original);
+    file.close();
+    std::filesystem::remove(path);
+}
+#endif

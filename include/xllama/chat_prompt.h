@@ -39,6 +39,9 @@ bool model_is_gemma(const std::string& model_id);
 // <start_of_turn> / <end_of_turn> with <|turn> / <turn|> and has a system turn.
 bool model_is_gemma4(const std::string& model_id);
 
+// The catalogue E2B instruction checkpoint with the qualified thought-channel template.
+bool model_is_gemma4_e2b_it(const std::string& model_id);
+
 // True for Llama / Llama-3.x catalogue ids or filenames (substring "llama",
 // case-insensitive). Used to select the Llama-3 instruct header template.
 bool model_is_llama(const std::string& model_id);
@@ -172,6 +175,7 @@ struct ChatFormat {
     // the reply starts inside it. split_output, ThinkingStreamSplitter and
     // ReasoningTokenCounter read the reply after reasoning_prefill().
     bool reasoning_opened = false;
+    ThinkingMarkup thinking_markup = ThinkingMarkup::ThinkTags;
     std::string_view reasoning_prefill() const {
         return reasoning_opened ? kThinkOpenTag : std::string_view{};
     }
@@ -205,7 +209,7 @@ struct ChatFormat {
 
 // Select the chat format for a catalogue id / filename (as model_is_qwen does
 // today). |thinking| picks the template's thinking or no-think path where it
-// has both (Qwen3 / Qwen3.5, MiniCPM5, SmolLM3); any other template only
+// has both (Qwen3 / Qwen3.5, MiniCPM5, SmolLM3, catalogue Gemma 4 E2B IT); any other template only
 // splits <think> blocks off the reply with it. Callers take it from
 // decide_reasoning (reasoning_control.h). The one-argument form is the
 // model's own behaviour, model_is_thinking(model_id).

@@ -100,13 +100,22 @@ AdmitResult admit_transcript(const std::vector<ChatMessage>& messages,
 ChoiceAssembly assemble_choice(const std::string& raw_text, const std::string& parsed_text,
                                const std::vector<IncomingCall>& calls, bool hit_cap,
                                bool strip_thinking, const std::string& parsed_reasoning) {
+    return assemble_choice(raw_text, parsed_text, calls, hit_cap, strip_thinking, parsed_reasoning,
+                           ThinkingMarkup::ThinkTags, {});
+}
+
+ChoiceAssembly assemble_choice(const std::string& raw_text, const std::string& parsed_text,
+                               const std::vector<IncomingCall>& calls, bool hit_cap,
+                               bool strip_thinking, const std::string& parsed_reasoning,
+                               ThinkingMarkup markup, std::string_view prefill) {
     ChoiceAssembly out;
     out.reasoning = parsed_reasoning;
-    const auto text_of = [&](const std::string& text) {
+    const auto text_of = [&](const std::string& text, std::string_view open = {}) {
         if (!strip_thinking)
             return text;
-        ThinkingSplit split = split_thinking(text);
-        if (!split.reasoning.empty())
+        ThinkingSplit split = open.empty() ? split_thinking(text, markup)
+                                           : split_thinking(std::string(open) + text, markup);
+        if (!split.reasoning.empty() && split.reasoning != parsed_reasoning)
             out.reasoning += (out.reasoning.empty() ? "" : "\n\n") + split.reasoning;
         return std::move(split.content);
     };
@@ -124,7 +133,7 @@ ChoiceAssembly assemble_choice(const std::string& raw_text, const std::string& p
         out.tool_calls.push_back(std::move(emitted));
     }
     if (out.tool_calls.empty()) {
-        out.content = text_of(raw_text);
+        out.content = text_of(raw_text, prefill);
         out.finish_reason = hit_cap ? "length" : "stop";
         return out;
     }

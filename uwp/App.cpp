@@ -7,6 +7,7 @@
 // pch.h must be first: it includes <unknwn.h> before WinRT headers (COM IUnknown guard).
 #include "pch.h"
 #include "App.h"
+#include "xllama/personalize.h"
 #include "MainPage.h"
 #include "inference-bridge.h"
 #include "xllama/compute_admission.h"
@@ -295,6 +296,12 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
 
     try {
         if (!m_controller) {
+            const auto root =
+                winrt::Windows::Storage::ApplicationData::Current().LocalFolder().Path();
+            std::string recovery_error;
+            if (!::xllama::recover_personalized_publication(std::filesystem::path(root.c_str()),
+                                                            &recovery_error))
+                ::xllama::log_output("[xllama] personalized model recovery: " + recovery_error);
             log_write("[xllama] building MainPageController\n");
             m_controller = std::make_shared<::xllama::MainPageController>();
             log_write("[xllama] MainPageController built\n");
@@ -509,8 +516,8 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         if (!diffuse_flag.empty()) {
             _wremove(diffuse_flag.c_str());
             ::xllama::log_output("[xllama] diffuse.flag detected -> headless diffusion mode\n");
-            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
-                winrt::make<HeadlessView>(&::xllama::bridge::run_diffuse, "diffuse"));
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(winrt::make<HeadlessView>(
+                +[] { (void)::xllama::bridge::run_diffuse(); }, "diffuse"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
         std::wstring bench_flag = flag_path_if_present(L"bench.flag");

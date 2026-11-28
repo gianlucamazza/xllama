@@ -106,7 +106,7 @@ std::unique_lock<std::mutex> acquire_hub_or_busy() {
 // Acquire the process-wide compute lease before touching the SessionHub. The
 // startup pre-load is the only admitted job that API clients wait behind;
 // every other occupied slot keeps the existing bounded busy response. The
-// returned handle must stay alive for the whole reply, including SSE tokens.
+// returned handle covers generation, including its SSE token writes.
 ::xllama::ComputeJobAdmission::Handle acquire_compute_job_or_busy() {
     return ::xllama::try_acquire_compute_job_while_preloading(::xllama::session_hub().preloading);
 }
@@ -340,6 +340,20 @@ bool accepts_response_format(JsonObject const& root) {
     return ::xllama::api_response_format_supported(format);
 }
 
+::xllama::ApiGenerationValue generation_value(JsonObject const& root, const char* key) {
+    const auto name = winrt::to_hstring(key);
+    if (!root.HasKey(name))
+        return nullptr;
+    const auto value = root.GetNamedValue(name);
+    if (value.ValueType() == JsonValueType::Null)
+        return nullptr;
+    if (value.ValueType() == JsonValueType::Number)
+        return value.GetNumber();
+    if (value.ValueType() == JsonValueType::Boolean)
+        return value.GetBoolean();
+    return std::monostate{};
+}
+
 // The wire a chat reply is written in: OpenAI chat.completion(.chunk) over SSE,
 // or native Ollama /api/chat and /api/generate objects over NDJSON. The request
 // itself is the same canonical chat body for all three (api_ollama.h).
@@ -347,7 +361,7 @@ using ::xllama::ChatWire;
 using ChatClock = std::chrono::steady_clock;
 
 // Per-request reply state: the native wire's timings, and what the request's
-// keep_alive does to the session once the reply is written.
+// keep_alive does to the session when generation finishes.
 struct ChatResponse {
     ChatWire wire = ChatWire::OpenAI;
     ChatClock::time_point started = ChatClock::now();
@@ -1182,16 +1196,19 @@ std::string chat_reply_json(const ChatResponse& response, const std::string& mod
 // Generates, parses and answers one tool proposal. With |sse| the stream is
 // already open, so a failure is an SSE error event and the return is empty;
 // without it, the return is the JSON response.
-std::string write_tool_proposal(::xllama::GenerateParams& gp, const ::xllama::ToolRequest& request,
+std::string write_tool_proposal(::xllama::GenerateParams gp, const ::xllama::ToolRequest& request,
                                 const std::vector<::xllama::ChatMessage>& messages,
                                 ::xllama::Session* session, const std::string& model, bool thinking,
                                 ::xllama::ApiActivity::Ticket& ticket, const char*& status,
-                                std::chrono::steady_clock::time_point started,
-                                ::xllama::ReasoningTokenCounter& reasoning_tokens, ChatStream* sse,
+                                std::chrono::steady_clock::time_point started, ChatStream* sse,
                                 const std::atomic<bool>& abort, const ChatResponse& response) {
     using Clock = std::chrono::steady_clock;
     const bool native = native_wire(response);
     const bool stream = sse != nullptr;
+    const auto markup = ::xllama::chat_format_for(model, thinking).thinking_markup;
+    const auto prefill = ::xllama::thinking_prefill_at_end(gp.prompt, markup);
+    ::xllama::ReasoningTokenCounter reasoning_tokens(prefill, markup);
+    gp.on_token = [&reasoning_tokens](std::string_view piece) { reasoning_tokens.push(piece); };
     const auto prepared = Clock::now();
     const ::xllama::InferenceResult generated = session->generate(gp);
     const auto generated_at = Clock::now();
@@ -1221,8 +1238,9 @@ std::string write_tool_proposal(::xllama::GenerateParams& gp, const ::xllama::To
         "[xllama] api: tool_proposal prepare_us=" + std::to_string(elapsed_us(started, prepared)) +
         " generate_us=" + std::to_string(elapsed_us(prepared, generated_at)) +
         " parse_us=" + std::to_string(elapsed_us(generated_at, parsed_at)) + "\n");
-    const ::xllama::ChoiceAssembly assembly = ::xllama::assemble_choice(
-        generated.output_text, parsed.content, parsed.calls, hit_cap, thinking, parsed.reasoning);
+    const ::xllama::ChoiceAssembly assembly =
+        ::xllama::assemble_choice(generated.output_text, parsed.content, parsed.calls, hit_cap,
+                                  thinking, parsed.reasoning, markup, prefill);
     const int n_reasoning = reasoning_tokens.count(thinking, parsed.reasoning);
 
     // Native Ollama content is always a string (empty beside tool calls), its
@@ -1352,10 +1370,6 @@ std::string handle_tool_proposal_locked(
     gp.grammar = std::move(fit.rendered.grammar); // ADR 0005
     append_client_stops(root, gp.stop_sequences);
 
-    // Every token's piece, for usage.completion_tokens_details (#585).
-    ::xllama::ReasoningTokenCounter reasoning_tokens;
-    gp.on_token = [&reasoning_tokens](std::string_view piece) { reasoning_tokens.push(piece); };
-
     // Every request check is done, so a streamed proposal opens its stream now,
     // before generation (#594). The keepalive then watches the socket through a
     // long prefill, and a client that leaves aborts it as on plain chat (#581).
@@ -1369,8 +1383,8 @@ std::string handle_tool_proposal_locked(
             return failed_body;
         gp.abort_flag = &abort;
         try {
-            write_tool_proposal(gp, request, fit.messages, session, model, thinking, ticket, status,
-                                started, reasoning_tokens, sse.get(), abort, response);
+            write_tool_proposal(std::move(gp), request, fit.messages, session, model, thinking,
+                                ticket, status, started, sse.get(), abort, response);
         } catch (...) {
             const ::xllama::ApiFailureReply failure = reply_for_current_exception(
                 "chat tool stream", "malformed request body", "generation failed");
@@ -1379,8 +1393,8 @@ std::string handle_tool_proposal_locked(
         }
         return {}; // the stream owns the response
     }
-    return write_tool_proposal(gp, request, fit.messages, session, model, thinking, ticket, status,
-                               started, reasoning_tokens, nullptr, abort, response);
+    return write_tool_proposal(std::move(gp), request, fit.messages, session, model, thinking,
+                               ticket, status, started, nullptr, abort, response);
 }
 
 // Handles one chat request under session_hub().mtx (already locked by the caller).
@@ -1639,7 +1653,7 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
         // split after the stop filter so a stop is matched on the raw text.
         std::optional<::xllama::ThinkingStreamSplitter> splitter;
         if (fmt.strip_thinking_content)
-            splitter.emplace(fmt.reasoning_prefill());
+            splitter.emplace(fmt.reasoning_prefill(), fmt.thinking_markup);
         const auto send = [&sse, &splitter](std::string_view text, bool finishing) {
             if (!splitter) {
                 sse->write_delta(text);
@@ -1655,7 +1669,8 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
             sse->write_delta(split.content);
         };
         // #585, before the stop filter
-        ::xllama::ReasoningTokenCounter reasoning_tokens(fmt.reasoning_prefill());
+        ::xllama::ReasoningTokenCounter reasoning_tokens(fmt.reasoning_prefill(),
+                                                         fmt.thinking_markup);
         gp.on_token = [&stop_filter, &send, &reasoning_tokens](std::string_view piece) {
             reasoning_tokens.push(piece);
             const std::string text = stop_filter.push(piece);
@@ -1691,7 +1706,8 @@ std::string handle_chat_locked(JsonObject const& root, const std::string& body, 
         }
         return std::string(); // handle_connection must not write a second response
     }
-    ::xllama::ReasoningTokenCounter reasoning_tokens(fmt.reasoning_prefill()); // #585
+    ::xllama::ReasoningTokenCounter reasoning_tokens(fmt.reasoning_prefill(),
+                                                     fmt.thinking_markup); // #585
     gp.on_token = [&reasoning_tokens](std::string_view piece) { reasoning_tokens.push(piece); };
     const ::xllama::InferenceResult r = session->generate(gp);
     if (!r.success) {
@@ -1744,7 +1760,8 @@ std::vector<std::string> servable_model_ids() {
     }
     std::sort(ids.begin(), ids.end());
     const std::string current = current_model_id();
-    if (!current.empty() && std::find(ids.begin(), ids.end(), current) == ids.end())
+    if (!current.empty() && !::xllama::usb_import_pending(root / current) &&
+        std::find(ids.begin(), ids.end(), current) == ids.end())
         ids.push_back(current);
     return ids;
 }
@@ -2277,18 +2294,18 @@ std::string handle_images_locked(const std::string& body, const char*& status) {
             ::xllama::session_hub(), ::xllama::working_set_mb(), ::xllama::app_memory_limit_mb()))
         ::xllama::log_output(
             "[xllama] api: released the resident chat model to fit the image pipeline\n");
-    ::xllama::bridge::run_diffuse();
+    const auto png_size = ::xllama::bridge::run_diffuse();
 
     const std::string stage = ::xllama::read_local_text("diffuse-progress.txt");
-    if (stage != "done") {
+    if (!png_size) {
         status = "500 Internal Server Error";
         return error_json(std::string("image generation failed: stage=") + stage);
     }
     const std::string png_path = ::xllama::resolve_local_path("diffuse-out.png");
     const std::string png = read_file_bytes(png_path);
-    if (png.empty()) {
+    if (png.size() != png_size) {
         status = "500 Internal Server Error";
-        return error_json("diffuse-out.png missing after generation");
+        return error_json("diffuse-out.png incomplete after generation");
     }
 
     JsonObject item;
@@ -2695,6 +2712,11 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             return;
         }
 
+        const auto listener_is_current = [generation] {
+            std::lock_guard<std::mutex> state_lock(g_state_mtx);
+            return g_status.state == ServerState::Running && generation == g_generation;
+        };
+
         // OpenAI chat and the native Ollama text routes share one handler: the
         // native body is checked and translated into the chat body before
         // compute admission (api_ollama.h), and only the reply wire differs.
@@ -2734,6 +2756,16 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                                           "unsupported_response_format", "response_format"));
                 return;
             }
+            if (!native) {
+                const char* field = ::xllama::unsupported_openai_generation_field(
+                    [&](const char* key) { return generation_value(root, key); });
+                if (field) {
+                    write_response(socket, "400 Bad Request",
+                                   error_json(std::string("unsupported value for ") + field,
+                                              "unsupported_openai_generation_field", field));
+                    return;
+                }
+            }
             if (const std::string error = check_context_override(root); !error.empty()) {
                 write_response(socket, "400 Bad Request",
                                native ? ollama_error_json(error)
@@ -2769,49 +2801,44 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 write_response(socket, ::xllama::kApiBusyStatus, failure_json("busy"));
                 return;
             }
-            // Keep the lease for the whole reply, including every SSE event.
-            // Dropped on return, throw, or client-disconnect abort.
-            (void)compute_permit;
             std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
-            if (!lk.owns_lock()) {
+            // A callback from an older listener must not recreate the Session.
+            const auto admission =
+                ::xllama::check_api_session_admission(lk, compute_permit, listener_is_current);
+            if (admission == ::xllama::ApiSessionAdmission::HubBusy) {
                 activity().busy();
-                write_response(socket, "503 Service Unavailable", failure_json("busy"));
+                write_response(socket, ::xllama::kApiBusyStatus, failure_json("busy"));
                 return;
             }
-            // stop/rebind may have happened after this callback was queued. Do
-            // not let an old listener recreate the lazily-owned Session.
-            bool active_generation = false;
-            {
-                std::lock_guard<std::mutex> state_lock(g_state_mtx);
-                active_generation =
-                    g_status.state == ServerState::Running && generation == g_generation;
-            }
-            if (!active_generation) {
-                write_response(socket, "503 Service Unavailable", failure_json("server stopped"));
+            if (admission == ::xllama::ApiSessionAdmission::ServerStopped) {
+                write_response(socket, ::xllama::kApiBusyStatus, failure_json("server stopped"));
                 return;
             }
             // handle_chat_locked touches WinRT JSON accessors that throw on
             // wrong-typed fields; guarantee the client always gets a response
             // rather than a silently dropped socket.
             auto ticket = activity().begin(native_generate ? "generate" : "chat");
-            const KeepAliveAtEnd keep_alive{response}; // runs before lk and the permit go
             const char* status = "200 OK";
             std::string json;
-            try {
-                json = handle_chat_locked(root, body, status, ticket, socket, stream, response,
-                                          native ? &*native : nullptr, reasoning.thinking);
-                // Native Ollama errors are {"error":"<text>"}.
-                if (native && status[0] != '2' && !json.empty())
-                    json = ollama_error_json(error_text(json));
-            } catch (...) {
-                const ::xllama::ApiFailureReply failure =
-                    reply_for_current_exception("chat", "malformed request body", "internal error");
-                status = failure.status;
-                json = failure_json(failure.message);
+            {
+                const KeepAliveAtEnd keep_alive{response};
+                try {
+                    json = handle_chat_locked(root, body, status, ticket, socket, stream, response,
+                                              native ? &*native : nullptr, reasoning.thinking);
+                    // Native Ollama errors are {"error":"<text>"}.
+                    if (native && status[0] != '2' && !json.empty())
+                        json = ollama_error_json(error_text(json));
+                } catch (...) {
+                    const ::xllama::ApiFailureReply failure = reply_for_current_exception(
+                        "chat", "malformed request body", "internal error");
+                    status = failure.status;
+                    json = failure_json(failure.message);
+                }
             }
-            // Record before writing: a client that disconnects makes
-            // write_response throw, and the request was still served.
+            // A new admission can replace the activity ticket. Finish accounting
+            // before releasing ownership, then deliver the request-owned body.
             record_outcome(ticket, status, json);
+            ::xllama::release_api_session(lk, compute_permit);
             // A streamed reply is already on the socket; an empty body means the
             // stream (or its error event) was the response.
             if (stream && json.empty())
@@ -2836,19 +2863,16 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 return;
             }
             std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
-            if (!lk.owns_lock()) {
+            const auto admission =
+                ::xllama::check_api_session_admission(lk, compute_permit, listener_is_current);
+            if (admission == ::xllama::ApiSessionAdmission::HubBusy) {
                 activity().busy();
-                write_response(socket, "503 Service Unavailable",
+                write_response(socket, ::xllama::kApiBusyStatus,
                                embedding_error_json(embedding_api, "busy"));
                 return;
             }
-            bool active = false;
-            {
-                std::lock_guard<std::mutex> state_lock(g_state_mtx);
-                active = g_status.state == ServerState::Running && generation == g_generation;
-            }
-            if (!active) {
-                write_response(socket, "503 Service Unavailable",
+            if (admission == ::xllama::ApiSessionAdmission::ServerStopped) {
+                write_response(socket, ::xllama::kApiBusyStatus,
                                embedding_error_json(embedding_api, "server stopped"));
                 return;
             }
@@ -2863,9 +2887,8 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 status = failure.status;
                 json = embedding_error_json(embedding_api, failure.message);
             }
-            // Record before writing: a client that disconnects makes
-            // write_response throw, and the request was still served.
             record_outcome(ticket, status, json);
+            ::xllama::release_api_session(lk, compute_permit);
             write_response(socket, status, json);
             return;
         }

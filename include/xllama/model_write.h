@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 
-#include "xllama/model_provision.h"
+#include "xllama/model_file_plan.h"
 
 #include <algorithm>
 #include <atomic>
@@ -77,7 +77,41 @@ class ModelWriteOperation {
         m_permit.release();
     }
 
+    // A retry replaces the staging file instead of resuming its contents.
+    bool discard_partial(const std::wstring& filename, std::error_code& ec) {
+        if (!owns_lock()) {
+            ec = std::make_error_code(std::errc::device_or_resource_busy);
+            return false;
+        }
+        const std::filesystem::path relative(filename);
+        if (relative.has_root_path() || !relative.has_filename() ||
+            std::find(relative.begin(), relative.end(), L"..") != relative.end()) {
+            ec = std::make_error_code(std::errc::invalid_argument);
+            return false;
+        }
+        const auto part = m_root / (filename + L".part");
+        const auto status = std::filesystem::symlink_status(part, ec);
+        if (status.type() == std::filesystem::file_type::not_found) {
+            ec.clear();
+            return true;
+        }
+        if (ec)
+            return false;
+        if (!std::filesystem::is_regular_file(status)) {
+            ec = std::make_error_code(std::errc::invalid_argument);
+            return false;
+        }
+        std::filesystem::remove(part, ec);
+        return !ec;
+    }
+
     bool begin(std::error_code& ec) {
+        DownloadSpaceCheck budget;
+        return begin(ec, 0, budget);
+    }
+
+    bool begin(std::error_code& ec, uint64_t required_bytes, DownloadSpaceCheck& budget) {
+        budget = {};
         if (!owns_lock()) {
             ec = std::make_error_code(std::errc::device_or_resource_busy);
             return false;
@@ -85,7 +119,28 @@ class ModelWriteOperation {
         std::filesystem::create_directories(m_root, ec);
         if (ec)
             return false;
+        // Query the real destination volume after it exists. A rejected plan
+        // must leave the installed generation's completion marker readable.
+        if (required_bytes) {
+            const auto space = std::filesystem::space(m_root, ec);
+            if (ec)
+                return false;
+            budget = check_download_space(required_bytes, space.available);
+            if (!budget.ok) {
+                ec = std::make_error_code(std::errc::no_space_on_device);
+                return false;
+            }
+        }
         std::filesystem::remove(m_root / ".complete", ec);
+        return !ec;
+    }
+
+    bool begin_usb_import(std::error_code& ec) {
+        if (!begin(ec))
+            return false;
+        // Even an uncatalogued/manual layout can look ready after copying only
+        // its config. Persist the exclusion across process restarts.
+        std::filesystem::create_directory(m_root / kUsbImportPending, ec);
         return !ec;
     }
 
@@ -120,8 +175,8 @@ class ModelWriteOperation {
             ec = std::make_error_code(std::errc::io_error);
             return false;
         }
-        ec.clear();
-        return true;
+        std::filesystem::remove(m_root / kUsbImportPending, ec);
+        return !ec;
     }
 
   private:

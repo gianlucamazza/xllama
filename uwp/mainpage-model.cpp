@@ -131,7 +131,9 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
         std::wstring local_model_dir = local_models_root + L"\\" + model_name;
 
         const bool marker = ModelDownloader::IsComplete(local_model_dir);
-        const bool skip_early = skip_provision_early_exits(set_app_ready, marker);
+        const bool interrupted_usb = usb_import_pending(local_model_dir);
+        const bool skip_early =
+            interrupted_usb || skip_provision_early_exits(set_app_ready, marker);
 
         if (!skip_early && IsModelProvisioned(model_name, expected_files)) {
             log_output(("[xllama] EnsureModel: '" + ::xllama::wstring_to_utf8(model_name) +
@@ -237,7 +239,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
             std::error_code ec;
             bool bundled = std::filesystem::exists(
                 std::filesystem::path(installed_model_dir) / L"genai_config.json", ec);
-            if (bundled) {
+            if (!interrupted_usb && bundled) {
                 co_await resume_foreground(dispatcher);
                 if (set_app_ready) {
                     self->LoadModelName();
@@ -258,47 +260,40 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
         // Store SKU: no removableStorage capability — download / LocalState only.
         co_await resume_foreground(dispatcher);
         {
-            bool usb_found = false;
+            using winrt::Windows::Storage::StorageFile;
+            using winrt::Windows::Storage::StorageFolder;
+            StorageFolder usb_model_folder{nullptr};
+            std::wstring usb_root;
+            const bool expects_config =
+                std::any_of(expected_files.begin(), expected_files.end(), [](const auto& file) {
+                    return normalize_model_path(file) == L"genai_config.json";
+                });
             try {
-                using winrt::Windows::Storage::KnownFolders;
-                using winrt::Windows::Storage::StorageFolder;
-                auto removable = KnownFolders::RemovableDevices();
-                auto drives = co_await removable.GetFoldersAsync();
+                auto drives = co_await winrt::Windows::Storage::KnownFolders::RemovableDevices()
+                                  .GetFoldersAsync();
                 for (auto const& drive : drives) {
-                    std::wstring drive_path(drive.Path().c_str());
-                    // StorageFolder.Path may include trailing backslash (e.g. "E:\"); strip it.
-                    while (!drive_path.empty() && drive_path.back() == L'\\')
-                        drive_path.pop_back();
-                    log_output(
-                        ("[xllama] USB probe: " + ::xllama::wstring_to_utf8(drive_path) + "\n")
-                            .c_str());
-                    // Use WinRT TryGetItemAsync — GetFileAttributesW is blocked by
-                    // AppContainer even with removableStorage capability.
+                    // Hold the selected folder through verification and copy. Re-enumerating
+                    // volumes could select a different folder with the same model name.
                     try {
-                        using winrt::Windows::Storage::IStorageItem;
-                        auto sub = winrt::hstring(L"xllama\\models\\") + model_name +
-                                   winrt::hstring(L"\\genai_config.json");
-                        auto item = co_await drive.TryGetItemAsync(sub);
-                        if (item) {
-                            log_output(("[xllama] USB model found on " +
-                                        ::xllama::wstring_to_utf8(drive_path) + "\n")
-                                           .c_str());
-                            // Cache USB root (drive_path without trailing \) for
-                            // resolve_model_path() sync path.
-                            ::xllama::write_local_text("usb_model_root.txt",
-                                                       ::xllama::wstring_to_utf8(drive_path));
-                            usb_found = true;
+                        auto app_folder = co_await drive.GetFolderAsync(L"xllama");
+                        auto models = co_await app_folder.GetFolderAsync(L"models");
+                        auto candidate = co_await models.GetFolderAsync(model_name);
+                        auto config = co_await candidate.TryGetItemAsync(L"genai_config.json");
+                        const bool found_config = config && config.try_as<StorageFile>();
+                        if (found_config || (expects_config && !usb_model_folder)) {
+                            usb_model_folder = candidate;
+                            usb_root = drive.Path().c_str();
                         }
-                    } catch (...) {
-                        // drive not accessible — skip
+                        if (found_config)
+                            break;
+                    } catch (winrt::hresult_error const&) {
+                        // This drive is inaccessible or has no folder for this model.
                     }
-                    if (usb_found)
-                        break;
                 }
-            } catch (...) {
+            } catch (winrt::hresult_error const&) {
                 log_output("[xllama] USB probe: RemovableDevices enumeration failed\n");
             }
-            if (usb_found) {
+            if (usb_model_folder) {
                 // ORT GenAI uses Win32 I/O (blocked on USB by AppContainer).
                 // Copy model files from USB to LocalState via WinRT StorageFile.CopyAsync,
                 // then load from LocalState like the bundled model.
@@ -320,26 +315,49 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                 std::wstring copy_err;
                 try {
                     using winrt::Windows::Storage::CreationCollisionOption;
-                    using winrt::Windows::Storage::KnownFolders;
-                    using winrt::Windows::Storage::StorageFolder;
-
-                    // Source: USB xllama\models\<name>
-                    auto removable2 = KnownFolders::RemovableDevices();
-                    auto drives2 = co_await removable2.GetFoldersAsync();
-                    StorageFolder usb_model_folder{nullptr};
-                    for (auto const& d : drives2) {
-                        auto candidate = co_await d.TryGetItemAsync(
-                            winrt::hstring(L"xllama\\models\\") + model_name);
-                        if (candidate) {
-                            usb_model_folder = candidate.as<StorageFolder>();
-                            break;
+                    // Inspect the source before invalidating the installed model. A stale
+                    // destination file must never mask an incomplete removable source.
+                    std::vector<std::pair<std::wstring, StorageFile>> copies;
+                    std::vector<std::wstring> present;
+                    for (auto const& file : co_await usb_model_folder.GetFilesAsync()) {
+                        const std::wstring name(file.Name().c_str());
+                        const auto normalized = normalize_model_path(name);
+                        if (normalized == L".complete" ||
+                            normalized == utf8_to_wstring(kUsbImportPending))
+                            continue;
+                        present.push_back(name);
+                        copies.emplace_back(name, file);
+                    }
+                    for (const auto& name : expected_files) {
+                        if (name.find_first_of(L"/\\") == std::wstring::npos)
+                            continue;
+                        auto relative = std::filesystem::path(name);
+                        relative.make_preferred();
+                        if (relative.has_root_path() ||
+                            std::find(relative.begin(), relative.end(), L"..") != relative.end())
+                            throw std::runtime_error("Invalid relative model filename");
+                        StorageFolder parent = usb_model_folder;
+                        for (const auto& dir : relative.parent_path()) {
+                            auto item = co_await parent.TryGetItemAsync(dir.wstring());
+                            parent = item.try_as<StorageFolder>();
+                            if (!parent)
+                                break;
+                        }
+                        if (!parent)
+                            continue;
+                        auto item = co_await parent.TryGetItemAsync(relative.filename().wstring());
+                        if (auto file = item.try_as<StorageFile>()) {
+                            present.push_back(name);
+                            copies.emplace_back(name, file);
                         }
                     }
-                    if (!usb_model_folder)
-                        throw std::runtime_error("USB folder disappeared");
+                    const auto missing = missing_usb_model_file(present, expected_files);
+                    if (!missing.empty())
+                        throw std::runtime_error("USB model is missing " +
+                                                 wstring_to_utf8(missing));
 
                     std::error_code begin_ec;
-                    if (!writer.begin(begin_ec))
+                    if (!writer.begin_usb_import(begin_ec))
                         throw std::runtime_error("Cannot prepare USB model write: " +
                                                  begin_ec.message());
 
@@ -352,24 +370,19 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                     StorageFolder dest_folder = co_await models_folder.CreateFolderAsync(
                         model_name, CreationCollisionOption::OpenIfExists);
 
-                    // Copy each file
-                    auto files = co_await usb_model_folder.GetFilesAsync();
-                    for (auto const& f : files) {
-                        if (f.Name() == L".complete")
-                            continue; // publish only after all files have been copied
-                        log_output(("[xllama] USB copy: " +
-                                    ::xllama::wstring_to_utf8(std::wstring(f.Name().c_str())) +
-                                    "\n")
-                                       .c_str());
-                        if (normalize_model_path(std::wstring(f.Name().c_str())) ==
-                                L"adapter.gguf" &&
-                            co_await dest_folder.TryGetItemAsync(f.Name()))
-                            continue; // a local personalization adapter belongs to its owner
-                        co_await f.CopyAsync(dest_folder, f.Name(),
-                                             NameCollisionOption::ReplaceExisting);
+                    for (const auto& [name, file] : copies) {
+                        StorageFolder folder = dest_folder;
+                        for (const auto& dir : std::filesystem::path(name).parent_path())
+                            folder = co_await folder.CreateFolderAsync(
+                                dir.wstring(), CreationCollisionOption::OpenIfExists);
+                        if (normalize_model_path(name) == L"adapter.gguf" &&
+                            co_await folder.TryGetItemAsync(file.Name()))
+                            continue; // preserve the owner's existing adapter
+                        co_await file.CopyAsync(folder, file.Name(),
+                                                NameCollisionOption::ReplaceExisting);
                     }
                     std::error_code complete_ec;
-                    if (!writer.complete({}, complete_ec))
+                    if (!writer.complete(expected_files, complete_ec))
                         throw std::runtime_error("Cannot complete USB model write: " +
                                                  complete_ec.message());
                     copy_ok = true;
@@ -388,6 +401,10 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                     self->SetStatus(L"USB copy failed: " + copy_err, StatusKind::Error);
                     co_return;
                 }
+                while (!usb_root.empty() && usb_root.back() == L'\\')
+                    usb_root.pop_back();
+                ::xllama::write_local_text("usb_model_root.txt",
+                                           ::xllama::wstring_to_utf8(usb_root));
                 log_output("[xllama] USB model copy complete\n");
                 if (set_app_ready) {
                     self->LoadModelName();

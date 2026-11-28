@@ -18,6 +18,8 @@
 // ManifestEntry.files[].filename into `expected`.
 #pragma once
 
+#include <algorithm>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -36,15 +38,9 @@ inline std::wstring normalize_model_path(std::wstring s) {
     return s;
 }
 
-// True iff EVERY expected file is present in the directory listing. `present` =
-// directory-relative paths of the files on disk; `expected` = the manifest's
-// files[].filename values. Comparison is separator- and case-insensitive. Extra
-// present files are ignored (a superset is fine). An empty `expected` returns
-// false: the predicate never guesses — the caller applies the loose fallback.
-inline bool dir_satisfies_expected_files(const std::vector<std::wstring>& present,
-                                         const std::vector<std::wstring>& expected) {
-    if (expected.empty())
-        return false;
+// Name the first missing catalogue path, using Windows filename semantics.
+inline std::wstring missing_expected_file(const std::vector<std::wstring>& present,
+                                          const std::vector<std::wstring>& expected) {
     std::vector<std::wstring> norm_present;
     norm_present.reserve(present.size());
     for (const auto& p : present)
@@ -60,9 +56,38 @@ inline bool dir_satisfies_expected_files(const std::vector<std::wstring>& presen
             }
         }
         if (!found)
-            return false;
+            return want;
     }
-    return true;
+    return {};
+}
+
+inline bool dir_satisfies_expected_files(const std::vector<std::wstring>& present,
+                                         const std::vector<std::wstring>& expected) {
+    return !expected.empty() && missing_expected_file(present, expected).empty();
+}
+
+// Even without catalogue pins, verify the ORT config and graph in the inventory
+// that will be copied. The drive may have changed since discovery.
+inline std::wstring missing_usb_model_file(const std::vector<std::wstring>& present,
+                                           const std::vector<std::wstring>& expected) {
+    const auto missing = missing_expected_file(present, expected);
+    if (!missing.empty())
+        return missing;
+    if (!missing_expected_file(present, {L"genai_config.json"}).empty())
+        return L"genai_config.json";
+    for (const auto& file : present) {
+        const auto name = normalize_model_path(file);
+        if (name.size() > 5 && name.compare(name.size() - 5, 5, L".onnx") == 0)
+            return {};
+    }
+    return L"an ONNX graph (*.onnx)";
+}
+
+inline constexpr char kUsbImportPending[] = ".usb-import-pending";
+
+inline bool usb_import_pending(const std::filesystem::path& dir) {
+    std::error_code ec;
+    return std::filesystem::exists(dir / kUsbImportPending, ec);
 }
 
 // True iff a model directory's file listing makes it SERVABLE by Session:
@@ -71,6 +96,8 @@ inline bool dir_satisfies_expected_files(const std::vector<std::wstring>& presen
 // directory-relative names; comparison is case-insensitive. Used by the LAN
 // API's /v1/models discovery — pure, host doctest-testable.
 inline bool model_dir_files_ready(const std::vector<std::string>& files) {
+    if (std::find(files.begin(), files.end(), kUsbImportPending) != files.end())
+        return false;
     auto lower = [](std::string s) {
         for (auto& c : s)
             if (c >= 'A' && c <= 'Z')

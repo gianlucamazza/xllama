@@ -231,14 +231,13 @@ expects an empty `<think>\n\n</think>` block after the assistant header.
 those either are plain ChatML or emit real CoT (stripped at display time).
 
 **Per-request reasoning (#648).** `chat_format_for(model, thinking)` renders
-the thinking or the no-think path of the Qwen3 / Qwen3.5, MiniCPM5 and SmolLM3
-templates; the one-argument form is the model's default, `model_is_thinking`.
+the reasoning mode for Qwen3 / Qwen3.5, MiniCPM5, SmolLM3 and the catalogue Gemma 4 E2B IT checkpoint; the one-argument form is the model's default, `model_is_thinking`.
 `decide_reasoning` (`include/xllama/reasoning_control.h`) is the one decision
 for a request: the default, or the request's switch where
 `model_supports_reasoning_control` allows it. The LAN API passes that value to
 plain chat and as a tool template's `enable_thinking`; the GUI can call the
 same function. With thinking on, Qwen3.5 and MiniCPM5 open `<think>` in the
-prompt, so `ChatFormat::reasoning_prefill` is split and counted with the reply.
+prompt, so `ChatFormat::reasoning_prefill` is split and counted with the reply. Gemma 4 E2B enables its thought channel from the system turn. The pinned GGUF has SHA-256 `80d155f647d3a896669b1d1605b494b97ee9dbd1dcafd27957394134c280d270`, with embedded Jinja SHA-256 `241c50d86bdfe5e43307da87f559cd2416aacd67a8de46c15acc0105ef2200b7`. An opt-in Linux run with `XLLAMA_TEST_GEMMA4_GGUF=/path/to/gemma-4-E2B-it-Q3_K_S.gguf build/linux-test/tests/xllama-tests --test-case='*Gemma 4 E2B*'` compares against that template and exercises the real checkpoint. The package-bound LAN check on Series S uses `REASONING_MODEL=gemma4-e2b scripts/validate-api.sh chat` ([#671](https://github.com/gianlucamazza/xllama/issues/671)).
 
 **Thinking models.** Basename contains `thinking` → `strip_thinking_content` on
 the `ChatFormat`. After each turn, UI and LAN call `postprocess_output`, which
@@ -1159,10 +1158,12 @@ flags are supported:
 
 `ChatHistory` (`uwp/chat-history.h`) persists conversations as JSON files under
 `LocalState\chats\<id>.json` (`id`, `title`, `messages[]` with `role`, `content`,
-`ts_unix`, `partial`, `feedback_label`). An `index.json` (sorted by
-`last_modified` desc) drives the History dialog. `TitleFrom()` takes the first
-non-empty line of the first user message (truncated at 60 chars). IDs use
+`ts` (Unix seconds), `partial`, `feedback_label`). An `index.json` (sorted by
+`last_modified` desc) drives the History dialog. A save stages and checks the conversation before replacing it, then stages and replaces the index. A per-chat `.pending` file lets the next index load reconcile a save interrupted between the replacements. Recovery retains the marker and the previous index entry if the conversation cannot be decoded. It validates index timestamps and message counts before replacement and retains only metadata while reconciling multiple conversations. Opening a missing or invalid chat leaves the active conversation and its KV state in place. `TitleFrom()` takes the first
+non-empty line of the first user message (at most 60 UTF-8 bytes, including the ellipsis). IDs use
 `CoCreateGuid`.
+
+Deletion records a `.deleting` marker before removing a conversation. Recovery keeps the existing index entry when the body is still present and removes it when the body is gone. A failed index replacement leaves the marker for retry. **Clear all** keeps surviving chat entries and their KV snapshots, including an active conversation whose first save failed. The UI reports which stage is pending.
 
 `ManifestEntry` (`uwp/model-downloader.h`) schema:
 
