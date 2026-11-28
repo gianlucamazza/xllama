@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.22)
+project(xllama_bias_shader_test LANGUAGES CXX)
+
+set(root "${CMAKE_CURRENT_LIST_DIR}/../../..")
+add_executable(bias-shader-test bias.cpp "${root}/src/bridge/d3d12_compute.cpp")
+target_compile_features(bias-shader-test PRIVATE cxx_std_17)
+target_include_directories(bias-shader-test PRIVATE "${root}/src/bridge" "${root}/shaders/generated" "${root}/include")
+target_link_libraries(bias-shader-test PRIVATE d3d12 dxgi)
+enable_testing()
+add_test(NAME bias-shader-parity COMMAND bias-shader-test)
+set_tests_properties(bias-shader-parity PROPERTIES TIMEOUT 45)
