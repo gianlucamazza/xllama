@@ -400,7 +400,7 @@ TEST_CASE("Session: granitehybrid cold continuation on identical surviving token
         const auto filled = session->generate(prefill);
         REQUIRE_MESSAGE(filled.success, filled.error_msg);
         if (shift) {
-            REQUIRE(seed_count + filled.n_p_eval + 1 > session->context_length());
+            REQUIRE(seed_count + filled.n_prompt + 1 > session->context_length());
         }
         Arm arm;
         arm.prefix = saved_token_ids(*session, snapshot);
