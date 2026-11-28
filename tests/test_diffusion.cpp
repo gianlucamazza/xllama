@@ -290,3 +290,20 @@ TEST_CASE("diffusion residency: make_room releases through the hub and bumps its
     CHECK(hub.model.empty());
     CHECK(hub.generation == gen + 1);
 }
+
+TEST_CASE("a PNG staging failure preserves the last published image") {
+    const auto path = std::filesystem::temp_directory_path() / "xllama-audit-diffusion.png";
+    const std::vector<uint8_t> rgb{0, 64, 255};
+    const auto expected = xllama::diffusion::encode_png_rgb(1, 1, rgb);
+    REQUIRE(xllama::diffusion::publish_png_rgb(path, 1, 1, rgb) == expected.size());
+    auto stage = path;
+    stage += ".tmp";
+    std::filesystem::create_directory(stage);
+    CHECK(xllama::diffusion::publish_png_rgb(path, 1, 1, {255, 64, 0}) == 0);
+    std::ifstream input(path, std::ios::binary);
+    std::vector<uint8_t> saved(std::istreambuf_iterator<char>(input), {});
+    CHECK(saved == expected);
+    input.close();
+    std::filesystem::remove(stage);
+    std::filesystem::remove(path);
+}

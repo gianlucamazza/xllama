@@ -9,6 +9,8 @@
 // pure so the CRC/adler/stream framing is unit-tested on the host.
 #pragma once
 
+#include "xllama/atomic_file.h"
+
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
@@ -100,16 +102,19 @@ inline std::vector<uint8_t> encode_png_rgb(int w, int h, const std::vector<uint8
     return out;
 }
 
-// Write the PNG to a file. Returns false on I/O error. (fopen path is UTF-8; the
-// UWP caller passes a resolved LocalState path.)
+// Return the exact published byte count, or zero if staging or publication failed.
+inline size_t publish_png_rgb(const std::filesystem::path& path, int w, int h,
+                              const std::vector<uint8_t>& rgb) {
+    const auto bytes = encode_png_rgb(w, h, rgb);
+    const bool saved = replace_file_checked(
+        path,
+        [&](FILE* f) { return std::fwrite(bytes.data(), 1, bytes.size(), f) == bytes.size(); },
+        bytes.size());
+    return saved ? bytes.size() : 0;
+}
+
 inline bool write_png_rgb(const std::string& path, int w, int h, const std::vector<uint8_t>& rgb) {
-    const std::vector<uint8_t> bytes = encode_png_rgb(w, h, rgb);
-    FILE* f = std::fopen(path.c_str(), "wb");
-    if (!f)
-        return false;
-    const size_t wrote = std::fwrite(bytes.data(), 1, bytes.size(), f);
-    std::fclose(f);
-    return wrote == bytes.size();
+    return publish_png_rgb(std::filesystem::u8path(path), w, h, rgb) != 0;
 }
 
 } // namespace xllama::diffusion

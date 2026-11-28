@@ -3,11 +3,10 @@
 
 #pragma once
 
-#ifdef XLLAMA_UWP
-
-    #include <cstdint>
-    #include <string>
-    #include <vector>
+#include <cstdint>
+#include <filesystem>
+#include <string>
+#include <vector>
 
 namespace xllama::ui {
 
@@ -51,7 +50,7 @@ class ChatHistory {
     void LoadIndex();
 
     // Save conversation to disk and update index.
-    void Save(const Conversation& conv);
+    bool Save(const Conversation& conv);
 
     // Load a specific conversation by id. Returns empty on failure.
     Conversation Load(const std::string& id) const;
@@ -68,19 +67,21 @@ class ChatHistory {
     void Clear();
 
     // Derive conversation id from title (for new convos: generate UUID).
+#ifdef XLLAMA_UWP
     static std::string NewId();
+#endif
 
     // Build title from first user message (up to 60 chars, no newlines).
     static std::string TitleFrom(const std::string& text);
 
   private:
-    void SaveIndex();
-    std::string ConvPath(const std::string& id) const;
+    void ReadIndex();
+    void UpdateMeta(const Conversation& conv);
+    bool SaveIndex();
+    std::filesystem::path ConvPath(const std::string& id) const;
 
     std::string m_dir;
     std::vector<ConversationMeta> m_index;
 };
 
 } // namespace xllama::ui
-
-#endif // XLLAMA_UWP

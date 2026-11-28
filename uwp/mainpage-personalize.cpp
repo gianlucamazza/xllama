@@ -5,6 +5,7 @@
 // includes and helpers are in mainpage-internal.h.
 
 #include "mainpage-internal.h"
+#include "xllama/model_write.h"
 
 #ifdef XLLAMA_UWP
 
@@ -44,52 +45,16 @@ std::string MainPageController::ResolvePersonalizeBase() const {
 
 bool MainPageController::PublishPersonalizedModel(const std::string& merged_gguf_path,
                                                   std::string* err) {
-    if (merged_gguf_path.empty()) {
+    auto permit = ModelDownloader::WriterGate().try_acquire();
+    if (!permit.owns_lock()) {
         if (err)
-            *err = "empty merged.gguf path";
+            *err = "Another model write is in progress";
         return false;
     }
-    const std::wstring src = ::xllama::utf8_to_wstring(merged_gguf_path);
-    if (GetFileAttributesW(src.c_str()) == INVALID_FILE_ATTRIBUTES) {
-        if (err)
-            *err = "merged.gguf not found: " + merged_gguf_path;
+    const auto root = winrt::Windows::Storage::ApplicationData::Current().LocalFolder().Path();
+    if (!publish_personalized_model(std::filesystem::path(root.c_str()),
+                                    std::filesystem::u8path(merged_gguf_path), err))
         return false;
-    }
-
-    // LocalState\models\personalized\model.gguf + .complete
-    CreateDirectoryW(local_wpath(L"models").c_str(), nullptr);
-    const std::wstring dest_dir = local_wpath(L"models\\personalized");
-    CreateDirectoryW(dest_dir.c_str(), nullptr);
-    const std::wstring dest = dest_dir + L"\\model.gguf";
-    if (!CopyFileW(src.c_str(), dest.c_str(), FALSE)) {
-        if (err)
-            *err = "CopyFile failed for personalized model.gguf";
-        return false;
-    }
-    // Touch .complete so IsModelProvisioned accepts the dir.
-    FILE* done = _wfopen((dest_dir + L"\\.complete").c_str(), L"w");
-    if (done) {
-        fputs("ok\n", done);
-        fclose(done);
-    }
-
-    uint64_t approx = 0;
-    WIN32_FILE_ATTRIBUTE_DATA fad{};
-    if (GetFileAttributesExW(dest.c_str(), GetFileExInfoStandard, &fad)) {
-        approx = (static_cast<uint64_t>(fad.nFileSizeHigh) << 32) | fad.nFileSizeLow;
-    }
-    const std::string override_json = ::xllama::personalized_manifest_override_json(
-        ::xllama::kPersonalizedModelId, ::xllama::kPersonalizedDisplay, approx);
-
-    // Merge onto any existing LocalState manifest.json override (per-entry).
-    // LoadModelManifest already merges LocalState on top of bundled; we only
-    // rewrite LocalState so a single-entry personalized override does not
-    // shadow the catalogue when no other override existed — write a document
-    // that contains just the personalized entry; LoadModelManifest merges it.
-    // If an override already exists, re-read its models array is complex without
-    // a full JSON rewriter; the per-entry merge means a same-name replace is
-    // enough, and a one-entry override still keeps all bundled models.
-    ::xllama::write_local_text("manifest.json", override_json);
     InvalidateManifestCache(); // catalogue changed — StartInference reads the cache
     return true;
 }

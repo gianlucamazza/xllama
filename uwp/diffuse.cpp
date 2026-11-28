@@ -202,7 +202,7 @@ bool cancel_requested() {
 
 } // namespace
 
-void run_diffuse() {
+std::size_t run_diffuse() {
     _set_se_translator([](unsigned int code, EXCEPTION_POINTERS*) {
         char b[48];
         snprintf(b, sizeof(b), "SEH 0x%08X", code);
@@ -401,7 +401,7 @@ void run_diffuse() {
             run_unet(sched);
         }
         if (cancelled)
-            return;
+            return 0;
 
         // ---- VAE decode: latent/scale [1,4,64,64] -> sample[1,3,512,512] -----
         write_progress("vae");
@@ -433,14 +433,10 @@ void run_diffuse() {
                 x = std::max(0.0f, std::min(1.0f, x));
                 rgb[(size_t)i * 3 + c] = (uint8_t)(x * 255.0f + 0.5f);
             }
-        // Encode with the host-tested writer, then write via the wide-path API
-        // used throughout the UWP code (LocalState paths are wide).
-        const std::vector<uint8_t> png = diffusion::encode_png_rgb(kImageHW, kImageHW, rgb);
-        FILE* pf = _wfopen(utf8_to_wstring(resolve_local_path("diffuse-out.png")).c_str(), L"wb");
-        if (pf) {
-            fwrite(png.data(), 1, png.size(), pf);
-            fclose(pf);
-        }
+        const auto size = diffusion::publish_png_rgb(
+            utf8_to_wstring(resolve_local_path("diffuse-out.png")), kImageHW, kImageHW, rgb);
+        if (!size)
+            throw std::runtime_error("Could not publish complete PNG");
 
         const double total_ms = te_ms + unet_ms + vae_ms;
         const size_t process_peak_ws_mb = peak_working_set_mb();
@@ -466,20 +462,10 @@ void run_diffuse() {
                     vae_ms, total_ms, kImageHW, kImageHW, date_buf, process_peak_ws_mb);
             fclose(fp);
         }
-        if (pf) {
-            FILE* done =
-                _wfopen(utf8_to_wstring(resolve_local_path("diffuse-out.png.done")).c_str(), L"w");
-            if (done) {
-                fputs("done\n", done);
-                fclose(done);
-            }
-            log_output("[xllama] diffuse: wrote diffuse-out.png (" + std::to_string(kImageHW) +
-                       "x" + std::to_string(kImageHW) + ")\n");
-            write_progress("done");
-        } else {
-            log_output("[xllama] diffuse: PNG write failed\n");
-            write_progress("error");
-        }
+        if (!write_local_text("diffuse-out.png.done", "done\n"))
+            throw std::runtime_error("Could not mark PNG complete");
+        write_progress("done");
+        return size;
     } catch (const Ort::Exception& e) {
         log_output(std::string("[xllama] diffuse: ORT error: ") + e.what() + "\n");
         write_progress("error");
@@ -487,6 +473,7 @@ void run_diffuse() {
         log_output(std::string("[xllama] diffuse: error: ") + e.what() + "\n");
         write_progress("error");
     }
+    return 0;
 }
 
 } // namespace xllama::bridge

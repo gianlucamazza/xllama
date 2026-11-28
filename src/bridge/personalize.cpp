@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 #include "xllama/personalize.h"
+#include "xllama/atomic_file.h"
 #include "xllama/json_utils.h"
 #include "xllama/training.h"
+#include <nlohmann/json.hpp>
 
 #include <cctype>
 #include <cstdio>
@@ -152,6 +154,146 @@ std::string format_personalize_job_json(const TrainingJob& job) {
     }
     os << "\n}\n";
     return os.str();
+}
+
+bool publish_personalized_manifest(const std::filesystem::path& path, uint64_t model_bytes,
+                                   std::string* err) {
+    using Json = nlohmann::ordered_json;
+    std::error_code ec;
+    Json root = Json::object();
+    if (std::filesystem::exists(path, ec)) {
+        std::ifstream input(path, std::ios::binary);
+        if (!input) {
+            set_err(err, "Could not open the local manifest");
+            return false;
+        }
+        root = Json::parse(input, nullptr, false);
+        if (input.bad() || !root.is_object() || !root.contains("models") ||
+            !root["models"].is_array()) {
+            set_err(err, "Could not read the existing local manifest");
+            return false;
+        }
+    } else if (ec) {
+        set_err(err, "Could not inspect the local manifest: " + ec.message());
+        return false;
+    } else {
+        root["models"] = Json::array();
+    }
+    auto& models = root["models"];
+    auto entry = Json::parse(personalized_manifest_override_json(kPersonalizedModelId,
+                                                                 kPersonalizedDisplay, model_bytes))
+                     .at("models")
+                     .at(0);
+    for (auto it = models.begin(); it != models.end();) {
+        if (it->is_object() && it->contains("name") && it->at("name") == kPersonalizedModelId)
+            it = models.erase(it);
+        else
+            ++it;
+    }
+    models.push_back(std::move(entry));
+    if (!replace_file_bytes(path, root.dump(2))) {
+        set_err(err, "Could not replace the local manifest");
+        return false;
+    }
+    return true;
+}
+
+namespace {
+namespace fs = std::filesystem;
+
+// Move the journal out of the recovery path before deleting any of its contents.
+// A restart then sees either a complete rollback journal or a committed generation.
+void finish_publication(const fs::path& dir) {
+    const auto done = dir / ".publish-done";
+    fs::remove_all(done);
+    fs::rename(dir / ".publish-pending", done);
+    std::error_code ignored;
+    fs::remove_all(done, ignored);
+}
+
+void restore_publication_file(const fs::path& journal, const char* name, const fs::path& target) {
+    const auto backup = journal / name;
+    if (fs::exists(backup))
+        fs::rename(backup, target);
+    else if (fs::exists(journal / (std::string(name) + ".absent")))
+        fs::remove(target);
+    // An existing target with neither record was never moved, or already restored.
+}
+
+void prepare_backup(const fs::path& stage, const char* name, const fs::path& target, bool copy) {
+    if (!fs::exists(target)) {
+        if (!replace_file_bytes(stage / (std::string(name) + ".absent"), ""))
+            throw std::runtime_error("Could not record prior publication state");
+    } else if (!fs::is_regular_file(target)) {
+        throw std::runtime_error("Unexpected directory in model publication");
+    } else if (copy) {
+        fs::copy_file(target, stage / name);
+    }
+}
+} // namespace
+
+bool recover_personalized_publication(const fs::path& local, std::string* err) {
+    const auto dir = local / "models" / kPersonalizedModelId;
+    const auto pending = dir / ".publish-pending";
+    try {
+        if (!fs::exists(pending))
+            return true;
+        restore_publication_file(pending, "old-model", dir / "model.gguf");
+        restore_publication_file(pending, "old-manifest", local / "manifest.json");
+        restore_publication_file(pending, "old-marker", dir / ".complete");
+        finish_publication(dir);
+        return true;
+    } catch (const std::exception& e) {
+        set_err(err, e.what());
+        return false;
+    }
+}
+
+bool publish_personalized_model(const fs::path& local, const fs::path& merged, std::string* err) {
+    const auto dir = local / "models" / kPersonalizedModelId;
+    const auto stage = dir / ".publish-stage";
+    const auto pending = dir / ".publish-pending";
+    const auto model = dir / "model.gguf";
+    const auto manifest = local / "manifest.json";
+    const auto marker = dir / ".complete";
+    if (!recover_personalized_publication(local, err))
+        return false;
+    try {
+        fs::remove_all(stage);
+        fs::create_directories(stage);
+        prepare_backup(stage, "old-model", model, false);
+        prepare_backup(stage, "old-marker", marker, true);
+        prepare_backup(stage, "old-manifest", manifest, true);
+        if (fs::exists(stage / "old-manifest"))
+            fs::copy_file(stage / "old-manifest", stage / "new-manifest");
+        const auto size = fs::file_size(merged);
+        if (size == 0)
+            throw std::runtime_error("Empty merged model");
+        std::string manifest_error;
+        if (!publish_personalized_manifest(stage / "new-manifest", size, &manifest_error))
+            throw std::runtime_error(manifest_error);
+        fs::copy_file(merged, stage / "new-model");
+        if (fs::file_size(stage / "new-model") != size ||
+            !replace_file_bytes(stage / "new-marker", "ok"))
+            throw std::runtime_error("Could not stage the complete personalized model");
+        fs::rename(stage, pending);
+        fs::remove(marker);
+        if (fs::exists(model))
+            fs::rename(model, pending / "old-model");
+        fs::rename(pending / "new-model", model);
+        fs::rename(pending / "new-manifest", manifest);
+        fs::rename(pending / "new-marker", marker);
+        finish_publication(dir);
+        return true;
+    } catch (const std::exception& e) {
+        set_err(err, e.what());
+        std::error_code ignored;
+        fs::remove_all(stage, ignored);
+        std::string recovery_error;
+        if (!recover_personalized_publication(local, &recovery_error) && err)
+            *err += "; recovery: " + recovery_error;
+        return false;
+    }
 }
 
 std::string personalized_manifest_override_json(const std::string& model_id,
