@@ -1,0 +1,100 @@
+[llama] load_tensors:          CPU model buffer size =     0.00 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =     0.00 MiB
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     0.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.08 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =   140.02 MiB
+[llama] load_tensors:          CPU model buffer size =     0.00 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =     0.00 MiB
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     0.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.08 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =   140.02 MiB
+[xllama] Session: memory estimate n_ctx=2048 (n_ctx_train 128000) host 373 MB (weights 207, context 25, compute 141), device 0 MB, 53 MB in use
+[llama] load_tensors:   CPU_Mapped model buffer size =   204.62 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =   154.12 MiB
+[xllama] ws after model load: 412 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =    24.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.08 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =   140.02 MiB
+[xllama] ws after context: 436 MB
+[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0) prefix_snapshot=1
+[xllama] prefill starting: 11 tokens
+[xllama] session: prefix checkpoints captured to 3 of 11 tokens (hybrid, 1 held, 80 KiB partial state)
+[xllama] prefill done: 11 tokens in 4422 ms
+[xllama] decode progress: 6/8 tokens (15554 ms)
+[xllama] session generate: n=8 prefill=4421.8ms (11 tok) reuse=0 drafted=0 spec_accept=0
+[llama] ~llama_context:        CPU compute buffer size is 140.0196 MiB, matches expectation of 140.0196 MiB
+[llama] load_tensors:          CPU model buffer size =     0.00 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =     0.00 MiB
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     0.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.08 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =   146.02 MiB
+[llama] load_tensors:          CPU model buffer size =     0.00 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =     0.00 MiB
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     0.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.08 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =   146.02 MiB
+[xllama] Session: memory estimate n_ctx=8192 (n_ctx_train 128000) host 451 MB (weights 207, context 97, compute 147), device 0 MB, 55 MB in use
+[llama] load_tensors:   CPU_Mapped model buffer size =   204.62 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =   154.12 MiB
+[xllama] ws after model load: 414 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =    96.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.08 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =   146.02 MiB
+[xllama] ws after context: 510 MB
+[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0) prefix_snapshot=1
+[xllama] prefill starting: 11 tokens
+[xllama] session: prefix checkpoints captured to 3 of 11 tokens (hybrid, 1 held, 80 KiB partial state)
+[xllama] prefill done: 11 tokens in 4930 ms
+[xllama] decode progress: 8/8 tokens (16884 ms)
+[xllama] session generate: n=8 prefill=4929.9ms (11 tok) reuse=0 drafted=0 spec_accept=0
+[llama] ~llama_context:        CPU compute buffer size is 146.0196 MiB, matches expectation of 146.0196 MiB
+[xllama] Session: n_ctx 16777216 capped at the model's trained context 128000
+[llama] load_tensors:          CPU model buffer size =     0.00 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =     0.00 MiB
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     0.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.08 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =   162.02 MiB
+[xllama] Session: n_ctx 33554432 capped at the model's trained context 128000
+[llama] load_tensors:          CPU model buffer size =     0.00 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =     0.00 MiB
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     0.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.08 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =   162.02 MiB
+[doctest] doctest version is "2.4.11"
+[doctest] run with "--help" for options
+===============================================================================
+tests/test_session.cpp:1034:
+TEST CASE:  Session::estimate_memory covers the real load (opt-in: XLLAMA_TEST_MODEL)
+
+tests/test_session.cpp:1055: MESSAGE: n_ctx 2048: estimate 373 MB (weights 207, context 25, compute 141), private memory grew 182 MB
+
+tests/test_session.cpp:1055: MESSAGE: n_ctx 8192: estimate 451 MB (weights 207, context 97, compute 147), private memory grew 252 MB
+
+===============================================================================
+tests/test_session.cpp:1063:
+TEST CASE:  Session::estimate_memory: a GGUF n_ctx above the trained context is capped there (opt-in: XLLAMA_TEST_MODEL)
+
+tests/test_session.cpp:1082: MESSAGE: context at the trained n_ctx: 1501 MB
+
+===============================================================================
+[doctest] test cases:  2 |  2 passed | 0 failed | 648 skipped
+[doctest] assertions: 16 | 16 passed | 0 failed |
+[doctest] Status: SUCCESS!

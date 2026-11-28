@@ -50,6 +50,7 @@ add_executable(xllama-tests
     test_ramceil.cpp
     test_model_provision.cpp
     test_model_file_plan.cpp
+    test_moe_resident_operator.cpp
     test_moe_streaming.cpp
     test_moe_expert_cache.cpp
     test_model_write.cpp
