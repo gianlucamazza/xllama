@@ -3,6 +3,7 @@
 """Preregistered paired-campaign verdict: margins, interval rule, fail-closed inputs."""
 import csv
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -13,7 +14,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/paired-bench-summary.py"
-FIELDS = ["model", "quant", "backend", "n_ctx", "n_gen_tok", "run_index", "host",
+FIELDS = ["model", "quant", "backend", "n_ctx", "n_threads", "max_length", "n_gen_tok", "run_index", "host",
           "n_prompt_tok", "prompt_tok_s", "decode_tok_s", "ttft_ms", "peak_ws_mb"]
 
 
@@ -36,7 +37,10 @@ def write_cell(root: Path, a_rows, b_rows, statuses=None):
 
 def rows(n, prefill, decode, ttft, peak, seed, noise=0.01):
     rng = np.random.default_rng(seed)
-    return [{"model": "m", "n_prompt_tok": "300",
+    return [{"model": "lfm25-1.2b-instruct", "quant": "Q4_0", "backend": "d3d12",
+             "n_ctx": "2048", "n_threads": "6", "max_length": "0",
+             "n_prompt_tok": "298", "n_gen_tok": "128", "run_index": "2",
+             "host": "xbox-series-s-declared-t6-g99-noeog",
              "prompt_tok_s": f"{prefill * (1 + noise * rng.standard_normal()):.4f}",
              "decode_tok_s": f"{decode * (1 + noise * rng.standard_normal()):.4f}",
              "ttft_ms": f"{ttft * (1 + noise * rng.standard_normal()):.4f}",
@@ -59,9 +63,10 @@ class PairedSummaryTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
 
-    def run_cell(self, cell, gates="prefill,decode,ttft,peak", profile=None):
+    def run_cell(self, cell, gates="prefill,decode,ttft,peak", profile=None, report=False):
         out = self.root / "v.json"
-        mode = ["--profile", profile] if profile else ["--gates", gates]
+        out.unlink(missing_ok=True)
+        mode = ["--profile", profile] if profile else ["--report" if report else "--gates", gates]
         r = subprocess.run([sys.executable, str(SCRIPT), str(cell), *mode,
                             "--json-out", str(out)], capture_output=True, text=True, check=False)
         return r, (json.loads(out.read_text()) if out.exists() else None)
@@ -96,10 +101,10 @@ class PairedSummaryTests(unittest.TestCase):
         self.assertEqual(v["gates"]["peak"]["verdict"], "fail")
         self.assertEqual(v["verdict"], "fail")
 
-    def test_only_complete_pairs_count(self):
+    def test_report_only_counts_complete_pairs(self):
         cell = write_cell(self.root / "c", rows(5, 100, 50, 1000, 800, 1),
                           rows(5, 130, 50, 770, 800, 2), statuses={(3, "B"): "failed"})
-        _, v = self.run_cell(cell, "prefill")
+        _, v = self.run_cell(cell, "prefill", report=True)
         self.assertEqual(v["pairs"], 4)
 
     def test_report_gives_the_interval_without_a_verdict(self):
@@ -120,14 +125,110 @@ class PairedSummaryTests(unittest.TestCase):
     def test_a_retried_attempt_is_not_a_pair(self):
         # bench-paired-knob.sh --retries: an attempt that wrote no row is a
         # "retry" line before the arm's ok line; the pair still counts.
-        cell = write_cell(self.root / "c", rows(4, 100, 50, 1000, 800, 1),
-                          rows(4, 130, 50, 770, 800, 2))
+        cell = write_cell(self.root / "c", rows(20, 100, 50, 1000, 800, 1),
+                          rows(20, 130, 50, 770, 800, 2))
         ledger = cell / "ledger.jsonl"
         lines = ledger.read_text().splitlines()
         lines.insert(1, json.dumps({"pair": 1, "order": "AB", "arm": "B", "status": "retry"}))
         ledger.write_text("\n".join(lines) + "\n")
         _, v = self.run_cell(cell, "prefill")
-        self.assertEqual(v["pairs"], 4)
+        self.assertEqual(v["pairs"], 20)
+
+    def test_gated_retry_must_refer_to_the_current_pending_arm(self):
+        a = rows(20, 100, 50, 1000, 800, 1)
+        for location, pair in ((0, 5), (40, 21)):
+            with self.subTest(pair=pair):
+                cell = write_cell(self.root / "c", a, a)
+                ledger = cell / "ledger.jsonl"
+                lines = ledger.read_text().splitlines()
+                lines.insert(location, json.dumps({"pair": pair, "order": "AB", "arm": "A",
+                                                   "status": "retry"}))
+                ledger.write_text("\n".join(lines) + "\n")
+                self.assertEqual(self.run_cell(cell, "prefill")[0].returncode, 2)
+
+    def test_gated_estimate_requires_all_twenty_ordered_pairs_and_no_extra_rows(self):
+        a = rows(20, 100, 50, 1000, 800, 1)
+        for count in (1, 19, 21):
+            with self.subTest(count=count):
+                cell = write_cell(self.root / "c", (a + a)[:count], (a + a)[:count])
+                self.assertEqual(self.run_cell(cell, "decode")[0].returncode, 2)
+        cell = write_cell(self.root / "c", a, a)
+        ledger = cell / "ledger.jsonl"
+        entries = ledger.read_text().splitlines()
+        entries[2], entries[3] = entries[3], entries[2]
+        ledger.write_text("\n".join(entries) + "\n")
+        self.assertEqual(self.run_cell(cell, "decode")[0].returncode, 2)
+
+        cell = write_cell(self.root / "c", a, a)
+        path = cell / "B.csv"
+        with path.open("a") as fh:
+            fh.write(path.read_text().splitlines(keepends=True)[-1])
+        self.assertEqual(self.run_cell(cell, "decode")[0].returncode, 2)
+
+    def test_gates_reject_configuration_drift_within_and_across_pairs(self):
+        a = rows(20, 100, 50, 1000, 800, 1)
+        for field, value in (("host", "xbox-series-x-declared-t6-g99-noeog"),
+                             ("n_ctx", "4096"), ("quant", "Q4_K_M"),
+                             ("n_gen_tok", "8"), ("n_threads", "4"),
+                             ("max_length", "512"), ("backend", "cpu")):
+            with self.subTest(field=field):
+                b = [dict(row) for row in a]
+                b[-1][field] = value
+                cell = write_cell(self.root / "c", a, b)
+                self.assertEqual(self.run_cell(cell, "decode")[0].returncode, 2)
+        a[-1]["n_prompt_tok"] = "1000"
+        self.assertEqual(self.run_cell(write_cell(self.root / "c", a, a), "decode")[0].returncode, 2)
+
+    def test_candidate_invalid_measurements_cannot_win_a_lower_is_better_gate(self):
+        a = rows(20, 100, 50, 1000, 800, 1)
+        for column, value, gate in (("ttft_ms", "-1", "ttft"), ("ttft_ms", "0", "ttft"),
+                                    ("peak_ws_mb", "-1", "peak"), ("decode_tok_s", "nan", "decode")):
+            with self.subTest(column=column, value=value):
+                b = [dict(row, **{column: value}) for row in a]
+                cell = write_cell(self.root / "c", a, b)
+                self.assertEqual(self.run_cell(cell, gate)[0].returncode, 2)
+
+    def test_a_missing_working_set_reading_in_either_arm_is_not_a_measured_delta(self):
+        a = rows(20, 100, 50, 1000, 800, 1)
+        zero = [dict(row, peak_ws_mb="0") for row in a]
+        for baseline, candidate in ((a, zero), (zero, a)):
+            cell = write_cell(self.root / "c", baseline, candidate)
+            for report in (True, False):
+                result, summary = self.run_cell(cell, "peak", report=report)
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIn("peak_ws_mb has a missing or zero measurement", result.stdout)
+                self.assertIsNone(summary)
+
+    def test_report_rejects_ambiguous_ledger_row_references(self):
+        a = rows(3, 100, 50, 1000, 800, 1)
+        for edit in ("zero", "outside", "duplicate", "detail"):
+            with self.subTest(edit=edit):
+                cell = write_cell(self.root / "r", a, a)
+                ledger = cell / "ledger.jsonl"
+                entries = [json.loads(line) for line in ledger.read_text().splitlines()]
+                if edit == "duplicate":
+                    entries.append(entries[-1])
+                elif edit == "detail":
+                    entries[0]["detail"] = "row 3"
+                else:
+                    for entry in entries[-2:]:
+                        entry["pair"] = 0 if edit == "zero" else 5
+                ledger.write_text("".join(json.dumps(entry) + "\n" for entry in entries))
+                result, summary = self.run_cell(cell, "decode", report=True)
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIsNone(summary)
+
+    def test_published_pairs_reproduce_the_six_frozen_verdicts(self):
+        declaration = ROOT / "docs/research/evidence/2026-11-16-c4-performance/manifest.json"
+        for spec in json.loads(declaration.read_text())["cells"]:
+            with self.subTest(cell=spec["id"]):
+                cell = ROOT / "bench/results/2026-11-16-c4-paired/cells" / spec["id"]
+                expected = json.loads((cell / "verdict.json").read_text())
+                result, actual = self.run_cell(cell, ",".join(spec["gates"]))
+                self.assertEqual(result.returncode, 0 if expected["verdict"] == "pass" else 1)
+                self.assertEqual(actual["pairs"], spec["pairs"])
+                self.assertEqual(actual["gates"], expected["gates"])
+                self.assertEqual(actual["verdict"], expected["verdict"])
 
     def test_bias_add_profile_uses_preregistered_margins(self):
         a = bias_rows(20, 100, 50, 1000, 800, 1)
@@ -146,6 +247,13 @@ class PairedSummaryTests(unittest.TestCase):
         r, _ = self.run_cell(cell, profile="bias-add")
         self.assertEqual(r.returncode, 2)
         self.assertIn("20 complete", r.stdout)
+
+    def test_profile_requires_measured_positive_thread_count(self):
+        a = bias_rows(20, 100, 50, 1000, 800, 1)
+        for row in a:
+            row["n_threads"] = "0"
+        cell = write_cell(self.root / "c", a, a)
+        self.assertEqual(self.run_cell(cell, profile="bias-add")[0].returncode, 2)
 
     def test_bias_add_profile_rejects_mixed_cells_and_unmatched_settings(self):
         a = bias_rows(20, 100, 50, 1000, 800, 1)
@@ -229,6 +337,26 @@ class PairedSummaryTests(unittest.TestCase):
         r, _ = self.run_cell(cell, profile="rope")
         self.assertEqual(r.returncode, 1, r.stderr or r.stdout)
 
+    def test_gpu_profiles_require_work_in_each_measured_phase(self):
+        control = bias_rows(20, 100, 50, 1000, 800, 1, control=True)
+        cell = write_cell(self.root / "control", control, control)
+        self.write_rope_logs(cell, a_decode=0, b_decode=0, a_prefill=0, b_prefill=0)
+        result, summary = self.run_cell(cell, profile="bias-add-control")
+        self.assertEqual(result.returncode, 2, result.stdout)
+        self.assertIsNone(summary)
+
+        cell, _, _ = self.rope_cell()
+        log = cell / "pair8-B-app.log"
+        original = log.read_text().splitlines(keepends=True)
+        for phase, counter in ((2, "calls"), (2, "submissions"), (3, "dispatches")):
+            with self.subTest(phase=phase, counter=counter):
+                lines = original.copy()
+                lines[phase] = re.sub(rf"\b{counter}=\d+", f"{counter}=0", lines[phase])
+                log.write_text("".join(lines))
+                result, summary = self.run_cell(cell, profile="rope")
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIsNone(summary)
+
     def test_rope_profile_rejects_an_incomplete_or_mixed_campaign(self):
         a = bias_rows(19, 100, 50, 1000, 800, 1)
         cell = write_cell(self.root / "i", a, a)
@@ -255,16 +383,16 @@ class PairedSummaryTests(unittest.TestCase):
         self.assertEqual(r.returncode, 2, r.stderr or r.stdout)
 
     def test_invalid_inputs_fail_closed(self):
-        good = write_cell(self.root / "g", rows(4, 100, 50, 1000, 800, 1),
-                          rows(4, 130, 50, 770, 800, 2))
+        good = write_cell(self.root / "g", rows(20, 100, 50, 1000, 800, 1),
+                          rows(20, 130, 50, 770, 800, 2))
         self.assertEqual(self.run_cell(good, "speed")[0].returncode, 2)
-        mixed = rows(4, 130, 50, 770, 800, 2)
+        mixed = rows(20, 130, 50, 770, 800, 2)
         mixed[1]["n_prompt_tok"] = "900"
-        cell = write_cell(self.root / "m", rows(4, 100, 50, 1000, 800, 1), mixed)
+        cell = write_cell(self.root / "m", rows(20, 100, 50, 1000, 800, 1), mixed)
         self.assertEqual(self.run_cell(cell)[0].returncode, 2)
-        zero = rows(4, 100, 50, 1000, 800, 1)
+        zero = rows(20, 100, 50, 1000, 800, 1)
         zero[0]["prompt_tok_s"] = "0"
-        cell = write_cell(self.root / "z", zero, rows(4, 130, 50, 770, 800, 2))
+        cell = write_cell(self.root / "z", zero, rows(20, 130, 50, 770, 800, 2))
         self.assertEqual(self.run_cell(cell)[0].returncode, 2)
         (good / "ledger.jsonl").unlink()
         self.assertEqual(self.run_cell(good)[0].returncode, 2)
