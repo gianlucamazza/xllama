@@ -105,6 +105,15 @@ TEST_CASE("Ollama: requests xllama cannot honour are refused before admission") 
     const auto error = [](const char* body, OllamaRoute route = OllamaRoute::Chat) {
         return parse_ollama_request(body, route).error;
     };
+    for (const auto route : {OllamaRoute::Chat, OllamaRoute::Generate}) {
+        for (const char* field : {"reasoning_budget_tokens", "max_reasoning_tokens"}) {
+            json input{{"model", "chat"}, {field, 0}};
+            CHECK(parse_ollama_request(input.dump(), route).error ==
+                  std::string(field) + " is unsupported");
+            input[field] = nullptr;
+            CHECK(parse_ollama_request(input.dump(), route).error.empty());
+        }
+    }
     CHECK(error(R"({"model":"../chat"})") == "model must be an id from /api/tags");
     CHECK(error(R"({"model":"a/b"})") == "model must be an id from /api/tags");
     CHECK(error(R"({"model":"chat","stream":"yes"})") == "stream must be boolean");

@@ -59,7 +59,8 @@ def main():
         for field, value in (
             ("n", 2), ("n", True), ("logprobs", True), ("logprobs", 0),
             ("top_logprobs", 3), ("presence_penalty", -0.5),
-            ("frequency_penalty", "0"),
+            ("frequency_penalty", "0"), ("reasoning_budget_tokens", 0),
+            ("max_reasoning_tokens", 32),
         ):
             for stream in (False, True):
                 try:

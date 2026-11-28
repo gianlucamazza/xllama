@@ -39,6 +39,10 @@ inline bool api_response_format_supported(const ApiResponseFormat& f) {
 // Strings, arrays and objects map to monostate so they cannot match a default.
 using ApiGenerationValue = std::variant<std::nullptr_t, bool, double, std::monostate>;
 
+// These proposed aliases have no budget sampler on either shipping backend (#680).
+inline constexpr const char* kReasoningBudgetFields[] = {"reasoning_budget_tokens",
+                                                         "max_reasoning_tokens"};
+
 template <typename Lookup> const char* unsupported_openai_generation_field(Lookup lookup) {
     static constexpr struct {
         const char* key;
@@ -52,6 +56,10 @@ template <typename Lookup> const char* unsupported_openai_generation_field(Looku
         const ApiGenerationValue value = lookup(field.key);
         if (!std::holds_alternative<std::nullptr_t>(value) && value != field.value)
             return field.key;
+    }
+    for (const char* key : kReasoningBudgetFields) {
+        if (!std::holds_alternative<std::nullptr_t>(lookup(key)))
+            return key;
     }
     return nullptr;
 }

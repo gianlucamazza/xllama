@@ -75,6 +75,13 @@ TEST_CASE("OpenAI generation fields preserve typed defaults and name unsupported
             });
         return std::string(error ? error : "");
     };
+    for (const char* key : {"reasoning_budget_tokens", "max_reasoning_tokens"}) {
+        CHECK(check(key, nullptr).empty());
+        CHECK(check(key, 0.0) == key);
+        CHECK(check(key, 32.0) == key);
+        CHECK(check(key, false) == key);
+        CHECK(check(key, std::monostate{}) == key);
+    }
     CHECK(check("n", 1.0).empty());
     CHECK(check("n", 2.0) == "n");
     CHECK(check("n", true) == "n");
