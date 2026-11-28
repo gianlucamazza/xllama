@@ -51,3 +51,7 @@ survives only for routing, where being wrong costs a decision, not an answer.
 Every copy in this codebase has eventually disagreed — silently.
 `decode_loop.h` (llama), `decode_loop_ort.h` (ORT), `sampler_chain.h` (llama),
 `ort_sampling.h` (ORT) — each decision lives in one header.
+
+## How would multiple consoles participate?
+
+The [distributed research program](research/distributed/README.md) links proposed ADRs 0012–0015 on coordinator placement, upstream RPC, transport security and SSD-backed experts. Each proposal identifies its hardware and acceptance gates.
