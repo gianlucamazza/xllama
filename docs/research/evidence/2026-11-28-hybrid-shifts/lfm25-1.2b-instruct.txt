@@ -1,0 +1,130 @@
+[llama] load_tensors:          CPU model buffer size =     0.00 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =     0.00 MiB
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     0.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.16 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =    37.07 MiB
+[xllama] Session: memory estimate n_ctx=128 (n_ctx_train 128000) host 704 MB (weights 662, context 4, compute 38), device 0 MB, 27 MB in use
+[llama] load_tensors:   CPU_Mapped model buffer size =   652.25 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =   555.75 MiB
+[xllama] ws after model load: 1237 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     3.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.16 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =    37.07 MiB
+[xllama] ws after context: 1240 MB
+[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0) prefix_snapshot=0
+[xllama] prefill starting: 91 tokens
+[xllama] prefill done: 91 tokens in 921 ms
+[xllama] session generate: n=0 prefill=920.6ms (91 tok) reuse=0 drafted=0 spec_accept=0
+[xllama] session: context shift — evicted 79 tokens past keep=12, kv now 12 of 128 (rebuilt from 0) (#169/#723)
+[xllama] prefill starting: 91 tokens
+[xllama] prefill done: 91 tokens in 977 ms
+[xllama] session generate: n=0 prefill=976.7ms (91 tok) reuse=1 drafted=0 spec_accept=0
+[xllama] session: context shift — evicted 79 tokens past keep=12, kv now 12 of 128 (rebuilt from 0) (#169/#723)
+[xllama] prefill starting: 91 tokens
+[xllama] prefill done: 91 tokens in 890 ms
+[xllama] session generate: n=0 prefill=889.8ms (91 tok) reuse=1 drafted=0 spec_accept=0
+[xllama] prefill starting: 7 tokens
+[xllama] prefill done: 7 tokens in 88 ms
+[xllama] session generate: n=8 prefill=88.0ms (7 tok) reuse=1 drafted=0 spec_accept=0
+[llama] ~llama_context:        CPU compute buffer size is  37.0674 MiB, matches expectation of  37.0674 MiB
+[llama] load_tensors:          CPU model buffer size =     0.00 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =     0.00 MiB
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     0.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.16 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =    37.07 MiB
+[xllama] Session: memory estimate n_ctx=128 (n_ctx_train 128000) host 704 MB (weights 662, context 4, compute 38), device 0 MB, 34 MB in use
+[llama] load_tensors:   CPU_Mapped model buffer size =   652.25 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =   555.75 MiB
+[xllama] ws after model load: 1242 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     3.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.16 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =    37.07 MiB
+[xllama] ws after context: 1242 MB
+[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0) prefix_snapshot=0
+[xllama] prefill starting: 91 tokens
+[xllama] prefill done: 91 tokens in 945 ms
+[xllama] session generate: n=0 prefill=944.7ms (91 tok) reuse=0 drafted=0 spec_accept=0
+[xllama] prefill starting: 7 tokens
+[xllama] prefill done: 7 tokens in 95 ms
+[xllama] session generate: n=8 prefill=95.1ms (7 tok) reuse=1 drafted=0 spec_accept=0
+[llama] ~llama_context:        CPU compute buffer size is  37.0674 MiB, matches expectation of  37.0674 MiB
+[llama] load_tensors:          CPU model buffer size =     0.00 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =     0.00 MiB
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     0.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.16 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =    37.07 MiB
+[xllama] Session: memory estimate n_ctx=128 (n_ctx_train 128000) host 704 MB (weights 662, context 4, compute 38), device 0 MB, 36 MB in use
+[llama] load_tensors:   CPU_Mapped model buffer size =   652.25 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =   555.75 MiB
+[xllama] ws after model load: 1244 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     3.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.16 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =    37.07 MiB
+[xllama] ws after context: 1244 MB
+[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0) prefix_snapshot=1
+[xllama] prefill starting: 91 tokens
+[xllama] session: prefix checkpoints captured to 83 of 91 tokens (hybrid, 1 held, 160 KiB partial state)
+[xllama] prefill done: 91 tokens in 879 ms
+[xllama] session generate: n=0 prefill=878.8ms (91 tok) reuse=0 drafted=0 spec_accept=0
+[xllama] session: context shift — evicted 79 tokens past keep=12, kv now 12 of 128 (rebuilt from 0) (#169/#723)
+[xllama] prefill starting: 91 tokens
+[xllama] session: prefix checkpoints captured to 83 of 91 tokens (hybrid, 2 held, 320 KiB partial state)
+[xllama] prefill done: 91 tokens in 931 ms
+[xllama] session generate: n=0 prefill=930.5ms (91 tok) reuse=1 drafted=0 spec_accept=0
+[xllama] session: context shift — evicted 79 tokens past keep=12, kv now 12 of 128 (rebuilt from 12) (#169/#723)
+[xllama] prefill starting: 79 tokens
+[xllama] session: prefix checkpoints captured to 83 of 91 tokens (hybrid, 2 held, 320 KiB partial state)
+[xllama] prefill done: 79 tokens in 804 ms
+[xllama] session generate: n=0 prefill=803.7ms (79 tok) reuse=1 drafted=0 spec_accept=0
+[xllama] prefill starting: 7 tokens
+[xllama] prefill done: 7 tokens in 98 ms
+[xllama] session generate: n=8 prefill=98.5ms (7 tok) reuse=1 drafted=0 spec_accept=0
+[llama] ~llama_context:        CPU compute buffer size is  37.0674 MiB, matches expectation of  37.0674 MiB
+[llama] load_tensors:          CPU model buffer size =     0.00 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =     0.00 MiB
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     0.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.16 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =    37.07 MiB
+[xllama] Session: memory estimate n_ctx=128 (n_ctx_train 128000) host 704 MB (weights 662, context 4, compute 38), device 0 MB, 36 MB in use
+[llama] load_tensors:   CPU_Mapped model buffer size =   652.25 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =   555.75 MiB
+[xllama] ws after model load: 1244 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =     3.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.16 MiB
+[llama] resolve_fused_ops: Flash Attention enabled
+[llama] sched_reserve:        CPU compute buffer size =    37.07 MiB
+[xllama] ws after context: 1244 MB
+[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0) prefix_snapshot=1
+[xllama] prefill starting: 91 tokens
+[xllama] session: prefix checkpoints captured to 83 of 91 tokens (hybrid, 1 held, 160 KiB partial state)
+[xllama] prefill done: 91 tokens in 897 ms
+[xllama] session generate: n=0 prefill=896.9ms (91 tok) reuse=0 drafted=0 spec_accept=0
+[xllama] prefill starting: 7 tokens
+[xllama] prefill done: 7 tokens in 86 ms
+[xllama] session generate: n=8 prefill=85.5ms (7 tok) reuse=1 drafted=0 spec_accept=0
+[llama] ~llama_context:        CPU compute buffer size is  37.0674 MiB, matches expectation of  37.0674 MiB
+[doctest] doctest version is "2.4.11"
+[doctest] run with "--help" for options
+===============================================================================
+[doctest] test cases:  1 |  1 passed | 0 failed | 36 skipped
+[doctest] assertions: 30 | 30 passed | 0 failed |
+[doctest] Status: SUCCESS!

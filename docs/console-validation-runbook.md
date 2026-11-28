@@ -312,6 +312,34 @@ holds successes, and pass only when the gate reports that failure. Set
 `XLLAMA_EXPECTED_PFN` to refuse a different installed package before any
 upload.
 
+## Repeated hybrid context shifts (#725)
+
+Provision `lfm25-350m` and `lfm25-1.2b-instruct` from the catalogue and set
+`XLLAMA_EXPECTED_PFN` to the installed package full name from the selected build.
+Use a fresh output directory for each console and package.
+
+```bash
+./scripts/validate-console.sh longchat-repeat ./series-s-hybrid-shifts
+```
+
+Each arm streams the GGUF once through Device Portal to verify its catalogue
+SHA-256 before launching the app. The campaign seeds the same 12 conversation
+rounds as `longchat`, selects the GGUF model and sends 36 greedy follow-ups
+with a 64-token generation limit. Every send must finish with one native
+generation record. At least two distinct sends per model must log a recurrent
+state rebuild. Failed checks return a nonzero status.
+
+The output records the package, harness commit and Device Portal platform/OS.
+Each model directory contains the observed checkpoint hash, seed and autopilot
+inputs, verified model and sampling settings, completion marker, scoped log and
+`shifts.json`. Every shift records the
+number of surviving tokens, pinned prefix, restored prefix, evicted tokens,
+new tokens, prefill duration and intervening completed sends. New tokens equal
+the prefill count minus the surviving tokens replayed after prefix restoration.
+Preserve the directory alongside the package artifact digest and source CI run.
+The [Linux checkpoint receipt](research/evidence/2026-11-28-hybrid-shifts/receipt.json)
+covers the 128-token cold-continuation tests.
+
 ## Reduced-SKU smoke (not in `all`)
 
 Research-stripped package: no LAN, no USB, no headless flags. Autopilot remains.

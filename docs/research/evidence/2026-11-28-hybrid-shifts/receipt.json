@@ -1,0 +1,174 @@
+{
+  "captured_utc": "2026-11-28",
+  "status": "VERIFIED",
+  "scope": "Host-native cold continuation on hash-checked complete GGUF checkpoints. Single run per model in a shared host. Prefill times are observed diagnostics.",
+  "source_commit": "1b55ec210b0b6cefe912fb960326c765afb74d90",
+  "tested_pr_713_tip": "581bda42a55a0230f71a48fd11d0cfa887ce3777",
+  "identical_source_tree": "f295937fffc1762ab59de70d32bbffdc5934c88b",
+  "llama_cpp_gitlink": "d81235049384534c167caea52b85a694f6103d14",
+  "platform": {
+    "os": "Linux 6.18.57 x86_64",
+    "cpu": "AMD EPYC 9V45 96-Core Processor",
+    "compiler": "GCC 14.2.0",
+    "backend": "CPU AVX2 with OpenMP and weight repacking",
+    "gpu_layers": 0,
+    "package": null
+  },
+  "build": {
+    "runtime": "Release, -O1 -DNDEBUG, GGML_NATIVE=OFF, GGML_AVX2=ON, GGML_OPENMP=ON, GGML_CPU_REPACK=ON",
+    "test_units": "test_main, test_session and test_granite_hybrid_snapshot compiled from the final candidate tree with -O2 -DNDEBUG and doctest 2.4.11. Linked to Release libraries built from e2abab1f4510ca8cc96fa47f378bc00f7b4bc7e8. src, include, patches and the gitlink match the tested tree.",
+    "n_ctx": 128,
+    "n_batch_request": 0,
+    "n_ubatch_request": 0,
+    "temperature": 0
+  },
+  "reproduce": [
+    "python3 scripts/check-granite-shift.py --model \"$GRANITE_Q3_K_S\" --test-binary \"$XLLAMA_TESTS\"",
+    "XLLAMA_TEST_HYBRID_SHIFT_MODEL=\"$LFM_GGUF\" \"$XLLAMA_TESTS\" --no-skip \"--test-case=Session: repeated hybrid shifts match a cold continuation\""
+  ],
+  "rows": [
+    {
+      "model": "granite40-h-tiny",
+      "catalogue_pin": "bench/results/2026-11-24-granite40-h-tiny/manifest.override.json",
+      "filename": "granite-4.0-h-tiny-Q3_K_S.gguf",
+      "bytes": 3062452832,
+      "sha256": "5ec3f4af77fffead37b09984a97625f0f532f6ae2ead65b5019bce6dd8b4d0cd",
+      "test": "Session: granitehybrid cold continuation on identical surviving tokens",
+      "threads": 4,
+      "log": "granite40-h-tiny.txt",
+      "log_sha256": "3fd62d283431b4bf4e00b3254fc2aeb754a9c45328d60967a94ea237038a944e",
+      "exit_code": 0,
+      "assertions_passed": 54,
+      "surviving_token_ids": 42,
+      "warm_generated": 4,
+      "cold_generated": 4,
+      "matched_continuation": ": LEMON."
+    },
+    {
+      "model": "lfm25-350m",
+      "catalogue_pin": "uwp/models/manifest.json",
+      "filename": "LFM2.5-350M-QAD-Q4_0.gguf",
+      "bytes": 219312832,
+      "sha256": "3d10b6ab8fc91a919534b9558e266255aca0bbc7f6d015963599aa9e74e05b1d",
+      "test": "Session: repeated hybrid shifts match a cold continuation",
+      "threads": 2,
+      "log": "lfm25-350m.txt",
+      "log_sha256": "1138e383d54181356230e0da5bbdb4cabb7fc9505cc5162971622eb9ab5bdd08",
+      "exit_code": 0,
+      "assertions_passed": 30,
+      "shifts": [
+        {
+          "prefix_snapshots": false,
+          "evicted": 79,
+          "pinned": 12,
+          "surviving": 12,
+          "restored": 0,
+          "new": 79,
+          "prefill_tokens": 91,
+          "prefill_ms": 295.1
+        },
+        {
+          "prefix_snapshots": false,
+          "evicted": 79,
+          "pinned": 12,
+          "surviving": 12,
+          "restored": 0,
+          "new": 79,
+          "prefill_tokens": 91,
+          "prefill_ms": 283.6
+        },
+        {
+          "prefix_snapshots": true,
+          "evicted": 79,
+          "pinned": 12,
+          "surviving": 12,
+          "restored": 0,
+          "new": 79,
+          "prefill_tokens": 91,
+          "prefill_ms": 650.9
+        },
+        {
+          "prefix_snapshots": true,
+          "evicted": 79,
+          "pinned": 12,
+          "surviving": 12,
+          "restored": 12,
+          "new": 79,
+          "prefill_tokens": 79,
+          "prefill_ms": 527.7
+        }
+      ],
+      "generated_in_each_warm_and_cold_probe": 2,
+      "matched_fields": [
+        "generated token count",
+        "output text",
+        "termination reason"
+      ]
+    },
+    {
+      "model": "lfm25-1.2b-instruct",
+      "catalogue_pin": "uwp/models/manifest.json",
+      "filename": "LFM2.5-1.2B-Instruct-QAD-Q4_0.gguf",
+      "bytes": 695755488,
+      "sha256": "bb741ebb106d543e9de114b843a3d3d73d51c74b5801e69da2abde821a0cb3e1",
+      "test": "Session: repeated hybrid shifts match a cold continuation",
+      "threads": 2,
+      "log": "lfm25-1.2b-instruct.txt",
+      "log_sha256": "b00e9b19fca60d660e8a63570ec67b0534d25d78102fcd4be1294b46b6231586",
+      "exit_code": 0,
+      "assertions_passed": 30,
+      "shifts": [
+        {
+          "prefix_snapshots": false,
+          "evicted": 79,
+          "pinned": 12,
+          "surviving": 12,
+          "restored": 0,
+          "new": 79,
+          "prefill_tokens": 91,
+          "prefill_ms": 976.7
+        },
+        {
+          "prefix_snapshots": false,
+          "evicted": 79,
+          "pinned": 12,
+          "surviving": 12,
+          "restored": 0,
+          "new": 79,
+          "prefill_tokens": 91,
+          "prefill_ms": 889.8
+        },
+        {
+          "prefix_snapshots": true,
+          "evicted": 79,
+          "pinned": 12,
+          "surviving": 12,
+          "restored": 0,
+          "new": 79,
+          "prefill_tokens": 91,
+          "prefill_ms": 930.5
+        },
+        {
+          "prefix_snapshots": true,
+          "evicted": 79,
+          "pinned": 12,
+          "surviving": 12,
+          "restored": 12,
+          "new": 79,
+          "prefill_tokens": 79,
+          "prefill_ms": 803.7
+        }
+      ],
+      "generated_in_each_warm_and_cold_probe": 8,
+      "matched_fields": [
+        "generated token count",
+        "output text",
+        "termination reason"
+      ]
+    }
+  ],
+  "xbox_series_s": "NOT_RUN",
+  "xbox_series_x": "NOT_RUN",
+  "windows_desktop": "NOT_RUN",
+  "full_logit_comparison": "NOT_RUN"
+}
