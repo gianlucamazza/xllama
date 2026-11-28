@@ -1010,7 +1010,7 @@ GUI turn, image generation, or device training is active gets **HTTP 503**
 `{"error":"busy"}` for native Ollama generation and embedding routes. The slot covers the
 whole process, including a streamed `/v1/chat/completions` reply (the permit
 stays held until the last SSE event, and is released if the client
-disconnects mid-stream). Native `/api/embed`, `/api/embeddings`,
+disconnects mid-stream). Buffered chat and embedding replies release the session mutex and compute permit once their reply has been prepared, including on a failed request. The connection slot stays occupied until delivery finishes. Native `/api/embed`, `/api/embeddings`,
 and `/api/pull` errors always expose a non-empty string in `error`;
 `/v1/embeddings` exposes an error object with `message` and `type`. One
 exception: while the session **pre-load** is active (right after a model becomes

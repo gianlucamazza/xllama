@@ -79,23 +79,29 @@ inline ApiConnectionGate& process_api_connection_gate() {
     return gate;
 }
 
-enum class ApiChatAdmission { Ready, HubBusy, ServerStopped };
+enum class ApiSessionAdmission { Ready, HubBusy, ServerStopped };
 
-// Check listener identity under the admitted hub lock. A rejected chat owns no
-// model resources by the time the caller writes its buffered error response.
-template <typename IsCurrent>
-ApiChatAdmission check_api_chat_admission(std::unique_lock<std::mutex>& hub_lock,
-                                          ComputeJobAdmission::Handle& permit,
-                                          IsCurrent&& is_current) {
-    if (!hub_lock.owns_lock()) {
-        permit.reset();
-        return ApiChatAdmission::HubBusy;
-    }
-    if (is_current())
-        return ApiChatAdmission::Ready;
+// The JSON payload is owned by the request. A buffered write needs only its connection slot.
+inline void release_api_session(std::unique_lock<std::mutex>& hub_lock,
+                                ComputeJobAdmission::Handle& permit) {
     hub_lock.unlock();
     permit.reset();
-    return ApiChatAdmission::ServerStopped;
+}
+
+// Check listener identity under the admitted hub lock. A rejected request owns no
+// model resources by the time the caller writes its buffered error response.
+template <typename IsCurrent>
+ApiSessionAdmission check_api_session_admission(std::unique_lock<std::mutex>& hub_lock,
+                                                ComputeJobAdmission::Handle& permit,
+                                                IsCurrent&& is_current) {
+    if (!hub_lock.owns_lock()) {
+        permit.reset();
+        return ApiSessionAdmission::HubBusy;
+    }
+    if (is_current())
+        return ApiSessionAdmission::Ready;
+    release_api_session(hub_lock, permit);
+    return ApiSessionAdmission::ServerStopped;
 }
 
 // One compute request's HTTP outcome. A held permit is 200 (caller serves the
